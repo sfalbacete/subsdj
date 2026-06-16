@@ -111,6 +111,8 @@ export class Voice {
       const pParam = node.parameters.get('pulseWidth');
       const sParam = node.parameters.get('spread');
       sParam.value = this.S.spread;
+      const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
+      const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
 
       // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
       fParam.value = (glide > 0 ? startFreq : freq) * ratio;
@@ -130,7 +132,7 @@ export class Voice {
       this.mod.pwmLFOGain.connect(pParam);
 
       node.connect(dest);
-      this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, ratio });
+      this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, fmR: fmRParam, fmI: fmIParam, ratio });
     }
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
@@ -145,6 +147,7 @@ export class Voice {
   setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
   setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
   setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
+  setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
   // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.

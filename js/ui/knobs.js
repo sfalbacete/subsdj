@@ -11,6 +11,8 @@ export const KNOBS = {
   ring:      { min: 0,   max: 1,   def: 0,   unit: '',    t: 'ring' },
   noise:     { min: 0,   max: 1,   def: 0,   unit: '',    t: 'noise' },
   spread:    { min: 0,   max: 1,   def: 0.5, unit: '',    t: 'spread' },
+  fmRatio:   { min: 0.25,max: 12,  def: 1,   unit: '',    t: 'fmRatio' },
+  fmIndex:   { min: 0,   max: 12,  def: 0,   unit: '',    t: 'fmIndex' },
   pwmLfoLvl: { min: 0,   max: 0.45,def: 0,   unit: '',    t: 'pwmLfoLvl' },
   pwmLfoSpd: { min: 0.05,max: 20,  def: 3,   unit: ' Hz', t: 'pwmLfoSpd' },
   ampLfoLvl: { min: 0,   max: 0.6, def: 0,   unit: '',    t: 'ampLfoLvl' },

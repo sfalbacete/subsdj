@@ -8,6 +8,7 @@ export function makeDefaultState() {
     oscA: { wave: 'sawtooth', detune: 0, phase: 0, octaves: 1 },
     oscB: { wave: 'square',   detune: 7, phase: 0, octaves: 1 },
     mix: 0.4, ring: 0, noise: 0, spread: 0.5,   // spread = anchura del supersaw
+    fmRatio: 1, fmIndex: 0,                       // FM 2-op (sobre portadora seno): ratio y profundidad
 
     pulseWidth: 0.5, pwmLfoLvl: 0, pwmLfoSpd: 3,
     amplitude: 0.8,  ampLfoLvl: 0, ampLfoSpd: 5,

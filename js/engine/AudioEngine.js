@@ -246,6 +246,8 @@ class AudioEngine {
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
       case 'noise': this._forVoices(v => v.setNoise(value)); break;
       case 'spread': this._forVoices(v => v.setSpread(value)); break;
+      case 'fmRatio':
+      case 'fmIndex': this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex)); break;
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;
       case 'reso':  this._forVoices(v => v.setReso(value)); break;
       case 'morph': this._forVoices(v => v.setMorph(value)); break;

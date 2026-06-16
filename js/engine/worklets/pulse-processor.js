@@ -24,6 +24,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'detune',    defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'a-rate' },
       { name: 'pulseWidth',defaultValue: 0.5, minValue: 0.01,  maxValue: 0.99,  automationRate: 'a-rate' },
       { name: 'spread',    defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
+      { name: 'fmRatio',   defaultValue: 1,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
+      { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'a-rate' },
     ];
   }
 
@@ -35,6 +37,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     // 7 fases aleatorias e independientes para el supersaw (evita el "peine" de fases alineadas)
     this.phases = new Float32Array(7);
     for (let i = 0; i < 7; i++) this.phases[i] = Math.random();
+    this.modPhase = Math.random();        // fase del modulador FM (2-operadores, phase modulation)
     this.stopped = false;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
@@ -44,7 +47,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     if (!out || out.length === 0) return !this.stopped;
     const ch = out[0], n = ch.length;
     const fA = params.frequency, dA = params.detune, pA = params.pulseWidth, sA = params.spread;
-    const fConst = fA.length === 1, dConst = dA.length === 1, pConst = pA.length === 1;
+    const mA = params.fmRatio, iA = params.fmIndex;
+    const fConst = fA.length === 1, dConst = dA.length === 1, pConst = pA.length === 1, iConst = iA.length === 1;
     const sr = sampleRate, TWO_PI = Math.PI * 2, type = this.type;
 
     if (type === 'supersaw') {
@@ -63,13 +67,19 @@ class PulseProcessor extends AudioWorkletProcessor {
         ch[i] = sum * 0.38;          // normaliza (~1/sqrt(7)) para igualar nivel con una sierra
       }
     } else {
-      let phase = this.phase;
+      let phase = this.phase, modPhase = this.modPhase;
+      const ratio = mA[0];
       for (let i = 0; i < n; i++) {
         const f = (fConst ? fA[0] : fA[i]) * Math.pow(2, (dConst ? dA[0] : dA[i]) / 1200);
         const dt = f / sr;
         let v;
         if (type === 'sine') {
-          v = Math.sin(TWO_PI * phase);
+          // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
+          const index = iConst ? iA[0] : iA[i];
+          const mod = index > 0 ? Math.sin(TWO_PI * modPhase) * index : 0;
+          v = Math.sin(TWO_PI * (phase + mod));
+          modPhase += (f * ratio) / sr;
+          if (modPhase >= 1) modPhase -= Math.floor(modPhase);
         } else if (type === 'triangle') {
           v = 4 * Math.abs(phase - 0.5) - 1;            // armónicos impares suaves (1/n²)
         } else if (type === 'square') {
@@ -84,7 +94,7 @@ class PulseProcessor extends AudioWorkletProcessor {
         ch[i] = v;
         phase += dt; if (phase >= 1) phase -= 1;
       }
-      this.phase = phase;
+      this.phase = phase; this.modPhase = modPhase;
     }
 
     for (let c = 1; c < out.length; c++) out[c].set(ch);
