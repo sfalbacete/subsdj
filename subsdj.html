@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubSDJ · Substractive Synthesizer (WebAudio)</title>
+<style>
+  :root{
+    --bg:#0d1014; --panel:#161b22; --panel2:#1b222c; --edge:#2a3340;
+    --ink:#c9d4e0; --dim:#7d8a99; --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73;
+    --knob:#222b36; --knobhi:#3a4a5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #1a2230, var(--bg));
+    color:var(--ink); font:13px/1.4 "Segoe UI",system-ui,sans-serif;
+    -webkit-user-select:none; user-select:none; padding:14px 14px 0;
+  }
+  h1{font-size:18px;margin:0;letter-spacing:2px;}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0;}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
+  .badge{font-size:11px;color:var(--dim);}
+  #powerInfo{margin-left:auto;font-size:11px;color:var(--hot);}
+  #powerInfo.on{color:var(--accent);}
+  .btn{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;
+    padding:5px 12px;font-size:12px;cursor:pointer;letter-spacing:.5px;}
+  .btn:hover{border-color:var(--accent);color:var(--accent);}
+  .btn:active{transform:translateY(1px);}
+
+  #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
+    border-radius:10px;padding:9px 12px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  #presetBar label{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;}
+  #presetBar select,#presetBar input{background:#0f141a;border:1px solid var(--edge);color:var(--ink);
+    border-radius:6px;padding:6px 8px;font-size:12px;}
+  #presetBar select{min-width:220px;}
+  #presetBar input{width:160px;}
+  #presetMsg{font-size:11px;color:var(--dim);margin-left:auto;}
+
+  .rack{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start;}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
+    border-radius:10px;padding:10px 12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);
+    margin:0 0 10px;border-bottom:1px solid var(--edge);padding-bottom:6px;}
+  .panel.osc h2{color:var(--accent2);}
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;}
+  .ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px;}
+  .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:uppercase;letter-spacing:.5px;}
+  .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
+
+  /* Rotary knob */
+  .knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;
+    background:radial-gradient(circle at 38% 32%,var(--knobhi),var(--knob) 70%);
+    border:1px solid #0a0e12;box-shadow:inset 0 2px 4px rgba(255,255,255,.06),0 3px 6px rgba(0,0,0,.5);}
+  .knob::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid #0c1117;}
+  .knob .ind{position:absolute;left:50%;top:5px;width:2px;height:14px;background:var(--accent);
+    transform-origin:50% 17px;border-radius:1px;box-shadow:0 0 4px var(--accent);}
+  .panel.osc .knob .ind{background:var(--accent2);box-shadow:0 0 4px var(--accent2);}
+
+  /* Sliders (horizontal) */
+  .slider{display:flex;flex-direction:column;gap:4px;width:100%;}
+  .slider .head{display:flex;justify-content:space-between;font-size:10px;}
+  .slider .head .lab{color:var(--dim);text-transform:uppercase;letter-spacing:.5px;}
+  .slider .head .val{color:var(--ink);}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
+    background:#0c1117;outline:none;width:100%;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 0 6px rgba(57,212,163,.6);}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--accent);cursor:pointer;}
+
+  .seg{display:flex;border:1px solid var(--edge);border-radius:6px;overflow:hidden;}
+  .seg button{flex:1;background:#0f141a;border:none;color:var(--dim);padding:5px 0;font-size:11px;cursor:pointer;}
+  .seg button.active{background:var(--accent2);color:#04121a;font-weight:600;}
+  .panel:not(.osc) .seg button.active{background:var(--accent);color:#04140e;}
+  .stepper{display:flex;align-items:center;gap:6px;}
+  .stepper button{width:22px;height:22px;border-radius:5px;border:1px solid var(--edge);background:#0f141a;color:var(--ink);cursor:pointer;font-size:14px;line-height:1;}
+  .stepper .num{min-width:14px;text-align:center;font-size:13px;}
+  .fieldlab{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+  .lfo-grp{border:1px dashed var(--edge);border-radius:8px;padding:8px 6px 6px;margin-top:6px;position:relative;}
+  .lfo-grp .tag{position:absolute;top:-8px;left:8px;background:var(--panel2);padding:0 5px;font-size:9px;color:var(--accent);letter-spacing:1px;}
+
+  /* Keyboard */
+  #kbWrap{margin:14px 0 18px;}
+  #keyboard{position:relative;height:140px;display:flex;background:#05080b;border:1px solid var(--edge);
+    border-radius:8px;padding:6px;overflow:hidden;}
+  .wkey{position:relative;flex:1;background:linear-gradient(180deg,#f4f7fa,#d6dce2);border:1px solid #b6c0c9;
+    border-radius:0 0 5px 5px;margin:0 1px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:6px;color:#5a6573;font-size:9px;}
+  .wkey.on{background:linear-gradient(180deg,var(--accent),#1c9c78);color:#04140e;}
+  .bkey{position:absolute;top:6px;width:5.2%;height:58%;background:linear-gradient(180deg,#2a323c,#0c1014);
+    border:1px solid #000;border-radius:0 0 4px 4px;z-index:3;cursor:pointer;color:#9aa6b3;font-size:8px;
+    display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;}
+  .bkey.on{background:linear-gradient(180deg,var(--accent2),#1675a0);color:#04121a;}
+  .hint{font-size:11px;color:var(--dim);margin-top:8px;}
+  .hint kbd{background:#0f141a;border:1px solid var(--edge);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--ink);}
+</style>
+</head>
+<body>
+<header>
+  <h1>SubSDJ <small>· Substractive Synthesizer</small></h1>
+  <span class="badge">WebAudio · real-time</span>
+  <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
+  <span id="powerInfo">⏻ pulsa una tecla o nota para activar el audio</span>
+</header>
+
+<div id="presetBar">
+  <label>Presets</label>
+  <select id="presetSelect"></select>
+  <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
+  <button class="btn" id="saveBtn">💾 Guardar</button>
+  <button class="btn" id="delBtn">🗑 Borrar</button>
+  <span id="presetMsg"></span>
+</div>
+
+<div class="rack">
+
+  <!-- OSCILADORES -->
+  <div class="panel osc">
+    <h2>Osciladores</h2>
+    <div class="fieldlab">Osc A</div>
+    <div class="seg" id="waveA">
+      <button data-w="sawtooth" class="active">Sierra</button>
+      <button data-w="square">Cuad.</button>
+      <button data-w="sine">Seno</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="phaseA"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="A" data-d="-1">−</button><span class="num" id="octA">1</span><button data-oct="A" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+    </div>
+
+    <div class="fieldlab" style="margin-top:12px">Osc B</div>
+    <div class="seg" id="waveB">
+      <button data-w="sawtooth">Sierra</button>
+      <button data-w="square" class="active">Cuad.</button>
+      <button data-w="sine">Seno</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="phaseB"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="B" data-d="-1">−</button><span class="num" id="octB">1</span><button data-oct="B" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+    </div>
+
+    <div class="row" style="margin-top:12px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="mix"><div class="ind"></div></div><div class="lab">Mix A↔B</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="ring"><div class="ind"></div></div><div class="lab">Ring M.</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="noise"><div class="ind"></div></div><div class="lab">Ruido</div><div class="val"></div></div>
+    </div>
+  </div>
+
+  <!-- MODULACION (pulse/amp/freq + LFOs) -->
+  <div class="panel">
+    <h2>Modulación</h2>
+    <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
+      <input type="range" id="s_pw" min="0.02" max="0.98" step="0.01" value="0.5"></div>
+    <div style="font-size:9px;color:var(--dim);margin:2px 0 10px">(afecta a osc en modo «Cuad.»)</div>
+
+    <div class="slider"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
+      <input type="range" id="s_amp" min="0" max="1" step="0.01" value="0.8"></div>
+    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
+      <input type="range" id="s_freq" min="-1200" max="1200" step="1" value="0"></div>
+    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+  </div>
+
+  <!-- FILTRO -->
+  <div class="panel">
+    <h2>Filtro</h2>
+    <div class="slider"><div class="head"><span class="lab">Cutoff</span><span class="val" id="v_cut"></span></div>
+      <input type="range" id="s_cut" min="0" max="1" step="0.001" value="0.75"></div>
+    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Resonancia</span><span class="val" id="v_res"></span></div>
+      <input type="range" id="s_res" min="0.1" max="24" step="0.1" value="2"></div>
+    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="row" style="margin-top:12px;justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
+    </div>
+  </div>
+
+  <!-- FX -->
+  <div class="panel">
+    <h2>FX</h2>
+    <div class="fieldlab">Distorsión</div>
+    <div class="row" style="justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="dist"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Flanger</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Delay (eco)</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
+    </div>
+  </div>
+
+  <!-- ENVELOPE + MASTER -->
+  <div class="panel">
+    <h2>Envelope ADSR</h2>
+    <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
+      <input type="range" id="s_a" min="0.001" max="2" step="0.001" value="0.01"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
+      <input type="range" id="s_d" min="0.001" max="2" step="0.001" value="0.2"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
+      <input type="range" id="s_s" min="0" max="1" step="0.01" value="0.7"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
+      <input type="range" id="s_r" min="0.001" max="3" step="0.001" value="0.3"></div>
+
+    <h2 style="margin-top:16px">Master</h2>
+    <div class="slider"><div class="head"><span class="lab">Volumen</span><span class="val" id="v_master"></span></div>
+      <input type="range" id="s_master" min="0" max="1" step="0.01" value="0.7"></div>
+  </div>
+
+</div>
+
+<!-- TECLADO -->
+<div id="kbWrap">
+  <div id="keyboard"></div>
+  <div class="hint">
+    Toca con el ratón o el teclado del PC:
+    <kbd>A</kbd><kbd>W</kbd><kbd>S</kbd><kbd>E</kbd><kbd>D</kbd><kbd>F</kbd><kbd>T</kbd><kbd>G</kbd><kbd>Y</kbd><kbd>H</kbd><kbd>U</kbd><kbd>J</kbd><kbd>K</kbd>
+    &nbsp;·&nbsp; cambia octava con <kbd>Z</kbd> / <kbd>X</kbd> &nbsp;·&nbsp; polifónico.
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   SubSDJ — síntesis sustractiva en tiempo real con WebAudio
+   Cadena: voces → amplitud(+LFO) → filtro LP/HP morph(+LFO)
+           → distorsión → flanger → delay → compresor → master
+   ============================================================ */
+
+const Synth = (() => {
+  let ctx = null, ready = false;
+  const voices = new Map();          // noteId -> voice
+  let voiceCount = 0;                // voces sonando (incl. cola de release) para auto-ganancia
+  let noiseBuffer = null;
+
+  // ---- Estado (todos los parámetros del "front panel") ----
+  const S = {
+    oscA:{ wave:"sawtooth", detune:0, phase:0, octaves:1 },
+    oscB:{ wave:"square",   detune:7, phase:0, octaves:1 },
+    mix:0.4, ring:0, noise:0,
+    pulseWidth:0.5,
+    amplitude:0.8, ampLfoLvl:0, ampLfoSpd:5,
+    freqCents:0,   freqLfoLvl:0, freqLfoSpd:5,
+    cutoff:6000,   cutLfoLvl:0,  cutLfoSpd:2,
+    reso:2,        resLfoLvl:0,  resLfoSpd:2,
+    morph:0,                       // 0 = LowPass, 1 = HiPass
+    dist:0, flAmt:0, flSpd:0.3, dlyAmt:0, dlyTime:0.3,
+    a:0.01, d:0.2, s:0.7, r:0.3,
+    master:0.7
+  };
+
+  // Nodos globales (creados en init)
+  let G = {};
+
+  // ---------- utilidades ----------
+  function makeNoiseBuffer(){
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<len;i++) data[i] = Math.random()*2 - 1;
+    return buf;
+  }
+
+  // Onda de pulso con duty arbitrario (serie de Fourier de un tren de pulsos)
+  function makePulseWave(duty){
+    const n = 64;
+    const real = new Float32Array(n+1);
+    const imag = new Float32Array(n+1);
+    for (let k=1;k<=n;k++){
+      imag[k] = (2/(k*Math.PI)) * Math.sin(Math.PI*k*duty);
+    }
+    return ctx.createPeriodicWave(real, imag, {disableNormalization:false});
+  }
+
+  // Curva de distorsión (saturación tipo tanh con drive)
+  function makeDistCurve(drive){
+    const n = 1024, curve = new Float32Array(n);
+    const k = 1 + drive*6;               // 0..~7 => suave..destructivo
+    for (let i=0;i<n;i++){
+      const x = (i/(n-1))*2 - 1;
+      curve[i] = Math.tanh(k*x) / Math.tanh(k);
+    }
+    return curve;
+  }
+
+  function mkLFO(freq, depth){
+    const osc = ctx.createOscillator();
+    osc.type = "sine"; osc.frequency.value = freq;
+    const gain = ctx.createGain(); gain.gain.value = depth;
+    osc.connect(gain); osc.start();
+    return {osc, gain};
+  }
+
+  // ---------- init: construye el grafo global ----------
+  function init(){
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuffer = makeNoiseBuffer();
+
+    G.voicesBus = ctx.createGain();
+    G.voicesBus.gain.value = 1;
+
+    // Etapa amplitud (+ trémolo LFO)
+    G.amp = ctx.createGain(); G.amp.gain.value = S.amplitude;
+
+    // Filtro: dos biquads en paralelo + crossfade (morph LP↔HP)
+    G.lp = ctx.createBiquadFilter(); G.lp.type = "lowpass";
+    G.hp = ctx.createBiquadFilter(); G.hp.type = "highpass";
+    G.lp.frequency.value = G.hp.frequency.value = S.cutoff;
+    G.lp.Q.value = G.hp.Q.value = S.reso;
+    G.lpMix = ctx.createGain(); G.lpMix.gain.value = 1 - S.morph;
+    G.hpMix = ctx.createGain(); G.hpMix.gain.value = S.morph;
+    G.filterOut = ctx.createGain();
+
+    // Distorsión
+    G.distPre = ctx.createGain(); G.distPre.gain.value = 1;
+    G.shaper  = ctx.createWaveShaper(); G.shaper.curve = makeDistCurve(S.dist); G.shaper.oversample = "2x";
+    G.distPost= ctx.createGain(); G.distPost.gain.value = 1;
+
+    // Flanger (delay corto modulado + feedback)
+    G.flDry = ctx.createGain(); G.flDry.gain.value = 1;
+    G.flDelay = ctx.createDelay(0.05); G.flDelay.delayTime.value = 0.003;
+    G.flFb = ctx.createGain(); G.flFb.gain.value = 0.35;
+    G.flWet = ctx.createGain(); G.flWet.gain.value = S.flAmt;
+    G.flOut = ctx.createGain();
+
+    // Delay / eco
+    G.dlDry = ctx.createGain(); G.dlDry.gain.value = 1;
+    G.dlDelay = ctx.createDelay(2.0); G.dlDelay.delayTime.value = S.dlyTime;
+    G.dlFb = ctx.createGain(); G.dlFb.gain.value = 0.35;
+    G.dlWet = ctx.createGain(); G.dlWet.gain.value = S.dlyAmt;
+    G.dlOut = ctx.createGain();
+
+    // Master: limitador de salida (brick-wall suave) -> fader master.
+    // Como el master es <=1 y el limitador acota el pico, la salida no satura por
+    // mucha polifonía que metas. La distorsión sí satura, a propósito, antes de aquí.
+    G.comp = ctx.createDynamicsCompressor();
+    G.comp.threshold.value = -3;   // dB: empieza a limitar cerca del techo
+    G.comp.knee.value = 0;
+    G.comp.ratio.value = 20;       // ratio alto = limitador
+    G.comp.attack.value = 0.002;
+    G.comp.release.value = 0.1;
+    G.master = ctx.createGain(); G.master.gain.value = S.master;
+
+    // --- Conexiones ---
+    G.voicesBus.connect(G.amp);
+
+    G.amp.connect(G.lp); G.lp.connect(G.lpMix); G.lpMix.connect(G.filterOut);
+    G.amp.connect(G.hp); G.hp.connect(G.hpMix); G.hpMix.connect(G.filterOut);
+
+    G.filterOut.connect(G.distPre); G.distPre.connect(G.shaper); G.shaper.connect(G.distPost);
+
+    G.distPost.connect(G.flDry); G.flDry.connect(G.flOut);
+    G.distPost.connect(G.flDelay); G.flDelay.connect(G.flWet); G.flWet.connect(G.flOut);
+    G.flDelay.connect(G.flFb); G.flFb.connect(G.flDelay);
+
+    G.flOut.connect(G.dlDry); G.dlDry.connect(G.dlOut);
+    G.flOut.connect(G.dlDelay); G.dlDelay.connect(G.dlWet); G.dlWet.connect(G.dlOut);
+    G.dlDelay.connect(G.dlFb); G.dlFb.connect(G.dlDelay);
+
+    G.dlOut.connect(G.comp); G.comp.connect(G.master); G.master.connect(ctx.destination);
+
+    // --- LFOs globales ---
+    G.ampLFO = mkLFO(S.ampLfoSpd, S.ampLfoLvl);  G.ampLFO.gain.connect(G.amp.gain);
+    G.cutLFO = mkLFO(S.cutLfoSpd, S.cutLfoLvl);  G.cutLFO.gain.connect(G.lp.frequency); G.cutLFO.gain.connect(G.hp.frequency);
+    G.resLFO = mkLFO(S.resLfoSpd, S.resLfoLvl);  G.resLFO.gain.connect(G.lp.Q); G.resLFO.gain.connect(G.hp.Q);
+    G.flLFO  = mkLFO(S.flSpd, 0.002);            G.flLFO.gain.connect(G.flDelay.delayTime);
+
+    // LFO de frecuencia (vibrato) y offset global de pitch: se conectan a cada osc en noteOn
+    G.freqLFO = mkLFO(S.freqLfoSpd, S.freqLfoLvl);     // depth en cents
+    G.pitchOffset = ctx.createConstantSource();
+    G.pitchOffset.offset.value = S.freqCents;
+    G.pitchOffset.start();
+
+    G.pulseWave = makePulseWave(S.pulseWidth);
+    ready = true;
+  }
+
+  function ensure(){
+    if (!ctx) init();
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  // ---------- VOZ ----------
+  function buildOscGroup(cfg, destGain, freq, t){
+    const list = [];
+    for (let k=0;k<cfg.octaves;k++){
+      const o = ctx.createOscillator();
+      if (cfg.wave === "square"){ o.setPeriodicWave(G.pulseWave); }
+      else { o.type = cfg.wave; }
+      const f = freq * Math.pow(2,k);
+      o.frequency.value = f;
+      o.detune.value = cfg.detune;            // base; las conexiones suman encima
+      G.pitchOffset.connect(o.detune);         // offset global de afinación
+      G.freqLFO.gain.connect(o.detune);        // vibrato
+      o.connect(destGain);
+      // Desfase real: arrancamos con offset temporal de una fracción del periodo
+      const phaseSec = (cfg.phase/360) / f;
+      o.start(t + phaseSec);
+      list.push(o);
+    }
+    // Normaliza el apilado de octavas: 2 octavas no deben doblar el pico.
+    destGain.gain.value = 1 / Math.max(1, list.length);
+    return list;
+  }
+
+  function noteOn(noteId, freq, vel=1){
+    ensure();
+    if (voices.has(noteId)) noteOff(noteId, true);
+    const t = ctx.currentTime;
+
+    const busA = ctx.createGain();   // suma de osc A
+    const busB = ctx.createGain();   // suma de osc B
+    const oscsA = buildOscGroup(S.oscA, busA, freq, t);
+    const oscsB = buildOscGroup(S.oscB, busB, freq, t);
+
+    // Mezcla A↔B
+    const gA = ctx.createGain(); gA.gain.value = (1 - S.mix);
+    const gB = ctx.createGain(); gB.gain.value = S.mix;
+    busA.connect(gA); busB.connect(gB);
+    const normMix = ctx.createGain();
+    gA.connect(normMix); gB.connect(normMix);
+
+    // Ring modulation: A * B  (gain base 0, B conectado a .gain)
+    const ringNode = ctx.createGain(); ringNode.gain.value = 0;
+    busA.connect(ringNode); busB.connect(ringNode.gain);
+
+    // Crossfade normal vs ring
+    const normX = ctx.createGain(); normX.gain.value = 1 - S.ring;
+    const ringX = ctx.createGain(); ringX.gain.value = S.ring;
+    normMix.connect(normX); ringNode.connect(ringX);
+
+    // Ruido
+    const noiseSrc = ctx.createBufferSource();
+    noiseSrc.buffer = noiseBuffer; noiseSrc.loop = true;
+    const noiseGain = ctx.createGain(); noiseGain.gain.value = S.noise;
+    noiseSrc.connect(noiseGain);
+
+    // Suma de la voz -> envolvente ADSR
+    const vGain = ctx.createGain(); vGain.gain.value = 0;
+    normX.connect(vGain); ringX.connect(vGain); noiseGain.connect(vGain);
+    vGain.connect(G.voicesBus);
+    noiseSrc.start(t);
+
+    // ADSR (attack -> decay -> sustain)
+    const peak = vel, sus = S.s * vel;
+    const g = vGain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(0, t);
+    g.linearRampToValueAtTime(peak, t + S.a);
+    g.linearRampToValueAtTime(sus, t + S.a + S.d);
+
+    voices.set(noteId, {oscsA, oscsB, noiseSrc, vGain, busA, busB, gA, gB, normX, ringX, noiseGain});
+    voiceCount++; updateBusGain();
+  }
+
+  function noteOff(noteId, immediate=false){
+    const v = voices.get(noteId);
+    if (!v) return;
+    voices.delete(noteId);
+    const t = ctx.currentTime;
+    const g = v.vGain.gain;
+    const rel = immediate ? 0.01 : S.r;
+    if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(t);
+    else { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); }
+    g.linearRampToValueAtTime(0, t + rel);
+    const stopAt = t + rel + 0.03;
+    const all = v.oscsA.concat(v.oscsB);
+    all.forEach(o => { try{ o.stop(stopAt); }catch(e){} });
+    try{ v.noiseSrc.stop(stopAt); }catch(e){}
+    // limpieza al terminar
+    const last = all[all.length-1] || v.noiseSrc;
+    last.onended = () => {
+      voiceCount = Math.max(0, voiceCount - 1); updateBusGain();
+      [v.busA,v.busB,v.gA,v.gB,v.normX,v.ringX,v.noiseGain,v.vGain].forEach(n=>{try{n.disconnect();}catch(e){}});
+    };
+  }
+
+  function allNotesOff(){ for (const id of [...voices.keys()]) noteOff(id, true); }
+
+  // Aplica a voces activas los parámetros "baratos" (se pueden tocar mientras suena)
+  function applyLive(){
+    for (const v of voices.values()){
+      v.gA.gain.setTargetAtTime(1 - S.mix, ctx.currentTime, 0.02);
+      v.gB.gain.setTargetAtTime(S.mix, ctx.currentTime, 0.02);
+      v.normX.gain.setTargetAtTime(1 - S.ring, ctx.currentTime, 0.02);
+      v.ringX.gain.setTargetAtTime(S.ring, ctx.currentTime, 0.02);
+      v.noiseGain.gain.setTargetAtTime(S.noise, ctx.currentTime, 0.02);
+    }
+  }
+
+  // Auto-ganancia por polifonía: al sumar voces el nivel sube; compensamos con
+  // ~1/sqrt(nº de voces) (equal-power) para que N notas no saturen al limitador.
+  function updateBusGain(){
+    if (!ready) return;
+    const scale = 1 / Math.sqrt(Math.max(1, voiceCount));
+    G.voicesBus.gain.setTargetAtTime(scale, ctx.currentTime, 0.03);
+  }
+
+  // ---------- API de parámetros ----------
+  function set(name, value){
+    S[name] = value;
+    if (!ready) return;
+    const now = ctx.currentTime, smooth = (p,val)=>p.setTargetAtTime(val, now, 0.02);
+    switch(name){
+      case "mix": case "ring": case "noise": applyLive(); break;
+      case "amplitude": smooth(G.amp.gain, value); break;
+      case "ampLfoLvl": smooth(G.ampLFO.gain.gain, value); break;
+      case "ampLfoSpd": smooth(G.ampLFO.osc.frequency, value); break;
+      case "freqCents": smooth(G.pitchOffset.offset, value); break;
+      case "freqLfoLvl": smooth(G.freqLFO.gain.gain, value); break;
+      case "freqLfoSpd": smooth(G.freqLFO.osc.frequency, value); break;
+      case "cutoff": smooth(G.lp.frequency, value); smooth(G.hp.frequency, value); break;
+      case "cutLfoLvl": smooth(G.cutLFO.gain.gain, value); break;
+      case "cutLfoSpd": smooth(G.cutLFO.osc.frequency, value); break;
+      case "reso": smooth(G.lp.Q, value); smooth(G.hp.Q, value); break;
+      case "resLfoLvl": smooth(G.resLFO.gain.gain, value); break;
+      case "resLfoSpd": smooth(G.resLFO.osc.frequency, value); break;
+      case "morph": smooth(G.lpMix.gain, 1-value); smooth(G.hpMix.gain, value); break;
+      case "dist": G.shaper.curve = makeDistCurve(value); smooth(G.distPre.gain, 1+value*1.5); smooth(G.distPost.gain, 1/(1+value)); break;
+      case "flAmt": smooth(G.flWet.gain, value); break;
+      case "flSpd": smooth(G.flLFO.osc.frequency, value); break;
+      case "dlyAmt": smooth(G.dlWet.gain, value); smooth(G.dlFb.gain, value*0.6); break;
+      case "dlyTime": smooth(G.dlDelay.delayTime, value); break;
+      case "master": smooth(G.master.gain, value); break;
+      case "pulseWidth": G.pulseWave = makePulseWave(value); break; // afecta a notas nuevas
+    }
+  }
+  function setOsc(which, key, value){
+    S[which][key] = value;
+    if (ready && key === "wave" && value !== "square") {/* nada, aplica en nueva nota */}
+    if (ready && key === "wave") {/* idem */}
+  }
+
+  return { set, setOsc, noteOn, noteOff, allNotesOff, ensure, S, isReady:()=>ready };
+})();
+
+
+/* ====================== UI ====================== */
+
+// Registro de controles. Cada control se inscribe con {get, set, def}.
+// Sobre esto se construyen Reset, snapshot (guardar) y load (cargar preset).
+const CONTROLS = {};
+function applyDefaults(){ for (const k in CONTROLS) CONTROLS[k].set(CONTROLS[k].def); }
+function snapshot(){ const o={}; for (const k in CONTROLS) o[k] = CONTROLS[k].get(); return o; }
+function loadState(state){
+  Synth.ensure();                                   // arranca el motor (siempre se llama desde un click)
+  Synth.allNotesOff();
+  applyDefaults();                                  // base limpia
+  for (const k in state) if (CONTROLS[k]) CONTROLS[k].set(state[k]);
+}
+
+// --- Knobs rotatorios (arrastre vertical) ---
+const KNOBS = {
+  detuneA:{min:-50,max:50,def:0,unit:" ct",t:"oscA.detune"},
+  phaseA:{min:0,max:360,def:0,unit:"°",t:"oscA.phase"},
+  detuneB:{min:-50,max:50,def:7,unit:" ct",t:"oscB.detune"},
+  phaseB:{min:0,max:360,def:0,unit:"°",t:"oscB.phase"},
+  mix:{min:0,max:1,def:0.4,unit:"",t:"mix"},
+  ring:{min:0,max:1,def:0,unit:"",t:"ring"},
+  noise:{min:0,max:1,def:0,unit:"",t:"noise"},
+  ampLfoLvl:{min:0,max:0.6,def:0,unit:"",t:"ampLfoLvl"},
+  ampLfoSpd:{min:0.05,max:20,def:5,unit:" Hz",t:"ampLfoSpd"},
+  freqLfoLvl:{min:0,max:200,def:0,unit:" ct",t:"freqLfoLvl"},
+  freqLfoSpd:{min:0.05,max:20,def:5,unit:" Hz",t:"freqLfoSpd"},
+  cutLfoLvl:{min:0,max:5000,def:0,unit:" Hz",t:"cutLfoLvl"},
+  cutLfoSpd:{min:0.05,max:20,def:2,unit:" Hz",t:"cutLfoSpd"},
+  resLfoLvl:{min:0,max:15,def:0,unit:"",t:"resLfoLvl"},
+  resLfoSpd:{min:0.05,max:20,def:2,unit:" Hz",t:"resLfoSpd"},
+  morph:{min:0,max:1,def:0,unit:"",t:"morph"},
+  dist:{min:0,max:1,def:0,unit:"",t:"dist"},
+  flAmt:{min:0,max:1,def:0,unit:"",t:"flAmt"},
+  flSpd:{min:0.05,max:8,def:0.3,unit:" Hz",t:"flSpd"},
+  dlyAmt:{min:0,max:0.9,def:0,unit:"",t:"dlyAmt"},
+  dlyTime:{min:0.02,max:1.5,def:0.3,unit:" s",t:"dlyTime"}
+};
+
+function applyTarget(target, value){
+  if (target.includes(".")){
+    const [o,k] = target.split(".");
+    Synth.setOsc(o, k, value);
+  } else {
+    Synth.set(target, value);
+  }
+}
+
+function fmt(v, unit){
+  let s = Math.abs(v) >= 100 ? v.toFixed(0) : (Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2));
+  return s + unit;
+}
+
+document.querySelectorAll(".knob").forEach(el=>{
+  const cfg = KNOBS[el.dataset.knob];
+  const ind = el.querySelector(".ind");
+  const valEl = el.parentElement.querySelector(".val");
+  let value = cfg.def;
+  const render = ()=>{
+    const pos = (value - cfg.min)/(cfg.max - cfg.min);
+    ind.style.transform = `rotate(${-135 + pos*270}deg)`;
+    if (valEl) valEl.textContent = fmt(value, cfg.unit);
+  };
+  const setVal = v => { value = Math.min(cfg.max, Math.max(cfg.min, v)); render(); applyTarget(cfg.t, value); };
+  render(); applyTarget(cfg.t, value);
+
+  let startY=0, startV=0, dragging=false;
+  el.addEventListener("pointerdown", e=>{
+    Synth.ensure(); dragging=true; startY=e.clientY; startV=value;
+    el.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  el.addEventListener("pointermove", e=>{
+    if(!dragging) return;
+    const dy = startY - e.clientY;
+    const span = cfg.max - cfg.min;
+    const fine = e.shiftKey ? 0.25 : 1;
+    setVal(startV + dy * (span/200) * fine);
+  });
+  const end = e=>{ dragging=false; try{el.releasePointerCapture(e.pointerId);}catch(_){} };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+  el.addEventListener("dblclick", ()=> setVal(cfg.def));
+  CONTROLS[el.dataset.knob] = { get:()=>value, set:v=>setVal(v), def:cfg.def };
+});
+
+// --- Sliders ---
+function bindSlider(id, valId, target, mapFn, fmtFn){
+  const el = document.getElementById(id), v = document.getElementById(valId);
+  const def = el.value;                 // valor por defecto = atributo value del HTML
+  const update = ()=>{
+    const raw = parseFloat(el.value);
+    const mapped = mapFn ? mapFn(raw) : raw;
+    applyTarget(target, mapped);
+    v.textContent = fmtFn ? fmtFn(mapped) : mapped;
+  };
+  el.addEventListener("input", update);
+  el.addEventListener("pointerdown", ()=>Synth.ensure());
+  update();
+  CONTROLS[target] = { get:()=>parseFloat(el.value), set:v=>{ el.value = v; update(); }, def:parseFloat(def) };
+}
+const logCut = x => 20 * Math.pow(1000, x);                 // 20 Hz .. 20 kHz
+bindSlider("s_pw","v_pw","pulseWidth", null, v=> (v*100).toFixed(0)+"%");
+bindSlider("s_amp","v_amp","amplitude", null, v=> v.toFixed(2));
+bindSlider("s_freq","v_freq","freqCents", null, v=> v.toFixed(0)+" ct");
+bindSlider("s_cut","v_cut","cutoff", logCut, v=> v>=1000? (v/1000).toFixed(2)+" kHz" : v.toFixed(0)+" Hz");
+bindSlider("s_res","v_res","reso", null, v=> v.toFixed(1));
+bindSlider("s_a","v_a","a", null, v=> (v*1000).toFixed(0)+" ms");
+bindSlider("s_d","v_d","d", null, v=> (v*1000).toFixed(0)+" ms");
+bindSlider("s_s","v_s","s", null, v=> v.toFixed(2));
+bindSlider("s_r","v_r","r", null, v=> (v*1000).toFixed(0)+" ms");
+bindSlider("s_master","v_master","master", null, v=> v.toFixed(2));
+
+// --- Selectores de onda ---
+function bindWave(segId, which){
+  const seg = document.getElementById(segId);
+  const defBtn = seg.querySelector("button.active");   // onda por defecto
+  const select = b=>{
+    seg.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    Synth.setOsc(which, "wave", b.dataset.w);
+  };
+  seg.querySelectorAll("button").forEach(b=> b.addEventListener("click", ()=>select(b)));
+  CONTROLS["wave"+which.slice(3)] = {
+    get:()=> seg.querySelector("button.active").dataset.w,
+    set:w=>{ const b = seg.querySelector('button[data-w="'+w+'"]'); if (b) select(b); },
+    def: defBtn.dataset.w
+  };
+}
+bindWave("waveA","oscA"); bindWave("waveB","oscB");
+
+// --- Steppers de octavas ---
+function setOctave(which, n){
+  n = Math.min(4, Math.max(1, n));
+  Synth.setOsc(which, "octaves", n);
+  document.getElementById("oct"+which.slice(3)).textContent = n;
+}
+document.querySelectorAll(".stepper button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const which = "osc"+b.dataset.oct;
+    setOctave(which, Synth.S[which].octaves + parseInt(b.dataset.d,10));
+  });
+});
+["A","B"].forEach(s=>{
+  CONTROLS["octaves"+s] = { get:()=>Synth.S["osc"+s].octaves, set:n=>setOctave("osc"+s, n), def:1 };
+});
+
+// --- Botón Reset: vuelve a defaults (= cargar un estado vacío) ---
+document.getElementById("resetBtn").addEventListener("click", ()=> loadState({}));
+
+/* ====================== BANCO DE PRESETS ====================== */
+// Presets de fábrica: sólo declaran lo que se desvía del default; el resto
+// se rellena con applyDefaults() al cargar. Los valores son a nivel de CONTROL
+// (p.ej. cutoff es la posición 0..1 del slider, no los Hz).
+const FACTORY = {
+  "Init (default)": {},
+
+  "Bajo grueso": { waveA:"sawtooth", waveB:"sawtooth", detuneA:-8, detuneB:12,
+    mix:0.5, cutoff:0.47, reso:5, dist:0.15, a:0.005, d:0.25, s:0.35, r:0.18, master:0.78 },
+
+  "Lead brillante": { waveA:"sawtooth", waveB:"square", detuneB:10, mix:0.45,
+    cutoff:0.77, reso:3, freqLfoLvl:12, freqLfoSpd:5.5, dlyAmt:0.25, dlyTime:0.28,
+    a:0.01, d:0.2, s:0.8, r:0.25 },
+
+  "Pad cálido": { waveA:"sawtooth", waveB:"sawtooth", detuneA:-10, detuneB:14, octavesB:2,
+    mix:0.5, cutoff:0.59, reso:2, cutLfoLvl:1500, cutLfoSpd:0.2,
+    a:0.8, d:0.5, s:0.8, r:2.0, dlyAmt:0.3, dlyTime:0.5, master:0.62 },
+
+  "Pluck": { waveA:"square", waveB:"sawtooth", pulseWidth:0.35, mix:0.4,
+    cutoff:0.667, reso:6, a:0.002, d:0.18, s:0.0, r:0.12, dlyAmt:0.3, dlyTime:0.33 },
+
+  "Campana (Ring)": { waveA:"sine", waveB:"sine", ring:0.8, detuneB:40, octavesB:2,
+    cutoff:0.8, reso:1, a:0.002, d:1.4, s:0.0, r:0.9, dlyAmt:0.25, dlyTime:0.35 },
+
+  "Ácido 303": { waveA:"sawtooth", waveB:"sawtooth", mix:0.15, cutoff:0.42, reso:20,
+    cutLfoLvl:1200, cutLfoSpd:4, dist:0.35, a:0.003, d:0.2, s:0.2, r:0.1 },
+
+  "Wobble dub": { waveA:"sawtooth", waveB:"square", mix:0.4, cutoff:0.39, reso:12,
+    cutLfoLvl:2500, cutLfoSpd:5, dist:0.3, a:0.005, d:0.3, s:0.8, r:0.2 },
+
+  "Órgano trémolo": { waveA:"square", waveB:"square", octavesB:2,
+    ampLfoLvl:0.35, ampLfoSpd:6, cutoff:0.7, reso:1, a:0.01, d:0.1, s:0.9, r:0.2 },
+
+  "Hoover rave": { waveA:"sawtooth", waveB:"square", pulseWidth:0.4, detuneA:-15, detuneB:15,
+    octavesB:2, mix:0.5, freqLfoLvl:25, freqLfoSpd:6, cutoff:0.667, reso:4,
+    flAmt:0.4, flSpd:0.5, dist:0.2, a:0.02, d:0.3, s:0.7, r:0.3 },
+
+  "Drone sci-fi": { noise:0.4, waveA:"sine", waveB:"sawtooth", ring:0.4, detuneB:25,
+    cutoff:0.49, reso:8, cutLfoLvl:2000, cutLfoSpd:0.15, resLfoLvl:6, resLfoSpd:0.1,
+    a:1.2, d:0.5, s:0.9, r:2.5, dlyAmt:0.4, dlyTime:0.7, master:0.6 }
+};
+
+const LS_KEY = "subsdj.presets.v1";
+function loadUser(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(e){ return {}; } }
+function saveUser(o){ try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); }catch(e){} }
+
+const selEl = document.getElementById("presetSelect");
+const msgEl = document.getElementById("presetMsg");
+function msg(t){ msgEl.textContent = t; }
+
+function refreshPresetList(selectValue){
+  selEl.innerHTML = "";
+  const fg = document.createElement("optgroup"); fg.label = "Fábrica";
+  for (const name in FACTORY){ const o = document.createElement("option"); o.value = "f:"+name; o.textContent = name; fg.appendChild(o); }
+  selEl.appendChild(fg);
+  const user = loadUser(), names = Object.keys(user).sort();
+  if (names.length){
+    const ug = document.createElement("optgroup"); ug.label = "Míos";
+    names.forEach(name=>{ const o = document.createElement("option"); o.value = "u:"+name; o.textContent = name; ug.appendChild(o); });
+    selEl.appendChild(ug);
+  }
+  if (selectValue) selEl.value = selectValue;
+}
+function presetByValue(v){
+  if (!v) return null;
+  const kind = v.slice(0,1), name = v.slice(2);
+  return kind === "f" ? FACTORY[name] : loadUser()[name];
+}
+
+selEl.addEventListener("change", ()=>{
+  const data = presetByValue(selEl.value);
+  if (data){ loadState(data); msg("Cargado: "+selEl.selectedOptions[0].textContent); }
+});
+document.getElementById("saveBtn").addEventListener("click", ()=>{
+  const inp = document.getElementById("presetName");
+  const name = (inp.value || "").trim();
+  if (!name){ inp.focus(); msg("Escribe un nombre para guardar."); return; }
+  const user = loadUser(); user[name] = snapshot(); saveUser(user);
+  refreshPresetList("u:"+name); inp.value = "";
+  msg("Guardado «"+name+"» en este navegador.");
+});
+document.getElementById("delBtn").addEventListener("click", ()=>{
+  const v = selEl.value;
+  if (v.slice(0,1) !== "u"){ msg("Solo puedes borrar presets tuyos."); return; }
+  const name = v.slice(2), user = loadUser();
+  delete user[name]; saveUser(user); refreshPresetList();
+  msg("Borrado «"+name+"».");
+});
+refreshPresetList("f:Init (default)");
+
+/* ====================== TECLADO ====================== */
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+let baseOctave = 4;
+const kb = document.getElementById("keyboard");
+// dos octavas + Do final
+const WHITE = [];   // {midi}
+const BLACK = [];   // {midi, leftIndex}
+function midiToFreq(m){ return 440 * Math.pow(2, (m-69)/12); }
+
+function buildKeyboard(){
+  kb.innerHTML = ""; WHITE.length = 0; BLACK.length = 0;
+  const startMidi = (baseOctave+1)*12;       // C de baseOctave (MIDI: C4=60 => (4+1)*12)
+  const semis = [0,2,4,5,7,9,11];            // teclas blancas dentro de la octava
+  const blackAfter = {0:1, 2:3, 5:6, 7:8, 9:10}; // semitono negro tras blanca i
+  let whiteCount = 0;
+  for (let oct=0; oct<2; oct++){
+    for (let i=0;i<7;i++){
+      const midi = startMidi + oct*12 + semis[i];
+      WHITE.push({midi, idx:whiteCount});
+      if (blackAfter[semis[i]] !== undefined){
+        BLACK.push({midi: startMidi + oct*12 + blackAfter[semis[i]], after:whiteCount});
+      }
+      whiteCount++;
+    }
+  }
+  WHITE.push({midi:startMidi+24, idx:whiteCount}); whiteCount++; // Do final
+
+  const wWidth = 100/whiteCount;
+  WHITE.forEach(w=>{
+    const d = document.createElement("div");
+    d.className = "wkey"; d.dataset.midi = w.midi;
+    d.textContent = NOTE_NAMES[w.midi%12] + (Math.floor(w.midi/12)-1);
+    kb.appendChild(d);
+    bindKeyEl(d, w.midi);
+  });
+  BLACK.forEach(b=>{
+    const d = document.createElement("div");
+    d.className = "bkey"; d.dataset.midi = b.midi;
+    d.style.left = `calc(${(b.after+1)*wWidth}% - 2.6%)`;
+    kb.appendChild(d);
+    bindKeyEl(d, b.midi);
+  });
+}
+
+const active = new Map();   // midi -> element (para resaltar)
+function press(midi){
+  if (active.has(midi)) return;
+  Synth.noteOn("m"+midi, midiToFreq(midi));
+  const el = kb.querySelector(`[data-midi="${midi}"]`);
+  if (el) el.classList.add("on");
+  active.set(midi, el || null);     // se registra aunque la tecla no esté dibujada
+  document.getElementById("powerInfo").classList.add("on");
+  document.getElementById("powerInfo").textContent = "⏻ audio activo";
+}
+function release(midi){
+  if (!active.has(midi)) return;
+  Synth.noteOff("m"+midi);
+  const el = active.get(midi);
+  if (el) el.classList.remove("on");
+  active.delete(midi);
+}
+function bindKeyEl(el, midi){
+  el.addEventListener("pointerdown", e=>{ Synth.ensure(); press(midi); el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointerup", ()=> release(midi));
+  el.addEventListener("pointerleave", e=>{ if(e.buttons) release(midi); });
+}
+buildKeyboard();
+
+// --- Teclado del PC ---
+const KEYMAP = { // tecla -> semitono relativo al C de baseOctave
+  "a":0,"w":1,"s":2,"e":3,"d":4,"f":5,"t":6,"g":7,"y":8,"h":9,"u":10,"j":11,
+  "k":12,"o":13,"l":14,"p":15
+};
+const held = new Set();
+window.addEventListener("keydown", e=>{
+  const k = e.key.toLowerCase();
+  if (k === "z" || k === "x"){
+    // al cambiar de octava soltamos lo que esté sonando para evitar notas colgadas
+    Synth.allNotesOff(); held.clear(); active.forEach(el=>el&&el.classList.remove("on")); active.clear();
+    baseOctave = k === "z" ? Math.max(0, baseOctave-1) : Math.min(7, baseOctave+1);
+    buildKeyboard(); return;
+  }
+  if (!(k in KEYMAP) || held.has(k) || e.repeat) return;
+  held.add(k);
+  Synth.ensure();
+  press((baseOctave+1)*12 + KEYMAP[k]);
+});
+window.addEventListener("keyup", e=>{
+  const k = e.key.toLowerCase();
+  if (!(k in KEYMAP)) return;
+  held.delete(k);
+  release((baseOctave+1)*12 + KEYMAP[k]);
+});
+// pánico al perder foco
+window.addEventListener("blur", ()=>{ held.clear(); Synth.allNotesOff(); active.forEach((el)=>el.classList.remove("on")); active.clear(); });
+</script>
+</body>
+</html>

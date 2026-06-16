@@ -1,0 +1,202 @@
+/* =====================================================================
+   SubSDJ · Voice — una nota polifónica.
+   Cadena por voz:
+     osc A/B (worklet) + ruido --mezcla/ring--> preFilter
+        --> filtro LP/HP morph (cutoff = base + envFiltro + LFO) --> VCA(ADSR) --> bus
+   Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
+   ===================================================================== */
+
+export class Voice {
+  constructor(ctx, S, mod, { freq, vel = 1, startFreq = null }) {
+    this.ctx = ctx;
+    this.mod = mod;
+    this.S = S;
+    this.disposed = false;
+    // Look-ahead: programamos un pelín en el futuro para que el ataque arranque SIEMPRE
+    // desde 0 limpio. Sin esto, si construir la voz tarda más que el attack (p.ej. un
+    // supersaw con 14 nodos), la rampa caería "en el pasado" y la ganancia saltaría de
+    // golpe, exponiendo el oscilador a media onda -> click. Por eso clicaba "a veces".
+    const t = ctx.currentTime + 0.005;
+    const glide = (startFreq && S.glide > 0) ? S.glide : 0;
+
+    // --- Osciladores (worklet) ---
+    this.oscs = [];                       // {node, detune, pw, ratio}
+    const busA = ctx.createGain(); busA.gain.value = 1 / Math.max(1, S.oscA.octaves);
+    const busB = ctx.createGain(); busB.gain.value = 1 / Math.max(1, S.oscB.octaves);
+    this._buildOscGroup(S.oscA, busA, freq, startFreq, glide, t);
+    this._buildOscGroup(S.oscB, busB, freq, startFreq, glide, t);
+
+    // --- Mezcla A<->B ---
+    const gA = ctx.createGain(); gA.gain.value = 1 - S.mix;
+    const gB = ctx.createGain(); gB.gain.value = S.mix;
+    busA.connect(gA); busB.connect(gB);
+    const normMix = ctx.createGain();
+    gA.connect(normMix); gB.connect(normMix);
+
+    // --- Ring mod: A * B ---
+    const ring = ctx.createGain(); ring.gain.value = 0;
+    busA.connect(ring); busB.connect(ring.gain);
+
+    // --- Crossfade normal <-> ring ---
+    const normX = ctx.createGain(); normX.gain.value = 1 - S.ring;
+    const ringX = ctx.createGain(); ringX.gain.value = S.ring;
+    normMix.connect(normX); ring.connect(ringX);
+
+    // --- Ruido ---
+    const noiseSrc = ctx.createBufferSource();
+    noiseSrc.buffer = mod.noiseBuffer; noiseSrc.loop = true;
+    const noiseGain = ctx.createGain(); noiseGain.gain.value = S.noise;
+    noiseSrc.connect(noiseGain);
+
+    // --- Suma pre-filtro ---
+    const preFilter = ctx.createGain();
+    normX.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
+
+    // --- Filtro por voz: LP + HP en paralelo con crossfade (morph) ---
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
+    lp.frequency.value = hp.frequency.value = S.cutoff;
+    lp.Q.value = hp.Q.value = S.reso;
+    const lpMix = ctx.createGain(); lpMix.gain.value = 1 - S.morph;
+    const hpMix = ctx.createGain(); hpMix.gain.value = S.morph;
+    const filterOut = ctx.createGain();
+    preFilter.connect(lp); lp.connect(lpMix); lpMix.connect(filterOut);
+    preFilter.connect(hp); hp.connect(hpMix); hpMix.connect(filterOut);
+
+    // LFOs globales -> cutoff / Q de este filtro
+    mod.cutLFOGain.connect(lp.frequency); mod.cutLFOGain.connect(hp.frequency);
+    mod.resLFOGain.connect(lp.Q);         mod.resLFOGain.connect(hp.Q);
+
+    // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff
+    const fenv = ctx.createConstantSource(); fenv.offset.value = 0;
+    const fenvGain = ctx.createGain(); fenvGain.gain.value = S.filterEnvAmt;
+    fenv.connect(fenvGain); fenvGain.connect(lp.frequency); fenvGain.connect(hp.frequency);
+    fenv.start(t);
+
+    // --- VCA (envolvente de amplitud) + colocación estéreo ---
+    const vca = ctx.createGain(); vca.gain.value = 0;
+    const panner = ctx.createStereoPanner();
+    // posición base por altura de nota (±2 octavas desde C4 => ±1), escalada por Width
+    this.basePan = Math.max(-1, Math.min(1, Math.log2(freq / 261.63) / 2));
+    panner.pan.value = this.basePan * S.width;
+    filterOut.connect(vca); vca.connect(panner); panner.connect(mod.voicesBus);
+    noiseSrc.start(t);
+
+    // --- Programación de envolventes ADSR (amp + filtro comparten A/D/S/R) ---
+    const peak = vel, sus = S.s * vel;
+    const g = vca.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(0, t);
+    g.linearRampToValueAtTime(peak, t + S.a);
+    g.linearRampToValueAtTime(sus,  t + S.a + S.d);
+
+    const fo = fenv.offset;
+    fo.cancelScheduledValues(t); fo.setValueAtTime(0, t);
+    fo.linearRampToValueAtTime(1,   t + S.a);
+    fo.linearRampToValueAtTime(S.s, t + S.a + S.d);
+
+    // guardar refs para updates en vivo y limpieza
+    Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc,
+      lp, hp, lpMix, hpMix, fenv, fenvGain, vca, panner });
+  }
+
+  _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
+    for (let k = 0; k < cfg.octaves; k++) {
+      const ratio = Math.pow(2, k);
+      const node = new AudioWorkletNode(this.ctx, 'pulse-processor', {
+        numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
+        processorOptions: { type: cfg.wave, phase: (cfg.phase || 0) / 360 },
+      });
+      const fParam = node.parameters.get('frequency');
+      const dParam = node.parameters.get('detune');
+      const pParam = node.parameters.get('pulseWidth');
+      const sParam = node.parameters.get('spread');
+      sParam.value = this.S.spread;
+
+      // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
+      fParam.value = (glide > 0 ? startFreq : freq) * ratio;
+      // glide (portamento): rampa exponencial desde la nota anterior
+      if (glide > 0) {
+        fParam.setValueAtTime(startFreq * ratio, t);
+        fParam.exponentialRampToValueAtTime(freq * ratio, t + glide);
+      } else {
+        fParam.setValueAtTime(freq * ratio, t);
+      }
+      dParam.value = cfg.detune;
+      pParam.value = this._clampPW(this.S.pulseWidth);
+
+      // modulación global
+      this.mod.pitchOffset.connect(dParam);
+      this.mod.freqLFOGain.connect(dParam);
+      this.mod.pwmLFOGain.connect(pParam);
+
+      node.connect(dest);
+      this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, ratio });
+    }
+  }
+  _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
+
+  // ---------- updates en vivo (los llama el engine al girar knobs) ----------
+  setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
+  setRing(r)   { const tc = this.ctx.currentTime; this.normX.gain.setTargetAtTime(1 - r, tc, 0.02); this.ringX.gain.setTargetAtTime(r, tc, 0.02); }
+  setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n, this.ctx.currentTime, 0.02); }
+  setCutoff(hz){ const tc = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(hz, tc, 0.02); this.hp.frequency.setTargetAtTime(hz, tc, 0.02); }
+  setReso(q)   { const tc = this.ctx.currentTime; this.lp.Q.setTargetAtTime(q, tc, 0.02); this.hp.Q.setTargetAtTime(q, tc, 0.02); }
+  setMorph(m)  { const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
+  setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
+  setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
+  setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
+  setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
+
+  // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.
+  glideTo(freq, time) {
+    const t = this.ctx.currentTime;
+    this.oscs.forEach(o => {
+      const target = Math.max(1, freq * o.ratio), p = o.freq;
+      if (time > 0) {
+        if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+        else { p.cancelScheduledValues(t); p.setValueAtTime(Math.max(1, p.value), t); }
+        p.exponentialRampToValueAtTime(target, t + time);
+      } else {
+        p.cancelScheduledValues(t); p.setValueAtTime(target, t);
+      }
+    });
+  }
+
+  // ---------- release ----------
+  release(rel) {
+    rel = Math.max(0.006, rel);
+    const t = this.ctx.currentTime, tau = rel / 4;
+    // Release EXPONENCIAL: setTargetAtTime arranca SIEMPRE de forma continua desde el valor
+    // actual de la ganancia, sin cancelAndHoldAtTime (cuyo combo con rampa lineal puede dar
+    // un micro-salto al soltar = click, sobre todo en sonidos sostenidos y fuertes).
+    this.vca.gain.cancelScheduledValues(t);
+    this.vca.gain.setTargetAtTime(0, t, tau);
+    this.fenv.offset.cancelScheduledValues(t);
+    this.fenv.offset.setTargetAtTime(0, t, tau);
+    return t + rel * 2;     // a ~8·tau la cola está sobre -70 dB: liberar los nodos ahí es inaudible
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    const m = this.mod;
+    // desconectar la modulación global de los params de esta voz y parar worklets
+    this.oscs.forEach(o => {
+      try { m.pitchOffset.disconnect(o.detune); } catch (e) {}
+      try { m.freqLFOGain.disconnect(o.detune); } catch (e) {}
+      try { m.pwmLFOGain.disconnect(o.pw); } catch (e) {}
+      try { o.node.port.postMessage('stop'); } catch (e) {}
+      try { o.node.disconnect(); } catch (e) {}
+    });
+    try { m.cutLFOGain.disconnect(this.lp.frequency); } catch (e) {}
+    try { m.cutLFOGain.disconnect(this.hp.frequency); } catch (e) {}
+    try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}
+    try { m.resLFOGain.disconnect(this.hp.Q); } catch (e) {}
+    [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain,
+     this.lp, this.hp, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.panner].forEach(n => {
+      try { n.disconnect(); } catch (e) {}
+    });
+    try { this.noiseSrc.stop(); } catch (e) {}
+    try { this.fenv.stop(); } catch (e) {}
+  }
+}

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubSDJ · Substractive Synthesizer (WebAudio)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1>SubSDJ <small>· Substractive Synthesizer</small></h1>
+  <span class="badge">WebAudio · AudioWorklet</span>
+  <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
+  <span id="powerInfo">⏻ cargando audio…</span>
+</header>
+
+<div id="presetBar">
+  <label>Presets</label>
+  <button class="btn nav" id="prevBtn" title="Preset anterior">‹</button>
+  <select id="presetSelect"></select>
+  <button class="btn nav" id="nextBtn" title="Preset siguiente">›</button>
+  <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
+  <button class="btn" id="saveBtn">💾 Guardar</button>
+  <button class="btn" id="delBtn">🗑 Borrar</button>
+  <span id="presetMsg"></span>
+</div>
+
+<div class="rack">
+
+  <!-- OSCILADORES -->
+  <div class="panel osc">
+    <h2>Osciladores</h2>
+    <div class="fieldlab">Osc A</div>
+    <div class="seg waves" id="waveA">
+      <button data-w="sawtooth" class="active">Sierra</button>
+      <button data-w="square">Cuad.</button>
+      <button data-w="sine">Seno</button>
+      <button data-w="triangle">Tri</button>
+      <button data-w="supersaw">Súper</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="phaseA"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="A" data-d="-1">−</button><span class="num" id="octA">1</span><button data-oct="A" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+    </div>
+
+    <div class="fieldlab" style="margin-top:12px">Osc B</div>
+    <div class="seg waves" id="waveB">
+      <button data-w="sawtooth">Sierra</button>
+      <button data-w="square" class="active">Cuad.</button>
+      <button data-w="sine">Seno</button>
+      <button data-w="triangle">Tri</button>
+      <button data-w="supersaw">Súper</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="phaseB"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="B" data-d="-1">−</button><span class="num" id="octB">1</span><button data-oct="B" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+    </div>
+
+    <div class="row" style="margin-top:12px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="mix"><div class="ind"></div></div><div class="lab">Mix A↔B</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="ring"><div class="ind"></div></div><div class="lab">Ring M.</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="noise"><div class="ind"></div></div><div class="lab">Ruido</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="spread"><div class="ind"></div></div><div class="lab">Spread</div><div class="val"></div></div>
+    </div>
+    <div class="note">Spread → anchura del modo «Súper» (supersaw)</div>
+  </div>
+
+  <!-- MODULACION -->
+  <div class="panel">
+    <h2>Modulación</h2>
+    <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
+      <input type="range" id="s_pw" min="0.02" max="0.98" step="0.01" value="0.5"></div>
+    <div class="note">(afecta a osc en modo «Cuad.»)</div>
+    <div class="lfo-grp"><span class="tag">LFO PWM</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
+      <input type="range" id="s_amp" min="0" max="1" step="0.01" value="0.8"></div>
+    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
+      <input type="range" id="s_freq" min="-1200" max="1200" step="1" value="0"></div>
+    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+  </div>
+
+  <!-- FILTRO -->
+  <div class="panel">
+    <h2>Filtro (por voz)</h2>
+    <div class="slider"><div class="head"><span class="lab">Cutoff</span><span class="val" id="v_cut"></span></div>
+      <input type="range" id="s_cut" min="0" max="1" step="0.001" value="0.826"></div>
+    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Resonancia</span><span class="val" id="v_res"></span></div>
+      <input type="range" id="s_res" min="0.1" max="24" step="0.1" value="2"></div>
+    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+
+    <div class="row" style="margin-top:12px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Env Amt</div><div class="val"></div></div>
+    </div>
+  </div>
+
+  <!-- FX -->
+  <div class="panel">
+    <h2>FX</h2>
+    <div class="fieldlab">Distorsión</div>
+    <div class="row" style="justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="dist"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Flanger</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Delay (eco)</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
+    </div>
+  </div>
+
+  <!-- ESPACIO / ESTÉREO -->
+  <div class="panel">
+    <h2>Espacio</h2>
+    <div class="row" style="justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="width"><div class="ind"></div></div><div class="lab">Width</div><div class="val"></div></div>
+    </div>
+    <div class="note">Width → reparte las voces por el estéreo (mono a 0)</div>
+    <div class="fieldlab" style="margin-top:12px">Reverb</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="reverbMix"><div class="ind"></div></div><div class="lab">Mix</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="reverbSize"><div class="ind"></div></div><div class="lab">Size</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Delay = ping-pong (estéreo)</div>
+    <div class="note">Amount/Time en el panel FX; ahora los ecos rebotan L↔R</div>
+  </div>
+
+  <!-- ENVELOPE + MASTER -->
+  <div class="panel">
+    <h2>Envelope ADSR</h2>
+    <div class="fieldlab">Modo de voz</div>
+    <div class="seg" id="modeSel">
+      <button data-mode="poly" class="active">Poli</button>
+      <button data-mode="mono">Mono (legato)</button>
+    </div>
+    <canvas id="adsrCanvas" style="margin-top:10px"></canvas>
+    <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
+      <input type="range" id="s_a" min="0.001" max="2" step="0.001" value="0.01"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
+      <input type="range" id="s_d" min="0.001" max="2" step="0.001" value="0.2"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
+      <input type="range" id="s_s" min="0" max="1" step="0.01" value="0.7"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
+      <input type="range" id="s_r" min="0.001" max="3" step="0.001" value="0.3"></div>
+
+    <div class="row" style="margin-top:12px;justify-content:space-around;align-items:center">
+      <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
+      <div class="slider" style="flex:1"><div class="head"><span class="lab">Master</span><span class="val" id="v_master"></span></div>
+        <input type="range" id="s_master" min="0" max="1" step="0.01" value="0.7"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- VISUALIZADORES -->
+<div id="viz">
+  <div class="viz-panel"><h2>Osciloscopio</h2><canvas id="scope"></canvas></div>
+  <div class="viz-panel"><h2>Espectro</h2><canvas id="spectrum"></canvas></div>
+</div>
+
+<!-- TECLADO -->
+<div id="kbWrap">
+  <div id="keyboard"></div>
+  <div class="hint">
+    Teclado del PC (estilo tracker, 2 filas):
+    fila baja <kbd>Z</kbd><kbd>S</kbd><kbd>X</kbd><kbd>D</kbd><kbd>C</kbd><kbd>V</kbd><kbd>G</kbd><kbd>B</kbd><kbd>H</kbd><kbd>N</kbd><kbd>J</kbd><kbd>M</kbd>
+    &nbsp;·&nbsp; fila alta <kbd>Q</kbd><kbd>2</kbd><kbd>W</kbd><kbd>3</kbd><kbd>E</kbd><kbd>R</kbd><kbd>5</kbd><kbd>T</kbd><kbd>6</kbd><kbd>Y</kbd><kbd>7</kbd><kbd>U</kbd>
+    <br>octava con <kbd>RePág</kbd> / <kbd>AvPág</kbd> &nbsp;·&nbsp; también con el ratón &nbsp;·&nbsp; polifónico.
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
