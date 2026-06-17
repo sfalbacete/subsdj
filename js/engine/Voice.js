@@ -169,14 +169,20 @@ export class Voice {
   release(rel) {
     rel = Math.max(0.006, rel);
     const t = this.ctx.currentTime, tau = rel / 4;
-    // Release EXPONENCIAL: setTargetAtTime arranca SIEMPRE de forma continua desde el valor
-    // actual de la ganancia, sin cancelAndHoldAtTime (cuyo combo con rampa lineal puede dar
-    // un micro-salto al soltar = click, sobre todo en sonidos sostenidos y fuertes).
-    this.vca.gain.cancelScheduledValues(t);
-    this.vca.gain.setTargetAtTime(0, t, tau);
-    this.fenv.offset.cancelScheduledValues(t);
-    this.fenv.offset.setTargetAtTime(0, t, tau);
+    // Release EXPONENCIAL anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
+    // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
+    // rampa-destino y el parámetro se queda clavado en el ÚLTIMO evento (el pico del attack)
+    // -> la ganancia saltaría de golpe a peak = re-disparo audible al soltar. Anclar primero
+    // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
+    this._releaseParam(this.vca.gain, t, tau);
+    this._releaseParam(this.fenv.offset, t, tau);
     return t + rel * 2;     // a ~8·tau la cola está sobre -70 dB: liberar los nodos ahí es inaudible
+  }
+  _releaseParam(param, t, tau) {
+    const cur = param.value;            // refleja el valor de la rampa en curso
+    param.cancelScheduledValues(t);
+    param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
+    param.setTargetAtTime(0, t, tau);
   }
 
   dispose() {
