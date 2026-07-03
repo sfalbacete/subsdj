@@ -30,3 +30,11 @@ engine.init()
     const info = document.getElementById('powerInfo');
     if (info) info.textContent = '⚠ error al iniciar el audio (mira la consola)';
   });
+
+// 3) Self-test (?selftest=1): renderiza los presets de fábrica en un
+//    OfflineAudioContext y valida la salida. No necesita el audio real.
+if (new URLSearchParams(location.search).has('selftest')) {
+  import('./selftest.js')
+    .then(m => m.runSelfTest())
+    .catch(err => console.error('SubSDJ selftest:', err));
+}

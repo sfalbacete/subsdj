@@ -32,7 +32,7 @@
     <h2>Osciladores</h2>
     <div class="fieldlab">Osc A</div>
     <div class="seg waves" id="waveA">
-      <button data-w="sawtooth" class="active">Sierra</button>
+      <button data-w="sawtooth">Sierra</button>
       <button data-w="square">Cuad.</button>
       <button data-w="sine">Seno</button>
       <button data-w="triangle">Tri</button>
@@ -47,7 +47,7 @@
     <div class="fieldlab" style="margin-top:12px">Osc B</div>
     <div class="seg waves" id="waveB">
       <button data-w="sawtooth">Sierra</button>
-      <button data-w="square" class="active">Cuad.</button>
+      <button data-w="square">Cuad.</button>
       <button data-w="sine">Seno</button>
       <button data-w="triangle">Tri</button>
       <button data-w="supersaw">Súper</button>
@@ -78,7 +78,7 @@
   <div class="panel">
     <h2>Modulación</h2>
     <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
-      <input type="range" id="s_pw" min="0.02" max="0.98" step="0.01" value="0.5"></div>
+      <input type="range" id="s_pw"></div>
     <div class="note">(afecta a osc en modo «Cuad.»)</div>
     <div class="lfo-grp"><span class="tag">LFO PWM</span><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
@@ -86,14 +86,14 @@
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
-      <input type="range" id="s_amp" min="0" max="1" step="0.01" value="0.8"></div>
+      <input type="range" id="s_amp"></div>
     <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
-      <input type="range" id="s_freq" min="-1200" max="1200" step="1" value="0"></div>
+      <input type="range" id="s_freq"></div>
     <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
@@ -104,14 +104,14 @@
   <div class="panel">
     <h2>Filtro (por voz)</h2>
     <div class="slider"><div class="head"><span class="lab">Cutoff</span><span class="val" id="v_cut"></span></div>
-      <input type="range" id="s_cut" min="0" max="1" step="0.001" value="0.826"></div>
+      <input type="range" id="s_cut"></div>
     <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Resonancia</span><span class="val" id="v_res"></span></div>
-      <input type="range" id="s_res" min="0.1" max="24" step="0.1" value="2"></div>
+      <input type="range" id="s_res"></div>
     <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
@@ -163,23 +163,23 @@
     <h2>Envelope ADSR</h2>
     <div class="fieldlab">Modo de voz</div>
     <div class="seg" id="modeSel">
-      <button data-mode="poly" class="active">Poli</button>
+      <button data-mode="poly">Poli</button>
       <button data-mode="mono">Mono (legato)</button>
     </div>
     <canvas id="adsrCanvas" style="margin-top:10px"></canvas>
     <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
-      <input type="range" id="s_a" min="0.001" max="2" step="0.001" value="0.01"></div>
+      <input type="range" id="s_a"></div>
     <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
-      <input type="range" id="s_d" min="0.001" max="2" step="0.001" value="0.2"></div>
+      <input type="range" id="s_d"></div>
     <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
-      <input type="range" id="s_s" min="0" max="1" step="0.01" value="0.7"></div>
+      <input type="range" id="s_s"></div>
     <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
-      <input type="range" id="s_r" min="0.001" max="3" step="0.001" value="0.3"></div>
+      <input type="range" id="s_r"></div>
 
     <div class="row" style="margin-top:12px;justify-content:space-around;align-items:center">
       <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
       <div class="slider" style="flex:1"><div class="head"><span class="lab">Master</span><span class="val" id="v_master"></span></div>
-        <input type="range" id="s_master" min="0" max="1" step="0.01" value="0.7"></div>
+        <input type="range" id="s_master"></div>
     </div>
   </div>
 

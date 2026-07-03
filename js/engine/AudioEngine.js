@@ -25,8 +25,11 @@ function makeIR(ctx, seconds, decay) {
   }
   return buf;
 }
-function makeDistCurve(drive) {
-  const n = 1024, c = new Float32Array(n), k = 1 + drive * 6;
+// Curva de saturación FIJA (tanh). Antes se regeneraba con cada gesto del knob
+// Drive: un Float32Array(1024) por evento y el swap de curva podía hacer click.
+// Ahora el drive vive en la ganancia de entrada (distPre) y la normalización (distPost).
+function makeDistCurve() {
+  const n = 1024, c = new Float32Array(n), k = 4;
   for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
   return c;
 }
@@ -37,21 +40,26 @@ function mkLFO(ctx, freq, depth) {
   return { osc, depth: gain };
 }
 
-class AudioEngine {
+const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
+const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés de la más vieja
+
+export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.ready = false;
     this.S = makeDefaultState();
-    this.voices = new Map();      // id -> Voice
+    this.voices = new Map();      // id -> Voice (voces PULSADAS)
+    this.tails = new Set();       // voces sueltas sonando su release
     this.voiceCount = 0;
     this.lastFreq = null;         // para glide
     this.heldStack = [];          // notas pulsadas en modo mono (cima = sonando)
     this.monoVoice = null;        // voz única en modo mono
   }
 
-  async init() {
+  // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
+  async init(providedCtx = null) {
     if (this.ctx) return;
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
     this.noiseBuffer = makeNoise(ctx);
 
@@ -67,8 +75,8 @@ class AudioEngine {
     // pico >1 que le entre, así que tenerlo siempre en serie saturaba con politonía.
     // Ahora sólo se mezcla la parte "wet" según el drive; a 0 pasa todo seco.
     this.distDry = ctx.createGain(); this.distDry.gain.value = 1 - S.dist;
-    this.distPre = ctx.createGain(); this.distPre.gain.value = 1 + S.dist * 2;
-    this.shaper = ctx.createWaveShaper(); this.shaper.curve = makeDistCurve(S.dist); this.shaper.oversample = '2x';
+    this.distPre = ctx.createGain(); this.distPre.gain.value = 1 + S.dist * 6;
+    this.shaper = ctx.createWaveShaper(); this.shaper.curve = makeDistCurve(); this.shaper.oversample = '2x';
     this.distPost = ctx.createGain(); this.distPost.gain.value = 1 / (1 + S.dist);
     this.distWet = ctx.createGain(); this.distWet.gain.value = S.dist;
     this.distOut = ctx.createGain();
@@ -92,9 +100,14 @@ class AudioEngine {
     this.dlWet = ctx.createGain(); this.dlWet.gain.value = S.dlyAmt;
     this.dlOut = ctx.createGain();
 
-    // Reverb por convolución (IR generada), dry/wet
-    this.convolver = ctx.createConvolver();
-    this.convolver.buffer = makeIR(ctx, S.reverbSize, 2.5);
+    // Reverb por convolución (IR generada), dry/wet. DOS convolvers en A/B:
+    // la IR nueva entra por el que está apagado y se cruza en ~50 ms, sin
+    // cortar en seco la cola de la anterior (antes: swap de buffer = corte).
+    this.convA = ctx.createConvolver(); this.convA.buffer = makeIR(ctx, S.reverbSize, 2.5);
+    this.convB = ctx.createConvolver();
+    this.revXA = ctx.createGain(); this.revXA.gain.value = 1;
+    this.revXB = ctx.createGain(); this.revXB.gain.value = 0;
+    this._revFront = 'A';
     this.revDry = ctx.createGain();
     this.revWet = ctx.createGain(); this.revWet.gain.value = S.reverbMix;
     this.revOut = ctx.createGain();
@@ -121,9 +134,12 @@ class AudioEngine {
     this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dlyR);             // realimentación cruzada L->R
     this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dlyL);             // realimentación cruzada R->L
     this.ppMerge.connect(this.dlWet); this.dlWet.connect(this.dlOut);
-    // Reverb
+    // Reverb (convB no recibe entrada hasta el primer cambio de Size)
     this.dlOut.connect(this.revDry); this.revDry.connect(this.revOut);
-    this.dlOut.connect(this.convolver); this.convolver.connect(this.revWet); this.revWet.connect(this.revOut);
+    this.dlOut.connect(this.convA);
+    this.convA.connect(this.revXA); this.revXA.connect(this.revWet);
+    this.convB.connect(this.revXB); this.revXB.connect(this.revWet);
+    this.revWet.connect(this.revOut);
     // Salida
     this.revOut.connect(this.comp); this.comp.connect(this.master);
     this.master.connect(this.analyser); this.analyser.connect(ctx.destination);
@@ -157,6 +173,10 @@ class AudioEngine {
     if (this.S.mode === 'mono') return this._monoOn(id, freq, vel);
     const existing = this.voices.get(id);
     if (existing) { if (existing._timer) clearTimeout(existing._timer); this._dispose(existing); this.voices.delete(id); this.voiceCount = Math.max(0, this.voiceCount - 1); }
+    if (this.voiceCount >= MAX_POLY) {                     // robo de voz: la más antigua
+      const oldest = this.voices.keys().next().value;      // Map conserva orden de inserción
+      if (oldest !== undefined) this._releaseVoice(oldest, 0.02);
+    }
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq });
     this.voices.set(id, v);
     this.lastFreq = freq;
@@ -200,9 +220,7 @@ class AudioEngine {
     const v = this.monoVoice; if (!v) return;
     this.voices.delete('mono'); this.monoVoice = null;
     this.voiceCount = Math.max(0, this.voiceCount - 1); this._updateBusGain();
-    const end = v.release(rel);
-    const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
-    v._timer = setTimeout(() => this._dispose(v), ms);
+    this._scheduleTail(v, rel);
   }
   _killMono() {
     const v = this.monoVoice; if (!v) return;
@@ -216,9 +234,24 @@ class AudioEngine {
     this.voices.delete(id);
     this.voiceCount = Math.max(0, this.voiceCount - 1);   // deja de contar como "pulsada" al soltar
     this._updateBusGain();
+    this._scheduleTail(v, rel);
+  }
+  // La voz soltada pasa a ser una "cola": suena su release y se libera al acabar.
+  // MAX_TAILS acota el coste de acumular colas largas tocando rápido.
+  _scheduleTail(v, rel) {
+    this.tails.add(v);
     const end = v.release(rel);
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
-    v._timer = setTimeout(() => this._dispose(v), ms);
+    v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); }, ms);
+    if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
+  }
+  _fadeKill(v) {            // fundido exprés (~40 ms) y liberar: entre 12 colas es inaudible
+    if (!v) return;
+    this.tails.delete(v);
+    if (v._timer) clearTimeout(v._timer);
+    if (v.disposed) return;
+    v.fadeOut(0.01);
+    v._timer = setTimeout(() => this._dispose(v), 60);
   }
   _dispose(v) {             // libera nodos tras la cola de release (NO toca el contador)
     if (v.disposed) return;
@@ -268,8 +301,7 @@ class AudioEngine {
       case 'resLfoSpd': smooth(this.resLFO.osc.frequency, value); break;
 
       case 'dist':
-        this.shaper.curve = makeDistCurve(value);
-        smooth(this.distPre.gain, 1 + value * 2);
+        smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
         smooth(this.distPost.gain, 1 / (1 + value));
         smooth(this.distDry.gain, 1 - value);   // crossfade: a 0 = todo seco (limpio, sin recorte)
         smooth(this.distWet.gain, value);
@@ -282,12 +314,28 @@ class AudioEngine {
       case 'reverbMix': smooth(this.revWet.gain, value); break;
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
         clearTimeout(this._revTimer);
-        this._revTimer = setTimeout(() => { try { this.convolver.buffer = makeIR(this.ctx, value, 2.5); } catch (e) {} }, 120);
+        this._revTimer = setTimeout(() => this._swapIR(value), 120);
         break;
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       // a, d, s, r, glide: se leen al crear cada voz (sin nodo en vivo)
     }
+  }
+
+  // Nueva IR por el convolver trasero + crossfade; el delantero se desconecta
+  // al acabar el fundido (un convolver con entrada consume CPU aunque su salida
+  // esté a 0). connect() duplicado sobre el mismo par es inocuo (lo ignora).
+  _swapIR(seconds) {
+    const t = this.ctx.currentTime;
+    const front = this._revFront === 'A' ? { c: this.convA, g: this.revXA } : { c: this.convB, g: this.revXB };
+    const back  = this._revFront === 'A' ? { c: this.convB, g: this.revXB } : { c: this.convA, g: this.revXA };
+    try { back.c.buffer = makeIR(this.ctx, seconds, 2.5); } catch (e) { return; }
+    this.dlOut.connect(back.c);
+    back.g.gain.setTargetAtTime(1, t, 0.05);
+    front.g.gain.setTargetAtTime(0, t, 0.05);
+    clearTimeout(this._revOffTimer);
+    this._revOffTimer = setTimeout(() => { try { this.dlOut.disconnect(front.c); } catch (e) {} }, 400);
+    this._revFront = this._revFront === 'A' ? 'B' : 'A';
   }
 
   getAnalyser() { return this.analyser; }

@@ -185,6 +185,13 @@ export class Voice {
     param.setTargetAtTime(0, t, tau);
   }
 
+  // Corte rápido sin click (robo de voz / recorte de colas): re-rampa el VCA a cero.
+  fadeOut(tau = 0.01) {
+    const t = this.ctx.currentTime;
+    this._releaseParam(this.vca.gain, t, tau);
+    this._releaseParam(this.fenv.offset, t, tau);
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
