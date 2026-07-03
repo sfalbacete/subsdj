@@ -57,9 +57,12 @@ export class Voice {
     normX.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
 
     // --- Filtro por voz: LP + HP en paralelo con crossfade (morph) ---
+    // keytrack: el cutoff sigue la altura de la nota (0 = fijo, 1 = 1:1 con el tono)
+    this.noteFreq = freq;
+    this.ktMul = S.keytrack ? Math.pow(freq / 261.63, S.keytrack) : 1;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
-    lp.frequency.value = hp.frequency.value = S.cutoff;
+    lp.frequency.value = hp.frequency.value = Math.min(20000, S.cutoff * this.ktMul);
     lp.Q.value = hp.Q.value = S.reso;
     const lpMix = ctx.createGain(); lpMix.gain.value = 1 - S.morph;
     const hpMix = ctx.createGain(); hpMix.gain.value = S.morph;
@@ -105,6 +108,7 @@ export class Voice {
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc,
       lp, hp, lpMix, hpMix, fenv, fenvGain, vca, panner });
+    if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
   }
 
   _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
@@ -152,12 +156,14 @@ export class Voice {
   ensurePitch() { if (this._connPitch || this.disposed) return; this._connPitch = true; this.oscs.forEach(o => this.mod.pitchOffset.connect(o.detune)); }
   ensureVib()   { if (this._connVib   || this.disposed) return; this._connVib   = true; this.oscs.forEach(o => this.mod.freqLFOGain.connect(o.detune)); }
   ensurePwm()   { if (this._connPwm   || this.disposed) return; this._connPwm   = true; this.oscs.forEach(o => this.mod.pwmLFOGain.connect(o.pw)); }
+  ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.mod.panLFOGain.connect(this.panner.pan); }
 
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
   setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
   setRing(r)   { const tc = this.ctx.currentTime; this.normX.gain.setTargetAtTime(1 - r, tc, 0.02); this.ringX.gain.setTargetAtTime(r, tc, 0.02); }
   setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n, this.ctx.currentTime, 0.02); }
-  setCutoff(hz){ const tc = this.ctx.currentTime; this.lp.frequency.setTargetAtTime(hz, tc, 0.02); this.hp.frequency.setTargetAtTime(hz, tc, 0.02); }
+  setCutoff(hz){ const tc = this.ctx.currentTime, v = Math.min(20000, hz * this.ktMul); this.lp.frequency.setTargetAtTime(v, tc, 0.02); this.hp.frequency.setTargetAtTime(v, tc, 0.02); }
+  setKeytrack(kt, cutoffHz) { this.ktMul = kt ? Math.pow(this.noteFreq / 261.63, kt) : 1; this.setCutoff(cutoffHz); }
   setReso(q)   { const tc = this.ctx.currentTime; this.lp.Q.setTargetAtTime(q, tc, 0.02); this.hp.Q.setTargetAtTime(q, tc, 0.02); }
   setMorph(m)  { const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
   setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
@@ -223,6 +229,7 @@ export class Voice {
       try { o.node.port.postMessage('stop'); } catch (e) {}
       try { o.node.disconnect(); } catch (e) {}
     });
+    try { m.panLFOGain.disconnect(this.panner.pan); } catch (e) {}
     try { m.cutLFOGain.disconnect(this.lp.frequency); } catch (e) {}
     try { m.cutLFOGain.disconnect(this.hp.frequency); } catch (e) {}
     try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}

@@ -38,23 +38,29 @@ export const PARAMS = {
   pulseWidth: { def: 0.5, min: 0.02, max: 0.98, step: 0.01, fmt: v => (v * 100).toFixed(0) + '%' },
   pwmLfoLvl:  { def: 0, min: 0, max: 0.45 },
   pwmLfoSpd:  { def: 3, min: 0.05, max: 20, unit: ' Hz' },
+  pwmLfoShape:{ def: 'sine' },
   amplitude:  { def: 0.8, min: 0, max: 1, step: 0.01, fmt: twoDec },
   ampLfoLvl:  { def: 0, min: 0, max: 0.6 },
   ampLfoSpd:  { def: 5, min: 0.05, max: 20, unit: ' Hz' },
+  ampLfoShape:{ def: 'sine' },
   freqCents:  { def: 0, min: -1200, max: 1200, step: 1, fmt: v => v.toFixed(0) + ' ct' },
   freqLfoLvl: { def: 0, min: 0, max: 200, unit: ' ct' },
   freqLfoSpd: { def: 5, min: 0.05, max: 20, unit: ' Hz' },
+  freqLfoShape:{ def: 'sine' },
 
   // --- Filtro (por voz) ---
   cutoff:    { def: 6000, min: 20, max: 20000, log: true,
                fmt: v => v >= 1000 ? (v / 1000).toFixed(2) + ' kHz' : v.toFixed(0) + ' Hz' },
   cutLfoLvl: { def: 0, min: 0, max: 5000, unit: ' Hz' },
   cutLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
+  cutLfoShape:{ def: 'sine' },
   reso:      { def: 2, min: 0.1, max: 24, step: 0.1, fmt: v => v.toFixed(1) },
   resLfoLvl: { def: 0, min: 0, max: 15 },
   resLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
+  resLfoShape:{ def: 'sine' },
   morph:        { def: 0, min: 0, max: 1 },
   filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz' },
+  keytrack:     { def: 0, min: 0, max: 1 },       // el cutoff sigue la altura de la nota (1 = 1:1)
   fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
   fa: { def: 0.01, min: 0.001, max: 2, unit: ' s' },
   fd: { def: 0.2,  min: 0.001, max: 2, unit: ' s' },
@@ -65,11 +71,17 @@ export const PARAMS = {
   dist:    { def: 0, min: 0, max: 1 },
   flAmt:   { def: 0, min: 0, max: 1 },
   flSpd:   { def: 0.3, min: 0.05, max: 8, unit: ' Hz' },
+  chAmt:   { def: 0, min: 0, max: 1 },              // chorus/ensemble (mezcla wet)
+  chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   dlyAmt:  { def: 0, min: 0, max: 0.9 },
   dlyTime: { def: 0.3, min: 0.02, max: 1.5, unit: ' s' },
+  dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)
+  bpm:     { def: 120, min: 40, max: 220, unit: ' bpm' },
 
   // --- Espacio ---
   width:      { def: 0, min: 0, max: 1 },
+  panLfoLvl:  { def: 0, min: 0, max: 1 },           // autopan por voz
+  panLfoSpd:  { def: 0.4, min: 0.05, max: 8, unit: ' Hz' },
   reverbMix:  { def: 0, min: 0, max: 0.6 },
   reverbSize: { def: 1.8, min: 0.2, max: 4, unit: ' s' },
 

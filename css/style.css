@@ -73,6 +73,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-ra
 .fieldlab{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
 .lfo-grp{border:1px dashed var(--edge);border-radius:8px;padding:8px 6px 6px;margin-top:6px;position:relative;}
 .lfo-grp .tag{position:absolute;top:-8px;left:8px;background:var(--panel2);padding:0 5px;font-size:9px;color:var(--accent);letter-spacing:1px;}
+.lfoShape{position:absolute;top:-9px;right:8px;background:var(--panel2);border:1px solid var(--edge);
+  border-radius:4px;color:var(--accent2);font-size:9px;padding:1px 6px;cursor:pointer;letter-spacing:1px;line-height:1.2;}
+.lfoShape:hover{border-color:var(--accent2);}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}
 
 /* Visualizadores */

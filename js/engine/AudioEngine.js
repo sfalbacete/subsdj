@@ -88,12 +88,22 @@ export class AudioEngine {
     this.flWet = ctx.createGain(); this.flWet.gain.value = S.flAmt;
     this.flOut = ctx.createGain();
 
+    // Chorus/ensemble estéreo: dos líneas cortas moduladas por LFOs a distinta
+    // velocidad (descorrela L/R), sin feedback. A 0 es transparente (solo dry).
+    this.chDry = ctx.createGain();
+    this.chSend = ctx.createGain(); this.chSend.channelCount = 1; this.chSend.channelCountMode = 'explicit';
+    this.chD1 = ctx.createDelay(0.06); this.chD1.delayTime.value = 0.020;
+    this.chD2 = ctx.createDelay(0.06); this.chD2.delayTime.value = 0.028;
+    this.chMerge = ctx.createChannelMerger(2);
+    this.chWet = ctx.createGain(); this.chWet.gain.value = S.chAmt;
+    this.chOut = ctx.createGain();
+
     // Delay ping-pong (estéreo): los ecos rebotan L<->R
     this.dlDry = ctx.createGain();
     this.ppSend = ctx.createGain();                 // suma a mono el envío al ping-pong
     this.ppSend.channelCount = 1; this.ppSend.channelCountMode = 'explicit';
-    this.dlyL = ctx.createDelay(2.0); this.dlyL.delayTime.value = S.dlyTime;
-    this.dlyR = ctx.createDelay(2.0); this.dlyR.delayTime.value = S.dlyTime;
+    this.dlyL = ctx.createDelay(2.0); this.dlyL.delayTime.value = this._effDelay();
+    this.dlyR = ctx.createDelay(2.0); this.dlyR.delayTime.value = this._effDelay();
     this.ppFbL = ctx.createGain(); this.ppFbR = ctx.createGain();
     this.ppFbL.gain.value = this.ppFbR.gain.value = Math.min(0.8, S.dlyAmt * 0.85);
     this.ppMerge = ctx.createChannelMerger(2);
@@ -126,9 +136,15 @@ export class AudioEngine {
     this.distOut.connect(this.flDry); this.flDry.connect(this.flOut);
     this.distOut.connect(this.flDelay); this.flDelay.connect(this.flWet); this.flWet.connect(this.flOut);
     this.flDelay.connect(this.flFb); this.flFb.connect(this.flDelay);
+    // Chorus (entre flanger y delay)
+    this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
+    this.flOut.connect(this.chSend);
+    this.chSend.connect(this.chD1); this.chSend.connect(this.chD2);
+    this.chD1.connect(this.chMerge, 0, 0); this.chD2.connect(this.chMerge, 0, 1);
+    this.chMerge.connect(this.chWet); this.chWet.connect(this.chOut);
     // Delay ping-pong
-    this.flOut.connect(this.dlDry); this.dlDry.connect(this.dlOut);          // seco (conserva el estéreo de las voces)
-    this.flOut.connect(this.ppSend); this.ppSend.connect(this.dlyL);          // envío mono
+    this.chOut.connect(this.dlDry); this.dlDry.connect(this.dlOut);          // seco (conserva el estéreo de las voces)
+    this.chOut.connect(this.ppSend); this.ppSend.connect(this.dlyL);          // envío mono
     this.dlyL.connect(this.ppMerge, 0, 0);                                    // dlyL -> canal izquierdo
     this.dlyR.connect(this.ppMerge, 0, 1);                                    // dlyR -> canal derecho
     this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dlyR);             // realimentación cruzada L->R
@@ -151,6 +167,13 @@ export class AudioEngine {
     this.freqLFO = mkLFO(ctx, S.freqLfoSpd, S.freqLfoLvl);
     this.pwmLFO = mkLFO(ctx, S.pwmLfoSpd, S.pwmLfoLvl);
     this.flLFO = mkLFO(ctx, S.flSpd, 0.002); this.flLFO.depth.connect(this.flDelay.delayTime);
+    this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
+    this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
+    this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
+    // formas de onda de los LFOs (el estado puede traerlas de un preset)
+    this.ampLFO.osc.type = S.ampLfoShape;   this.freqLFO.osc.type = S.freqLfoShape;
+    this.pwmLFO.osc.type = S.pwmLfoShape;   this.cutLFO.osc.type = S.cutLfoShape;
+    this.resLFO.osc.type = S.resLfoShape;
 
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
 
@@ -161,6 +184,7 @@ export class AudioEngine {
       pitchOffset: this.pitchOffset,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
+      panLFOGain: this.panLFO.depth,
       stats: this.modStats,
     };
 
@@ -289,6 +313,7 @@ export class AudioEngine {
       case 'reso':  this._forVoices(v => v.setReso(value)); break;
       case 'morph': this._forVoices(v => v.setMorph(value)); break;
       case 'filterEnvAmt': this._forVoices(v => v.setFilterEnvAmt(value)); break;
+      case 'keytrack': this._forVoices(v => v.setKeytrack(value, this.S.cutoff)); break;
       case 'pulseWidth':   this._forVoices(v => v.setPulseWidth(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
@@ -304,6 +329,15 @@ export class AudioEngine {
       case 'cutLfoSpd': smooth(this.cutLFO.osc.frequency, value); break;
       case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); break;
       case 'resLfoSpd': smooth(this.resLFO.osc.frequency, value); break;
+      case 'panLfoLvl': smooth(this.panLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePan()); break;
+      case 'panLfoSpd': smooth(this.panLFO.osc.frequency, value); break;
+
+      // formas de onda de los LFOs (osciladores nativos: cambio instantáneo)
+      case 'ampLfoShape':  this.ampLFO.osc.type = value; break;
+      case 'freqLfoShape': this.freqLFO.osc.type = value; break;
+      case 'pwmLfoShape':  this.pwmLFO.osc.type = value; break;
+      case 'cutLfoShape':  this.cutLFO.osc.type = value; break;
+      case 'resLfoShape':  this.resLFO.osc.type = value; break;
 
       case 'dist':
         smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
@@ -313,8 +347,12 @@ export class AudioEngine {
         break;
       case 'flAmt': smooth(this.flWet.gain, value); break;
       case 'flSpd': smooth(this.flLFO.osc.frequency, value); break;
+      case 'chAmt': smooth(this.chWet.gain, value); break;
+      case 'chSpd': smooth(this.chLFO1.osc.frequency, value); smooth(this.chLFO2.osc.frequency, value * 1.17); break;
       case 'dlyAmt': { const fb = Math.min(0.8, value * 0.85); smooth(this.dlWet.gain, value); smooth(this.ppFbL.gain, fb); smooth(this.ppFbR.gain, fb); break; }
-      case 'dlyTime': smooth(this.dlyL.delayTime, value); smooth(this.dlyR.delayTime, value); break;
+      case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
+      case 'dlySync':
+      case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
       case 'width': this._forVoices(v => v.setWidth(value)); break;
       case 'reverbMix': smooth(this.revWet.gain, value); break;
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
@@ -341,6 +379,12 @@ export class AudioEngine {
     clearTimeout(this._revOffTimer);
     this._revOffTimer = setTimeout(() => { try { this.dlOut.disconnect(front.c); } catch (e) {} }, 400);
     this._revFront = this._revFront === 'A' ? 'B' : 'A';
+  }
+
+  // Tiempo efectivo del delay: libre (knob Time) o división musical del BPM
+  _effDelay() {
+    const div = { '1/8': 0.5, '1/8.': 0.75, '1/4': 1, '1/4.': 1.5, '1/2': 2 }[this.S.dlySync];
+    return div ? Math.min(1.5, (60 / this.S.bpm) * div) : this.S.dlyTime;
   }
 
   // Pitch bend MIDI (cents). Va por fuera de CONTROLS/presets: se SUMA al

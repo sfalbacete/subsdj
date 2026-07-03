@@ -82,21 +82,21 @@
     <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
       <input type="range" id="s_pw"></div>
     <div class="note">(afecta a osc en modo «Cuad.»)</div>
-    <div class="lfo-grp"><span class="tag">LFO PWM</span><div class="row" style="justify-content:space-around">
+    <div class="lfo-grp"><span class="tag">LFO PWM</span><button class="lfoShape" data-shape="pwmLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
       <input type="range" id="s_amp"></div>
-    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><div class="row" style="justify-content:space-around">
+    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><button class="lfoShape" data-shape="ampLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
       <input type="range" id="s_freq"></div>
-    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><div class="row" style="justify-content:space-around">
+    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><button class="lfoShape" data-shape="freqLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
@@ -107,14 +107,14 @@
     <h2>Filtro (por voz)</h2>
     <div class="slider"><div class="head"><span class="lab">Cutoff</span><span class="val" id="v_cut"></span></div>
       <input type="range" id="s_cut"></div>
-    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+    <div class="lfo-grp"><span class="tag">LFO</span><button class="lfoShape" data-shape="cutLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
 
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Resonancia</span><span class="val" id="v_res"></span></div>
       <input type="range" id="s_res"></div>
-    <div class="lfo-grp"><span class="tag">LFO</span><div class="row" style="justify-content:space-around">
+    <div class="lfo-grp"><span class="tag">LFO</span><button class="lfoShape" data-shape="resLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
@@ -122,6 +122,7 @@
     <div class="row" style="margin-top:12px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Env Amt</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="keytrack"><div class="ind"></div></div><div class="lab">Keytrack</div><div class="val"></div></div>
     </div>
 
     <div class="fieldlab" style="margin-top:12px">Envolvente del filtro</div>
@@ -150,11 +151,26 @@
       <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
+    <div class="fieldlab" style="margin-top:12px">Chorus / Ensemble</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="chAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="chSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div>
     <div class="fieldlab" style="margin-top:12px">Delay (eco)</div>
     <div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="bpm"><div class="ind"></div></div><div class="lab">BPM</div><div class="val"></div></div>
     </div>
+    <div class="seg waves" id="dlySyncSel" style="margin-top:8px">
+      <button data-sync="libre">Libre</button>
+      <button data-sync="1/8">⅛</button>
+      <button data-sync="1/8.">⅛·</button>
+      <button data-sync="1/4">¼</button>
+      <button data-sync="1/4.">¼·</button>
+      <button data-sync="1/2">½</button>
+    </div>
+    <div class="note">Sincado al BPM el knob Time se ignora</div>
   </div>
 
   <!-- ESPACIO / ESTÉREO -->
@@ -164,6 +180,11 @@
       <div class="ctl"><div class="knob" data-knob="width"><div class="ind"></div></div><div class="lab">Width</div><div class="val"></div></div>
     </div>
     <div class="note">Width → reparte las voces por el estéreo (mono a 0)</div>
+    <div class="fieldlab" style="margin-top:12px">Autopan (LFO → pan)</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="panLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div>
     <div class="fieldlab" style="margin-top:12px">Reverb</div>
     <div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="reverbMix"><div class="ind"></div></div><div class="lab">Mix</div><div class="val"></div></div>

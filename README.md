@@ -87,7 +87,10 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    pitch bend, sustain, mod wheel, CC74/71); envolvente de filtro con tiempos
    propios (toggle «= Amp / Propia», compatible con los presets antiguos);
    pitch envelope por nota (Amount/Decay) + categoría de presets «Percusión».
-4. **Sonido** — chorus/ensemble; formas de LFO + tempo sync; mini matriz de modulación.
+4. **Sonido** ✔ *(hecha 2026-07-03)* — chorus/ensemble estéreo; forma de onda por LFO
+   (botón sin/tri/saw/sqr en cada grupo); delay sincable a BPM (Libre/⅛/⅛·/¼/¼·/½);
+   keytrack→cutoff; autopan (LFO→pan). En lugar de una matriz genérica se añadieron
+   las rutas que faltaban — una matriz fuente→destino queda como opción futura.
 5. **Utilidad** — grabador WAV; export/import de presets; arpegiador.
 
 Aparcado a propósito (no implementar salvo petición): la generación *estática*

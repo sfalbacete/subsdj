@@ -65,6 +65,9 @@ export const FACTORY = {
       width: 0.6, reverbMix: 0.35, reverbSize: 3.5, master: 0.55 },
     'Coro (choir)': { waveA: 'supersaw', spread: 0.4, waveB: 'sine', mix: 0.4, cutoff: 1450,
       a: 0.7, d: 0.5, s: 0.85, r: 2.0, width: 0.6, reverbMix: 0.4, reverbSize: 3, master: 0.55 },
+    'Strings ensemble': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 9, mix: 0.5,
+      cutoff: 2000, chAmt: 0.7, chSpd: 0.5, a: 0.4, d: 0.4, s: 0.85, r: 1.2,
+      width: 0.4, reverbMix: 0.25, master: 0.6 },
   },
 
   'Plucks & Teclas': {
@@ -151,6 +154,10 @@ export const FACTORY = {
       width: 0.5, reverbMix: 0.4, master: 0.6 },
     'Blip resonante': { waveA: 'sawtooth', mix: 0.2, cutoff: 1260, reso: 16, filterEnvAmt: 4000,
       a: 0.001, d: 0.15, s: 0.0, r: 0.1, width: 0.3, reverbMix: 0.2 },
+    'Wobble sincopado': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 296, reso: 10,
+      cutLfoLvl: 2500, cutLfoSpd: 2, cutLfoShape: 'square', dist: 0.25,
+      dlyAmt: 0.35, dlySync: '1/8.', bpm: 140, panLfoLvl: 0.4, panLfoSpd: 0.8,
+      a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
   },
 };
 

@@ -23,6 +23,24 @@ function bindSeg(segId, key, name, target) {
   CONTROLS[name].set(PARAMS[name].def);
 }
 
+// Botón de forma de onda de LFO: cicla sin→tri→saw→sqr con cada clic.
+const SHAPES = ['sine', 'triangle', 'sawtooth', 'square'];
+const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr' };
+function bindLfoShapes() {
+  document.querySelectorAll('.lfoShape').forEach(btn => {
+    const name = btn.dataset.shape;
+    if (!PARAMS[name]) return;
+    const set = v => {
+      if (!SHAPES.includes(v)) v = 'sine';
+      btn.dataset.cur = v; btn.textContent = SHAPE_LABEL[v];
+      applyTarget(name, v);
+    };
+    btn.addEventListener('click', () => { engine.resume(); set(SHAPES[(SHAPES.indexOf(btn.dataset.cur) + 1) % SHAPES.length]); });
+    CONTROLS[name] = { get: () => btn.dataset.cur, set, def: PARAMS[name].def };
+    set(PARAMS[name].def);
+  });
+}
+
 function setOctave(which, n) {
   const p = PARAMS['octaves' + which.slice(3)];
   n = Math.min(p.max, Math.max(p.min, n));
@@ -36,6 +54,8 @@ export function bindOscControls() {
   bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
+  bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
+  bindLfoShapes();
 
   document.querySelectorAll('.stepper button').forEach(b => {
     b.addEventListener('click', () => {
