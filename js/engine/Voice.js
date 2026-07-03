@@ -25,6 +25,10 @@ export class Voice {
     const busB = ctx.createGain(); busB.gain.value = 1 / Math.max(1, S.oscB.octaves);
     this._buildOscGroup(S.oscA, busA, freq, startFreq, glide, t);
     this._buildOscGroup(S.oscB, busB, freq, startFreq, glide, t);
+    this._connPitch = this._connVib = this._connPwm = false;
+    if (S.freqCents) this.ensurePitch();
+    if (S.freqLfoLvl) this.ensureVib();
+    if (S.pwmLfoLvl) this.ensurePwm();
 
     // --- Mezcla A<->B ---
     const gA = ctx.createGain(); gA.gain.value = 1 - S.mix;
@@ -100,42 +104,44 @@ export class Voice {
   }
 
   _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
-    for (let k = 0; k < cfg.octaves; k++) {
-      const ratio = Math.pow(2, k);
-      const node = new AudioWorkletNode(this.ctx, 'pulse-processor', {
-        numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
-        processorOptions: { type: cfg.wave, phase: (cfg.phase || 0) / 360 },
-      });
-      const fParam = node.parameters.get('frequency');
-      const dParam = node.parameters.get('detune');
-      const pParam = node.parameters.get('pulseWidth');
-      const sParam = node.parameters.get('spread');
-      sParam.value = this.S.spread;
-      const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
-      const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
+    // UN nodo por grupo: las octavas se apilan DENTRO del processor (antes,
+    // un AudioWorkletNode por octava: hasta 8 worklets por voz; ahora 2).
+    const node = new AudioWorkletNode(this.ctx, 'pulse-processor', {
+      numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
+      processorOptions: { type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves },
+    });
+    if (this.mod.stats) this.mod.stats.worklets++;
+    const fParam = node.parameters.get('frequency');
+    const dParam = node.parameters.get('detune');
+    const pParam = node.parameters.get('pulseWidth');
+    const sParam = node.parameters.get('spread');
+    sParam.value = this.S.spread;
+    const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
+    const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
 
-      // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
-      fParam.value = (glide > 0 ? startFreq : freq) * ratio;
-      // glide (portamento): rampa exponencial desde la nota anterior
-      if (glide > 0) {
-        fParam.setValueAtTime(startFreq * ratio, t);
-        fParam.exponentialRampToValueAtTime(freq * ratio, t + glide);
-      } else {
-        fParam.setValueAtTime(freq * ratio, t);
-      }
-      dParam.value = cfg.detune;
-      pParam.value = this._clampPW(this.S.pulseWidth);
-
-      // modulación global
-      this.mod.pitchOffset.connect(dParam);
-      this.mod.freqLFOGain.connect(dParam);
-      this.mod.pwmLFOGain.connect(pParam);
-
-      node.connect(dest);
-      this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, fmR: fmRParam, fmI: fmIParam, ratio });
+    // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
+    fParam.value = glide > 0 ? startFreq : freq;
+    // glide (portamento): rampa exponencial desde la nota anterior
+    if (glide > 0) {
+      fParam.setValueAtTime(startFreq, t);
+      fParam.exponentialRampToValueAtTime(freq, t + glide);
+    } else {
+      fParam.setValueAtTime(freq, t);
     }
+    dParam.value = cfg.detune;
+    pParam.value = this._clampPW(this.S.pulseWidth);
+
+    node.connect(dest);
+    this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
+
+  // Modulación global -> params del worklet SOLO cuando está activa: con todo
+  // a 0 (el caso común) el param queda constante y sin edges que computar.
+  // Si un knob pasa de 0 a activo, el engine llama a estos ensure* en vivo.
+  ensurePitch() { if (this._connPitch || this.disposed) return; this._connPitch = true; this.oscs.forEach(o => this.mod.pitchOffset.connect(o.detune)); }
+  ensureVib()   { if (this._connVib   || this.disposed) return; this._connVib   = true; this.oscs.forEach(o => this.mod.freqLFOGain.connect(o.detune)); }
+  ensurePwm()   { if (this._connPwm   || this.disposed) return; this._connPwm   = true; this.oscs.forEach(o => this.mod.pwmLFOGain.connect(o.pw)); }
 
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
   setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
@@ -196,6 +202,7 @@ export class Voice {
     if (this.disposed) return;
     this.disposed = true;
     const m = this.mod;
+    if (m.stats) m.stats.worklets -= this.oscs.length;
     // desconectar la modulación global de los params de esta voz y parar worklets
     this.oscs.forEach(o => {
       try { m.pitchOffset.disconnect(o.detune); } catch (e) {}

@@ -155,11 +155,13 @@ export class AudioEngine {
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
 
     // hub de modulación que se pasa a cada voz
+    this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer,
       pitchOffset: this.pitchOffset,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
+      stats: this.modStats,
     };
 
     this.ready = true;
@@ -290,10 +292,11 @@ export class AudioEngine {
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
       case 'ampLfoSpd': smooth(this.ampLFO.osc.frequency, value); break;
-      case 'freqCents': smooth(this.pitchOffset.offset, value); break;
-      case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); break;
+      // pitch/vibrato/PWM se conectan a los worklets bajo demanda (ver Voice.ensure*)
+      case 'freqCents': smooth(this.pitchOffset.offset, value); if (value) this._forVoices(v => v.ensurePitch()); break;
+      case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureVib()); break;
       case 'freqLfoSpd': smooth(this.freqLFO.osc.frequency, value); break;
-      case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); break;
+      case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
       case 'pwmLfoSpd': smooth(this.pwmLFO.osc.frequency, value); break;
       case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); break;
       case 'cutLfoSpd': smooth(this.cutLFO.osc.frequency, value); break;
@@ -339,6 +342,7 @@ export class AudioEngine {
   }
 
   getAnalyser() { return this.analyser; }
+  stats() { return { pressed: this.voiceCount, tails: this.tails.size, worklets: this.modStats ? this.modStats.worklets : 0 }; }
 }
 
 export const engine = new AudioEngine();

@@ -2,8 +2,13 @@
    SubSDJ · pulse-processor (AudioWorklet)
    Oscilador band-limited (PolyBLEP). Tipos (processorOptions.type):
      sawtooth | square | sine | triangle | supersaw
-   Params a-rate: frequency (Hz, glide), detune (cents, vibrato),
-                  pulseWidth (0..1, PWM). spread (0..1, k-rate) = anchura del supersaw.
+   MULTI-OCTAVA: processorOptions.octaves (1..4) apila las octavas DENTRO
+   del processor (antes: un AudioWorkletNode por octava). La suma sale sin
+   normalizar; el bus de la voz aplica 1/octavas, como siempre.
+   Params (todos k-rate: un valor por bloque de 128; el pow del detune se
+   paga 1 vez por bloque, no por muestra — a 20 Hz de vibrato el escalón de
+   2.9 ms es inaudible): frequency (Hz, glide), detune (cents, vibrato),
+   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex (FM 2-op en seno).
    Salida mono. Se autodestruye al recibir el mensaje "stop".
    ===================================================================== */
 
@@ -20,12 +25,12 @@ const SS_DETUNE = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01952356, 0.06288
 class PulseProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'frequency', defaultValue: 440, minValue: 0,     maxValue: 20000, automationRate: 'a-rate' },
-      { name: 'detune',    defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'a-rate' },
-      { name: 'pulseWidth',defaultValue: 0.5, minValue: 0.01,  maxValue: 0.99,  automationRate: 'a-rate' },
+      { name: 'frequency', defaultValue: 440, minValue: 0,     maxValue: 20000, automationRate: 'k-rate' },
+      { name: 'detune',    defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'k-rate' },
+      { name: 'pulseWidth',defaultValue: 0.5, minValue: 0.01,  maxValue: 0.99,  automationRate: 'k-rate' },
       { name: 'spread',    defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'fmRatio',   defaultValue: 1,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
-      { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'a-rate' },
+      { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
     ];
   }
 
@@ -33,11 +38,17 @@ class PulseProcessor extends AudioWorkletProcessor {
     super();
     const o = (options && options.processorOptions) || {};
     this.type = o.type || 'sawtooth';
-    this.phase = (typeof o.phase === 'number') ? (o.phase % 1 + 1) % 1 : 0;
-    // 7 fases aleatorias e independientes para el supersaw (evita el "peine" de fases alineadas)
-    this.phases = new Float32Array(7);
-    for (let i = 0; i < 7; i++) this.phases[i] = Math.random();
-    this.modPhase = Math.random();        // fase del modulador FM (2-operadores, phase modulation)
+    this.octaves = Math.max(1, Math.min(4, (o.octaves | 0) || 1));
+    const ph = (typeof o.phase === 'number') ? (o.phase % 1 + 1) % 1 : 0;
+    if (this.type === 'supersaw') {
+      // 7 fases aleatorias e independientes POR OCTAVA (evita el "peine" de fases alineadas)
+      this.phases = new Float32Array(this.octaves * 7);
+      for (let i = 0; i < this.phases.length; i++) this.phases[i] = Math.random();
+    } else {
+      this.phases = new Float32Array(this.octaves).fill(ph);
+      this.modPhases = new Float32Array(this.octaves);       // moduladores FM (fase aleatoria)
+      for (let i = 0; i < this.octaves; i++) this.modPhases[i] = Math.random();
+    }
     this.stopped = false;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
@@ -45,56 +56,91 @@ class PulseProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, params) {
     const out = outputs[0];
     if (!out || out.length === 0) return !this.stopped;
-    const ch = out[0], n = ch.length;
-    const fA = params.frequency, dA = params.detune, pA = params.pulseWidth, sA = params.spread;
-    const mA = params.fmRatio, iA = params.fmIndex;
-    const fConst = fA.length === 1, dConst = dA.length === 1, pConst = pA.length === 1, iConst = iA.length === 1;
-    const sr = sampleRate, TWO_PI = Math.PI * 2, type = this.type;
+    const ch = out[0], N = ch.length;             // el buffer llega a cero: acumulamos con +=
+    const sr = sampleRate, TWO_PI = Math.PI * 2;
+    const type = this.type, oct = this.octaves, nyq = sr * 0.45;
+    const f0 = params.frequency[0] * Math.pow(2, params.detune[0] / 1200);
 
     if (type === 'supersaw') {
-      const spread = sA[0], phases = this.phases;
-      for (let i = 0; i < n; i++) {
-        const base = (fConst ? fA[0] : fA[i]) * Math.pow(2, (dConst ? dA[0] : dA[i]) / 1200);
-        let sum = 0;
+      const spread = params.spread[0], phases = this.phases;
+      for (let k = 0; k < oct; k++) {
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;                // octava sobre Nyquist: silencio, no alias
         for (let j = 0; j < 7; j++) {
           const f = base * (1 + SS_DETUNE[j] * spread * 0.25);   // hasta ~±47 cents en los extremos
-          const dt = f / sr;
-          let ph = phases[j];
-          sum += 2 * ph - 1 - polyBlep(ph, dt);
-          ph += dt; if (ph >= 1) ph -= 1;
-          phases[j] = ph;
+          const dt = f / sr, idx = k * 7 + j;
+          let p = phases[idx];
+          for (let i = 0; i < N; i++) {
+            ch[i] += (2 * p - 1 - polyBlep(p, dt)) * 0.38;       // ~1/sqrt(7): nivel de una sierra
+            p += dt; if (p >= 1) p -= 1;
+          }
+          phases[idx] = p;
         }
-        ch[i] = sum * 0.38;          // normaliza (~1/sqrt(7)) para igualar nivel con una sierra
       }
-    } else {
-      let phase = this.phase, modPhase = this.modPhase;
-      const ratio = mA[0];
-      for (let i = 0; i < n; i++) {
-        const f = (fConst ? fA[0] : fA[i]) * Math.pow(2, (dConst ? dA[0] : dA[i]) / 1200);
+    } else if (type === 'sine') {
+      // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
+      const ratio = params.fmRatio[0], index = params.fmIndex[0];
+      for (let k = 0; k < oct; k++) {
+        const f = f0 * (1 << k);
+        if (f >= nyq) continue;
+        const dt = f / sr, mdt = (f * ratio) / sr;
+        let p = this.phases[k], mp = this.modPhases[k];
+        if (index > 0) {
+          for (let i = 0; i < N; i++) {
+            ch[i] += Math.sin(TWO_PI * (p + Math.sin(TWO_PI * mp) * index));
+            p += dt; if (p >= 1) p -= 1;
+            mp += mdt; if (mp >= 1) mp -= Math.floor(mp);
+          }
+        } else {
+          for (let i = 0; i < N; i++) {
+            ch[i] += Math.sin(TWO_PI * p);
+            p += dt; if (p >= 1) p -= 1;
+          }
+          mp = fract(mp + mdt * N);               // mantiene la fase del modulador coherente
+        }
+        this.phases[k] = p; this.modPhases[k] = mp;
+      }
+    } else if (type === 'triangle') {
+      for (let k = 0; k < oct; k++) {
+        const f = f0 * (1 << k);
+        if (f >= nyq) continue;
         const dt = f / sr;
-        let v;
-        if (type === 'sine') {
-          // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
-          const index = iConst ? iA[0] : iA[i];
-          const mod = index > 0 ? Math.sin(TWO_PI * modPhase) * index : 0;
-          v = Math.sin(TWO_PI * (phase + mod));
-          modPhase += (f * ratio) / sr;
-          if (modPhase >= 1) modPhase -= Math.floor(modPhase);
-        } else if (type === 'triangle') {
-          v = 4 * Math.abs(phase - 0.5) - 1;            // armónicos impares suaves (1/n²)
-        } else if (type === 'square') {
-          let duty = pConst ? pA[0] : pA[i];
-          if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
-          v = phase < duty ? 1 : -1;
-          v += polyBlep(phase, dt);
-          v -= polyBlep(fract(phase - duty), dt);
-        } else {                                         // sawtooth
-          v = 2 * phase - 1 - polyBlep(phase, dt);
+        let p = this.phases[k];
+        for (let i = 0; i < N; i++) {
+          ch[i] += 4 * Math.abs(p - 0.5) - 1;     // armónicos impares suaves (1/n²)
+          p += dt; if (p >= 1) p -= 1;
         }
-        ch[i] = v;
-        phase += dt; if (phase >= 1) phase -= 1;
+        this.phases[k] = p;
       }
-      this.phase = phase; this.modPhase = modPhase;
+    } else if (type === 'square') {
+      let duty = params.pulseWidth[0];
+      if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
+      for (let k = 0; k < oct; k++) {
+        const f = f0 * (1 << k);
+        if (f >= nyq) continue;
+        const dt = f / sr;
+        let p = this.phases[k];
+        for (let i = 0; i < N; i++) {
+          let v = p < duty ? 1 : -1;
+          v += polyBlep(p, dt);
+          v -= polyBlep(fract(p - duty), dt);
+          ch[i] += v;
+          p += dt; if (p >= 1) p -= 1;
+        }
+        this.phases[k] = p;
+      }
+    } else {                                      // sawtooth
+      for (let k = 0; k < oct; k++) {
+        const f = f0 * (1 << k);
+        if (f >= nyq) continue;
+        const dt = f / sr;
+        let p = this.phases[k];
+        for (let i = 0; i < N; i++) {
+          ch[i] += 2 * p - 1 - polyBlep(p, dt);
+          p += dt; if (p >= 1) p -= 1;
+        }
+        this.phases[k] = p;
+      }
     }
 
     for (let c = 1; c < out.length; c++) out[c].set(ch);

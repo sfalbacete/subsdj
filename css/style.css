@@ -16,6 +16,7 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .badge{font-size:11px;color:var(--dim);}
 #powerInfo{margin-left:auto;font-size:11px;color:var(--hot);}
 #powerInfo.on{color:var(--accent);}
+#dbgInfo{font-size:10px;color:var(--dim);min-width:150px;text-align:right;}
 .btn{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;
   padding:5px 12px;font-size:12px;cursor:pointer;letter-spacing:.5px;}
 .btn:hover{border-color:var(--accent);color:var(--accent);}

@@ -31,7 +31,16 @@ engine.init()
     if (info) info.textContent = '⚠ error al iniciar el audio (mira la consola)';
   });
 
-// 3) Self-test (?selftest=1): renderiza los presets de fábrica en un
+// 3) Mini-HUD de diagnóstico: voces pulsadas · colas de release · worklets vivos
+setInterval(() => {
+  const el = document.getElementById('dbgInfo');
+  if (el && engine.ready) {
+    const s = engine.stats();
+    el.textContent = `voces ${s.pressed} · colas ${s.tails} · osc ${s.worklets}`;
+  }
+}, 500);
+
+// 4) Self-test (?selftest=1): renderiza los presets de fábrica en un
 //    OfflineAudioContext y valida la salida. No necesita el audio real.
 if (new URLSearchParams(location.search).has('selftest')) {
   import('./selftest.js')

@@ -71,8 +71,10 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    presets v2 en espacio-motor con migración; tope de polifonía con robo de voz
    (`MAX_POLY=10`) y recorte de colas (`MAX_TAILS=12`); distorsión de curva fija;
    crossfade A/B al regenerar la IR de la reverb.
-2. **Rendimiento** — worklet multi-octava (octavas dentro del processor); LFOs
-   conectados bajo demanda; detune k-rate.
+2. **Rendimiento** ✔ *(hecha 2026-07-03)* — worklet multi-octava (octavas dentro del
+   processor: 2 worklets por voz en vez de hasta 8); params del worklet a k-rate
+   (el pow del detune se paga 1 vez por bloque, no 128); pitch/vibrato/PWM se
+   conectan a las voces bajo demanda; mini-HUD (voces · colas · osc) en la cabecera.
 3. **Expresividad** — Web MIDI (velocity, pitch bend, sustain); ADSR de filtro
    independiente; pitch envelope.
 4. **Sonido** — chorus/ensemble; formas de LFO + tempo sync; mini matriz de modulación.
