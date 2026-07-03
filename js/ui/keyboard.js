@@ -51,9 +51,9 @@ function buildKeyboard() {
   });
 }
 
-function press(midi) {
+function press(midi, vel = 1) {
   if (active.has(midi)) return;
-  engine.noteOn('m' + midi, midiToFreq(midi));
+  engine.noteOn('m' + midi, midiToFreq(midi), vel);
   const el = kb.querySelector(`[data-midi="${midi}"]`);
   if (el) el.classList.add('on');
   active.set(midi, el || null);
@@ -71,6 +71,11 @@ function bindKeyEl(el, midi) {
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
 function panic() { held.clear(); engine.allNotesOff(); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+
+// API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
+// así QWERTY y MIDI comparten estado visual y no se doble-disparan.
+export function pressNote(midi, vel = 1) { press(midi, vel); }
+export function releaseNote(midi) { release(midi); }
 
 export function initKeyboard() {
   kb = document.getElementById('keyboard');

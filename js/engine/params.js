@@ -55,6 +55,11 @@ export const PARAMS = {
   resLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
   morph:        { def: 0, min: 0, max: 1 },
   filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz' },
+  fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
+  fa: { def: 0.01, min: 0.001, max: 2, unit: ' s' },
+  fd: { def: 0.2,  min: 0.001, max: 2, unit: ' s' },
+  fs: { def: 0.7,  min: 0, max: 1 },
+  fr: { def: 0.3,  min: 0.001, max: 3, unit: ' s' },
 
   // --- FX ---
   dist:    { def: 0, min: 0, max: 1 },
@@ -74,6 +79,8 @@ export const PARAMS = {
   s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
   r: { def: 0.3,  min: 0.001, max: 3, step: 0.001, fmt: msFmt },
   glide:  { def: 0, min: 0, max: 1, unit: ' s' },
+  pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct' },   // envolvente de pitch por nota
+  pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },
   mode:   { def: 'poly' },
   master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
 };

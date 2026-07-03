@@ -1,22 +1,23 @@
-/* SubSDJ · selectores de onda + steppers de octavas + modo de voz.
-   Defaults desde PARAMS (el HTML ya no marca .active). */
+/* SubSDJ · selectores de onda + steppers de octavas + segmentos (modo de voz,
+   envolvente de filtro). Defaults desde PARAMS (el HTML no marca .active). */
 import { engine } from '../engine/AudioEngine.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 
-function bindWave(segId, which) {
+// Segmento genérico de botones: <button data-KEY="valor">. Registra el control
+// canónico `name` y aplica al target del motor.
+function bindSeg(segId, key, name, target) {
   const seg = document.getElementById(segId);
   if (!seg) return;
-  const name = 'wave' + which.slice(3);
   const select = b => {
     seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    applyTarget(which + '.wave', b.dataset.w);
+    applyTarget(target, b.dataset[key]);
   };
   seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => select(b)));
   CONTROLS[name] = {
-    get: () => seg.querySelector('button.active').dataset.w,
-    set: w => { const b = seg.querySelector('button[data-w="' + w + '"]'); if (b) select(b); },
+    get: () => seg.querySelector('button.active').dataset[key],
+    set: v => { const b = seg.querySelector('button[data-' + key + '="' + v + '"]'); if (b) select(b); },
     def: PARAMS[name].def,
   };
   CONTROLS[name].set(PARAMS[name].def);
@@ -31,8 +32,10 @@ function setOctave(which, n) {
 }
 
 export function bindOscControls() {
-  bindWave('waveA', 'oscA');
-  bindWave('waveB', 'oscB');
+  bindSeg('waveA', 'w', 'waveA', 'oscA.wave');
+  bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
+  bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
+  bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
 
   document.querySelectorAll('.stepper button').forEach(b => {
     b.addEventListener('click', () => {
@@ -44,21 +47,4 @@ export function bindOscControls() {
     CONTROLS['octaves' + s] = { get: () => engine.S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def };
     setOctave('osc' + s, PARAMS['octaves' + s].def);
   });
-
-  // Toggle de modo de voz (Poli / Mono)
-  const modeSeg = document.getElementById('modeSel');
-  if (modeSeg) {
-    const selectMode = b => {
-      modeSeg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      applyTarget('mode', b.dataset.mode);
-    };
-    modeSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => selectMode(b)));
-    CONTROLS['mode'] = {
-      get: () => modeSeg.querySelector('button.active').dataset.mode,
-      set: m => { const b = modeSeg.querySelector('button[data-mode="' + m + '"]'); if (b) selectMode(b); },
-      def: PARAMS.mode.def,
-    };
-    CONTROLS['mode'].set(PARAMS.mode.def);
-  }
 }

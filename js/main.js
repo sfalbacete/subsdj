@@ -6,6 +6,7 @@ import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
 import { initKeyboard } from './ui/keyboard.js';
+import { initMIDI } from './ui/midi.js';
 import { initPresetBank } from './ui/presetBank.js';
 import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
@@ -15,6 +16,7 @@ bindKnobs();
 bindSliders();
 bindOscControls();
 initKeyboard();
+initMIDI();          // teclado MIDI: velocity, pitch bend, sustain, mod wheel
 initPresetBank();
 initADSRGraph(document.getElementById('adsrCanvas'));
 

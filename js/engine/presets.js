@@ -118,6 +118,18 @@ export const FACTORY = {
       cutoff: 7100, a: 0.05, d: 0.1, s: 1.0, r: 0.4, width: 0.4, reverbMix: 0.45, reverbSize: 3.5, master: 0.55 },
   },
 
+  'Percusión': {
+    'Bombo 808': { waveA: 'sine', mix: 0, pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 700,
+      a: 0.001, d: 0.35, s: 0.0, r: 0.2, dist: 0.25, master: 0.85 },
+    'Tom sintético': { waveA: 'sine', waveB: 'triangle', mix: 0.25, pitchEnvAmt: 900, pitchEnvDec: 0.12,
+      cutoff: 1260, a: 0.001, d: 0.3, s: 0.0, r: 0.25, reverbMix: 0.15, master: 0.8 },
+    'Caja zap': { waveA: 'triangle', mix: 0, noise: 0.7, pitchEnvAmt: 1200, pitchEnvDec: 0.04,
+      cutoff: 2890, morph: 0.35, filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.1, fs: 0.0,
+      a: 0.001, d: 0.18, s: 0.0, r: 0.12, master: 0.8 },
+    'Láser zap': { waveA: 'sawtooth', mix: 0, pitchEnvAmt: -2400, pitchEnvDec: 0.25, cutoff: 5020,
+      reso: 8, a: 0.001, d: 0.4, s: 0.0, r: 0.2, dlyAmt: 0.25, dlyTime: 0.25, width: 0.3 },
+  },
+
   'Stabs': {
     'Hoover rave': { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.4, detuneA: -15, detuneB: 15, octavesB: 2,
       mix: 0.5, freqLfoLvl: 25, freqLfoSpd: 6, cutoff: 2000, reso: 4, flAmt: 0.4, flSpd: 0.5, dist: 0.2,

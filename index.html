@@ -10,6 +10,7 @@
 <header>
   <h1>SubSDJ <small>· Substractive Synthesizer</small></h1>
   <span class="badge">WebAudio · AudioWorklet</span>
+  <span class="badge" id="midiInfo"></span>
   <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
   <span id="powerInfo">⏻ cargando audio…</span>
   <span id="dbgInfo" title="voces pulsadas · colas de release · osciladores worklet vivos"></span>
@@ -122,6 +123,19 @@
       <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Env Amt</div><div class="val"></div></div>
     </div>
+
+    <div class="fieldlab" style="margin-top:12px">Envolvente del filtro</div>
+    <div class="seg" id="fenvModeSel">
+      <button data-fenv="link">= Amp</button>
+      <button data-fenv="own">Propia</button>
+    </div>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="fa"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="fd"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="fs"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="fr"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
+    </div>
+    <div class="note">«= Amp» sigue al ADSR de amplitud; «Propia» usa estos tiempos</div>
   </div>
 
   <!-- FX -->
@@ -176,6 +190,13 @@
       <input type="range" id="s_s"></div>
     <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
       <input type="range" id="s_r"></div>
+
+    <div class="fieldlab" style="margin-top:12px">Pitch envelope (por nota)</div>
+    <div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="pitchEnvAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div>
+    </div>
+    <div class="note">La nota arranca desviada Amount cents y cae al tono (bombos, toms, zaps)</div>
 
     <div class="row" style="margin-top:12px;justify-content:space-around;align-items:center">
       <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>

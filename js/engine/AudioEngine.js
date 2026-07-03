@@ -180,6 +180,7 @@ export class AudioEngine {
       if (oldest !== undefined) this._releaseVoice(oldest, 0.02);
     }
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq });
+    if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
     this.voices.set(id, v);
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
@@ -204,6 +205,7 @@ export class AudioEngine {
     } else {
       this._killMono();
       const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq });
+      if (this._bend) v.ensurePitch();
       this.monoVoice = v; this.voices.set('mono', v);
       this.lastFreq = freq;
       this.voiceCount++; this._updateBusGain();
@@ -293,7 +295,7 @@ export class AudioEngine {
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
       case 'ampLfoSpd': smooth(this.ampLFO.osc.frequency, value); break;
       // pitch/vibrato/PWM se conectan a los worklets bajo demanda (ver Voice.ensure*)
-      case 'freqCents': smooth(this.pitchOffset.offset, value); if (value) this._forVoices(v => v.ensurePitch()); break;
+      case 'freqCents': smooth(this.pitchOffset.offset, value + (this._bend || 0)); if (value) this._forVoices(v => v.ensurePitch()); break;
       case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureVib()); break;
       case 'freqLfoSpd': smooth(this.freqLFO.osc.frequency, value); break;
       case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
@@ -339,6 +341,15 @@ export class AudioEngine {
     clearTimeout(this._revOffTimer);
     this._revOffTimer = setTimeout(() => { try { this.dlOut.disconnect(front.c); } catch (e) {} }, 400);
     this._revFront = this._revFront === 'A' ? 'B' : 'A';
+  }
+
+  // Pitch bend MIDI (cents). Va por fuera de CONTROLS/presets: se SUMA al
+  // slider de cents en el mismo ConstantSource compartido (pitchOffset).
+  setBend(cents) {
+    this._bend = cents;
+    if (!this.ready) return;
+    this.pitchOffset.offset.setTargetAtTime(this.S.freqCents + cents, this.ctx.currentTime, 0.005);
+    if (cents) this._forVoices(v => v.ensurePitch());
   }
 
   getAnalyser() { return this.analyser; }

@@ -41,6 +41,14 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
   fila baja `Z S X D C V G B H N J M`, fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`.
 - Octava: `RePág` / `AvPág`. También con el ratón sobre el teclado en pantalla. Polifónico.
 
+## MIDI
+
+Conecta un teclado MIDI y acepta el permiso del navegador: se enlaza solo
+(indicador 🎹 en la cabecera, reconecta en caliente). **Velocity** escala la
+amplitud y la envolvente del filtro; **pitch bend** ±2 semitonos; **sustain**
+(CC64); **mod wheel** (CC1) mueve el knob de vibrato; **CC74/CC71** mueven
+cutoff/resonancia. Las notas MIDI iluminan el teclado en pantalla.
+
 ## Estructura
 
 ```
@@ -75,8 +83,10 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    processor: 2 worklets por voz en vez de hasta 8); params del worklet a k-rate
    (el pow del detune se paga 1 vez por bloque, no 128); pitch/vibrato/PWM se
    conectan a las voces bajo demanda; mini-HUD (voces · colas · osc) en la cabecera.
-3. **Expresividad** — Web MIDI (velocity, pitch bend, sustain); ADSR de filtro
-   independiente; pitch envelope.
+3. **Expresividad** ✔ *(hecha 2026-07-03)* — Web MIDI (velocity → amp+filtro,
+   pitch bend, sustain, mod wheel, CC74/71); envolvente de filtro con tiempos
+   propios (toggle «= Amp / Propia», compatible con los presets antiguos);
+   pitch envelope por nota (Amount/Decay) + categoría de presets «Percusión».
 4. **Sonido** — chorus/ensemble; formas de LFO + tempo sync; mini matriz de modulación.
 5. **Utilidad** — grabador WAV; export/import de presets; arpegiador.
 

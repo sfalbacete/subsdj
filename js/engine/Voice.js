@@ -93,10 +93,14 @@ export class Voice {
     g.linearRampToValueAtTime(peak, t + S.a);
     g.linearRampToValueAtTime(sus,  t + S.a + S.d);
 
+    // Env del filtro: enlazada al ADSR de amplitud (link) o con tiempos propios.
+    // El pico escala con velocity (MIDI): pegar más fuerte abre más el filtro.
+    const own = S.fenvMode === 'own';
+    const FA = own ? S.fa : S.a, FD = own ? S.fd : S.d, FS = own ? S.fs : S.s;
     const fo = fenv.offset;
     fo.cancelScheduledValues(t); fo.setValueAtTime(0, t);
-    fo.linearRampToValueAtTime(1,   t + S.a);
-    fo.linearRampToValueAtTime(S.s, t + S.a + S.d);
+    fo.linearRampToValueAtTime(vel,      t + FA);
+    fo.linearRampToValueAtTime(FS * vel, t + FA + FD);
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc,
@@ -129,6 +133,12 @@ export class Voice {
       fParam.setValueAtTime(freq, t);
     }
     dParam.value = cfg.detune;
+    // Pitch envelope por nota: arranca desviado pitchEnvAmt cents y decae
+    // exponencialmente al detune base (percusión, zaps, láseres)
+    if (this.S.pitchEnvAmt) {
+      dParam.setValueAtTime(cfg.detune + this.S.pitchEnvAmt, t);
+      dParam.setTargetAtTime(cfg.detune, t, Math.max(0.001, this.S.pitchEnvDec) / 4);
+    }
     pParam.value = this._clampPW(this.S.pulseWidth);
 
     node.connect(dest);
@@ -175,14 +185,16 @@ export class Voice {
   release(rel) {
     rel = Math.max(0.006, rel);
     const t = this.ctx.currentTime, tau = rel / 4;
+    const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
     // Release EXPONENCIAL anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
     // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
     // rampa-destino y el parámetro se queda clavado en el ÚLTIMO evento (el pico del attack)
     // -> la ganancia saltaría de golpe a peak = re-disparo audible al soltar. Anclar primero
     // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
     this._releaseParam(this.vca.gain, t, tau);
-    this._releaseParam(this.fenv.offset, t, tau);
+    this._releaseParam(this.fenv.offset, t, fRel / 4);
     return t + rel * 2;     // a ~8·tau la cola está sobre -70 dB: liberar los nodos ahí es inaudible
+                            // (manda el release de amplitud: con el VCA cerrado el filtro no suena)
   }
   _releaseParam(param, t, tau) {
     const cur = param.value;            // refleja el valor de la rampa en curso
