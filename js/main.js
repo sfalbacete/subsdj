@@ -8,6 +8,7 @@ import { bindOscControls } from './ui/oscControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initPresetBank } from './ui/presetBank.js';
+import { initRecorder } from './ui/recorder.js';
 import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 
@@ -18,6 +19,7 @@ bindOscControls();
 initKeyboard();
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain, mod wheel
 initPresetBank();
+initRecorder();      // grabación de la salida a WAV
 initADSRGraph(document.getElementById('adsrCanvas'));
 
 // 2) Motor de audio (carga el worklet; el contexto arranca suspendido y se reanuda al primer gesto)

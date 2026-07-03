@@ -16,8 +16,10 @@
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
 import { AudioEngine, engine } from './engine/AudioEngine.js';
+import { Arp } from './engine/Arp.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { CONTROLS, loadState } from './ui/registry.js';
+import { encodeWav } from './ui/recorder.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -134,6 +136,20 @@ export async function runSelfTest() {
     const okM = m.reso === 3 && Math.abs(m.cutoff - 632.5) < 2 && keep.cutoff === 6000;
     push({ name: 'migración presets v1→v2', peak: 0, ok: okM,
            problems: okM ? [] : ['migrateV1: ' + JSON.stringify([m, keep])] });
+  }
+  {
+    // arpegiador: secuencia 'up' con 2 octavas ordenada por altura
+    const a = new Arp({ S: { arpOct: '2' }, ctx: null });
+    a.held = [{ id: 1, freq: 200, vel: 1 }, { id: 2, freq: 100, vel: 1 }];
+    const seq = a._seq().map(n => n.freq).join(',');
+    const okA = seq === '100,200,200,400';
+    push({ name: 'arpegiador (secuencia ×2 oct)', peak: 0, ok: okA, problems: okA ? [] : ['seq: ' + seq] });
+  }
+  {
+    // codificador WAV: cabecera y tamaño (44 bytes + n·4 en 16-bit estéreo)
+    const blob = encodeWav([new Float32Array(128)], [new Float32Array(128)], 44100);
+    const okW = blob.size === 44 + 128 * 4 && blob.type === 'audio/wav';
+    push({ name: 'codificador WAV', peak: 0, ok: okW, problems: okW ? [] : ['blob: ' + blob.size + ' ' + blob.type] });
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

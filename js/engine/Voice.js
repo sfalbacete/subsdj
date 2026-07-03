@@ -7,7 +7,7 @@
    ===================================================================== */
 
 export class Voice {
-  constructor(ctx, S, mod, { freq, vel = 1, startFreq = null }) {
+  constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
     this.ctx = ctx;
     this.mod = mod;
     this.S = S;
@@ -16,7 +16,8 @@ export class Voice {
     // desde 0 limpio. Sin esto, si construir la voz tarda más que el attack (p.ej. un
     // supersaw con 14 nodos), la rampa caería "en el pasado" y la ganancia saltaría de
     // golpe, exponiendo el oscilador a media onda -> click. Por eso clicaba "a veces".
-    const t = ctx.currentTime + 0.005;
+    // startAt (opcional): inicio programado en el reloj de audio (lo usa el arpegiador).
+    const t = (startAt || ctx.currentTime) + 0.005;
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
     // --- Osciladores (worklet) ---

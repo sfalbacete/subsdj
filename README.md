@@ -35,6 +35,17 @@ que ejercita el robo de voz (`MAX_POLY`) y el recorte de colas (`MAX_TAILS`).
 Resultados en un panel en pantalla, en consola (`console.table`) y en el título
 de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el motor.**
 
+## Grabación, presets y arpegiador
+
+- **⏺ Grabar** (cabecera): graba la salida (lo mismo que suena) y al parar
+  descarga un **WAV** 16-bit estéreo con fecha y hora en el nombre.
+- **⇩ Exportar / ⇧ Importar** (barra de presets): el banco de usuario viaja como
+  JSON. Al importar se validan las claves, se migran bancos v1 antiguos y no se
+  machacan nombres existentes (se renombra con sufijo).
+- **Arpegiador** (panel propio): mantén notas pulsadas y las secuencia al BPM del
+  panel FX. Modos Up/Down/U·D/Rnd, división ¼/⅛/1/16, 1–3 octavas y knob Gate.
+  Los pasos entran con precisión de reloj de audio (look-ahead de 120 ms).
+
 ## Teclado
 
 - Layout estilo **tracker** (FastTracker), 2 filas:
@@ -91,7 +102,12 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    (botón sin/tri/saw/sqr en cada grupo); delay sincable a BPM (Libre/⅛/⅛·/¼/¼·/½);
    keytrack→cutoff; autopan (LFO→pan). En lugar de una matriz genérica se añadieron
    las rutas que faltaban — una matriz fuente→destino queda como opción futura.
-5. **Utilidad** — grabador WAV; export/import de presets; arpegiador.
+5. **Utilidad** ✔ *(hecha 2026-07-04)* — grabador WAV (worklet + encoder propio);
+   export/import de presets a JSON con validación y migración; arpegiador
+   (up/down/updown/random, división musical, octavas, gate) sincronizado al BPM.
+
+**Roadmap completado.** Ideas futuras: matriz de modulación genérica, MIDI-learn,
+más divisiones/swing en el arp, y el generador estático de samples (aparcado).
 
 Aparcado a propósito (no implementar salvo petición): la generación *estática*
 de samples del synth original (morphing para modtrackers).

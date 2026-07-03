@@ -21,6 +21,7 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
   padding:5px 12px;font-size:12px;cursor:pointer;letter-spacing:.5px;}
 .btn:hover{border-color:var(--accent);color:var(--accent);}
 .btn:active{transform:translateY(1px);}
+.btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;line-height:1;}
 
 #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;

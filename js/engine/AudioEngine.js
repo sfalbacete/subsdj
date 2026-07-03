@@ -8,6 +8,7 @@
    ===================================================================== */
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
+import { Arp } from './Arp.js';
 
 function makeNoise(ctx) {
   const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -54,6 +55,7 @@ export class AudioEngine {
     this.lastFreq = null;         // para glide
     this.heldStack = [];          // notas pulsadas en modo mono (cima = sonando)
     this.monoVoice = null;        // voz única en modo mono
+    this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
   }
 
   // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
@@ -63,8 +65,11 @@ export class AudioEngine {
     this.ctx = ctx;
     this.noiseBuffer = makeNoise(ctx);
 
-    // Carga del worklet (relativo a este módulo, robusto)
-    await ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js', import.meta.url));
+    // Carga de los worklets (relativo a este módulo, robusto)
+    await Promise.all([
+      ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js', import.meta.url)),
+      ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js', import.meta.url)),
+    ]);
 
     const S = this.S;
 
@@ -196,30 +201,40 @@ export class AudioEngine {
   // ---------- voces ----------
   noteOn(id, freq, vel = 1) {
     if (!this.ready) return;
-    if (this.S.mode === 'mono') return this._monoOn(id, freq, vel);
+    if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel);   // el arp secuencia las notas
+    this._directOn(id, freq, vel);
+  }
+  noteOff(id) {
+    if (this.S.arpMode !== 'off') return this.arp.unhold(id);
+    this._directOff(id);
+  }
+  // Camino directo (lo usa también el arpegiador, con inicio programado `when`)
+  _directOn(id, freq, vel = 1, when = null) {
+    if (this.S.mode === 'mono') return this._monoOn(id, freq, vel, when);
     const existing = this.voices.get(id);
     if (existing) { if (existing._timer) clearTimeout(existing._timer); this._dispose(existing); this.voices.delete(id); this.voiceCount = Math.max(0, this.voiceCount - 1); }
     if (this.voiceCount >= MAX_POLY) {                     // robo de voz: la más antigua
       const oldest = this.voices.keys().next().value;      // Map conserva orden de inserción
       if (oldest !== undefined) this._releaseVoice(oldest, 0.02);
     }
-    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq });
+    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
     if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
     this.voices.set(id, v);
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
   }
-  noteOff(id) {
+  _directOff(id) {
     if (this.S.mode === 'mono') return this._monoOff(id);
     this._releaseVoice(id, this.S.r);
   }
   allNotesOff() {
+    this.arp.held = []; this.arp._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }
 
   // ---- modo mono / legato (prioridad de última nota) ----
-  _monoOn(id, freq, vel) {
+  _monoOn(id, freq, vel, when = null) {
     const had = this.heldStack.length > 0;
     this.heldStack = this.heldStack.filter(n => n.id !== id);
     this.heldStack.push({ id, freq, vel });
@@ -228,7 +243,7 @@ export class AudioEngine {
       this.lastFreq = freq;
     } else {
       this._killMono();
-      const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq });
+      const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
       if (this._bend) v.ensurePitch();
       this.monoVoice = v; this.voices.set('mono', v);
       this.lastFreq = freq;
@@ -361,6 +376,7 @@ export class AudioEngine {
         break;
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
+      case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
       // a, d, s, r, glide: se leen al crear cada voz (sin nodo en vivo)
     }
   }

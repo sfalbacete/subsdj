@@ -55,6 +55,9 @@ export function bindOscControls() {
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
+  bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador
+  bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
+  bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');
   bindLfoShapes();
 
   document.querySelectorAll('.stepper button').forEach(b => {

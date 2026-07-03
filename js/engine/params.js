@@ -94,6 +94,10 @@ export const PARAMS = {
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct' },   // envolvente de pitch por nota
   pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },
   mode:   { def: 'poly' },
+  arpMode: { def: 'off' },                          // off | up | down | updown | random
+  arpDiv:  { def: '1/16' },                         // división musical del paso (usa bpm)
+  arpOct:  { def: '1' },                            // octavas del patrón (1..3, seg de botones)
+  arpGate: { def: 0.5, min: 0.05, max: 1 },         // duración de cada paso (fracción)
   master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
 };
 

@@ -1,6 +1,7 @@
-/* SubSDJ · banco de presets (fábrica + usuario en localStorage) + botón Reset */
-import { FACTORY, factoryPreset, loadUser, saveUser } from '../engine/presets.js';
-import { loadState, snapshot } from './registry.js';
+/* SubSDJ · banco de presets (fábrica + usuario en localStorage) + botón Reset
+   + export/import del banco de usuario a JSON. */
+import { FACTORY, factoryPreset, loadUser, saveUser, migrateV1 } from '../engine/presets.js';
+import { CONTROLS, loadState, snapshot } from './registry.js';
 
 let selEl, msgEl;
 const msg = t => { if (msgEl) msgEl.textContent = t; };
@@ -65,6 +66,42 @@ export function initPresetBank() {
     msg('Borrado «' + name + '».');
   });
   document.getElementById('resetBtn').addEventListener('click', () => { loadState({}); msg('Valores por defecto.'); });
+
+  // ---- export/import del banco de usuario (JSON) ----
+  document.getElementById('expBtn').addEventListener('click', () => {
+    const user = loadUser(), n = Object.keys(user).length;
+    if (!n) { msg('No hay presets tuyos que exportar (guarda alguno antes).'); return; }
+    const blob = new Blob([JSON.stringify({ formato: 'subsdj-presets-v2', presets: user }, null, 2)],
+      { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'subsdj-presets.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    msg('Exportados ' + n + ' presets.');
+  });
+  const impFile = document.getElementById('impFile');
+  document.getElementById('impBtn').addEventListener('click', () => impFile.click());
+  impFile.addEventListener('change', () => {
+    const f = impFile.files[0]; if (!f) return;
+    f.text().then(txt => {
+      let data; try { data = JSON.parse(txt); } catch (e) { msg('Ese archivo no es JSON válido.'); return; }
+      const src = data && data.presets && typeof data.presets === 'object' ? data.presets : data;
+      const user = loadUser(); let added = 0;
+      for (const name in src) {
+        if (!src[name] || typeof src[name] !== 'object') continue;
+        const clean = {};
+        for (const k in src[name]) if (k in CONTROLS) clean[k] = src[name][k];   // descarta claves desconocidas
+        const base = String(name).slice(0, 32) || 'preset';
+        let final = base, i = 2;
+        while (final in user) final = base + ' (' + (i++) + ')';                 // sin machacar existentes
+        user[final] = migrateV1(clean);                                          // acepta bancos v1 antiguos
+        added++;
+      }
+      saveUser(user); refresh();
+      msg(added ? 'Importados ' + added + ' presets (en «★ Míos»).' : 'El archivo no contenía presets.');
+      impFile.value = '';
+    });
+  });
 
   refresh('f:Init (default)');
 }

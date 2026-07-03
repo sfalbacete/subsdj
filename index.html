@@ -12,6 +12,7 @@
   <span class="badge">WebAudio · AudioWorklet</span>
   <span class="badge" id="midiInfo"></span>
   <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
+  <button id="recBtn" class="btn" title="Grabar la salida a un archivo WAV">⏺ Grabar</button>
   <span id="powerInfo">⏻ cargando audio…</span>
   <span id="dbgInfo" title="voces pulsadas · colas de release · osciladores worklet vivos"></span>
 </header>
@@ -24,6 +25,9 @@
   <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
   <button class="btn" id="saveBtn">💾 Guardar</button>
   <button class="btn" id="delBtn">🗑 Borrar</button>
+  <button class="btn" id="expBtn" title="Descargar tus presets como JSON">⇩ Exportar</button>
+  <button class="btn" id="impBtn" title="Importar presets desde un JSON">⇧ Importar</button>
+  <input type="file" id="impFile" accept="application/json,.json" style="display:none">
   <span id="presetMsg"></span>
 </div>
 
@@ -224,6 +228,35 @@
       <div class="slider" style="flex:1"><div class="head"><span class="lab">Master</span><span class="val" id="v_master"></span></div>
         <input type="range" id="s_master"></div>
     </div>
+  </div>
+
+  <!-- ARPEGIADOR -->
+  <div class="panel">
+    <h2>Arpegiador</h2>
+    <div class="fieldlab">Modo</div>
+    <div class="seg waves" id="arpModeSel">
+      <button data-arp="off">Off</button>
+      <button data-arp="up">Up</button>
+      <button data-arp="down">Down</button>
+      <button data-arp="updown">U·D</button>
+      <button data-arp="random">Rnd</button>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">División</div>
+    <div class="seg" id="arpDivSel">
+      <button data-div="1/4">¼</button>
+      <button data-div="1/8">⅛</button>
+      <button data-div="1/16">1/16</button>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">Octavas</div>
+    <div class="seg" id="arpOctSel">
+      <button data-aoct="1">1</button>
+      <button data-aoct="2">2</button>
+      <button data-aoct="3">3</button>
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="arpGate"><div class="ind"></div></div><div class="lab">Gate</div><div class="val"></div></div>
+    </div>
+    <div class="note">Mantén notas pulsadas y el arp las secuencia al BPM (knob en el panel FX)</div>
   </div>
 
 </div>
