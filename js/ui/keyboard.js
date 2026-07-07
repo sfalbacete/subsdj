@@ -14,19 +14,40 @@ const KEYMAP = {
 
 const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
 
+// Semitono (desde la octava base) -> tecla del PC para pintarla sobre la tecla.
+// OJO: Object.entries enumera primero las claves numéricas ('2','3',…), así que
+// en los solapes fila baja/alta (12-14) fijamos la fila alta a mano.
+const HINTS = {};
+for (const [k, off] of Object.entries(KEYMAP)) HINTS[off] = k;
+Object.assign(HINTS, { 12: 'q', 13: '2', 14: 'w' });
+const hintChip = off => off in HINTS ? `<span class="klab">${HINTS[off].toUpperCase()}</span>` : '';
+
 let baseOctave = 4;
+let numOctaves = 2;
+let octaveTouched = false;  // el usuario fijó octava con RePág/AvPág → no re-centrar al redimensionar
 let kb, powerInfo;
 const active = new Map();   // midi -> element|null
 const held = new Set();
 
+// Octavas que caben en el ancho disponible: ~38px por tecla blanca, 1..6.
+const KEY_PX = 38;
+const octavesForWidth = () =>
+  Math.max(1, Math.min(6, Math.floor(((kb.clientWidth - 16) / KEY_PX - 1) / 7)));
+// Octava base por defecto: rango centrado alrededor de C4-C5 (con tope en C9).
+const defaultBase = n => Math.max(0, Math.min(9 - n, 5 - Math.ceil(n / 2)));
+
 function buildKeyboard() {
-  kb.innerHTML = '';
+  kb.innerHTML = '<div id="kbKeys"></div>';
+  const row = kb.firstElementChild;
   const startMidi = (baseOctave + 1) * 12;
   const semis = [0, 2, 4, 5, 7, 9, 11];
   const blackAfter = { 0: 1, 2: 3, 5: 6, 7: 8, 9: 10 };
+  // Sesgo real de las negras respecto a la juntura de blancas (fracción del
+  // ancho de una blanca): C# y F# caen hacia la izquierda, D# y A# a la derecha.
+  const blackBias = { 1: -0.13, 3: 0.13, 6: -0.16, 8: 0, 10: 0.16 };
   const white = [], black = [];
   let count = 0;
-  for (let oct = 0; oct < 2; oct++) {
+  for (let oct = 0; oct < numOctaves; oct++) {
     for (let i = 0; i < 7; i++) {
       const midi = startMidi + oct * 12 + semis[i];
       white.push({ midi });
@@ -34,20 +55,33 @@ function buildKeyboard() {
       count++;
     }
   }
-  white.push({ midi: startMidi + 24 }); count++;
+  white.push({ midi: startMidi + numOctaves * 12 }); count++;
   const wWidth = 100 / count;
+  const bWidth = wWidth * 0.58;   // proporción negra/blanca de un piano real
 
   white.forEach(w => {
     const d = document.createElement('div');
     d.className = 'wkey'; d.dataset.midi = w.midi;
-    d.textContent = NOTE_NAMES[w.midi % 12] + (Math.floor(w.midi / 12) - 1);
-    kb.appendChild(d); bindKeyEl(d, w.midi);
+    const name = NOTE_NAMES[w.midi % 12];
+    d.innerHTML = hintChip(w.midi - startMidi) +
+      (name === 'C' ? `<span class="kname">C${Math.floor(w.midi / 12) - 1}</span>` : '');
+    row.appendChild(d); bindKeyEl(d, w.midi);
   });
   black.forEach(b => {
     const d = document.createElement('div');
     d.className = 'bkey'; d.dataset.midi = b.midi;
-    d.style.left = `calc(${(b.after + 1) * wWidth}% - 2.6%)`;
-    kb.appendChild(d); bindKeyEl(d, b.midi);
+    const center = (b.after + 1 + blackBias[b.midi % 12]) * wWidth;
+    d.style.left = `${(center - bWidth / 2).toFixed(3)}%`;
+    d.style.width = `${bWidth.toFixed(3)}%`;
+    d.innerHTML = hintChip(b.midi - startMidi);
+    row.appendChild(d); bindKeyEl(d, b.midi);
+  });
+
+  // Tras reconstruir (resize), las notas que siguen sonando recuperan su tecla.
+  active.forEach((el, midi) => {
+    const d = row.querySelector(`[data-midi="${midi}"]`);
+    if (d) d.classList.add('on');
+    active.set(midi, d);
   });
 }
 
@@ -80,15 +114,30 @@ export function releaseNote(midi) { release(midi); }
 export function initKeyboard() {
   kb = document.getElementById('keyboard');
   powerInfo = document.getElementById('powerInfo');
+  numOctaves = octavesForWidth();
+  baseOctave = defaultBase(numOctaves);
   buildKeyboard();
+
+  // Al cambiar el ancho, recalcular cuántas octavas caben y reconstruir.
+  let rszT;
+  new ResizeObserver(() => {
+    clearTimeout(rszT);
+    rszT = setTimeout(() => {
+      const n = octavesForWidth();
+      if (n === numOctaves) return;
+      numOctaves = n;
+      baseOctave = octaveTouched ? Math.min(baseOctave, 9 - numOctaves) : defaultBase(numOctaves);
+      buildKeyboard();
+    }, 120);
+  }).observe(kb);
 
   window.addEventListener('keydown', e => {
     // Sólo el campo de TEXTO de presets bloquea el teclado; los sliders (input range) no.
     if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
     const k = e.key.toLowerCase();
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
-      e.preventDefault(); panic();
-      baseOctave = k === 'pageup' ? Math.min(7, baseOctave + 1) : Math.max(0, baseOctave - 1);
+      e.preventDefault(); panic(); octaveTouched = true;
+      baseOctave = k === 'pageup' ? Math.min(9 - numOctaves, baseOctave + 1) : Math.max(0, baseOctave - 1);
       buildKeyboard(); return;
     }
     if (!(k in KEYMAP) || held.has(k) || e.repeat) return;
