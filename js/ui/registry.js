@@ -1,7 +1,9 @@
 /* =====================================================================
    SubSDJ · registro de controles.
-   Cada control UI se inscribe en CONTROLS con {get, set, def}. Sobre esto
-   se construyen Reset, snapshot (guardar) y loadState (cargar preset).
+   Cada control UI se inscribe en CONTROLS con {get, set, def} + `el` (su
+   nodo DOM, para MIDI learn) y opcionalmente `opts` (valores discretos:
+   midimap parte el recorrido del mando en N zonas). Sobre esto se
+   construyen Reset, snapshot (guardar), loadState (cargar preset) y midimap.
    applyTarget enruta al engine y emite 'param-change' (lo escucha el gráfico ADSR).
    ===================================================================== */
 import { engine } from '../engine/AudioEngine.js';

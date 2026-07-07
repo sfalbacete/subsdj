@@ -18,8 +18,11 @@
 import { AudioEngine, engine } from './engine/AudioEngine.js';
 import { Arp } from './engine/Arp.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
+import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
+import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
+import { loadPresetIndex } from './ui/presetBank.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -150,6 +153,70 @@ export async function runSelfTest() {
     const blob = encodeWav([new Float32Array(128)], [new Float32Array(128)], 44100);
     const okW = blob.size === 44 + 128 * 4 && blob.type === 'audio/wav';
     push({ name: 'codificador WAV', peak: 0, ok: okW, problems: okW ? [] : ['blob: ' + blob.size + ' ' + blob.type] });
+  }
+  {
+    // mapeo MIDI: conversión CC→valor (lineal y log) y zonas discretas
+    const okM =
+      Math.abs(ccToVal(PARAMS.cutoff, 1) - 20000) < 0.5 &&      // log: extremo alto
+      Math.abs(ccToVal(PARAMS.cutoff, 0) - 20) < 0.01 &&        // log: extremo bajo
+      Math.abs(ccToVal(PARAMS.detuneA, 0.5)) < 1e-9 &&          // lineal: centro de ±50
+      zoneOf(['a', 'b', 'c'], 0) === 'a' && zoneOf(['a', 'b', 'c'], 0.34) === 'b' &&
+      zoneOf(['a', 'b', 'c'], 1) === 'c';
+    push({ name: 'mapeo MIDI (CC→valor y zonas)', peak: 0, ok: okM,
+           problems: okM ? [] : ['ccToVal/zoneOf devuelven valores inesperados'] });
+  }
+  {
+    // MIDI learn de punta a punta: ligar CC, mover control real (continuo y
+    // por zonas), persistencia por aparato en localStorage y modo pickup
+    const prevDev = getDevice();
+    const K = 'subsdj.midimap.v1:selftest';
+    localStorage.removeItem(K);
+    setDevice('selftest');                        // mapa limpio (fábrica) para el aparato fake
+    armLearn('reso'); learnCapture(33);
+    applyCC(33, 1);
+    const okBind = Math.abs(CONTROLS.reso.get() - 24) < 0.11;   // tope del rango (step 0.1)
+    armLearn('waveA'); learnCapture(34);
+    applyCC(34, 0.5);                             // zona 3 de 5 → 'sine'
+    const okZone = CONTROLS.waveA.get() === 'sine';
+    const okFree = applyCC(99, 1) === false;      // CC sin ligar no se consume
+    setDevice('selftest');                        // relee de localStorage: el binding sobrevive
+    const okPersist = !!getMap().ccs[33] && getMap().ccs[33].id === 'reso' && !getMap().ccs[71];
+    getMap().pickup = true;                       // pickup: lejos y sin cruzar NO salta…
+    CONTROLS.mix.set(0.5);
+    armLearn('mix'); learnCapture(35);
+    applyCC(35, 0.9);
+    const okHold = Math.abs(CONTROLS.mix.get() - 0.5) < 1e-9;
+    applyCC(35, 0.4);                             // …pero al cruzar 0.5 engancha
+    const okCross = Math.abs(CONTROLS.mix.get() - 0.4) < 1e-9;
+    localStorage.removeItem(K);
+    setDevice(prevDev);                           // restaura el mapa real del usuario
+    const okL = okBind && okZone && okFree && okPersist && okHold && okCross;
+    push({ name: 'MIDI learn (ligar · zonas · persistencia · pickup)', peak: 0, ok: okL,
+           problems: okL ? [] : ['bind:' + okBind + ' zona:' + okZone + ' libre:' + okFree +
+                                 ' persist:' + okPersist + ' pickup:' + okHold + '/' + okCross] });
+  }
+  {
+    // acciones MIDI sobre el banco: ‹ › por flanco de subida y program change
+    const prevDev = getDevice();
+    const K = 'subsdj.midimap.v1:selftest2';
+    localStorage.removeItem(K);
+    setDevice('selftest2');
+    const sel = document.getElementById('presetSelect');
+    const n = sel.options.length, i0 = sel.selectedIndex;
+    armLearn('presetNext'); learnCapture(36);
+    applyCC(36, 1);                               // pulsar (127) → siguiente preset
+    const okStep = sel.selectedIndex === (i0 + 1) % n;
+    applyCC(36, 1);                               // mantenido: NO repite
+    const okOnce = sel.selectedIndex === (i0 + 1) % n;
+    applyCC(36, 0); applyCC(36, 1);               // soltar y pulsar → avanza otra vez
+    const okEdge = sel.selectedIndex === (i0 + 2) % n;
+    loadPresetIndex(i0 + 130);                    // program change: módulo del banco
+    const okPC = sel.selectedIndex === (i0 + 130) % n;
+    localStorage.removeItem(K);
+    setDevice(prevDev);
+    const okA = okStep && okOnce && okEdge && okPC;
+    push({ name: 'MIDI acciones (banco: ‹ › y program change)', peak: 0, ok: okA,
+           problems: okA ? [] : ['paso:' + okStep + ' única:' + okOnce + ' flanco:' + okEdge + ' pc:' + okPC] });
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

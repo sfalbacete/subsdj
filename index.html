@@ -11,6 +11,7 @@
   <h1>SubSDJ <small>· Substractive Synthesizer</small></h1>
   <span class="badge">WebAudio · AudioWorklet</span>
   <span class="badge" id="midiInfo"></span>
+  <button id="midiLearnBtn" class="btn" title="MIDI learn: liga los mandos físicos (CC) a los controles de la UI">🎛 MIDI map</button>
   <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
   <button id="recBtn" class="btn" title="Grabar la salida a un archivo WAV">⏺ Grabar</button>
   <span id="powerInfo">⏻ cargando audio…</span>
@@ -312,6 +313,19 @@
     Cada tecla muestra su tecla del PC (estilo tracker, 2 filas) &nbsp;·&nbsp;
     octava con <kbd>RePág</kbd> / <kbd>AvPág</kbd> &nbsp;·&nbsp; también con el ratón &nbsp;·&nbsp; polifónico.
   </div>
+</div>
+
+<!-- BARRA MIDI LEARN (visible solo en modo learn) -->
+<div id="midiBar" hidden>
+  <span class="mm-hint">🎛 <b>MIDI LEARN</b> · clic en un control y mueve el mando físico · también los ‹ › del banco (botón = flanco) · clic derecho = desligar · <kbd>Esc</kbd> sale</span>
+  <label title="El mando no actúa hasta alcanzar o cruzar el valor en pantalla (sin saltos al cambiar de preset)">
+    <input type="checkbox" id="mmPickup"> Pickup</label>
+  <button class="btn" id="mmExp" title="Descargar el mapeo como JSON">⇩ Mapa</button>
+  <button class="btn" id="mmImp" title="Cargar un mapeo desde JSON">⇧ Mapa</button>
+  <input type="file" id="mmFile" accept="application/json,.json" style="display:none">
+  <button class="btn" id="mmDef" title="Mapeo de fábrica: CC1 vibrato · CC74 cutoff · CC71 resonancia">⟲ Fábrica</button>
+  <span id="mmMsg"></span>
+  <button class="btn" id="mmClose" title="Salir del modo learn">✕</button>
 </div>
 
 <script type="module" src="js/main.js"></script>

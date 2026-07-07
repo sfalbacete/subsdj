@@ -40,6 +40,6 @@ export function bindKnobs() {
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('dblclick', () => setVal(cfg.def));
-    CONTROLS[name] = { get: () => value, set: v => setVal(v), def: cfg.def };
+    CONTROLS[name] = { get: () => value, set: v => setVal(v), def: cfg.def, el: el.parentElement };
   });
 }

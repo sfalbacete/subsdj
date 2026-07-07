@@ -38,6 +38,7 @@ export function bindSliders() {
       get: () => posToVal(p, parseFloat(el.value)),
       set: v => { el.value = valToPos(p, v); update(); },
       def: p.def,
+      el: el.closest('.slider'),
     };
   });
 }

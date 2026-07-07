@@ -7,6 +7,7 @@ import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
+import { initMidiMap } from './ui/midimap.js';
 import { initPresetBank } from './ui/presetBank.js';
 import { initRecorder } from './ui/recorder.js';
 import { initScope } from './ui/scope.js';
@@ -17,7 +18,8 @@ bindKnobs();
 bindSliders();
 bindOscControls();
 initKeyboard();
-initMIDI();          // teclado MIDI: velocity, pitch bend, sustain, mod wheel
+initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
+initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
 initPresetBank();
 initRecorder();      // grabación de la salida a WAV
 initADSRGraph(document.getElementById('adsrCanvas'));

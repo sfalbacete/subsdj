@@ -19,6 +19,8 @@ function bindSeg(segId, key, name, target) {
     get: () => seg.querySelector('button.active').dataset[key],
     set: v => { const b = seg.querySelector('button[data-' + key + '="' + v + '"]'); if (b) select(b); },
     def: PARAMS[name].def,
+    el: seg,
+    opts: [...seg.querySelectorAll('button')].map(b => b.dataset[key]),   // zonas para midimap
   };
   CONTROLS[name].set(PARAMS[name].def);
 }
@@ -36,7 +38,7 @@ function bindLfoShapes() {
       applyTarget(name, v);
     };
     btn.addEventListener('click', () => { engine.resume(); set(SHAPES[(SHAPES.indexOf(btn.dataset.cur) + 1) % SHAPES.length]); });
-    CONTROLS[name] = { get: () => btn.dataset.cur, set, def: PARAMS[name].def };
+    CONTROLS[name] = { get: () => btn.dataset.cur, set, def: PARAMS[name].def, el: btn, opts: SHAPES };
     set(PARAMS[name].def);
   });
 }
@@ -70,7 +72,8 @@ export function bindOscControls() {
     });
   });
   ['A', 'B'].forEach(s => {
-    CONTROLS['octaves' + s] = { get: () => engine.S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def };
+    CONTROLS['octaves' + s] = { get: () => engine.S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def,
+      el: document.getElementById('oct' + s).closest('.ctl'), opts: [1, 2, 3, 4] };
     setOctave('osc' + s, PARAMS['octaves' + s].def);
   });
 }

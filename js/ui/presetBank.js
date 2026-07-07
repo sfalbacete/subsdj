@@ -1,5 +1,6 @@
 /* SubSDJ · banco de presets (fábrica + usuario en localStorage) + botón Reset
-   + export/import del banco de usuario a JSON. */
+   + export/import del banco de usuario a JSON. La navegación se exporta
+   (stepPreset/loadPresetIndex) para el MIDI: botones físicos y program change. */
 import { FACTORY, factoryPreset, loadUser, saveUser, migrateV1 } from '../engine/presets.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 
@@ -29,27 +30,33 @@ function dataFor(v) {
   return kind === 'f' ? factoryPreset(name) : loadUser()[name];
 }
 
+function loadCurrent() {
+  const data = dataFor(selEl.value);
+  if (data) { loadState(data); msg('Cargado: ' + selEl.selectedOptions[0].textContent); }
+}
+export function stepPreset(dir) {
+  const n = selEl ? selEl.options.length : 0;  // incluye opciones de ambos optgroups
+  if (!n) return;
+  selEl.selectedIndex = (selEl.selectedIndex + dir + n) % n;   // recorre con wrap-around
+  loadCurrent();
+}
+export function loadPresetIndex(i) {           // program change n → preset n del banco
+  const n = selEl ? selEl.options.length : 0;
+  if (!n) return;
+  selEl.selectedIndex = ((i % n) + n) % n;
+  loadCurrent();
+}
+
 export function initPresetBank() {
   selEl = document.getElementById('presetSelect');
   msgEl = document.getElementById('presetMsg');
-
-  const loadCurrent = () => {
-    const data = dataFor(selEl.value);
-    if (data) { loadState(data); msg('Cargado: ' + selEl.selectedOptions[0].textContent); }
-  };
-  const step = dir => {
-    const n = selEl.options.length;          // incluye opciones de ambos optgroups
-    if (!n) return;
-    selEl.selectedIndex = (selEl.selectedIndex + dir + n) % n;   // recorre con wrap-around
-    loadCurrent();
-  };
 
   selEl.addEventListener('change', () => {
     loadCurrent();
     selEl.blur();   // suelta el foco para que las teclas toquen notas y no hagan "type-ahead" en el combo
   });
-  document.getElementById('prevBtn').addEventListener('click', () => step(-1));
-  document.getElementById('nextBtn').addEventListener('click', () => step(1));
+  document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
+  document.getElementById('nextBtn').addEventListener('click', () => stepPreset(1));
   document.getElementById('saveBtn').addEventListener('click', () => {
     const inp = document.getElementById('presetName');
     const name = (inp.value || '').trim();

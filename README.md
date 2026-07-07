@@ -60,8 +60,33 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
 Conecta un teclado MIDI y acepta el permiso del navegador: se enlaza solo
 (indicador 🎹 en la cabecera, reconecta en caliente). **Velocity** escala la
 amplitud y la envolvente del filtro; **pitch bend** ±2 semitonos; **sustain**
-(CC64); **mod wheel** (CC1) mueve el knob de vibrato; **CC74/CC71** mueven
-cutoff/resonancia. Las notas MIDI iluminan el teclado en pantalla.
+(CC64). Las notas MIDI iluminan el teclado en pantalla.
+
+### MIDI learn (🎛 MIDI map)
+
+Cualquier rosca/slider/botón del cacharro puede gobernar cualquier control de
+la UI. Botón **🎛 MIDI map** (cabecera) → clic en un control en pantalla →
+mueve el mando físico: ligado (insignia `CCnn` sobre el control). Clic derecho
+desliga; `Esc` sale. Funciona también con controles discretos (ondas, segs,
+formas de LFO, octavas): el recorrido del mando se parte en N zonas.
+
+- **Persistencia**: el mapa se guarda solo en localStorage **por aparato**
+  (clave = nombre del dispositivo MIDI); cada teclado recuerda su mapeo.
+  **⇩/⇧ Mapa** lo exporta/importa como JSON (`{formato:'subsdj-midimap-v1',
+  ccs:{74:{id:'cutoff',lo:0,hi:1}}}` — `lo/hi` acotan el tramo del rango que
+  recorre el mando, editable a mano). **⟲ Fábrica** restaura el mapeo por
+  defecto: CC1 (mod wheel) → vibrato, CC74 → cutoff, CC71 → resonancia.
+- **Pickup** (checkbox): el mando no actúa hasta alcanzar o cruzar el valor
+  en pantalla — sin saltos al cambiar de preset con roscas absolutas.
+- **Presets desde el cacharro**: los botones **‹ ›** del banco también son
+  mapeables (disparan por flanco de subida: pensados para botones físicos que
+  mandan 0/127, aunque una rosca también sirve — dispara al cruzar el centro).
+  Y los mensajes **Program Change** cargan directamente el preset *n* del
+  banco (módulo su tamaño), sin learn: los botones de programa del teclado
+  navegan el banco tal cual.
+- El canal MIDI se ignora a propósito (cambiar el canal global del teclado
+  no rompe el mapa). Si remapeas CC64 dejas de tener pedal de sustain: tuyo
+  es el pie.
 
 ## Estructura
 
@@ -78,9 +103,11 @@ js/engine/
   presets.js                   banco de fábrica + presets de usuario (localStorage)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw, FM 2-op)
 js/ui/
-  registry.js                  registro CONTROLS {get,set,def} → reset/snapshot/presets
+  registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
-  keyboard.js presetBank.js scope.js adsrGraph.js
+  midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
+  midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
+  keyboard.js presetBank.js recorder.js scope.js adsrGraph.js
 ```
 
 Los presets (formato **v2**) guardan valores en **espacio-motor** (`cutoff` en Hz,
@@ -109,8 +136,11 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    export/import de presets a JSON con validación y migración; arpegiador
    (up/down/updown/random, división musical, octavas, gate) sincronizado al BPM.
 
-**Roadmap completado.** Ideas futuras: matriz de modulación genérica, MIDI-learn,
-más divisiones/swing en el arp, y el generador estático de samples (aparcado).
+**Roadmap completado.** Después llegaron el bloque «sonido pro» (ensemble, drift,
+LFO fade, unison, filtro 24 dB + drive, reverb damp/predelay, color de ruido) y
+**MIDI learn** (mapeo CC→control con persistencia por aparato). Ideas futuras:
+matriz de modulación genérica, más divisiones/swing en el arp, y el generador
+estático de samples (aparcado).
 
 Aparcado a propósito (no implementar salvo petición): la generación *estática*
 de samples del synth original (morphing para modtrackers).

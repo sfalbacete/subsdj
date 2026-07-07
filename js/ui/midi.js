@@ -2,14 +2,16 @@
    SubSDJ · entrada Web MIDI.
    Notas con velocity -> pressNote/releaseNote (comparte ids y visuales con
    el teclado en pantalla). Pitch bend ±200 ct -> engine.setBend (no pasa
-   por presets). Sustain (CC64) retenido aquí. Mod wheel (CC1) mueve el
-   knob de vibrato; CC74/CC71 mueven cutoff/resonancia (los controles giran
-   en pantalla: misma filosofía que un panel analógico).
+   por presets). Sustain (CC64) retenido aquí, salvo que el usuario lo
+   remapee. El resto de CCs pasa por el mapa de midimap.js (MIDI learn);
+   de fábrica: CC1 -> vibrato, CC74/CC71 -> cutoff/resonancia (los
+   controles giran en pantalla: misma filosofía que un panel analógico).
+   Program change n -> preset n del banco (módulo del tamaño del banco).
    ===================================================================== */
 import { engine } from '../engine/AudioEngine.js';
-import { PARAMS, posToVal } from '../engine/params.js';
-import { CONTROLS } from './registry.js';
 import { pressNote, releaseNote } from './keyboard.js';
+import { applyCC, learnCapture, setDevice } from './midimap.js';
+import { loadPresetIndex } from './presetBank.js';
 
 let pedal = false;
 const pedalHeld = new Set();     // notas soltadas con el pedal pisado
@@ -25,17 +27,14 @@ function onMsg(e) {
     if (pedal) pedalHeld.add(d1);
     else releaseNote(d1);
   } else if (cmd === 0xb0) {                           // control change
-    if (d1 === 64) {                                   // sustain
+    if (learnCapture(d1)) return;                      // modo learn: liga este CC al control elegido
+    if (applyCC(d1, d2 / 127)) return;                 // mapeo del usuario (midimap.js)
+    if (d1 === 64) {                                   // sustain (si no está remapeado)
       pedal = d2 >= 64;
       if (!pedal) { pedalHeld.forEach(n => releaseNote(n)); pedalHeld.clear(); }
-    } else if (d1 === 1 && CONTROLS.freqLfoLvl) {      // mod wheel -> vibrato (media escala)
-      CONTROLS.freqLfoLvl.set((d2 / 127) * 100);
-    } else if (d1 === 74 && CONTROLS.cutoff) {         // brightness -> cutoff (log)
-      CONTROLS.cutoff.set(posToVal(PARAMS.cutoff, d2 / 127));
-    } else if (d1 === 71 && CONTROLS.reso) {           // resonance
-      const p = PARAMS.reso;
-      CONTROLS.reso.set(p.min + (d2 / 127) * (p.max - p.min));
     }
+  } else if (cmd === 0xc0) {                           // program change → preset del banco
+    loadPresetIndex(d1);
   } else if (cmd === 0xe0) {                           // pitch bend ±200 ct (±2 semitonos)
     engine.setBend((((d2 << 7) | d1) - 8192) / 8192 * 200);
   }
@@ -43,11 +42,16 @@ function onMsg(e) {
 
 export function initMIDI() {
   const el = document.getElementById('midiInfo');
-  if (!navigator.requestMIDIAccess) return;            // navegador sin Web MIDI
+  if (!navigator.requestMIDIAccess) {                  // navegador sin Web MIDI
+    const btn = document.getElementById('midiLearnBtn');
+    if (btn) btn.hidden = true;
+    return;
+  }
   navigator.requestMIDIAccess().then(acc => {
     const rebind = () => {
       const names = [];
       acc.inputs.forEach(inp => { inp.onmidimessage = onMsg; names.push(inp.name); });
+      setDevice(names[0] || null);                     // carga el mapa de ESTE aparato
       if (el) el.textContent = names.length ? '🎹 ' + names.join(' · ') : '🎹 sin dispositivo MIDI';
     };
     acc.onstatechange = rebind;                        // conectar/desconectar en caliente
