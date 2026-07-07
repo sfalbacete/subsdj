@@ -90,6 +90,11 @@ export const FACTORY = {
       filterSlope: '24', chMode: 'ensemble', chAmt: 0.55, chSpd: 0.55, drift: 2,
       a: 0.4, d: 0.4, s: 0.85, r: 1.3, width: 0.5,
       reverbMix: 0.28, reverbDamp: 0.5, reverbPre: 0.03, master: 0.55 },
+    'Pad aire': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, mix: 0.4,
+      noise: 0.22, noiseColor: 0.85, cutoff: 2200, reso: 0.8, filterSlope: '24',
+      chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3, freqLfoLvl: 6, freqLfoSpd: 5, lfoFade: 0.6,
+      a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
+      reverbMix: 0.32, reverbSize: 3, reverbDamp: 0.55, reverbPre: 0.03, master: 0.58 },
   },
 
   'Plucks & Teclas': {

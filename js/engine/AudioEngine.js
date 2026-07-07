@@ -386,6 +386,7 @@ export class AudioEngine {
       case 'mix':   this._forVoices(v => v.setMix(value)); break;
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
       case 'noise': this._forVoices(v => v.setNoise(value)); break;
+      case 'noiseColor': this._forVoices(v => v.setNoiseColor(value)); break;
       case 'spread': this._forVoices(v => v.setSpread(value)); break;
       case 'drift':  this._forVoices(v => v.setDrift(value)); break;
       case 'uniVoices':                                    // el seg da string: coerción en setUnison

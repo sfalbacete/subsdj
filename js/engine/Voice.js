@@ -57,11 +57,17 @@ export class Voice {
     const ringX = ctx.createGain(); ringX.gain.value = S.ring;
     normMix.connect(normX); ring.connect(ringX);
 
-    // --- Ruido ---
+    // --- Ruido con color: LP+HP en serie (color<0 cierra el LP = oscuro/viento;
+    // color>0 sube el HP = "aire"; a 0 ambos abiertos = blanco). Q a -3 dB
+    // (Butterworth plano: la Q de LP/HP va en dB). La ganancia lleva una
+    // compensación (mk) para que el color cambie el timbre, no el volumen. ---
     const noiseSrc = ctx.createBufferSource();
     noiseSrc.buffer = mod.noiseBuffer; noiseSrc.loop = true;
-    const noiseGain = ctx.createGain(); noiseGain.gain.value = S.noise;
-    noiseSrc.connect(noiseGain);
+    const nf = Voice._noiseColorCfg(S.noiseColor);
+    const nLP = ctx.createBiquadFilter(); nLP.type = 'lowpass'; nLP.Q.value = -3; nLP.frequency.value = nf.lp;
+    const nHP = ctx.createBiquadFilter(); nHP.type = 'highpass'; nHP.Q.value = -3; nHP.frequency.value = nf.hp;
+    const noiseGain = ctx.createGain(); noiseGain.gain.value = S.noise * nf.mk;
+    noiseSrc.connect(nLP); nLP.connect(nHP); nHP.connect(noiseGain);
 
     // --- Suma pre-filtro ---
     const preFilter = ctx.createGain();
@@ -146,7 +152,7 @@ export class Voice {
     fo.linearRampToValueAtTime(FS * vel, t + FA + FD);
 
     // guardar refs para updates en vivo y limpieza
-    Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc,
+    Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
       lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, panner,
       dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut });
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
@@ -195,6 +201,16 @@ export class Voice {
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
+  // Color del ruido -> cutoffs de LP/HP (barridos exponenciales) + makeup de
+  // ganancia (el LP cerrado quita mucha más energía que el HP: compensa más).
+  static _noiseColorCfg(c) {
+    return {
+      lp: c < 0 ? 18000 * Math.pow(150 / 18000, -c) : 18000,
+      hp: c > 0 ? 30 * Math.pow(8000 / 30, c) : 30,
+      mk: c < 0 ? 1 - c * 2.2 : 1 + c * 0.8,
+    };
+  }
+
   // Modulación global -> params del worklet SOLO cuando está activa: con todo
   // a 0 (el caso común) el param queda constante y sin edges que computar.
   // Si un knob pasa de 0 a activo, el engine llama a estos ensure* en vivo.
@@ -228,7 +244,13 @@ export class Voice {
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
   setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
   setRing(r)   { const tc = this.ctx.currentTime; this.normX.gain.setTargetAtTime(1 - r, tc, 0.02); this.ringX.gain.setTargetAtTime(r, tc, 0.02); }
-  setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n, this.ctx.currentTime, 0.02); }
+  setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n * Voice._noiseColorCfg(this.S.noiseColor).mk, this.ctx.currentTime, 0.02); }
+  setNoiseColor(c) {
+    const tc = this.ctx.currentTime, nf = Voice._noiseColorCfg(c);
+    this.nLP.frequency.setTargetAtTime(nf.lp, tc, 0.02);
+    this.nHP.frequency.setTargetAtTime(nf.hp, tc, 0.02);
+    this.noiseGain.gain.setTargetAtTime(this.S.noise * nf.mk, tc, 0.02);
+  }
   setCutoff(hz){ const tc = this.ctx.currentTime, v = Math.min(20000, hz * this.ktMul);
     [this.lp, this.hp, this.lp2, this.hp2].forEach(f => f && f.frequency.setTargetAtTime(v, tc, 0.02)); }
   setKeytrack(kt, cutoffHz) { this.ktMul = kt ? Math.pow(this.noteFreq / 261.63, kt) : 1; this.setCutoff(cutoffHz); }
@@ -314,7 +336,7 @@ export class Voice {
     if (this.hp2) { try { m.cutLFOGain.disconnect(this.hp2.frequency); } catch (e) {} }
     try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}
     try { m.resLFOGain.disconnect(this.hp.Q); } catch (e) {}
-    [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain,
+    [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain, this.nLP, this.nHP,
      this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.panner,
      this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut].forEach(n => {
       if (n) { try { n.disconnect(); } catch (e) {} }

@@ -1,6 +1,6 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v4 (ensemble / drift / lfoFade + filtro 24 dB / drive + reverb damp / predelay + unison, 2026-07)",
+  "banco": "SubSDJ · demos de mejoras — v5 FINAL (plan sonido pro completo: ensemble / drift / lfoFade / filtro 24 dB / drive / reverb damp / predelay / unison / aire, 2026-07)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo.",
   "presets": {
 
@@ -72,9 +72,26 @@
       "mix": 0.5, "cutoff": 2600, "reso": 1, "uniVoices": "7", "uniDetune": 30,
       "a": 0.05, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
 
+    "Aire 1 · pad sin ruido": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.5,
+      "noise": 0, "cutoff": 1800, "reso": 1,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2, "width": 0.35, "reverbMix": 0.2, "master": 0.6 },
+
+    "Aire 2 · mismo + ruido blanco": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.5,
+      "noise": 0.22, "noiseColor": 0, "cutoff": 1800, "reso": 1,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2, "width": 0.35, "reverbMix": 0.2, "master": 0.6 },
+
+    "Aire 3 · mismo, aire al cielo": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.5,
+      "noise": 0.22, "noiseColor": 0.9, "cutoff": 1800, "reso": 1,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2, "width": 0.35, "reverbMix": 0.2, "master": 0.6 },
+
+    "Aire 4 · mismo, ruido oscuro": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.5,
+      "noise": 0.22, "noiseColor": -0.8, "cutoff": 1800, "reso": 1,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2, "width": 0.35, "reverbMix": 0.2, "master": 0.6 },
+
     "Full · máquina de cuerdas 26": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -4, "detuneB": 5,
       "octavesB": 2, "mix": 0.35, "cutoff": 3400, "reso": 0.7, "morph": 0.1,
       "filterSlope": "24", "filterDrive": 0.3, "uniVoices": "3", "uniDetune": 10,
+      "noise": 0.1, "noiseColor": 0.7,
       "chMode": "ensemble", "chAmt": 0.85, "chSpd": 0.65, "drift": 4,
       "freqLfoLvl": 8, "freqLfoSpd": 5.2, "lfoFade": 0.8,
       "a": 0.25, "d": 0.3, "s": 0.9, "r": 1.1, "width": 0.4,

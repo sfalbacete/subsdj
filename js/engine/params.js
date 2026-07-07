@@ -30,6 +30,7 @@ export const PARAMS = {
   mix:      { def: 0.4, min: 0, max: 1 },
   ring:     { def: 0, min: 0, max: 1 },
   noise:    { def: 0, min: 0, max: 1 },
+  noiseColor:{ def: 0, min: -1, max: 1 },           // − oscuro (LP) · 0 blanco · + "aire" (HP)
   spread:   { def: 0.5, min: 0, max: 1 },
   drift:    { def: 0, min: 0, max: 15, unit: ' ct' },   // deriva aleatoria lenta por oscilador (analógico)
   uniVoices:{ def: '1' },                               // unison: 1..7 copias por oscilador (seg; supersaw lo ignora)
