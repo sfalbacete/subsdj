@@ -32,6 +32,8 @@ export const PARAMS = {
   noise:    { def: 0, min: 0, max: 1 },
   spread:   { def: 0.5, min: 0, max: 1 },
   drift:    { def: 0, min: 0, max: 15, unit: ' ct' },   // deriva aleatoria lenta por oscilador (analógico)
+  uniVoices:{ def: '1' },                               // unison: 1..7 copias por oscilador (seg; supersaw lo ignora)
+  uniDetune:{ def: 12, min: 0, max: 50, unit: ' ct' },  // detune de los extremos del unison
   fmRatio:  { def: 1, min: 0.25, max: 12 },
   fmIndex:  { def: 0, min: 0, max: 12 },
 

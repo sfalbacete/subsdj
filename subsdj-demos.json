@@ -1,6 +1,6 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v3 (ensemble / drift / lfoFade + filtro 24 dB / drive + reverb damp / predelay, 2026-07)",
+  "banco": "SubSDJ · demos de mejoras — v4 (ensemble / drift / lfoFade + filtro 24 dB / drive + reverb damp / predelay + unison, 2026-07)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo.",
   "presets": {
 
@@ -60,9 +60,21 @@
       "reso": 1, "a": 0.003, "d": 0.25, "s": 0, "r": 0.15,
       "reverbMix": 0.5, "reverbSize": 3, "reverbDamp": 0.7, "reverbPre": 0.08, "master": 0.65 },
 
+    "Uni 1 · cuadrada sola": { "waveA": "square", "waveB": "square", "pulseWidth": 0.4, "detuneB": 0,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "uniVoices": "1",
+      "a": 0.05, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
+
+    "Uni 2 · misma ×5 unison": { "waveA": "square", "waveB": "square", "pulseWidth": 0.4, "detuneB": 0,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "uniVoices": "5", "uniDetune": 16,
+      "a": 0.05, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
+
+    "Uni 3 · misma ×7 abierta": { "waveA": "square", "waveB": "square", "pulseWidth": 0.4, "detuneB": 0,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "uniVoices": "7", "uniDetune": 30,
+      "a": 0.05, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
+
     "Full · máquina de cuerdas 26": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -4, "detuneB": 5,
       "octavesB": 2, "mix": 0.35, "cutoff": 3400, "reso": 0.7, "morph": 0.1,
-      "filterSlope": "24", "filterDrive": 0.3,
+      "filterSlope": "24", "filterDrive": 0.3, "uniVoices": "3", "uniDetune": 10,
       "chMode": "ensemble", "chAmt": 0.85, "chSpd": 0.65, "drift": 4,
       "freqLfoLvl": 8, "freqLfoSpd": 5.2, "lfoFade": 0.8,
       "a": 0.25, "d": 0.3, "s": 0.9, "r": 1.1, "width": 0.4,

@@ -166,6 +166,8 @@ export class Voice {
     const sParam = node.parameters.get('spread');
     sParam.value = this.S.spread;
     const drParam = node.parameters.get('drift'); drParam.value = this.S.drift;
+    const uvParam = node.parameters.get('uniVoices'); uvParam.value = +this.S.uniVoices || 1;
+    const udParam = node.parameters.get('uniDetune'); udParam.value = this.S.uniDetune;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
 
@@ -188,7 +190,8 @@ export class Voice {
     pParam.value = this._clampPW(this.S.pulseWidth);
 
     node.connect(dest);
-    this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
+    this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
@@ -242,6 +245,7 @@ export class Voice {
   setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
   setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
+  setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
   setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 

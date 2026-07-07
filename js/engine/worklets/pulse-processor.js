@@ -9,7 +9,11 @@
    paga 1 vez por bloque, no por muestra — a 20 Hz de vibrato el escalón de
    2.9 ms es inaudible): frequency (Hz, glide), detune (cents, vibrato),
    drift (cents, deriva aleatoria lenta independiente por oscilador),
-   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex (FM 2-op en seno).
+   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex (FM 2-op en seno),
+   uniVoices/uniDetune (UNISON generalizado: 1..7 copias detunadas para
+   cualquier onda salvo supersaw, que ya es unison; nivel 1/sqrt(N); la
+   copia 0 conserva la fase configurada -> con N=1 es bit-idéntico al
+   oscilador simple; las demás copias arrancan con fase aleatoria).
    Salida mono. Se autodestruye al recibir el mensaje "stop".
    ===================================================================== */
 
@@ -33,6 +37,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'spread',    defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'fmRatio',   defaultValue: 1,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
       { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
+      { name: 'uniVoices', defaultValue: 1,   minValue: 1,     maxValue: 7,     automationRate: 'k-rate' },
+      { name: 'uniDetune', defaultValue: 0,   minValue: 0,     maxValue: 50,    automationRate: 'k-rate' },
     ];
   }
 
@@ -47,9 +53,15 @@ class PulseProcessor extends AudioWorkletProcessor {
       this.phases = new Float32Array(this.octaves * 7);
       for (let i = 0; i < this.phases.length; i++) this.phases[i] = Math.random();
     } else {
-      this.phases = new Float32Array(this.octaves).fill(ph);
-      this.modPhases = new Float32Array(this.octaves);       // moduladores FM (fase aleatoria)
-      for (let i = 0; i < this.octaves; i++) this.modPhases[i] = Math.random();
+      // 7 slots por octava para el unison generalizado (idx = oct*7 + copia):
+      // la copia 0 lleva la fase configurada (con uniVoices=1 todo es como antes),
+      // el resto aleatoria. modPhases = moduladores FM (siempre aleatorios).
+      this.phases = new Float32Array(this.octaves * 7);
+      this.modPhases = new Float32Array(this.octaves * 7);
+      for (let i = 0; i < this.phases.length; i++) {
+        this.phases[i] = (i % 7 === 0) ? ph : Math.random();
+        this.modPhases[i] = Math.random();
+      }
     }
     this.stopped = false;
     this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
@@ -74,6 +86,13 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
     const f0 = params.frequency[0] * Math.pow(2, (params.detune[0] + driftCt) / 1200);
 
+    // Unison generalizado (no aplica al supersaw, que ya es unison de 7 sierras).
+    // Copias repartidas linealmente en ±uniDetune cents; nivel 1/sqrt(N).
+    let uv = params.uniVoices[0] | 0; if (uv < 1) uv = 1; else if (uv > 7) uv = 7;
+    const uniCt = params.uniDetune[0], lvl = 1 / Math.sqrt(uv);
+    const uniMul = j => (uv < 2 || uniCt <= 0) ? 1
+      : Math.pow(2, ((2 * j / (uv - 1) - 1) * uniCt) / 1200);
+
     if (type === 'supersaw') {
       const spread = params.spread[0], phases = this.phases;
       for (let k = 0; k < oct; k++) {
@@ -92,67 +111,77 @@ class PulseProcessor extends AudioWorkletProcessor {
       }
     } else if (type === 'sine') {
       // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
+      // Con unison, cada copia lleva su propio par portadora/modulador.
       const ratio = params.fmRatio[0], index = params.fmIndex[0];
       for (let k = 0; k < oct; k++) {
-        const f = f0 * (1 << k);
-        if (f >= nyq) continue;
-        const dt = f / sr, mdt = (f * ratio) / sr;
-        let p = this.phases[k], mp = this.modPhases[k];
-        if (index > 0) {
-          for (let i = 0; i < N; i++) {
-            ch[i] += Math.sin(TWO_PI * (p + Math.sin(TWO_PI * mp) * index));
-            p += dt; if (p >= 1) p -= 1;
-            mp += mdt; if (mp >= 1) mp -= Math.floor(mp);
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const f = base * uniMul(j);
+          const dt = f / sr, mdt = (f * ratio) / sr, idx = k * 7 + j;
+          let p = this.phases[idx], mp = this.modPhases[idx];
+          if (index > 0) {
+            for (let i = 0; i < N; i++) {
+              ch[i] += Math.sin(TWO_PI * (p + Math.sin(TWO_PI * mp) * index)) * lvl;
+              p += dt; if (p >= 1) p -= 1;
+              mp += mdt; if (mp >= 1) mp -= Math.floor(mp);
+            }
+          } else {
+            for (let i = 0; i < N; i++) {
+              ch[i] += Math.sin(TWO_PI * p) * lvl;
+              p += dt; if (p >= 1) p -= 1;
+            }
+            mp = fract(mp + mdt * N);             // mantiene la fase del modulador coherente
           }
-        } else {
-          for (let i = 0; i < N; i++) {
-            ch[i] += Math.sin(TWO_PI * p);
-            p += dt; if (p >= 1) p -= 1;
-          }
-          mp = fract(mp + mdt * N);               // mantiene la fase del modulador coherente
+          this.phases[idx] = p; this.modPhases[idx] = mp;
         }
-        this.phases[k] = p; this.modPhases[k] = mp;
       }
     } else if (type === 'triangle') {
       for (let k = 0; k < oct; k++) {
-        const f = f0 * (1 << k);
-        if (f >= nyq) continue;
-        const dt = f / sr;
-        let p = this.phases[k];
-        for (let i = 0; i < N; i++) {
-          ch[i] += 4 * Math.abs(p - 0.5) - 1;     // armónicos impares suaves (1/n²)
-          p += dt; if (p >= 1) p -= 1;
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const dt = base * uniMul(j) / sr, idx = k * 7 + j;
+          let p = this.phases[idx];
+          for (let i = 0; i < N; i++) {
+            ch[i] += (4 * Math.abs(p - 0.5) - 1) * lvl;   // armónicos impares suaves (1/n²)
+            p += dt; if (p >= 1) p -= 1;
+          }
+          this.phases[idx] = p;
         }
-        this.phases[k] = p;
       }
     } else if (type === 'square') {
       let duty = params.pulseWidth[0];
       if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
       for (let k = 0; k < oct; k++) {
-        const f = f0 * (1 << k);
-        if (f >= nyq) continue;
-        const dt = f / sr;
-        let p = this.phases[k];
-        for (let i = 0; i < N; i++) {
-          let v = p < duty ? 1 : -1;
-          v += polyBlep(p, dt);
-          v -= polyBlep(fract(p - duty), dt);
-          ch[i] += v;
-          p += dt; if (p >= 1) p -= 1;
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const dt = base * uniMul(j) / sr, idx = k * 7 + j;
+          let p = this.phases[idx];
+          for (let i = 0; i < N; i++) {
+            let v = p < duty ? 1 : -1;
+            v += polyBlep(p, dt);
+            v -= polyBlep(fract(p - duty), dt);
+            ch[i] += v * lvl;
+            p += dt; if (p >= 1) p -= 1;
+          }
+          this.phases[idx] = p;
         }
-        this.phases[k] = p;
       }
     } else {                                      // sawtooth
       for (let k = 0; k < oct; k++) {
-        const f = f0 * (1 << k);
-        if (f >= nyq) continue;
-        const dt = f / sr;
-        let p = this.phases[k];
-        for (let i = 0; i < N; i++) {
-          ch[i] += 2 * p - 1 - polyBlep(p, dt);
-          p += dt; if (p >= 1) p -= 1;
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const dt = base * uniMul(j) / sr, idx = k * 7 + j;
+          let p = this.phases[idx];
+          for (let i = 0; i < N; i++) {
+            ch[i] += (2 * p - 1 - polyBlep(p, dt)) * lvl;
+            p += dt; if (p >= 1) p -= 1;
+          }
+          this.phases[idx] = p;
         }
-        this.phases[k] = p;
       }
     }
 

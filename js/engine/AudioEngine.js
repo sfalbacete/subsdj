@@ -388,6 +388,8 @@ export class AudioEngine {
       case 'noise': this._forVoices(v => v.setNoise(value)); break;
       case 'spread': this._forVoices(v => v.setSpread(value)); break;
       case 'drift':  this._forVoices(v => v.setDrift(value)); break;
+      case 'uniVoices':                                    // el seg da string: coerción en setUnison
+      case 'uniDetune': this._forVoices(v => v.setUnison(this.S.uniVoices, this.S.uniDetune)); break;
       case 'fmRatio':
       case 'fmIndex': this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex)); break;
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;

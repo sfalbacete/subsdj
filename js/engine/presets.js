@@ -85,6 +85,11 @@ export const FACTORY = {
       cutoff: 1600, reso: 1, filterSlope: '24', chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3,
       a: 0.7, d: 0.6, s: 0.85, r: 2.2, width: 0.6,
       reverbMix: 0.42, reverbSize: 3.6, reverbDamp: 0.6, reverbPre: 0.04, master: 0.58 },
+    'Pad PWM unison': { waveA: 'square', waveB: 'square', pulseWidth: 0.45, pwmLfoLvl: 0.25, pwmLfoSpd: 0.6,
+      lfoFade: 0.8, uniVoices: '5', uniDetune: 16, detuneB: 6, mix: 0.5, cutoff: 2400, reso: 1,
+      filterSlope: '24', chMode: 'ensemble', chAmt: 0.55, chSpd: 0.55, drift: 2,
+      a: 0.4, d: 0.4, s: 0.85, r: 1.3, width: 0.5,
+      reverbMix: 0.28, reverbDamp: 0.5, reverbPre: 0.03, master: 0.55 },
   },
 
   'Plucks & Teclas': {
