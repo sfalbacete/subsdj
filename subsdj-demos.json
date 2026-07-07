@@ -1,6 +1,6 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v1 (bloque ensemble / drift / lfoFade, 2026-07)",
+  "banco": "SubSDJ · demos de mejoras — v2 (ensemble / drift / lfoFade + filtro 24 dB / drive, 2026-07)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo.",
   "presets": {
 
@@ -36,8 +36,21 @@
       "pwmLfoLvl": 0.35, "pwmLfoSpd": 0.9, "lfoFade": 1.5, "detuneB": 5, "mix": 0.5,
       "cutoff": 2600, "a": 0.2, "d": 0.3, "s": 0.9, "r": 0.8, "width": 0.3, "master": 0.6 },
 
+    "Filt 1 · lead 12 dB": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 8, "mix": 0.4,
+      "cutoff": 1400, "reso": 6, "filterSlope": "12", "filterDrive": 0,
+      "a": 0.02, "d": 0.2, "s": 0.8, "r": 0.4, "master": 0.65 },
+
+    "Filt 2 · mismo a 24 dB": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 8, "mix": 0.4,
+      "cutoff": 1400, "reso": 6, "filterSlope": "24", "filterDrive": 0,
+      "a": 0.02, "d": 0.2, "s": 0.8, "r": 0.4, "master": 0.65 },
+
+    "Filt 3 · mismo + drive": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 8, "mix": 0.4,
+      "cutoff": 1400, "reso": 6, "filterSlope": "24", "filterDrive": 0.7,
+      "a": 0.02, "d": 0.2, "s": 0.8, "r": 0.4, "master": 0.65 },
+
     "Full · máquina de cuerdas 26": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -4, "detuneB": 5,
       "octavesB": 2, "mix": 0.35, "cutoff": 3400, "reso": 0.7, "morph": 0.1,
+      "filterSlope": "24", "filterDrive": 0.3,
       "chMode": "ensemble", "chAmt": 0.85, "chSpd": 0.65, "drift": 4,
       "freqLfoLvl": 8, "freqLfoSpd": 5.2, "lfoFade": 0.8,
       "a": 0.25, "d": 0.3, "s": 0.9, "r": 1.1, "width": 0.4, "reverbMix": 0.22, "reverbSize": 2.4, "master": 0.6 }

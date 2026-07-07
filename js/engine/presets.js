@@ -29,6 +29,9 @@ export const FACTORY = {
       cutoff: 448, reso: 6, filterEnvAmt: 2000, glide: 0.12, a: 0.005, d: 0.2, s: 0.5, r: 0.2, master: 0.78 },
     'Wobble dub': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 296, reso: 12,
       cutLfoLvl: 2500, cutLfoSpd: 5, dist: 0.3, a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
+    'Bajo cremoso (24 dB)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 10, mix: 0.45,
+      cutoff: 420, reso: 3, filterSlope: '24', filterDrive: 0.5, filterEnvAmt: 1200,
+      a: 0.005, d: 0.25, s: 0.5, r: 0.2, master: 0.75 },
   },
 
   'Leads': {
@@ -75,6 +78,9 @@ export const FACTORY = {
     'Ensemble PWM': { waveA: 'square', waveB: 'square', pulseWidth: 0.45, pwmLfoLvl: 0.28, pwmLfoSpd: 0.7,
       lfoFade: 0.9, detuneB: 6, mix: 0.5, cutoff: 2800, reso: 1, chMode: 'ensemble', chAmt: 0.75, chSpd: 0.55,
       drift: 3, a: 0.35, d: 0.4, s: 0.85, r: 1.1, width: 0.4, reverbMix: 0.25, master: 0.6 },
+    'Pad mantequilla': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, mix: 0.5,
+      cutoff: 900, reso: 1.2, filterSlope: '24', filterDrive: 0.35, chMode: 'ensemble', chAmt: 0.6, chSpd: 0.55,
+      drift: 3, a: 0.5, d: 0.5, s: 0.85, r: 1.6, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
   },
 
   'Plucks & Teclas': {

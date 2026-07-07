@@ -372,6 +372,7 @@ export class AudioEngine {
       case 'reso':  this._forVoices(v => v.setReso(value)); break;
       case 'morph': this._forVoices(v => v.setMorph(value)); break;
       case 'filterEnvAmt': this._forVoices(v => v.setFilterEnvAmt(value)); break;
+      case 'filterDrive': this._forVoices(v => v.setFilterDrive(value)); break;
       case 'keytrack': this._forVoices(v => v.setKeytrack(value, this.S.cutoff)); break;
       case 'pulseWidth':   this._forVoices(v => v.setPulseWidth(value)); break;
 
@@ -429,7 +430,7 @@ export class AudioEngine {
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
-      // a, d, s, r, glide, lfoFade: se leen al crear cada voz (sin nodo en vivo)
+      // a, d, s, r, glide, lfoFade, filterSlope: se leen al crear cada voz (sin nodo en vivo)
     }
   }
 

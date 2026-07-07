@@ -1,10 +1,19 @@
 /* =====================================================================
    SubSDJ · Voice — una nota polifónica.
    Cadena por voz:
-     osc A/B (worklet) + ruido --mezcla/ring--> preFilter
-        --> filtro LP/HP morph (cutoff = base + envFiltro + LFO) --> VCA(ADSR) --> bus
+     osc A/B (worklet) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
+        --> filtro LP/HP morph 12|24 dB (cutoff = base + envFiltro + LFO)
+        --> VCA(ADSR) --> bus
    Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
    ===================================================================== */
+
+// Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
+// (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
+const DRIVE_CURVE = (() => {
+  const n = 1024, c = new Float32Array(n), k = 3;
+  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
+  return c;
+})();
 
 export class Voice {
   constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
@@ -58,28 +67,57 @@ export class Voice {
     const preFilter = ctx.createGain();
     normX.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
 
+    // --- Drive pre-filtro (saturación tanh por voz, dry/wet): a 0 el camino
+    // dry pasa a ganancia 1 y el wet queda a 0 -> transparente ---
+    const dv = S.filterDrive;
+    const dvDry = ctx.createGain(); dvDry.gain.value = 1 - dv;
+    const dvPre = ctx.createGain(); dvPre.gain.value = 1 + dv * 4;
+    const dvShaper = ctx.createWaveShaper(); dvShaper.curve = DRIVE_CURVE; dvShaper.oversample = '2x';
+    const dvPost = ctx.createGain(); dvPost.gain.value = 1 / (1 + dv * 1.5);
+    const dvWet = ctx.createGain(); dvWet.gain.value = dv;
+    const dvOut = ctx.createGain();
+    preFilter.connect(dvDry); dvDry.connect(dvOut);
+    preFilter.connect(dvPre); dvPre.connect(dvShaper); dvShaper.connect(dvPost); dvPost.connect(dvWet); dvWet.connect(dvOut);
+
     // --- Filtro por voz: LP + HP en paralelo con crossfade (morph) ---
     // keytrack: el cutoff sigue la altura de la nota (0 = fijo, 1 = 1:1 con el tono)
+    // Pendiente 24 dB: 2ª etapa en CASCADA delante, plana. OJO doble: en WebAudio
+    // la Q de lowpass/highpass va EN dB, y 0 dB = Q lineal 1.0 (pico de ~1.25 dB);
+    // el Butterworth plano (Q lineal 0.707) son -3 dB. La resonancia vive en la
+    // etapa final, así el knob Reso se comporta igual que a 12 dB.
+    // filterSlope se lee al crear la voz (cambia la estructura: aplica por nota).
     this.noteFreq = freq;
     this.ktMul = S.keytrack ? Math.pow(freq / 261.63, S.keytrack) : 1;
+    const cutHz = Math.min(20000, S.cutoff * this.ktMul);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
-    lp.frequency.value = hp.frequency.value = Math.min(20000, S.cutoff * this.ktMul);
+    lp.frequency.value = hp.frequency.value = cutHz;
     lp.Q.value = hp.Q.value = S.reso;
+    let lp2 = null, hp2 = null, lpIn = lp, hpIn = hp;
+    if (S.filterSlope === '24') {
+      lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';
+      hp2 = ctx.createBiquadFilter(); hp2.type = 'highpass';
+      lp2.frequency.value = hp2.frequency.value = cutHz;
+      lp2.Q.value = hp2.Q.value = -3;
+      lp2.connect(lp); hp2.connect(hp);
+      lpIn = lp2; hpIn = hp2;
+    }
     const lpMix = ctx.createGain(); lpMix.gain.value = 1 - S.morph;
     const hpMix = ctx.createGain(); hpMix.gain.value = S.morph;
     const filterOut = ctx.createGain();
-    preFilter.connect(lp); lp.connect(lpMix); lpMix.connect(filterOut);
-    preFilter.connect(hp); hp.connect(hpMix); hpMix.connect(filterOut);
+    dvOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
+    dvOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
 
-    // LFOs globales -> cutoff / Q de este filtro
+    // LFOs globales -> cutoff (todas las etapas) / Q (solo la etapa con resonancia)
     mod.cutLFOGain.connect(lp.frequency); mod.cutLFOGain.connect(hp.frequency);
+    if (lp2) { mod.cutLFOGain.connect(lp2.frequency); mod.cutLFOGain.connect(hp2.frequency); }
     mod.resLFOGain.connect(lp.Q);         mod.resLFOGain.connect(hp.Q);
 
     // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff
     const fenv = ctx.createConstantSource(); fenv.offset.value = 0;
     const fenvGain = ctx.createGain(); fenvGain.gain.value = S.filterEnvAmt;
     fenv.connect(fenvGain); fenvGain.connect(lp.frequency); fenvGain.connect(hp.frequency);
+    if (lp2) { fenvGain.connect(lp2.frequency); fenvGain.connect(hp2.frequency); }
     fenv.start(t);
 
     // --- VCA (envolvente de amplitud) + colocación estéreo ---
@@ -109,7 +147,8 @@ export class Voice {
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc,
-      lp, hp, lpMix, hpMix, fenv, fenvGain, vca, panner });
+      lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, panner,
+      dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut });
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
   }
 
@@ -187,11 +226,19 @@ export class Voice {
   setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
   setRing(r)   { const tc = this.ctx.currentTime; this.normX.gain.setTargetAtTime(1 - r, tc, 0.02); this.ringX.gain.setTargetAtTime(r, tc, 0.02); }
   setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n, this.ctx.currentTime, 0.02); }
-  setCutoff(hz){ const tc = this.ctx.currentTime, v = Math.min(20000, hz * this.ktMul); this.lp.frequency.setTargetAtTime(v, tc, 0.02); this.hp.frequency.setTargetAtTime(v, tc, 0.02); }
+  setCutoff(hz){ const tc = this.ctx.currentTime, v = Math.min(20000, hz * this.ktMul);
+    [this.lp, this.hp, this.lp2, this.hp2].forEach(f => f && f.frequency.setTargetAtTime(v, tc, 0.02)); }
   setKeytrack(kt, cutoffHz) { this.ktMul = kt ? Math.pow(this.noteFreq / 261.63, kt) : 1; this.setCutoff(cutoffHz); }
   setReso(q)   { const tc = this.ctx.currentTime; this.lp.Q.setTargetAtTime(q, tc, 0.02); this.hp.Q.setTargetAtTime(q, tc, 0.02); }
   setMorph(m)  { const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
   setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
+  setFilterDrive(v) {
+    const tc = this.ctx.currentTime;
+    this.dvDry.gain.setTargetAtTime(1 - v, tc, 0.02);
+    this.dvPre.gain.setTargetAtTime(1 + v * 4, tc, 0.02);
+    this.dvPost.gain.setTargetAtTime(1 / (1 + v * 1.5), tc, 0.02);
+    this.dvWet.gain.setTargetAtTime(v, tc, 0.02);
+  }
   setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
   setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
@@ -259,11 +306,14 @@ export class Voice {
     try { m.panLFOGain.disconnect(this.panner.pan); } catch (e) {}
     try { m.cutLFOGain.disconnect(this.lp.frequency); } catch (e) {}
     try { m.cutLFOGain.disconnect(this.hp.frequency); } catch (e) {}
+    if (this.lp2) { try { m.cutLFOGain.disconnect(this.lp2.frequency); } catch (e) {} }
+    if (this.hp2) { try { m.cutLFOGain.disconnect(this.hp2.frequency); } catch (e) {} }
     try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}
     try { m.resLFOGain.disconnect(this.hp.Q); } catch (e) {}
     [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain,
-     this.lp, this.hp, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.panner].forEach(n => {
-      try { n.disconnect(); } catch (e) {}
+     this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.panner,
+     this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut].forEach(n => {
+      if (n) { try { n.disconnect(); } catch (e) {} }
     });
     try { this.noiseSrc.stop(); } catch (e) {}
     try { this.fenv.stop(); } catch (e) {}
