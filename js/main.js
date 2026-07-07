@@ -10,6 +10,7 @@ import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
 import { initPresetBank } from './ui/presetBank.js';
 import { initRecorder } from './ui/recorder.js';
+import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 
@@ -22,6 +23,7 @@ initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya 
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
 initPresetBank();
 initRecorder();      // grabación de la salida a WAV
+initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
 
 // 2) Motor de audio (carga el worklet; el contexto arranca suspendido y se reanuda al primer gesto)

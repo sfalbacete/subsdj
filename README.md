@@ -42,6 +42,13 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
 - **⇩ Exportar / ⇧ Importar** (barra de presets): el banco de usuario viaja como
   JSON. Al importar se validan las claves, se migran bancos v1 antiguos y no se
   machacan nombres existentes (se renombra con sufijo).
+- **🎹 SFZ** (barra de presets): congela el preset actual como **instrumento
+  multisample** reutilizable en un DAW o tracker. Renderiza offline C1–C7 cada
+  4 semitonos (y 2 capas de velocidad si la envolvente de filtro escala con
+  ella), recorta silencio, normaliza en global y descarga un zip con
+  `samples/*.wav` + `.sfz` listo para Sforzando, Renoise, TAL-Sampler…
+  Reverb y delay **no** se hornean (añádelos en el DAW); sin loop points en
+  esta versión (nota sostenible ~3 s + release completo).
 - **`subsdj-demos.json`** (raíz del proyecto): banco-evidencia importable. Cada
   mejora del motor entra con un par A/B — presets idénticos salvo el parámetro
   nuevo — para oír exactamente qué aporta. Crece con cada bloque de mejoras.
@@ -137,10 +144,11 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
    (up/down/updown/random, división musical, octavas, gate) sincronizado al BPM.
 
 **Roadmap completado.** Después llegaron el bloque «sonido pro» (ensemble, drift,
-LFO fade, unison, filtro 24 dB + drive, reverb damp/predelay, color de ruido) y
-**MIDI learn** (mapeo CC→control con persistencia por aparato). Ideas futuras:
-matriz de modulación genérica, más divisiones/swing en el arp, y el generador
-estático de samples (aparcado).
+LFO fade, unison, filtro 24 dB + drive, reverb damp/predelay, color de ruido),
+**MIDI learn** (mapeo CC→control con persistencia por aparato) y el **exportador
+SFZ** (preset → multisample). Ideas futuras: matriz de modulación genérica, más
+divisiones/swing en el arp, loop points automáticos en el exportador SFZ, y el
+generador estático de samples (aparcado).
 
 Aparcado a propósito (no implementar salvo petición): la generación *estática*
 de samples del synth original (morphing para modtrackers).

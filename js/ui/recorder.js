@@ -30,7 +30,7 @@ export function encodeWav(cl, cr, sampleRate) {
   return new Blob([buf], { type: 'audio/wav' });
 }
 
-function download(blob, name) {
+export function download(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();

@@ -21,6 +21,7 @@ import { FACTORY, migrateV1 } from './engine/presets.js';
 import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
+import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
 import { loadPresetIndex } from './ui/presetBank.js';
 
@@ -153,6 +154,43 @@ export async function runSelfTest() {
     const blob = encodeWav([new Float32Array(128)], [new Float32Array(128)], 44100);
     const okW = blob.size === 44 + 128 * 4 && blob.type === 'audio/wav';
     push({ name: 'codificador WAV', peak: 0, ok: okW, problems: okW ? [] : ['blob: ' + blob.size + ' ' + blob.type] });
+  }
+  {
+    // exportador SFZ: kit mínimo por el camino real (2 renders offline →
+    // recorte + normalización → WAVs + texto .sfz → zip). Estado por defecto:
+    // filterEnvAmt=0 ⇒ 1 capa; rejilla A3..A4 ⇒ 2 samples.
+    let r;
+    try {
+      loadState({});
+      const kit = await makeSfzKit(structuredClone(engine.S), 'Selftest',
+        { lo: 57, hi: 69, step: 12, hold: 0.3, maxDur: 1.2 });
+      const regions = (kit.sfz.match(/<region>/g) || []).length;
+      const okN = kit.samples.length === 2 && regions === 2 && kit.layers === 1;
+      const okWav = kit.samples.every(s => s.bytes.length > 44 + 2000 &&
+        s.bytes[0] === 0x52 && s.bytes[1] === 0x49 && s.bytes[2] === 0x46 && s.bytes[3] === 0x46);
+      const okRef = kit.samples.every(s => kit.sfz.includes('sample=' + s.fname));
+      const okRange = kit.sfz.includes('lokey=0') && kit.sfz.includes('hikey=127');
+      const zip = new Uint8Array(await makeZip([
+        { name: kit.slug + '.sfz', data: new TextEncoder().encode(kit.sfz) },
+        ...kit.samples.map(s => ({ name: 'samples/' + s.fname, data: s.bytes })),
+      ]).arrayBuffer());
+      const okZip = zip[0] === 0x50 && zip[1] === 0x4b && zip[2] === 3 && zip[3] === 4;
+      // pico del PCM del primer sample: ni silencio ni saturado (normaliza a −1 dB)
+      const dvS = new DataView(kit.samples[0].bytes.buffer, kit.samples[0].bytes.byteOffset + 44);
+      let pk = 0;
+      for (let i = 0; i < (kit.samples[0].bytes.length - 44) / 2; i++) {
+        const v = Math.abs(dvS.getInt16(i * 2, true)); if (v > pk) pk = v;
+      }
+      const okPk = pk > 327 && pk <= 32767;
+      const okS = okN && okWav && okRef && okRange && okZip && okPk;
+      r = { name: 'exportador SFZ (render → sfz + zip)', peak: pk / 32767, ok: okS,
+            problems: okS ? [] : ['n:' + okN + ' wav:' + okWav + ' ref:' + okRef +
+                                  ' rango:' + okRange + ' zip:' + okZip + ' pico:' + okPk] };
+    } catch (e) {
+      r = { name: 'exportador SFZ (render → sfz + zip)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e && e.message) || e)] };
+    }
+    push(r);
   }
   {
     // mapeo MIDI: conversión CC→valor (lineal y log) y zonas discretas
