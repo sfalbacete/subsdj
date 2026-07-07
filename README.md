@@ -42,6 +42,9 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
 - **⇩ Exportar / ⇧ Importar** (barra de presets): el banco de usuario viaja como
   JSON. Al importar se validan las claves, se migran bancos v1 antiguos y no se
   machacan nombres existentes (se renombra con sufijo).
+- **`subsdj-demos.json`** (raíz del proyecto): banco-evidencia importable. Cada
+  mejora del motor entra con un par A/B — presets idénticos salvo el parámetro
+  nuevo — para oír exactamente qué aporta. Crece con cada bloque de mejoras.
 - **Arpegiador** (panel propio): mantén notas pulsadas y las secuencia al BPM del
   panel FX. Modos Up/Down/U·D/Rnd, división ¼/⅛/1/16, 1–3 octavas y knob Gate.
   Los pasos entran con precisión de reloj de audio (look-ahead de 120 ms).

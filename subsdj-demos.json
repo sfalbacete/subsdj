@@ -1,0 +1,45 @@
+{
+  "formato": "subsdj-presets-v2",
+  "banco": "SubSDJ · demos de mejoras — v1 (bloque ensemble / drift / lfoFade, 2026-07)",
+  "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo.",
+  "presets": {
+
+    "Ens 1 · cuerdas a pelo": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -5, "detuneB": 7,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "chAmt": 0,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.0, "width": 0.35, "reverbMix": 0.15, "master": 0.65 },
+
+    "Ens 2 · mismas + chorus": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -5, "detuneB": 7,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "chMode": "chorus", "chAmt": 0.8, "chSpd": 0.6,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.0, "width": 0.35, "reverbMix": 0.15, "master": 0.65 },
+
+    "Ens 3 · mismas + ensemble": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -5, "detuneB": 7,
+      "mix": 0.5, "cutoff": 2600, "reso": 1, "chMode": "ensemble", "chAmt": 0.8, "chSpd": 0.6,
+      "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.0, "width": 0.35, "reverbMix": 0.15, "master": 0.65 },
+
+    "Drift 1 · unísono congelado": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": 0, "detuneB": 0,
+      "mix": 0.5, "cutoff": 2200, "reso": 0.8, "drift": 0,
+      "a": 0.08, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
+
+    "Drift 2 · unísono vivo": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": 0, "detuneB": 0,
+      "mix": 0.5, "cutoff": 2200, "reso": 0.8, "drift": 5,
+      "a": 0.08, "d": 0.3, "s": 0.9, "r": 0.6, "master": 0.6 },
+
+    "Fade 1 · vibrato inmediato": { "waveA": "sawtooth", "waveB": "triangle", "mix": 0.35,
+      "cutoff": 3200, "freqLfoLvl": 30, "freqLfoSpd": 5.5, "lfoFade": 0,
+      "a": 0.05, "d": 0.2, "s": 0.9, "r": 0.5, "reverbMix": 0.2, "master": 0.65 },
+
+    "Fade 2 · vibrato retardado": { "waveA": "sawtooth", "waveB": "triangle", "mix": 0.35,
+      "cutoff": 3200, "freqLfoLvl": 30, "freqLfoSpd": 5.5, "lfoFade": 1.2,
+      "a": 0.05, "d": 0.2, "s": 0.9, "r": 0.5, "reverbMix": 0.2, "master": 0.65 },
+
+    "Fade 3 · PWM que despierta": { "waveA": "square", "waveB": "square", "pulseWidth": 0.5,
+      "pwmLfoLvl": 0.35, "pwmLfoSpd": 0.9, "lfoFade": 1.5, "detuneB": 5, "mix": 0.5,
+      "cutoff": 2600, "a": 0.2, "d": 0.3, "s": 0.9, "r": 0.8, "width": 0.3, "master": 0.6 },
+
+    "Full · máquina de cuerdas 26": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -4, "detuneB": 5,
+      "octavesB": 2, "mix": 0.35, "cutoff": 3400, "reso": 0.7, "morph": 0.1,
+      "chMode": "ensemble", "chAmt": 0.85, "chSpd": 0.65, "drift": 4,
+      "freqLfoLvl": 8, "freqLfoSpd": 5.2, "lfoFade": 0.8,
+      "a": 0.25, "d": 0.3, "s": 0.9, "r": 1.1, "width": 0.4, "reverbMix": 0.22, "reverbSize": 2.4, "master": 0.6 }
+  }
+}

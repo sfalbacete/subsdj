@@ -55,6 +55,7 @@ export function bindOscControls() {
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
+  bindSeg('chModeSel', 'chm', 'chMode', 'chMode');         // chorus 2 líneas / ensemble 3 fases
   bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador
   bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
   bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');

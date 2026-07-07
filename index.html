@@ -69,8 +69,9 @@
       <div class="ctl"><div class="knob" data-knob="ring"><div class="ind"></div></div><div class="lab">Ring M.</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="noise"><div class="ind"></div></div><div class="lab">Ruido</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="spread"><div class="ind"></div></div><div class="lab">Spread</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="drift"><div class="ind"></div></div><div class="lab">Drift</div><div class="val"></div></div>
     </div>
-    <div class="note">Spread → anchura del modo «Súper» (supersaw)</div>
+    <div class="note">Spread → anchura del modo «Súper» · Drift → deriva analógica lenta e independiente por oscilador</div>
 
     <div class="fieldlab" style="margin-top:12px">FM (operadores seno)</div>
     <div class="row" style="justify-content:space-around">
@@ -104,6 +105,11 @@
       <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
+
+    <div class="row" style="margin-top:10px;justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="lab">LFO Fade</div><div class="val"></div></div>
+    </div>
+    <div class="note">Vibrato y PWM entran en rampa tras cada nota (vibrato retardado; 0 = inmediato)</div>
   </div>
 
   <!-- FILTRO -->
@@ -156,10 +162,15 @@
       <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
     <div class="fieldlab" style="margin-top:12px">Chorus / Ensemble</div>
-    <div class="row" style="justify-content:space-around">
+    <div class="seg" id="chModeSel">
+      <button data-chm="chorus">Chorus</button>
+      <button data-chm="ensemble">Ensemble</button>
+    </div>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="chAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="chSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
+    <div class="note">Ensemble = triple chorus a 3 fases (máquina de cuerdas); Speed = LFO lento (el rápido va ×10)</div>
     <div class="fieldlab" style="margin-top:12px">Delay (eco)</div>
     <div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>

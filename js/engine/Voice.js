@@ -18,6 +18,7 @@ export class Voice {
     // golpe, exponiendo el oscilador a media onda -> click. Por eso clicaba "a veces".
     // startAt (opcional): inicio programado en el reloj de audio (lo usa el arpegiador).
     const t = (startAt || ctx.currentTime) + 0.005;
+    this.t0 = t;                          // referencia para el fade-in de LFOs (lfoFade)
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
     // --- Osciladores (worklet) ---
@@ -125,6 +126,7 @@ export class Voice {
     const pParam = node.parameters.get('pulseWidth');
     const sParam = node.parameters.get('spread');
     sParam.value = this.S.spread;
+    const drParam = node.parameters.get('drift'); drParam.value = this.S.drift;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
 
@@ -147,16 +149,38 @@ export class Voice {
     pParam.value = this._clampPW(this.S.pulseWidth);
 
     node.connect(dest);
-    this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
+    this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
   // Modulación global -> params del worklet SOLO cuando está activa: con todo
   // a 0 (el caso común) el param queda constante y sin edges que computar.
   // Si un knob pasa de 0 a activo, el engine llama a estos ensure* en vivo.
+  // Vibrato y PWM pasan por una ganancia de fade POR VOZ (lfoFade): el LFO
+  // entra en rampa 0->1 desde el noteOn, como el vibrato retardado de un
+  // intérprete. Programar la rampa anclada a t0 también funciona si el LFO se
+  // conecta a mitad de nota (eventos en el pasado = valor ya alcanzado).
+  _lfoFadeGain() {
+    const g = this.ctx.createGain();
+    if (this.S.lfoFade > 0) {
+      g.gain.setValueAtTime(0, this.t0);
+      g.gain.linearRampToValueAtTime(1, this.t0 + this.S.lfoFade);
+    }
+    return g;
+  }
   ensurePitch() { if (this._connPitch || this.disposed) return; this._connPitch = true; this.oscs.forEach(o => this.mod.pitchOffset.connect(o.detune)); }
-  ensureVib()   { if (this._connVib   || this.disposed) return; this._connVib   = true; this.oscs.forEach(o => this.mod.freqLFOGain.connect(o.detune)); }
-  ensurePwm()   { if (this._connPwm   || this.disposed) return; this._connPwm   = true; this.oscs.forEach(o => this.mod.pwmLFOGain.connect(o.pw)); }
+  ensureVib() {
+    if (this._connVib || this.disposed) return; this._connVib = true;
+    this.vibFade = this._lfoFadeGain();
+    this.mod.freqLFOGain.connect(this.vibFade);
+    this.oscs.forEach(o => this.vibFade.connect(o.detune));
+  }
+  ensurePwm() {
+    if (this._connPwm || this.disposed) return; this._connPwm = true;
+    this.pwmFade = this._lfoFadeGain();
+    this.mod.pwmLFOGain.connect(this.pwmFade);
+    this.oscs.forEach(o => this.pwmFade.connect(o.pw));
+  }
   ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.mod.panLFOGain.connect(this.panner.pan); }
 
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
@@ -170,6 +194,7 @@ export class Voice {
   setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
   setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
   setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
+  setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
@@ -223,10 +248,11 @@ export class Voice {
     const m = this.mod;
     if (m.stats) m.stats.worklets -= this.oscs.length;
     // desconectar la modulación global de los params de esta voz y parar worklets
+    // (vibrato/PWM llegan a través de las ganancias de fade por voz)
+    if (this.vibFade) { try { m.freqLFOGain.disconnect(this.vibFade); } catch (e) {} try { this.vibFade.disconnect(); } catch (e) {} }
+    if (this.pwmFade) { try { m.pwmLFOGain.disconnect(this.pwmFade); } catch (e) {} try { this.pwmFade.disconnect(); } catch (e) {} }
     this.oscs.forEach(o => {
       try { m.pitchOffset.disconnect(o.detune); } catch (e) {}
-      try { m.freqLFOGain.disconnect(o.detune); } catch (e) {}
-      try { m.pwmLFOGain.disconnect(o.pw); } catch (e) {}
       try { o.node.port.postMessage('stop'); } catch (e) {}
       try { o.node.disconnect(); } catch (e) {}
     });

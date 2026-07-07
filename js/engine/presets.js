@@ -66,8 +66,15 @@ export const FACTORY = {
     'Coro (choir)': { waveA: 'supersaw', spread: 0.4, waveB: 'sine', mix: 0.4, cutoff: 1450,
       a: 0.7, d: 0.5, s: 0.85, r: 2.0, width: 0.6, reverbMix: 0.4, reverbSize: 3, master: 0.55 },
     'Strings ensemble': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 9, mix: 0.5,
-      cutoff: 2000, chAmt: 0.7, chSpd: 0.5, a: 0.4, d: 0.4, s: 0.85, r: 1.2,
+      cutoff: 2000, chMode: 'ensemble', chAmt: 0.7, chSpd: 0.5, drift: 3, a: 0.4, d: 0.4, s: 0.85, r: 1.2,
       width: 0.4, reverbMix: 0.25, master: 0.6 },
+    'Solina strings': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octavesB: 2, mix: 0.35,
+      cutoff: 3600, reso: 0.7, morph: 0.12, chMode: 'ensemble', chAmt: 0.85, chSpd: 0.65, drift: 4,
+      freqLfoLvl: 7, freqLfoSpd: 5.2, lfoFade: 0.7, a: 0.22, d: 0.3, s: 0.9, r: 0.9,
+      width: 0.35, reverbMix: 0.22, reverbSize: 2.2, master: 0.6 },
+    'Ensemble PWM': { waveA: 'square', waveB: 'square', pulseWidth: 0.45, pwmLfoLvl: 0.28, pwmLfoSpd: 0.7,
+      lfoFade: 0.9, detuneB: 6, mix: 0.5, cutoff: 2800, reso: 1, chMode: 'ensemble', chAmt: 0.75, chSpd: 0.55,
+      drift: 3, a: 0.35, d: 0.4, s: 0.85, r: 1.1, width: 0.4, reverbMix: 0.25, master: 0.6 },
   },
 
   'Plucks & Teclas': {

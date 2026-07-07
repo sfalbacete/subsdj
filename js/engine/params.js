@@ -31,6 +31,7 @@ export const PARAMS = {
   ring:     { def: 0, min: 0, max: 1 },
   noise:    { def: 0, min: 0, max: 1 },
   spread:   { def: 0.5, min: 0, max: 1 },
+  drift:    { def: 0, min: 0, max: 15, unit: ' ct' },   // deriva aleatoria lenta por oscilador (analógico)
   fmRatio:  { def: 1, min: 0.25, max: 12 },
   fmIndex:  { def: 0, min: 0, max: 12 },
 
@@ -47,6 +48,7 @@ export const PARAMS = {
   freqLfoLvl: { def: 0, min: 0, max: 200, unit: ' ct' },
   freqLfoSpd: { def: 5, min: 0.05, max: 20, unit: ' Hz' },
   freqLfoShape:{ def: 'sine' },
+  lfoFade:    { def: 0, min: 0, max: 2, unit: ' s' },   // vibrato/PWM entran en rampa tras cada noteOn
 
   // --- Filtro (por voz) ---
   cutoff:    { def: 6000, min: 20, max: 20000, log: true,
@@ -73,6 +75,7 @@ export const PARAMS = {
   flSpd:   { def: 0.3, min: 0.05, max: 8, unit: ' Hz' },
   chAmt:   { def: 0, min: 0, max: 1 },              // chorus/ensemble (mezcla wet)
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
+  chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus a 3 fases)
   dlyAmt:  { def: 0, min: 0, max: 0.9 },
   dlyTime: { def: 0.3, min: 0.02, max: 1.5, unit: ' s' },
   dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)

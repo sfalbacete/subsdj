@@ -8,6 +8,7 @@
    Params (todos k-rate: un valor por bloque de 128; el pow del detune se
    paga 1 vez por bloque, no por muestra — a 20 Hz de vibrato el escalón de
    2.9 ms es inaudible): frequency (Hz, glide), detune (cents, vibrato),
+   drift (cents, deriva aleatoria lenta independiente por oscilador),
    pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex (FM 2-op en seno).
    Salida mono. Se autodestruye al recibir el mensaje "stop".
    ===================================================================== */
@@ -27,6 +28,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 0,     maxValue: 20000, automationRate: 'k-rate' },
       { name: 'detune',    defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'k-rate' },
+      { name: 'drift',     defaultValue: 0,   minValue: 0,     maxValue: 25,    automationRate: 'k-rate' },
       { name: 'pulseWidth',defaultValue: 0.5, minValue: 0.01,  maxValue: 0.99,  automationRate: 'k-rate' },
       { name: 'spread',    defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'fmRatio',   defaultValue: 1,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
@@ -50,6 +52,7 @@ class PulseProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < this.octaves; i++) this.modPhases[i] = Math.random();
     }
     this.stopped = false;
+    this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
 
@@ -59,7 +62,17 @@ class PulseProcessor extends AudioWorkletProcessor {
     const ch = out[0], N = ch.length;             // el buffer llega a cero: acumulamos con +=
     const sr = sampleRate, TWO_PI = Math.PI * 2;
     const type = this.type, oct = this.octaves, nyq = sr * 0.45;
-    const f0 = params.frequency[0] * Math.pow(2, params.detune[0] / 1200);
+    // Drift analógico: paseo aleatorio con retorno al centro (OU discreto, un paso
+    // por bloque). Con a=0.998 la constante de tiempo es ~500 bloques (~1.3 s) y la
+    // desviación típica de z es ~1, así que el knob (cents) ES la excursión típica.
+    let driftCt = 0;
+    const dAmt = params.drift[0];
+    if (dAmt > 0) {
+      this.driftZ = this.driftZ * 0.998 + (Math.random() * 2 - 1) * 0.0632;
+      const z = this.driftZ < -2.5 ? -2.5 : (this.driftZ > 2.5 ? 2.5 : this.driftZ);
+      driftCt = z * dAmt;
+    }
+    const f0 = params.frequency[0] * Math.pow(2, (params.detune[0] + driftCt) / 1200);
 
     if (type === 'supersaw') {
       const spread = params.spread[0], phases = this.phases;

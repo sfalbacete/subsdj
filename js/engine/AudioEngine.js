@@ -2,7 +2,8 @@
    SubSDJ · AudioEngine — grafo global, LFOs, gestión de voces.
    Cadena global:
      voicesBus(auto-gain) -> amp(+LFO trémolo) -> distorsión -> flanger
-       -> delay -> limitador -> master -> analyser -> destino
+       -> chorus|ensemble -> delay ping-pong -> reverb -> limitador
+       -> master -> analyser -> destino
    El filtro ahora es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
    son globales pero se conectan a los params de cada voz al crearse.
    ===================================================================== */
@@ -36,6 +37,20 @@ function makeDistCurve() {
 }
 function mkLFO(ctx, freq, depth) {
   const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
+  const gain = ctx.createGain(); gain.gain.value = depth;
+  osc.connect(gain); osc.start();
+  return { osc, depth: gain };
+}
+// LFO seno con fase inicial (los OscillatorNode no la tienen): un PeriodicWave
+// con sin(wt+phi) = sin(phi)·cos(wt) + cos(phi)·sin(wt). Para el ensemble a 3 fases.
+function mkPhasedLFO(ctx, freq, depth, phaseDeg) {
+  const ph = phaseDeg * Math.PI / 180;
+  const osc = ctx.createOscillator();
+  osc.setPeriodicWave(ctx.createPeriodicWave(
+    new Float32Array([0, Math.sin(ph)]),
+    new Float32Array([0, Math.cos(ph)]),
+    { disableNormalization: true }));
+  osc.frequency.value = freq;
   const gain = ctx.createGain(); gain.gain.value = depth;
   osc.connect(gain); osc.start();
   return { osc, depth: gain };
@@ -93,15 +108,35 @@ export class AudioEngine {
     this.flWet = ctx.createGain(); this.flWet.gain.value = S.flAmt;
     this.flOut = ctx.createGain();
 
-    // Chorus/ensemble estéreo: dos líneas cortas moduladas por LFOs a distinta
+    // Chorus estéreo: dos líneas cortas moduladas por LFOs a distinta
     // velocidad (descorrela L/R), sin feedback. A 0 es transparente (solo dry).
     this.chDry = ctx.createGain();
     this.chSend = ctx.createGain(); this.chSend.channelCount = 1; this.chSend.channelCountMode = 'explicit';
     this.chD1 = ctx.createDelay(0.06); this.chD1.delayTime.value = 0.020;
     this.chD2 = ctx.createDelay(0.06); this.chD2.delayTime.value = 0.028;
     this.chMerge = ctx.createChannelMerger(2);
-    this.chWet = ctx.createGain(); this.chWet.gain.value = S.chAmt;
+    this.chWet = ctx.createGain(); this.chWet.gain.value = S.chMode === 'chorus' ? S.chAmt : 0;
     this.chOut = ctx.createGain();
+
+    // Ensemble "máquina de cuerdas" (triple chorus estilo Solina): 3 líneas de
+    // ~5 ms, cada una modulada por la SUMA de un LFO lento (chSpd) y otro
+    // rápido (x10), con las fases repartidas a 120° entre líneas. Línea 1 -> L,
+    // línea 3 -> R, línea 2 al centro. Comparte chAmt/chSpd con el chorus;
+    // chMode decide cuál de los dos wets suena (el otro queda a 0).
+    this.ensSend = ctx.createGain(); this.ensSend.channelCount = 1; this.ensSend.channelCountMode = 'explicit';
+    this.ensL = ctx.createGain(); this.ensR = ctx.createGain();
+    this.ensL.gain.value = this.ensR.gain.value = 0.6;   // 2 líneas por canal ~ nivel del chorus
+    this.ensCtr = ctx.createGain(); this.ensCtr.gain.value = 0.71;
+    this.ensMerge = ctx.createChannelMerger(2);
+    this.ensWet = ctx.createGain(); this.ensWet.gain.value = S.chMode === 'ensemble' ? S.chAmt : 0;
+    this.ensDelays = []; this.ensSlow = []; this.ensFast = [];
+    for (let i = 0; i < 3; i++) {
+      const d = ctx.createDelay(0.03); d.delayTime.value = 0.005;
+      const slow = mkPhasedLFO(ctx, S.chSpd, 0.0022, i * 120);
+      const fast = mkPhasedLFO(ctx, Math.min(12, S.chSpd * 10), 0.00035, i * 120 + 90);
+      slow.depth.connect(d.delayTime); fast.depth.connect(d.delayTime);
+      this.ensDelays.push(d); this.ensSlow.push(slow); this.ensFast.push(fast);
+    }
 
     // Delay ping-pong (estéreo): los ecos rebotan L<->R
     this.dlDry = ctx.createGain();
@@ -147,6 +182,14 @@ export class AudioEngine {
     this.chSend.connect(this.chD1); this.chSend.connect(this.chD2);
     this.chD1.connect(this.chMerge, 0, 0); this.chD2.connect(this.chMerge, 0, 1);
     this.chMerge.connect(this.chWet); this.chWet.connect(this.chOut);
+    // Ensemble (en paralelo con el chorus; su wet está a 0 si chMode='chorus')
+    this.flOut.connect(this.ensSend);
+    this.ensDelays.forEach(d => this.ensSend.connect(d));
+    this.ensDelays[0].connect(this.ensL);
+    this.ensDelays[2].connect(this.ensR);
+    this.ensDelays[1].connect(this.ensCtr); this.ensCtr.connect(this.ensL); this.ensCtr.connect(this.ensR);
+    this.ensL.connect(this.ensMerge, 0, 0); this.ensR.connect(this.ensMerge, 0, 1);
+    this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
     // Delay ping-pong
     this.chOut.connect(this.dlDry); this.dlDry.connect(this.dlOut);          // seco (conserva el estéreo de las voces)
     this.chOut.connect(this.ppSend); this.ppSend.connect(this.dlyL);          // envío mono
@@ -322,6 +365,7 @@ export class AudioEngine {
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
       case 'noise': this._forVoices(v => v.setNoise(value)); break;
       case 'spread': this._forVoices(v => v.setSpread(value)); break;
+      case 'drift':  this._forVoices(v => v.setDrift(value)); break;
       case 'fmRatio':
       case 'fmIndex': this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex)); break;
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;
@@ -362,8 +406,16 @@ export class AudioEngine {
         break;
       case 'flAmt': smooth(this.flWet.gain, value); break;
       case 'flSpd': smooth(this.flLFO.osc.frequency, value); break;
-      case 'chAmt': smooth(this.chWet.gain, value); break;
-      case 'chSpd': smooth(this.chLFO1.osc.frequency, value); smooth(this.chLFO2.osc.frequency, value * 1.17); break;
+      case 'chAmt': smooth(this.S.chMode === 'ensemble' ? this.ensWet.gain : this.chWet.gain, value); break;
+      case 'chSpd':
+        smooth(this.chLFO1.osc.frequency, value); smooth(this.chLFO2.osc.frequency, value * 1.17);
+        this.ensSlow.forEach(l => smooth(l.osc.frequency, value));
+        this.ensFast.forEach(l => smooth(l.osc.frequency, Math.min(12, value * 10)));
+        break;
+      case 'chMode':          // crossfade suave entre los dos wets (sin clicks)
+        smooth(this.chWet.gain, value === 'chorus' ? this.S.chAmt : 0);
+        smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
+        break;
       case 'dlyAmt': { const fb = Math.min(0.8, value * 0.85); smooth(this.dlWet.gain, value); smooth(this.ppFbL.gain, fb); smooth(this.ppFbR.gain, fb); break; }
       case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
       case 'dlySync':
@@ -377,7 +429,7 @@ export class AudioEngine {
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
-      // a, d, s, r, glide: se leen al crear cada voz (sin nodo en vivo)
+      // a, d, s, r, glide, lfoFade: se leen al crear cada voz (sin nodo en vivo)
     }
   }
 
