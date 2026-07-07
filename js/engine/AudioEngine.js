@@ -17,13 +17,33 @@ function makeNoise(ctx) {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   return b;
 }
-// Respuesta al impulso sintética para la reverb (ruido con decaimiento, estéreo descorrelacionado)
-function makeIR(ctx, seconds, decay) {
+// Respuesta al impulso sintética para la reverb (ruido con decaimiento, estéreo
+// descorrelacionado). damp (0..1) = decaimiento dependiente de frecuencia: un
+// one-pole lowpass cuyo cutoff se CIERRA exponencialmente a lo largo de la cola
+// (14 kHz -> hasta 200 Hz a tope), como en una sala real. La energía se
+// renormaliza a la del IR sin filtrar: el knob oscurece, no baja el wet.
+function makeIR(ctx, seconds, decay, damp = 0) {
   const rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate * seconds));
   const buf = ctx.createBuffer(2, len, rate);
+  const fMax = 14000, fMin = fMax * Math.pow(200 / fMax, damp);
   for (let ch = 0; ch < 2; ch++) {
     const d = buf.getChannelData(ch);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    let y = 0, expEnergy = 0, actEnergy = 0;
+    for (let i = 0; i < len; i++) {
+      const env = Math.pow(1 - i / len, decay);
+      const x = (Math.random() * 2 - 1) * env;
+      if (damp > 0) {
+        const fc = fMax * Math.pow(fMin / fMax, i / len);
+        const a = 1 - Math.exp(-6.2832 * fc / rate);
+        y += a * (x - y);
+        d[i] = y;
+      } else d[i] = x;
+      expEnergy += env * env; actEnergy += d[i] * d[i];
+    }
+    if (damp > 0 && actEnergy > 1e-12) {
+      const g = Math.sqrt(expEnergy / 3 / actEnergy);   // E[x²] del ruido U(-1,1)·env = env²/3
+      for (let i = 0; i < len; i++) d[i] *= g;
+    }
   }
   return buf;
 }
@@ -153,7 +173,9 @@ export class AudioEngine {
     // Reverb por convolución (IR generada), dry/wet. DOS convolvers en A/B:
     // la IR nueva entra por el que está apagado y se cruza en ~50 ms, sin
     // cortar en seco la cola de la anterior (antes: swap de buffer = corte).
-    this.convA = ctx.createConvolver(); this.convA.buffer = makeIR(ctx, S.reverbSize, 2.5);
+    // Predelay: DelayNode antes de los convolvers (separa el ataque de la cola).
+    this.revPre = ctx.createDelay(0.1); this.revPre.delayTime.value = S.reverbPre;
+    this.convA = ctx.createConvolver(); this.convA.buffer = makeIR(ctx, S.reverbSize, 2.5, S.reverbDamp);
     this.convB = ctx.createConvolver();
     this.revXA = ctx.createGain(); this.revXA.gain.value = 1;
     this.revXB = ctx.createGain(); this.revXB.gain.value = 0;
@@ -198,9 +220,9 @@ export class AudioEngine {
     this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dlyR);             // realimentación cruzada L->R
     this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dlyL);             // realimentación cruzada R->L
     this.ppMerge.connect(this.dlWet); this.dlWet.connect(this.dlOut);
-    // Reverb (convB no recibe entrada hasta el primer cambio de Size)
+    // Reverb (convB no recibe entrada hasta el primer cambio de Size/Damp)
     this.dlOut.connect(this.revDry); this.revDry.connect(this.revOut);
-    this.dlOut.connect(this.convA);
+    this.dlOut.connect(this.revPre); this.revPre.connect(this.convA);
     this.convA.connect(this.revXA); this.revXA.connect(this.revWet);
     this.convB.connect(this.revXB); this.revXB.connect(this.revWet);
     this.revWet.connect(this.revOut);
@@ -423,9 +445,11 @@ export class AudioEngine {
       case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
       case 'width': this._forVoices(v => v.setWidth(value)); break;
       case 'reverbMix': smooth(this.revWet.gain, value); break;
+      case 'reverbPre': smooth(this.revPre.delayTime, value); break;
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
+      case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
         clearTimeout(this._revTimer);
-        this._revTimer = setTimeout(() => this._swapIR(value), 120);
+        this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
         break;
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
@@ -441,12 +465,12 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     const front = this._revFront === 'A' ? { c: this.convA, g: this.revXA } : { c: this.convB, g: this.revXB };
     const back  = this._revFront === 'A' ? { c: this.convB, g: this.revXB } : { c: this.convA, g: this.revXA };
-    try { back.c.buffer = makeIR(this.ctx, seconds, 2.5); } catch (e) { return; }
-    this.dlOut.connect(back.c);
+    try { back.c.buffer = makeIR(this.ctx, seconds, 2.5, this.S.reverbDamp); } catch (e) { return; }
+    this.revPre.connect(back.c);
     back.g.gain.setTargetAtTime(1, t, 0.05);
     front.g.gain.setTargetAtTime(0, t, 0.05);
     clearTimeout(this._revOffTimer);
-    this._revOffTimer = setTimeout(() => { try { this.dlOut.disconnect(front.c); } catch (e) {} }, 400);
+    this._revOffTimer = setTimeout(() => { try { this.revPre.disconnect(front.c); } catch (e) {} }, 400);
     this._revFront = this._revFront === 'A' ? 'B' : 'A';
   }
 

@@ -89,6 +89,8 @@ export const PARAMS = {
   panLfoSpd:  { def: 0.4, min: 0.05, max: 8, unit: ' Hz' },
   reverbMix:  { def: 0, min: 0, max: 0.6 },
   reverbSize: { def: 1.8, min: 0.2, max: 4, unit: ' s' },
+  reverbDamp: { def: 0, min: 0, max: 1 },           // los agudos de la cola mueren antes (vive en la IR)
+  reverbPre:  { def: 0, min: 0, max: 0.1, unit: ' s' },  // predelay: separa el ataque de la cola
 
   // --- Envolvente / voz / master ---
   a: { def: 0.01, min: 0.001, max: 2, step: 0.001, fmt: msFmt },

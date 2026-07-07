@@ -81,6 +81,10 @@ export const FACTORY = {
     'Pad mantequilla': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, mix: 0.5,
       cutoff: 900, reso: 1.2, filterSlope: '24', filterDrive: 0.35, chMode: 'ensemble', chAmt: 0.6, chSpd: 0.55,
       drift: 3, a: 0.5, d: 0.5, s: 0.85, r: 1.6, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
+    'Pad catedral': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -6, detuneB: 8, octavesB: 2, mix: 0.45,
+      cutoff: 1600, reso: 1, filterSlope: '24', chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3,
+      a: 0.7, d: 0.6, s: 0.85, r: 2.2, width: 0.6,
+      reverbMix: 0.42, reverbSize: 3.6, reverbDamp: 0.6, reverbPre: 0.04, master: 0.58 },
   },
 
   'Plucks & Teclas': {
