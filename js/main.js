@@ -5,6 +5,7 @@ import { engine } from './engine/AudioEngine.js';
 import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
+import { bindSeqControls } from './ui/seqControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
@@ -19,6 +20,7 @@ import { initCollapsiblePanels } from './ui/collapse.js';
 bindKnobs();
 bindSliders();
 bindOscControls();
+bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap

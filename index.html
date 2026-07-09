@@ -299,6 +299,34 @@
     <div class="note">Mantén notas pulsadas y el arp las secuencia al BPM (knob en el panel FX)</div>
   </div>
 
+  <!-- SECUENCIADOR -->
+  <div class="panel">
+    <h2>Secuenciador</h2>
+    <div class="fieldlab">Estado</div>
+    <div class="seg" id="seqOnSel">
+      <button data-seqon="off">Off</button>
+      <button data-seqon="on">On</button>
+    </div>
+    <canvas id="seqCanvas"></canvas>
+    <div class="row" style="justify-content:space-evenly">
+      <div class="ctl"><div class="stepper"><button id="seqLenDec">−</button><span class="num" id="seqLenNum">8</span><button id="seqLenInc">+</button></div><div class="lab">Pasos</div></div>
+      <div class="ctl"><div class="knob" data-knob="seqGate"><div class="ind"></div></div><div class="lab">Gate</div><div class="val"></div></div>
+    </div>
+    <div class="fieldlab" style="margin-top:12px">División</div>
+    <div class="seg" id="seqDivSel">
+      <button data-sdiv="1/4">¼</button>
+      <button data-sdiv="1/8">⅛</button>
+      <button data-sdiv="1/16">1/16</button>
+    </div>
+    <div class="row" style="margin-top:12px;gap:10px">
+      <div style="flex:1"><div class="fieldlab">Latch</div>
+        <div class="seg" id="seqLatchSel"><button data-slatch="off">Off</button><button data-slatch="on">On</button></div></div>
+      <div style="flex:1"><div class="fieldlab">Retrig</div>
+        <div class="seg" id="seqRetrigSel"><button data-sretrig="off">Off</button><button data-sretrig="on">On</button></div></div>
+    </div>
+    <div class="note">La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · en mono con Gate 1 los pasos ligan (glide)</div>
+  </div>
+
 </div>
 
 <!-- VISUALIZADORES -->

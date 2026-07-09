@@ -115,6 +115,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid #0b3
 .viz-panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin:0 0 8px;}
 .viz-panel canvas{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
 #adsrCanvas{display:block;width:100%;height:90px;background:#05080b;border:1px solid var(--edge);border-radius:6px;margin-bottom:10px;}
+#seqCanvas{display:block;width:100%;height:110px;background:#05080b;border:1px solid var(--edge);border-radius:6px;
+  margin:10px 0;touch-action:none;cursor:crosshair;}
 
 /* Teclado */
 #kbWrap{margin:14px 0 18px;}

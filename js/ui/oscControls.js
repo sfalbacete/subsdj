@@ -6,7 +6,7 @@ import { CONTROLS, applyTarget } from './registry.js';
 
 // Segmento genérico de botones: <button data-KEY="valor">. Registra el control
 // canónico `name` y aplica al target del motor.
-function bindSeg(segId, key, name, target) {
+export function bindSeg(segId, key, name, target) {
   const seg = document.getElementById(segId);
   if (!seg) return;
   const select = b => {
@@ -67,6 +67,7 @@ export function bindOscControls() {
 
   document.querySelectorAll('.stepper button').forEach(b => {
     b.addEventListener('click', () => {
+      if (!b.dataset.oct) return;                    // otros steppers (p.ej. pasos del seq) se cablean aparte
       const which = 'osc' + b.dataset.oct;
       setOctave(which, engine.S[which].octaves + parseInt(b.dataset.d, 10));
     });
