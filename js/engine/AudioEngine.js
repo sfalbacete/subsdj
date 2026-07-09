@@ -10,6 +10,7 @@
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
 import { Arp } from './Arp.js';
+import { Seq } from './Seq.js';
 
 function makeNoise(ctx) {
   const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -91,6 +92,7 @@ export class AudioEngine {
     this.heldStack = [];          // notas pulsadas en modo mono (cima = sonando)
     this.monoVoice = null;        // voz única en modo mono
     this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
+    this.seq = new Seq(this);     // secuenciador de pasos (activo cuando S.seqOn == 'on')
   }
 
   // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
@@ -266,10 +268,12 @@ export class AudioEngine {
   // ---------- voces ----------
   noteOn(id, freq, vel = 1) {
     if (!this.ready) return;
+    if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel);      // la tecla es la raíz de la frase
     if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel);   // el arp secuencia las notas
     this._directOn(id, freq, vel);
   }
   noteOff(id) {
+    if (this.S.seqOn === 'on') return this.seq.unhold(id);
     if (this.S.arpMode !== 'off') return this.arp.unhold(id);
     this._directOff(id);
   }
@@ -294,6 +298,7 @@ export class AudioEngine {
   }
   allNotesOff() {
     this.arp.held = []; this.arp._maybeStop();
+    this.seq.held = []; this.seq.latched = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }
@@ -457,6 +462,8 @@ export class AudioEngine {
       case 'master': smooth(this.master.gain, value); break;
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
+      case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
+      case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
       // a, d, s, r, glide, lfoFade, filterSlope: se leen al crear cada voz (sin nodo en vivo)
     }
   }

@@ -108,6 +108,12 @@ export const PARAMS = {
   arpDiv:  { def: '1/16' },                         // división musical del paso (usa bpm)
   arpOct:  { def: '1' },                            // octavas del patrón (1..3, seg de botones)
   arpGate: { def: 0.5, min: 0.05, max: 1 },         // duración de cada paso (fracción)
+  seqOn:     { def: 'off' },                        // off | on — secuenciador de pasos
+  seqPat:    { def: '0 3 7 12 . 7 3 .' },           // frase en semitonos, '.'=silencio (máx 16 pasos)
+  seqDiv:    { def: '1/16' },                       // división musical del paso (usa bpm)
+  seqGate:   { def: 0.6, min: 0.05, max: 1 },       // duración de cada paso (fracción)
+  seqLatch:  { def: 'off' },                        // on: la frase sigue al soltar la tecla
+  seqRetrig: { def: 'off' },                        // on: nueva tecla reinicia la frase (en rejilla)
   master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
 };
 
