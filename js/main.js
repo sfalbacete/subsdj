@@ -13,6 +13,7 @@ import { initRecorder } from './ui/recorder.js';
 import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
+import { initCollapsiblePanels } from './ui/collapse.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindKnobs();
@@ -25,6 +26,7 @@ initPresetBank();
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
+initCollapsiblePanels();
 
 // 2) Motor de audio (carga el worklet; el contexto arranca suspendido y se reanuda al primer gesto)
 engine.init()

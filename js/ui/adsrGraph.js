@@ -29,7 +29,11 @@ export function initADSRGraph(canvas) {
     ctx.beginPath(); ctx.moveTo(X(0), Y(0));
     pts.forEach(([t, v]) => ctx.lineTo(X(t), Y(v)));
     ctx.lineTo(X(a + d + susT + r), Y(0)); ctx.closePath();
-    ctx.fillStyle = 'rgba(57,212,163,.15)'; ctx.fill();
+    const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
+    grad.addColorStop(0, 'rgba(57,212,163,.40)');
+    grad.addColorStop(0.55, 'rgba(57,212,163,.14)');
+    grad.addColorStop(1, 'rgba(57,212,163,.02)');
+    ctx.fillStyle = grad; ctx.fill();
 
     // curva de amplitud
     ctx.lineWidth = 2; ctx.strokeStyle = '#39d4a3'; ctx.beginPath();
