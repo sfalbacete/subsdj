@@ -17,6 +17,7 @@
    ===================================================================== */
 import { AudioEngine, engine } from './engine/AudioEngine.js';
 import { Arp } from './engine/Arp.js';
+import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
@@ -148,6 +149,41 @@ export async function runSelfTest() {
     const seq = a._seq().map(n => n.freq).join(',');
     const okA = seq === '100,200,200,400';
     push({ name: 'arpegiador (secuencia ×2 oct)', peak: 0, ok: okA, problems: okA ? [] : ['seq: ' + seq] });
+  }
+  {
+    // secuenciador: parser del patrón (silencios, inválidos, clamp ±, sufijos fase 2, tope 16)
+    const p1 = parsePattern('0 3 7 12 . 7 3 .').map(s => s ? s.off : '.').join(',');
+    const p2 = parsePattern('x 1.5 40 -40 7! 5~');
+    const okP = p1 === '0,3,7,12,.,7,3,.'
+      && p2[0] === null && p2[1] === null && p2[2].off === 24 && p2[3].off === -12
+      && p2[4].off === 7 && p2[4].accent && p2[5].off === 5 && p2[5].tie
+      && parsePattern('').length === 0
+      && parsePattern(Array(20).fill('0').join(' ')).length === 16;
+    push({ name: 'secuenciador (parser del patrón)', peak: 0, ok: okP, problems: okP ? [] : ['p1: ' + p1 + ' p2: ' + JSON.stringify(p2)] });
+  }
+  {
+    // secuenciador: transposición cromática (raíz × 2^(semis/12))
+    const okT = Math.abs(stepFreq(110, 12) - 220) < 1e-9 && stepFreq(110, 0) === 110
+      && Math.abs(stepFreq(220, -12) - 110) < 1e-9 && Math.abs(stepFreq(261.63, 7) - 391.995) < 0.02;
+    push({ name: 'secuenciador (transposición)', peak: 0, ok: okT, problems: okT ? [] : ['stepFreq'] });
+  }
+  {
+    // secuenciador: raíz last-note, latch y retrig (sin ctx, como el test del arp)
+    const probs = [];
+    const q = new Seq({ S: { seqLatch: 'on', seqRetrig: 'on' }, ctx: null });
+    q.held = [{ id: 1, freq: 100, vel: 1 }, { id: 2, freq: 200, vel: 0.8 }];
+    if (q._root().freq !== 200) probs.push('last-note priority');
+    q.unhold(2);
+    if (q._root().freq !== 100) probs.push('vuelta a la nota anterior');
+    q.unhold(1);
+    if (!q._root() || q._root().freq !== 100 || q._root().vel !== 1) probs.push('latch no captura la última');
+    q.timer = 1; q.idx = 5; q.hold(3, 300, 1);   // rama con timer vivo: no toca ctx
+    if (q.idx !== 0 || q._root().freq !== 300) probs.push('retrig no reinicia la frase');
+    const q2 = new Seq({ S: { seqLatch: 'off', seqRetrig: 'off' }, ctx: null });
+    q2.held = [{ id: 1, freq: 100, vel: 1 }];
+    q2.unhold(1);
+    if (q2._root() !== null) probs.push('sin latch debería quedar sin raíz');
+    push({ name: 'secuenciador (raíz/latch/retrig)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
     // codificador WAV: cabecera y tamaño (44 bytes + n·4 en 16-bit estéreo)
