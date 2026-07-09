@@ -2,7 +2,28 @@
   --bg:#0d1014; --panel:#161b22; --panel2:#1b222c; --edge:#2a3340;
   --ink:#c9d4e0; --dim:#7d8a99; --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73;
   --knob:#222b36; --knobhi:#3a4a5c;
+  color-scheme:dark;   /* widgets nativos (popups, scrollbars sin estilar) en oscuro */
 }
+
+/* Barras de scroll finas a juego (ventana, paneles y desplegables) */
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--edge);border:3px solid transparent;background-clip:padding-box;border-radius:8px;}
+::-webkit-scrollbar-thumb:hover{background:#3d4a5c;border-width:2px;background-clip:padding-box;}
+::-webkit-scrollbar-corner{background:transparent;}
+
+/* Desplegables con picker estilizable (Chrome 135+): el popup pasa a ser DOM
+   normal — tema oscuro a juego y la barra de scroll fina de arriba. En
+   navegadores sin ::picker() la regla se descarta entera y queda el nativo. */
+select, select::picker(select){appearance:base-select;}
+select::picker(select){background:#0f141a;border:1px solid var(--edge);border-radius:8px;
+  box-shadow:0 12px 28px rgba(0,0,0,.55);padding:4px;
+  scrollbar-width:thin;scrollbar-color:#3d4a5c transparent;}   /* ::-webkit-scrollbar no encadena tras ::picker() */
+select option{padding:5px 8px;border-radius:5px;font-size:12px;}
+select option:hover,select option:focus{background:var(--panel2);}
+select option:checked{background:rgba(57,212,163,.14);color:var(--accent);}
+select optgroup{padding:2px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;}
+select optgroup option{color:var(--ink);font-size:12px;text-transform:none;letter-spacing:0;}
 *{box-sizing:border-box;}
 html,body{margin:0;height:100%;}
 body{

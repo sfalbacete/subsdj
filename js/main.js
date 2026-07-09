@@ -30,6 +30,10 @@ initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
 initCollapsiblePanels();
 
+// Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
+// siguen navegando el desplegable por primera letra y cambian la selección.
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.target.blur(); });
+
 // 2) Motor de audio (carga el worklet; el contexto arranca suspendido y se reanuda al primer gesto)
 engine.init()
   .then(() => {
