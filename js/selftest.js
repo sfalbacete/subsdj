@@ -18,6 +18,7 @@
 import { AudioEngine, engine } from './engine/AudioEngine.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
+import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
@@ -184,6 +185,20 @@ export async function runSelfTest() {
     q2.unhold(1);
     if (q2._root() !== null) probs.push('sin latch debería quedar sin raíz');
     push({ name: 'secuenciador (raíz/latch/retrig)', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // banco de frases: tokens válidos, ≤16 pasos, alguna nota, offsets en rango, nombres únicos
+    const bad = [], names = new Set();
+    for (const p of SEQ_PATTERNS) {
+      const toks = p.pat.trim().split(/\s+/), st = parsePattern(p.pat);
+      if (!toks.length || toks.length > 16) bad.push(p.name + ': longitud ' + toks.length);
+      if (!toks.every(t => t === '.' || /^-?\d+[!~]?$/.test(t))) bad.push(p.name + ': token inválido');
+      if (!st.some(Boolean)) bad.push(p.name + ': sin notas');
+      if (st.some((s, i) => s && s.off !== parseInt(toks[i], 10))) bad.push(p.name + ': offset fuera de rango');
+      if (!['1/4', '1/8', '1/16'].includes(p.div)) bad.push(p.name + ': div ' + p.div);
+      if (names.has(p.name)) bad.push(p.name + ': nombre duplicado'); names.add(p.name);
+    }
+    push({ name: 'secuenciador (banco de frases)', peak: 0, ok: !bad.length, problems: bad });
   }
   {
     // codificador WAV: cabecera y tamaño (44 bytes + n·4 en 16-bit estéreo)

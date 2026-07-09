@@ -9,6 +9,23 @@ import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern } from '../engine
 
 const tokensOf = () => engine.S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
+// Banco de frases prefabricadas (offsets sobre la raíz; div = división recomendada).
+// El selector es azúcar de UI: solo reescribe seqPat/seqDiv vía CONTROLS.
+export const SEQ_PATTERNS = [
+  { name: 'Octavas',            pat: '0 12 0 12 0 12 0 12',                         div: '1/16' },
+  { name: 'Bajo ácido',         pat: '0 0 12 0 3 3 7 10',                           div: '1/16' },
+  { name: 'Ácido sincopado',    pat: '0 . 0 12 . 10 3 .',                           div: '1/16' },
+  { name: 'Arpegio menor',      pat: '0 3 7 12 . 7 3 .',                            div: '1/16' },
+  { name: 'Arpegio mayor',      pat: '0 4 7 12 16 12 7 4',                          div: '1/16' },
+  { name: 'Quintas rodando',    pat: '0 7 . 7 0 7 10 7',                            div: '1/16' },
+  { name: 'Hook trance',        pat: '0 . 7 . 12 . 7 .',                            div: '1/16' },
+  { name: 'Bajada frigia',      pat: '12 . 10 . 7 . 1 0',                           div: '1/8' },
+  { name: 'Escalera 2 octavas', pat: '0 3 7 10 12 15 19 22 24 22 19 15 12 10 7 3', div: '1/16' },
+  { name: 'Pregunta-respuesta', pat: '0 3 5 7 . 7 10 12 . 12 10 7 5 3 . .',        div: '1/16' },
+  { name: 'Dembow sub',         pat: '0 . . 0 . . 12 .',                            div: '1/8' },
+  { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
+];
+
 export function bindSeqControls() {
   bindSeg('seqOnSel', 'seqon', 'seqOn', 'seqOn');
   bindSeg('seqDivSel', 'sdiv', 'seqDiv', 'seqDiv');
@@ -26,7 +43,33 @@ export function bindSeqControls() {
 
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
+  initSeqPatterns();
   initMutex();
+}
+
+// Selector de frases: elegir una escribe seqPat (+ división recomendada);
+// editar el patrón a mano lo devuelve a «personalizada».
+function initSeqPatterns() {
+  const sel = document.getElementById('seqPatSel');
+  if (!sel) return;
+  const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  opt('', '— personalizada —');
+  SEQ_PATTERNS.forEach((p, i) => opt(String(i), p.name));
+  const norm = s => String(s).trim().split(/\s+/).join(' ');
+  const sync = () => {
+    const cur = norm(engine.S.seqPat);
+    const i = SEQ_PATTERNS.findIndex(p => norm(p.pat) === cur);
+    sel.value = i >= 0 ? String(i) : '';
+  };
+  sel.addEventListener('change', () => {
+    const p = SEQ_PATTERNS[+sel.value];
+    if (!p) { sync(); return; }               // «personalizada» no pisa nada
+    engine.resume();
+    CONTROLS.seqPat.set(p.pat);
+    CONTROLS.seqDiv.set(p.div);
+  });
+  document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });
+  sync();
 }
 
 // Editor de pasos: columnas = tokens del patrón; arrastre vertical = altura
