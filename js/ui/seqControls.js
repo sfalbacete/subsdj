@@ -5,7 +5,7 @@ import { engine } from '../engine/AudioEngine.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
-import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern } from '../engine/Seq.js';
+import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq } from '../engine/Seq.js';
 
 const tokensOf = () => engine.S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
@@ -24,6 +24,17 @@ export const SEQ_PATTERNS = [
   { name: 'Pregunta-respuesta', pat: '0 3 5 7 . 7 10 12 . 12 10 7 5 3 . .',        div: '1/16' },
   { name: 'Dembow sub',         pat: '0 . . 0 . . 12 .',                            div: '1/8' },
   { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
+  // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
+  // personal). Relativos a la tecla mantenida; bpm = tempo del original.
+  { grp: 'Clásicas', name: 'Blade Runner · Vangelis',  pat: '0 . 0 0 12 . 0 0 10 . 0 0 12 . 0 0', div: '1/16', bpm: 140 },
+  { grp: 'Clásicas', name: 'Chase · Moroder',          pat: '0 7 12 7 0 7 12 7',                  div: '1/16', bpm: 130 },
+  { grp: 'Clásicas', name: 'Stranger Things',          pat: '0 4 7 11 12 11 7 4',                 div: '1/16', bpm: 86 },
+  { grp: 'Clásicas', name: 'Blue Monday · New Order',  pat: '0 0 0 0 0 0 0 0 0 0 0 0 -2 -2 -5 -5', div: '1/16', bpm: 130 },
+  { grp: 'Clásicas', name: 'On The Run · Pink Floyd',  pat: '0 3 5 3 10 8 10 12',                 div: '1/16', bpm: 165 },
+  { grp: 'Clásicas', name: 'The Robots · Kraftwerk',   pat: '0 . 0 12 . 0 . 12 0 . 0 12 10 . 7 .', div: '1/16', bpm: 110 },
+  { grp: 'Clásicas', name: 'I Feel Love · Moroder',    pat: '0 12 0 12 0 12 0 12',                div: '1/16', bpm: 125 },
+  { grp: 'Clásicas', name: 'The Model · Kraftwerk',    pat: '0 0 0 0 8 8 7 7',                    div: '1/8',  bpm: 106 },
+  { grp: 'Clásicas', name: 'Axel F · Faltermeyer',     pat: '0 . . 3 . . 0 . 0 5 . 0 . -2 . .',   div: '1/16', bpm: 118 },
 ];
 
 export function bindSeqControls() {
@@ -52,12 +63,19 @@ export function bindSeqControls() {
 function initSeqPatterns() {
   const sel = document.getElementById('seqPatSel');
   if (!sel) return;
-  const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
-  opt('', '— personalizada —');
-  SEQ_PATTERNS.forEach((p, i) => opt(String(i), p.name));
+  const opt = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); };
+  opt(sel, '', '— personalizada —');
+  const groups = new Map();
+  SEQ_PATTERNS.forEach((p, i) => {
+    const gname = p.grp || 'Frases';
+    if (!groups.has(gname)) { const og = document.createElement('optgroup'); og.label = gname; sel.appendChild(og); groups.set(gname, og); }
+    opt(groups.get(gname), String(i), p.name);
+  });
   const norm = s => String(s).trim().split(/\s+/).join(' ');
   const sync = () => {
     const cur = norm(engine.S.seqPat);
+    const chosen = SEQ_PATTERNS[+sel.value];
+    if (chosen && norm(chosen.pat) === cur) return;   // la selección vigente ya casa (hay patrones repetidos entre grupos)
     const i = SEQ_PATTERNS.findIndex(p => norm(p.pat) === cur);
     sel.value = i >= 0 ? String(i) : '';
   };
@@ -67,6 +85,7 @@ function initSeqPatterns() {
     engine.resume();
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
+    if (p.bpm) CONTROLS.bpm.set(p.bpm);       // las clásicas caen en su tempo
   });
   document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });
   sync();

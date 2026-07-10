@@ -207,6 +207,7 @@ export async function runSelfTest() {
       if (!st.some(Boolean)) bad.push(p.name + ': sin notas');
       if (st.some((s, i) => s && s.off !== parseInt(toks[i], 10))) bad.push(p.name + ': offset fuera de rango');
       if (!['1/4', '1/8', '1/16'].includes(p.div)) bad.push(p.name + ': div ' + p.div);
+      if (p.bpm != null && !(p.bpm >= 40 && p.bpm <= 220)) bad.push(p.name + ': bpm ' + p.bpm);
       if (names.has(p.name)) bad.push(p.name + ': nombre duplicado'); names.add(p.name);
     }
     push({ name: 'secuenciador (banco de frases)', peak: 0, ok: !bad.length, problems: bad });
