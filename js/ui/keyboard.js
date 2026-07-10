@@ -135,16 +135,27 @@ export function initKeyboard() {
     // Sólo el campo de TEXTO de presets bloquea el teclado; los sliders (input range) no.
     if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
     const k = e.key.toLowerCase();
+    // Un combo puede quedarse con el foco sin que se note (se cerró sin elegir,
+    // o eligió la misma opción) y entonces "roba" las letras para navegar sus
+    // opciones. Si la tecla es del piano y su desplegable está CERRADO, se la
+    // quitamos antes de que la vea (captura + stopPropagation) y sigue el piano.
+    if (e.target.tagName === 'SELECT' && (k in KEYMAP || k === 'pageup' || k === 'pagedown')) {
+      let open = false;
+      try { open = e.target.matches(':open'); } catch (_) {}
+      if (open) return;                              // desplegable abierto de verdad: respétalo
+      e.stopPropagation(); e.target.blur();
+    }
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
       e.preventDefault(); panic(); octaveTouched = true;
       baseOctave = k === 'pageup' ? Math.min(9 - numOctaves, baseOctave + 1) : Math.max(0, baseOctave - 1);
       buildKeyboard(); return;
     }
-    if (!(k in KEYMAP) || held.has(k) || e.repeat) return;
+    if (!(k in KEYMAP)) return;
+    if (held.has(k) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
     e.preventDefault();                              // evita atajos del navegador con '/', ',', etc.
     held.add(k); engine.resume();
     press((baseOctave + 1) * 12 + KEYMAP[k]);
-  });
+  }, true);   // fase de CAPTURA: corre antes de que un combo enfocado procese la tecla
   window.addEventListener('keyup', e => {
     const k = e.key.toLowerCase();
     if (!(k in KEYMAP)) return;
