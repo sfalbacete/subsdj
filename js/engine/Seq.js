@@ -35,6 +35,7 @@ export class Seq {
     this.idx = 0;
     this.timer = null;
     this.nextT = 0;
+    this.playQ = [];         // pasos ya planificados {i, t0, t1} — para el marcador de la UI
     this._patStr = null; this._pat = [];   // caché del parseo por identidad de string
   }
 
@@ -42,6 +43,7 @@ export class Seq {
     if (!this.held.find(h => h.id === id)) this.held.push({ id, freq, vel });
     if (!this.timer) {
       this.idx = 0;
+      this.playQ = [];
       this.nextT = this.e.ctx.currentTime + 0.03;
       this.timer = setInterval(() => this._tick(), 25);
     } else if (this.e.S.seqRetrig === 'on') this.idx = 0;   // reinicia la frase EN REJILLA (nextT intacto: sin flams)
@@ -54,7 +56,7 @@ export class Seq {
       else { this.latched = null; this._maybeStop(); }
     }
   }
-  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; } }
+  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this.playQ = []; } }
   stop() { this.held = []; this.latched = null; this._maybeStop(); this.e.allNotesOff(); }
 
   // Raíz con prioridad de última nota; con latch, la última soltada
@@ -66,6 +68,16 @@ export class Seq {
     return this._pat;
   }
 
+  // Paso que SUENA ahora mismo (no el planificado): la UI pinta con esto el
+  // marcador. Poda la cola de pasos vencidos; -1 si parado o aún sin sonar.
+  playingStep() {
+    if (!this.timer || !this.e.ctx) return -1;
+    const t = this.e.ctx.currentTime;
+    while (this.playQ.length && this.playQ[0].t1 <= t) this.playQ.shift();
+    const c = this.playQ[0];
+    return c && c.t0 <= t ? c.i : -1;
+  }
+
   _tick() {
     const S = this.e.S, ctx = this.e.ctx;
     if (this.nextT < ctx.currentTime) this.nextT = ctx.currentTime + 0.01;  // se quedó atrás (pestaña oculta)
@@ -74,6 +86,8 @@ export class Seq {
       if (!steps.length || !root) return;
       const dur = (60 / S.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.seqDiv] || 0.25);
       const st = steps[this.idx % steps.length];       // módulo en cada paso: patrón editable en vivo
+      this.playQ.push({ i: this.idx % steps.length, t0: this.nextT, t1: this.nextT + dur });
+      if (this.playQ.length > 64) this.playQ.shift();  // tope por si la UI no consume (panel colapsado)
       if (st) {                                        // null = silencio: el tiempo avanza igual
         const id = 'seq' + (this.idx % 8);             // ids rotatorios, disjuntos de 'arp'+n
         this.e._directOn(id, stepFreq(root.freq, st.off), root.vel, this.nextT);

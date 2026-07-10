@@ -187,6 +187,17 @@ export async function runSelfTest() {
     push({ name: 'secuenciador (raíz/latch/retrig)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
+    // marcador de paso: selección por reloj de audio y poda de pasos vencidos
+    const q = new Seq({ S: {}, ctx: { currentTime: 1.0 } });
+    q.timer = 1;
+    q.playQ = [{ i: 2, t0: 0.5, t1: 0.9 }, { i: 3, t0: 0.9, t1: 1.3 }, { i: 4, t0: 1.3, t1: 1.7 }];
+    const a = q.playingStep();                               // t=1.0: poda i=2, suena i=3
+    const q2 = new Seq({ S: {}, ctx: { currentTime: 0 } });  // parado (sin timer) → -1
+    const okM = a === 3 && q.playQ.length === 2 && q2.playingStep() === -1;
+    push({ name: 'secuenciador (marcador de paso)', peak: 0, ok: okM,
+           problems: okM ? [] : ['playingStep: ' + a + ' len ' + q.playQ.length] });
+  }
+  {
     // banco de frases: tokens válidos, ≤16 pasos, alguna nota, offsets en rango, nombres únicos
     const bad = [], names = new Set();
     for (const p of SEQ_PATTERNS) {

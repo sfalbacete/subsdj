@@ -84,6 +84,7 @@ function initSeqEditor(canvas) {
   function draw() {
     fit();
     const w = canvas.width, h = canvas.height, steps = parsePattern(engine.S.seqPat);
+    const play = engine.ready && engine.seq.timer ? engine.seq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
     g.strokeStyle = 'rgba(125,138,153,.18)';
@@ -97,6 +98,12 @@ function initSeqEditor(canvas) {
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
       if (i) { g.strokeStyle = 'rgba(125,138,153,.10)'; g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
+      if (i === play) {                                // marcador: columna que suena ahora
+        g.fillStyle = 'rgba(57,212,163,.12)';
+        g.fillRect(x0 + 1, PAD + 1, cw - 2, h - 2 * PAD - 2);
+        g.fillStyle = '#39d4a3';
+        g.fillRect(x0 + 1, PAD + 1, cw - 2, 2);
+      }
       if (i % 4 === 0) { g.fillStyle = 'rgba(125,138,153,.6)'; g.fillText(String(i + 1), x0 + 2, PAD + 8); }
       const xa = x0 + cw * 0.18, xb = x0 + cw * 0.82;
       if (st) {
@@ -110,6 +117,17 @@ function initSeqEditor(canvas) {
         g.fillRect(xa, h - PAD - 3, xb - xa, 2);                                  // silencio: marca en la base
       }
     });
+  }
+
+  // Previsualización al editar: suena la nota del paso que estás fijando
+  // (raíz de referencia C4). Si la frase YA está sonando, el loop te guía.
+  let prevTimer = null;
+  function preview(off) {
+    if (!engine.ready || engine.seq.timer) return;
+    if (engine.S.mode === 'mono' && engine.heldStack.length) return;   // no robar una voz mono en uso
+    engine._directOn('seqprev', stepFreq(261.63, off), 0.8);
+    clearTimeout(prevTimer);
+    prevTimer = setTimeout(() => engine._directOff('seqprev'), 180);
   }
 
   let drag = null;
@@ -133,8 +151,10 @@ function initSeqEditor(canvas) {
     const pxPerSemi = (canvas.height - 2 * PAD) / SPAN;
     const off = Math.max(SEQ_OFF_MIN, Math.min(SEQ_OFF_MAX, Math.round(drag.startOff + dy / pxPerSemi)));
     const toks = tokensOf();
+    if (toks[drag.step] === String(off)) return;     // solo al cambiar de semitono
     toks[drag.step] = String(off);                   // arrastrar un silencio lo convierte en nota
     CONTROLS.seqPat.set(toks.join(' '));
+    preview(off);
   });
   const end = e => {
     if (!drag) return;
@@ -142,6 +162,7 @@ function initSeqEditor(canvas) {
       const toks = tokensOf();
       toks[drag.step] = drag.wasRest ? '0' : '.';
       CONTROLS.seqPat.set(toks.join(' '));
+      if (drag.wasRest) preview(0);
     }
     drag = null;
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -151,6 +172,11 @@ function initSeqEditor(canvas) {
 
   document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') draw(); });
   window.addEventListener('resize', draw);           // collapse.js dispara resize al desplegar
+  let lastPlay = -1;                                 // marcador: redibuja solo al cambiar de paso
+  setInterval(() => {
+    const p = engine.ready && engine.seq.timer ? engine.seq.playingStep() : -1;
+    if (p !== lastPlay) { lastPlay = p; draw(); }
+  }, 40);
   draw();
 }
 
