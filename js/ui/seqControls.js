@@ -27,6 +27,7 @@ export const SEQ_PATTERNS = [
   // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
   // personal). Relativos a la tecla mantenida; bpm = tempo del original.
   { grp: 'Clásicas', name: 'Blade Runner · Vangelis',  pat: '0 . 0 0 12 . 0 0 10 . 0 0 12 . 0 0', div: '1/16', bpm: 140 },
+  { grp: 'Clásicas', name: 'Blade Runner · Sergio',  pat: '0 0 2 3', div: '1/16', bpm: 125 },
   { grp: 'Clásicas', name: 'Chase · Moroder',          pat: '0 7 12 7 0 7 12 7',                  div: '1/16', bpm: 130 },
   { grp: 'Clásicas', name: 'Stranger Things',          pat: '0 4 7 11 12 11 7 4',                 div: '1/16', bpm: 86 },
   { grp: 'Clásicas', name: 'Blue Monday · New Order',  pat: '0 0 0 0 0 0 0 0 0 0 0 0 -2 -2 -5 -5', div: '1/16', bpm: 130 },
