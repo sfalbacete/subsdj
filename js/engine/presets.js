@@ -6,6 +6,9 @@
    banco (el lookup es por nombre).
    Los presets de usuario v1 (cutoff = posición 0..1 del slider) se
    migran automáticamente a v2 la primera vez (v1 queda como copia).
+   REGLA cutLFO: el LFO de cutoff SUMA Hz al valor base (Voice.js), así
+   que cutoff − cutLfoLvl debe quedar ≥ ~150 Hz; si la suma cruza 0 el
+   lowpass se clava en 0 Hz y el preset se apaga en cada semiciclo.
    ===================================================================== */
 import { PARAMS, posToVal } from './params.js';
 
@@ -24,11 +27,11 @@ export const FACTORY = {
     'Bajo pluck': { waveA: 'sawtooth', waveB: 'square', mix: 0.35, cutoff: 448, reso: 6,
       filterEnvAmt: 2600, a: 0.002, d: 0.2, s: 0.0, r: 0.13, master: 0.78 },
     'Ácido 303': { mode: 'mono', waveA: 'sawtooth', waveB: 'sawtooth', mix: 0.15, cutoff: 317, reso: 20,
-      filterEnvAmt: 2800, glide: 0.06, cutLfoLvl: 800, cutLfoSpd: 4, dist: 0.35, a: 0.003, d: 0.2, s: 0.2, r: 0.1 },
+      filterEnvAmt: 2800, glide: 0.06, dist: 0.35, a: 0.003, d: 0.2, s: 0.2, r: 0.1 },
     'Slide bass': { mode: 'mono', waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 6, mix: 0.1,
       cutoff: 448, reso: 6, filterEnvAmt: 2000, glide: 0.12, a: 0.005, d: 0.2, s: 0.5, r: 0.2, master: 0.78 },
-    'Wobble dub': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 296, reso: 12,
-      cutLfoLvl: 2500, cutLfoSpd: 5, dist: 0.3, a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
+    'Wobble dub': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 900, reso: 12,
+      cutLfoLvl: 750, cutLfoSpd: 5, dist: 0.3, a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
     'Bajo cremoso (24 dB)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 10, mix: 0.45,
       cutoff: 420, reso: 3, filterSlope: '24', filterDrive: 0.5, filterEnvAmt: 1200,
       a: 0.005, d: 0.25, s: 0.5, r: 0.2, master: 0.75 },
@@ -54,7 +57,7 @@ export const FACTORY = {
 
   'Pads': {
     'Pad cálido': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -10, detuneB: 14, octavesB: 2, mix: 0.5,
-      cutoff: 1180, reso: 2, cutLfoLvl: 1500, cutLfoSpd: 0.2, a: 0.8, d: 0.5, s: 0.8, r: 2.0,
+      cutoff: 1180, reso: 2, cutLfoLvl: 800, cutLfoSpd: 0.2, a: 0.8, d: 0.5, s: 0.8, r: 2.0,
       dlyAmt: 0.3, dlyTime: 0.5, width: 0.6, reverbMix: 0.32, reverbSize: 2.6, master: 0.6 },
     'PWM strings': { waveA: 'square', waveB: 'square', detuneB: 8, octavesB: 2, mix: 0.5,
       pulseWidth: 0.5, pwmLfoLvl: 0.3, pwmLfoSpd: 0.6, cutoff: 2520, reso: 1, a: 0.3, d: 0.4, s: 0.85, r: 0.6,
@@ -63,8 +66,8 @@ export const FACTORY = {
       cutoff: 1260, reso: 1.5, a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.7, reverbMix: 0.35, reverbSize: 3, master: 0.55 },
     'Pad de cristal': { waveA: 'sine', waveB: 'sine', ring: 0.3, detuneB: 12, octavesB: 2, mix: 0.5,
       cutoff: 5020, a: 0.5, d: 0.6, s: 0.7, r: 1.5, width: 0.5, reverbMix: 0.4, reverbSize: 3.2, master: 0.6 },
-    'Pad evolutivo': { waveA: 'sawtooth', waveB: 'triangle', detuneB: 10, mix: 0.5, cutoff: 632,
-      cutLfoLvl: 1800, cutLfoSpd: 0.12, reso: 3, resLfoLvl: 4, resLfoSpd: 0.1, a: 1.0, d: 0.6, s: 0.8, r: 2.5,
+    'Pad evolutivo': { waveA: 'sawtooth', waveB: 'triangle', detuneB: 10, mix: 0.5, cutoff: 1000,
+      cutLfoLvl: 800, cutLfoSpd: 0.12, reso: 3, resLfoLvl: 4, resLfoSpd: 0.1, a: 1.0, d: 0.6, s: 0.8, r: 2.5,
       width: 0.6, reverbMix: 0.35, reverbSize: 3.5, master: 0.55 },
     'Coro (choir)': { waveA: 'supersaw', spread: 0.4, waveB: 'sine', mix: 0.4, cutoff: 1450,
       a: 0.7, d: 0.5, s: 0.85, r: 2.0, width: 0.6, reverbMix: 0.4, reverbSize: 3, master: 0.55 },
@@ -172,17 +175,17 @@ export const FACTORY = {
 
   'FX & Atmósferas': {
     'Drone sci-fi': { noise: 0.4, waveA: 'sine', waveB: 'sawtooth', ring: 0.4, detuneB: 25, mix: 0.5,
-      cutoff: 590, reso: 8, cutLfoLvl: 2000, cutLfoSpd: 0.15, resLfoLvl: 6, resLfoSpd: 0.1,
+      cutoff: 800, reso: 8, cutLfoLvl: 650, cutLfoSpd: 0.15, resLfoLvl: 6, resLfoSpd: 0.1,
       a: 1.2, d: 0.5, s: 0.9, r: 2.5, dlyAmt: 0.4, dlyTime: 0.7, width: 0.5, reverbMix: 0.4, master: 0.6 },
-    'Riser tensión': { noise: 0.5, waveA: 'sawtooth', mix: 0.2, cutoff: 224, cutLfoLvl: 3000, cutLfoSpd: 0.08,
+    'Riser tensión': { noise: 0.5, waveA: 'sawtooth', mix: 0.2, cutoff: 224, filterEnvAmt: 2800,
       reso: 8, a: 2.0, d: 0.5, s: 0.9, r: 1.5, width: 0.5, reverbMix: 0.4, reverbSize: 3.5, master: 0.6 },
     'Nave espacial': { ring: 0.7, waveA: 'sine', waveB: 'sine', detuneB: 35, octavesB: 2, mix: 0.5,
-      cutoff: 1260, cutLfoLvl: 2000, cutLfoSpd: 0.2, a: 0.5, d: 0.5, s: 0.9, r: 2.0, flAmt: 0.4, flSpd: 0.3,
+      cutoff: 1400, cutLfoLvl: 1200, cutLfoSpd: 0.2, a: 0.5, d: 0.5, s: 0.9, r: 2.0, flAmt: 0.4, flSpd: 0.3,
       width: 0.5, reverbMix: 0.4, master: 0.6 },
     'Blip resonante': { waveA: 'sawtooth', mix: 0.2, cutoff: 1260, reso: 16, filterEnvAmt: 4000,
       a: 0.001, d: 0.15, s: 0.0, r: 0.1, width: 0.3, reverbMix: 0.2 },
-    'Wobble sincopado': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 296, reso: 10,
-      cutLfoLvl: 2500, cutLfoSpd: 2, cutLfoShape: 'square', dist: 0.25,
+    'Wobble sincopado': { waveA: 'sawtooth', waveB: 'square', mix: 0.4, cutoff: 1250, reso: 10,
+      cutLfoLvl: 1000, cutLfoSpd: 2, cutLfoShape: 'square', dist: 0.25,
       dlyAmt: 0.35, dlySync: '1/8.', bpm: 140, panLfoLvl: 0.4, panLfoSpd: 0.8,
       a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
   },

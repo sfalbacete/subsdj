@@ -41,7 +41,7 @@
       "width": 0.7, "reverbMix": 0.4, "reverbSize": 3.5, "master": 0.58 },
 
     "Cine · Abismo": { "waveA": "sawtooth", "octavesA": 3, "waveB": "sine", "octavesB": 2, "mix": 0.3, "freqCents": -1200,
-      "cutoff": 300, "reso": 4, "cutLfoLvl": 600, "cutLfoSpd": 0.07, "cutLfoShape": "triangle",
+      "cutoff": 450, "reso": 4, "cutLfoLvl": 300, "cutLfoSpd": 0.07, "cutLfoShape": "triangle",
       "noise": 0.15, "a": 1.5, "d": 0.6, "s": 0.9, "r": 3.0, "width": 0.5,
       "reverbMix": 0.45, "reverbSize": 4, "master": 0.6 },
 
@@ -55,8 +55,8 @@
       "a": 0.8, "d": 0.8, "s": 0.8, "r": 3.0, "dlyAmt": 0.45, "dlySync": "1/2", "bpm": 84,
       "panLfoLvl": 0.6, "panLfoSpd": 0.07, "width": 0.5, "reverbMix": 0.45, "reverbSize": 4, "master": 0.55 },
 
-    "Cine · Tundra": { "noise": 0.55, "waveA": "sine", "octavesA": 2, "mix": 0, "cutoff": 900, "reso": 9,
-      "cutLfoLvl": 1400, "cutLfoSpd": 0.11, "cutLfoShape": "triangle", "morph": 0.4,
+    "Cine · Tundra": { "noise": 0.55, "waveA": "sine", "octavesA": 2, "mix": 0, "cutoff": 1100, "reso": 9,
+      "cutLfoLvl": 900, "cutLfoSpd": 0.11, "cutLfoShape": "triangle", "morph": 0.4,
       "a": 1.4, "d": 0.5, "s": 0.9, "r": 2.5, "panLfoLvl": 0.5, "panLfoSpd": 0.15,
       "width": 0.6, "reverbMix": 0.4, "reverbSize": 3.5, "master": 0.62 },
 
@@ -72,11 +72,11 @@
       "a": 0.01, "d": 0.3, "s": 0.75, "r": 0.35, "width": 0.5, "reverbMix": 0.15, "master": 0.6 },
 
     "Duro · Growl FM": { "waveA": "sine", "waveB": "sine", "mix": 0.3, "fmRatio": 0.5, "fmIndex": 6,
-      "cutoff": 700, "reso": 8, "cutLfoLvl": 1800, "cutLfoSpd": 2.2, "cutLfoShape": "triangle",
+      "cutoff": 1000, "reso": 8, "cutLfoLvl": 750, "cutLfoSpd": 2.2, "cutLfoShape": "triangle",
       "dist": 0.4, "a": 0.005, "d": 0.3, "s": 0.8, "r": 0.15, "width": 0.2, "master": 0.62 },
 
     "Duro · Neuro wobble": { "waveA": "sawtooth", "octavesA": 2, "waveB": "sine", "mix": 0.35, "fmRatio": 2, "fmIndex": 3.5,
-      "cutoff": 450, "reso": 10, "cutLfoLvl": 2800, "cutLfoSpd": 4, "cutLfoShape": "sawtooth",
+      "cutoff": 1300, "reso": 10, "cutLfoLvl": 1100, "cutLfoSpd": 4, "cutLfoShape": "sawtooth",
       "resLfoLvl": 5, "resLfoSpd": 0.3, "resLfoShape": "triangle", "dist": 0.45, "morph": 0.1,
       "a": 0.004, "d": 0.3, "s": 0.85, "r": 0.15, "flAmt": 0.25, "flSpd": 0.4, "master": 0.55 },
 
@@ -150,8 +150,8 @@
       "cutoff": 4500, "morph": 0.55, "reso": 3, "fenvMode": "own", "filterEnvAmt": 2500, "fa": 0.001, "fd": 0.12, "fs": 0.0, "fr": 0.1,
       "a": 0.001, "d": 0.16, "s": 0.0, "r": 0.12, "dist": 0.15, "master": 0.85 },
 
-    "Textura · Olas": { "noise": 0.8, "waveA": "sine", "mix": 0, "cutoff": 500, "reso": 2,
-      "cutLfoLvl": 1300, "cutLfoSpd": 0.08, "cutLfoShape": "triangle",
+    "Textura · Olas": { "noise": 0.8, "waveA": "sine", "mix": 0, "cutoff": 850, "reso": 2,
+      "cutLfoLvl": 700, "cutLfoSpd": 0.08, "cutLfoShape": "triangle",
       "ampLfoLvl": 0.3, "ampLfoSpd": 0.07, "ampLfoShape": "triangle",
       "a": 1.5, "d": 0.5, "s": 0.95, "r": 2.5, "panLfoLvl": 0.4, "panLfoSpd": 0.06,
       "width": 0.7, "reverbMix": 0.35, "reverbSize": 3, "master": 0.7 },
