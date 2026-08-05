@@ -146,9 +146,46 @@ automáticamente al cargar; la copia v1 se conserva como respaldo.
 **Roadmap completado.** Después llegaron el bloque «sonido pro» (ensemble, drift,
 LFO fade, unison, filtro 24 dB + drive, reverb damp/predelay, color de ruido),
 **MIDI learn** (mapeo CC→control con persistencia por aparato) y el **exportador
-SFZ** (preset → multisample). Ideas futuras: matriz de modulación genérica, más
-divisiones/swing en el arp, loop points automáticos en el exportador SFZ, y el
-generador estático de samples (aparcado).
+SFZ** (preset → multisample). Ideas menores en la recámara: más divisiones/swing
+en el arp y loop points automáticos en el exportador SFZ. La matriz de modulación
+se promociona al Roadmap 3.0 ↓.
 
 Aparcado a propósito (no implementar salvo petición): la generación *estática*
 de samples del synth original (morphing para modtrackers).
+
+## Roadmap 3.0 «instrumento con carácter» (acordado 2026-08-05)
+
+El objetivo es profundizar el **instrumento** — riqueza de generación e identidad
+propia — no añadir herramientas alrededor. Descartado a propósito: secuenciador
+multipista (para secuenciar ya hay DAWs; el exportador SFZ es el puente). Ritmo:
+sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
+
+1. **Matriz de modulación** — semi-modular a la manera clásica: la cadena de
+   audio sigue fija (es lo que hace que suene bien; lección del synth modular),
+   la modulación se libera. N slots fuente → destino × cantidad bipolar.
+   Fuentes: los 5 LFOs, las dos envolventes, velocity, nota, y un aleatorio
+   S&H por nota. Destinos v1: los params que ya son AudioParams por voz
+   (pitch, PW, cutoff, reso, amp, pan); ampliable después. El clamp de
+   seguridad sale del min/max de `PARAMS` — lección del cutLFO generalizada:
+   toda ruta de modulación declara su rango seguro. Los presets v2 ganan la
+   clave `matrix: [{src, dst, amt}]` (compatible hacia atrás). Selftest +
+   pares A/B en el banco de demos.
+2. **Oscilador de tabla de ondas + editor** — nueva onda «tabla» en el
+   worklet: lookup interpolado con **mip por octava** (una tabla band-limited
+   por octava, generada truncando armónicos vía FFT propia) para que los
+   agudos no aliaseen. Editor de ondas en vista propia: dibujar a mano alzada,
+   suavizar (recorte espectral) y **expresiones matemáticas**
+   (`sin(sin(2πx))`, `sin(πx)^2`…, evaluadas con whitelist de Math sobre un
+   ciclo de 2048 muestras). Morph entre frame A y B (knob, y destino de la
+   matriz — aquí se cierra el círculo con la fase 1). Los presets guardan la
+   **receta** (expresión o puntos de control), nunca las muestras.
+3. **Piel y personalidad** — tema claro/oscuro seleccionable (variables CSS +
+   `data-theme` persistido en localStorage); aspecto físico: fondo de rack,
+   tornillos en las esquinas de los paneles (como el SubSDJ primigenio),
+   knobs torneados con muesca, sliders con guía fresada, placa con logo
+   propio. Verificación con capturas CDP en ambos temas y varios anchos.
+   Independiente de las otras dos fases: se intercala cuando apetezca.
+
+Método por fase (el de siempre): selftest en verde antes y después; si la
+mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
+sondas CDP; commit por hito.
