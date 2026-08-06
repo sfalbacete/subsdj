@@ -257,6 +257,10 @@ export class AudioEngine {
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
+      // matriz de modulación: los LFO entran CRUDOS (el oscilador, ±1) — el
+      // knob Level de cada LFO gobierna su ruta dedicada, no la matriz
+      mxLfo: { lfoAmp: this.ampLFO.osc, lfoFreq: this.freqLFO.osc, lfoPwm: this.pwmLFO.osc,
+               lfoCut: this.cutLFO.osc, lfoRes: this.resLFO.osc },
       stats: this.modStats,
     };
 
@@ -386,6 +390,11 @@ export class AudioEngine {
   set(name, value) {
     this.S[name] = value;
     if (!this.ready) return;
+    // Matriz de modulación (claves planas mx{1..6}{src,dst,amt}): amt reajusta
+    // la ganancia del slot en vivo; src/dst recablean el slot en las voces vivas.
+    // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.
+    const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
+    if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
     const now = this.ctx.currentTime, smooth = (p, val) => p.setTargetAtTime(val, now, 0.02);
     switch (name) {
       case 'mix':   this._forVoices(v => v.setMix(value)); break;

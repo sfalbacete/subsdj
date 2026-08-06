@@ -98,6 +98,14 @@ export const FACTORY = {
       chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3, freqLfoLvl: 6, freqLfoSpd: 5, lfoFade: 0.6,
       a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
       reverbMix: 0.32, reverbSize: 3, reverbDamp: 0.55, reverbPre: 0.03, master: 0.58 },
+    /* matriz: S&H→pitch (cada nota nace ±18 ct, poli analógico), env→cutoff
+       en octavas (exponencial), y el LFO de trémolo CRUDO paneando lento */
+    'Pad matricial': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 6, mix: 0.5,
+      cutoff: 1400, reso: 1.5, a: 0.5, d: 0.5, s: 0.85, r: 1.6,
+      mx1src: 'rnd', mx1dst: 'pitch', mx1amt: 0.015,
+      mx2src: 'env', mx2dst: 'cutoff', mx2amt: 0.3,
+      mx3src: 'lfoAmp', mx3dst: 'pan', mx3amt: 0.6, ampLfoSpd: 0.3,
+      width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
   },
 
   'Plucks & Teclas': {

@@ -221,3 +221,14 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-row.ok .st-mark{color:var(--accent);}
 .st-row.fail .st-mark,.st-row.fail .st-name{color:var(--hot);}
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
+
+/* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
+.mx-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
+.mx-row select{flex:1;min-width:0;background:#0f141a;border:1px solid var(--edge);color:var(--ink);
+  border-radius:6px;padding:3px 4px;font-size:11px;}
+.mx-arrow{color:var(--dim);font-size:11px;flex:none;}
+.mx-row .ctl{width:auto;flex:none;gap:1px;}
+.mx-row .knob{width:32px;height:32px;}
+.mx-row .knob::before{inset:4px;}
+.mx-row .knob .ind{height:9px;top:4px;}
+.mx-row .val{font-size:9px;min-height:10px;}

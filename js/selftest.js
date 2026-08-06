@@ -320,6 +320,34 @@ export async function runSelfTest() {
            problems: okA ? [] : ['paso:' + okStep + ' única:' + okOnce + ' flanco:' + okEdge + ' pc:' + okPC] });
   }
 
+  {
+    // matriz de modulación: dos renders A/B por el camino real.
+    // B1: env→amp a −1 debe ATENUAR claramente frente al render base (la ruta
+    //     suena de verdad). B2: cutoff modulado a tope negativo NUNCA silencia
+    //     (va por el detune del filtro, exponencial: el 0 Hz es inalcanzable).
+    body.appendChild(el('st-cat', 'Matriz'));
+    let r;
+    try {
+      loadState({});
+      const rA = await renderState(structuredClone(engine.S));
+      loadState({ mx1src: 'env', mx1dst: 'amp', mx1amt: -1 });
+      const rB1 = await renderState(structuredClone(engine.S));
+      loadState({ mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: -1, cutLfoSpd: 3 });
+      const rB2 = await renderState(structuredClone(engine.S));
+      const probs = [];
+      if (rB1.bad || rB2.bad) probs.push('NaN/Inf en renders con matriz');
+      if (!(rB1.peak > SILENCE * 0.2 && rB1.peak < rA.peak * 0.75))
+        probs.push('env→amp −1 no atenúa (base ' + dB(rA.peak) + ' vs ' + dB(rB1.peak) + ')');
+      if (!(rB2.peak > SILENCE))
+        probs.push('cutoff a −1 silenció el render (imposible por diseño: ' + dB(rB2.peak) + ')');
+      r = { name: 'matriz (env→amp atenúa · cutoff nunca llega a 0 Hz)', peak: rB2.peak, ok: !probs.length, problems: probs };
+    } catch (e) {
+      r = { name: 'matriz (env→amp atenúa · cutoff nunca llega a 0 Hz)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e && e.message) || e)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

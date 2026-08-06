@@ -5,6 +5,7 @@ import { engine } from './engine/AudioEngine.js';
 import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
+import { bindMatrixControls } from './ui/matrixControls.js';
 import { bindSeqControls } from './ui/seqControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
@@ -17,6 +18,7 @@ import { initADSRGraph } from './ui/adsrGraph.js';
 import { initCollapsiblePanels } from './ui/collapse.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
+bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
 bindKnobs();
 bindSliders();
 bindOscControls();

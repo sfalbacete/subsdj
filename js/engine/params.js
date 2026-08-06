@@ -117,6 +117,41 @@ export const PARAMS = {
   master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
 };
 
+/* --- Matriz de modulación: MX_SLOTS filas fuente → destino × cantidad. ---
+   Claves PLANAS (mx1src…mx6amt) generadas aquí mismo: así presets v2,
+   snapshot, Reset y MIDI learn funcionan sin ningún caso especial.
+   La cantidad va en ±1 y cada destino la escala por MX_SPAN (espacio-motor).
+   El cutoff se modula por el DETUNE del filtro (cents ⇒ exponencial, octavas
+   simétricas): matemáticamente incapaz de cruzar 0 Hz — la lección del
+   cutLFO (presets que se apagaban) garantizada por construcción. */
+export const MX_SLOTS = 6;
+export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su knob Level no interviene) y env de filtro (0..1·vel)
+  { id: 'off',     label: '—' },            // valores por nota ("CV"): velocity, altura de la nota, S&H aleatorio
+  { id: 'lfoCut',  label: 'LFO cutoff' },
+  { id: 'lfoRes',  label: 'LFO reso' },
+  { id: 'lfoAmp',  label: 'LFO trémolo' },
+  { id: 'lfoFreq', label: 'LFO vibrato' },
+  { id: 'lfoPwm',  label: 'LFO PWM' },
+  { id: 'env',     label: 'Env filtro' },
+  { id: 'vel',     label: 'Velocity' },
+  { id: 'note',    label: 'Nota (altura)' },
+  { id: 'rnd',     label: 'S&H por nota' },
+];
+export const MX_DESTS = [
+  { id: 'pitch',  label: 'Pitch' },         // cents sobre el detune de ambos osciladores
+  { id: 'pw',     label: 'Pulse width' },   // el AudioParam del worklet recorta a [0.01, 0.99]
+  { id: 'cutoff', label: 'Cutoff' },        // octavas (detune del filtro, ±4 oct)
+  { id: 'reso',   label: 'Resonancia' },    // dB sobre la Q de la etapa final
+  { id: 'amp',    label: 'Amplitud' },      // ganancia por voz TRAS el VCA (1 ± mod)
+  { id: 'pan',    label: 'Pan' },
+];
+export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1 };
+for (let i = 1; i <= MX_SLOTS; i++) {
+  PARAMS['mx' + i + 'src'] = { def: 'off' };
+  PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
+  PARAMS['mx' + i + 'amt'] = { def: 0, min: -1, max: 1 };
+}
+
 // Posición de slider (0..1 si log) <-> valor de motor. Para params sin `log`
 // la posición ES el valor (el <input> lleva min/max/step reales).
 export const posToVal = (p, x) => p.log ? p.min * Math.pow(p.max / p.min, x) : x;

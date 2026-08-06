@@ -160,16 +160,20 @@ propia — no añadir herramientas alrededor. Descartado a propósito: secuencia
 multipista (para secuenciar ya hay DAWs; el exportador SFZ es el puente). Ritmo:
 sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
 
-1. **Matriz de modulación** — semi-modular a la manera clásica: la cadena de
-   audio sigue fija (es lo que hace que suene bien; lección del synth modular),
-   la modulación se libera. N slots fuente → destino × cantidad bipolar.
-   Fuentes: los 5 LFOs, las dos envolventes, velocity, nota, y un aleatorio
-   S&H por nota. Destinos v1: los params que ya son AudioParams por voz
-   (pitch, PW, cutoff, reso, amp, pan); ampliable después. El clamp de
-   seguridad sale del min/max de `PARAMS` — lección del cutLFO generalizada:
-   toda ruta de modulación declara su rango seguro. Los presets v2 ganan la
-   clave `matrix: [{src, dst, amt}]` (compatible hacia atrás). Selftest +
-   pares A/B en el banco de demos.
+1. **Matriz de modulación** ✔ *(hecha 2026-08-06)* — semi-modular a la manera
+   clásica: la cadena de audio sigue fija (es lo que hace que suene bien;
+   lección del synth modular), la modulación se libera. Panel con 6 filas
+   fuente → destino × cantidad (±, doble clic = 0). Fuentes: los 5 LFOs
+   **crudos** (su knob Level no interviene), la envolvente de filtro, velocity,
+   altura de la nota y un S&H aleatorio por nota. Destinos: pitch, pulse
+   width, cutoff, resonancia, amplitud y pan — todos AudioParams por voz;
+   cada uno escala la cantidad por su `MX_SPAN` (params.js). El cutoff se
+   modula por el **detune del filtro** (cents ⇒ exponencial): no puede cruzar
+   0 Hz por construcción — la lección del cutLFO, garantizada. Claves planas
+   `mx1src…mx6amt` en presets v2 (compatibles con snapshot, Reset y MIDI
+   learn sin casos especiales). Evidencia: check funcional en el selftest
+   (env→amp atenúa; cutoff a tope negativo no silencia), preset de fábrica
+   «Pad matricial» y pares A/B «MX 1‑6» en `subsdj-demos.json`.
 2. **Oscilador de tabla de ondas + editor** — nueva onda «tabla» en el
    worklet: lookup interpolado con **mip por octava** (una tabla band-limited
    por octava, generada truncando armónicos vía FFT propia) para que los

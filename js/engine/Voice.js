@@ -3,9 +3,12 @@
    Cadena por voz:
      osc A/B (worklet) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
         --> filtro LP/HP morph 12|24 dB (cutoff = base + envFiltro + LFO)
-        --> VCA(ADSR) --> bus
+        --> VCA(ADSR) --> ampMod(matriz, base 1) --> pan --> bus
    Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
+   Matriz de modulación: slots fuente→GainNode(amt·span)→AudioParams del
+   destino — la misma fontanería que las rutas dedicadas, generalizada.
    ===================================================================== */
+import { MX_SLOTS, MX_SPAN } from './params.js';
 
 // Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
 // (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
@@ -128,11 +131,15 @@ export class Voice {
 
     // --- VCA (envolvente de amplitud) + colocación estéreo ---
     const vca = ctx.createGain(); vca.gain.value = 0;
+    // ampMod: destino 'amp' de la matriz (1 ± mod). Va TRAS el VCA a propósito:
+    // al soltar la nota el VCA baja a 0 y silencia pase lo que pase el slot
+    // (sumado al propio VCA, un trémolo ±  seguiría sonando tras el release).
+    const ampMod = ctx.createGain(); ampMod.gain.value = 1;
     const panner = ctx.createStereoPanner();
     // posición base por altura de nota (±2 octavas desde C4 => ±1), escalada por Width
     this.basePan = Math.max(-1, Math.min(1, Math.log2(freq / 261.63) / 2));
     panner.pan.value = this.basePan * S.width;
-    filterOut.connect(vca); vca.connect(panner); panner.connect(mod.voicesBus);
+    filterOut.connect(vca); vca.connect(ampMod); ampMod.connect(panner); panner.connect(mod.voicesBus);
     noiseSrc.start(t);
 
     // --- Programación de envolventes ADSR (amp + filtro comparten A/D/S/R) ---
@@ -153,9 +160,15 @@ export class Voice {
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
-      lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, panner,
+      lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
       dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut });
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
+
+    // matriz de modulación (necesita todas las refs ya asignadas)
+    this.vel = vel;
+    this.mxSlots = [];                          // slot i -> {src, gain, dst}
+    this._mxConsts = {};                        // fuentes escalares por voz (vel/note/rnd), cacheadas
+    for (let i = 1; i <= MX_SLOTS; i++) this.mxRewire(i);
   }
 
   _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
@@ -240,6 +253,57 @@ export class Voice {
     this.oscs.forEach(o => this.pwmFade.connect(o.pw));
   }
   ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.mod.panLFOGain.connect(this.panner.pan); }
+
+  // ---------- matriz de modulación (tablas en params.js) ----------
+  // Fuente de un slot: los LFO llegan CRUDOS (el oscilador global, ±1, sin
+  // pasar por su knob Level); 'env' es el ConstantSource de la env de filtro;
+  // vel/note/rnd son un valor fijo por nota => ConstantSource propio ("CV").
+  _mxSrcNode(src) {
+    if (src.startsWith('lfo')) return this.mod.mxLfo[src] || null;
+    if (src === 'env') return this.fenv;
+    if (this._mxConsts[src]) return this._mxConsts[src];
+    const val = src === 'vel' ? this.vel
+      : src === 'note' ? Math.max(-1, Math.min(1, Math.log2(this.noteFreq / 261.63) / 2))
+      : src === 'rnd' ? Math.random() * 2 - 1 : null;
+    if (val === null) return null;
+    const c = this.ctx.createConstantSource(); c.offset.value = val; c.start(this.t0);
+    return this._mxConsts[src] = c;
+  }
+  _mxDestParams(dst) {
+    switch (dst) {
+      case 'pitch':  return this.oscs.map(o => o.detune);
+      case 'pw':     return this.oscs.map(o => o.pw);
+      // cutoff por el DETUNE del biquad (cents): computedFreq = freq·2^(det/1200),
+      // exponencial y sin cruce por 0 Hz. Todas las etapas, como el cutLFO.
+      case 'cutoff': return [this.lp, this.hp, this.lp2, this.hp2].filter(Boolean).map(f => f.detune);
+      case 'reso':   return [this.lp.Q, this.hp.Q];
+      case 'amp':    return [this.ampMod.gain];
+      case 'pan':    return [this.panner.pan];
+    }
+    return [];
+  }
+  mxRewire(i) {                 // (re)cablea el slot i leyendo el estado actual
+    if (this.disposed) return;
+    const old = this.mxSlots[i];
+    if (old) {
+      try { old.src.disconnect(old.gain); } catch (e) {}
+      try { old.gain.disconnect(); } catch (e) {}
+      this.mxSlots[i] = null;
+    }
+    const S = this.S, srcId = S['mx' + i + 'src'], dstId = S['mx' + i + 'dst'];
+    if (!srcId || srcId === 'off') return;
+    const src = this._mxSrcNode(srcId), params = this._mxDestParams(dstId);
+    if (!src || !params.length) return;
+    const gain = this.ctx.createGain();
+    gain.gain.value = (S['mx' + i + 'amt'] || 0) * (MX_SPAN[dstId] || 0);
+    src.connect(gain);
+    params.forEach(p => gain.connect(p));
+    this.mxSlots[i] = { src, gain, dst: dstId };
+  }
+  mxSetAmt(i) {                 // sólo cambia la ganancia del slot (barato, en vivo)
+    const slot = this.mxSlots[i]; if (!slot || this.disposed) return;
+    slot.gain.gain.setTargetAtTime((this.S['mx' + i + 'amt'] || 0) * (MX_SPAN[slot.dst] || 0), this.ctx.currentTime, 0.02);
+  }
 
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
   setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
@@ -336,8 +400,19 @@ export class Voice {
     if (this.hp2) { try { m.cutLFOGain.disconnect(this.hp2.frequency); } catch (e) {} }
     try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}
     try { m.resLFOGain.disconnect(this.hp.Q); } catch (e) {}
+    // matriz: soltar los slots (la fuente puede ser un LFO global: hay que
+    // desconectarla del gain del slot para no dejar basura en el grafo)
+    this.mxSlots.forEach(s => {
+      if (!s) return;
+      try { s.src.disconnect(s.gain); } catch (e) {}
+      try { s.gain.disconnect(); } catch (e) {}
+    });
+    for (const k in this._mxConsts) {
+      try { this._mxConsts[k].stop(); } catch (e) {}
+      try { this._mxConsts[k].disconnect(); } catch (e) {}
+    }
     [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain, this.nLP, this.nHP,
-     this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.panner,
+     this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.ampMod, this.panner,
      this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut].forEach(n => {
       if (n) { try { n.disconnect(); } catch (e) {} }
     });
