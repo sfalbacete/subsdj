@@ -230,5 +230,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .mx-row .ctl{width:auto;flex:none;gap:1px;}
 .mx-row .knob{width:32px;height:32px;}
 .mx-row .knob::before{inset:4px;}
-.mx-row .knob .ind{height:9px;top:4px;}
+/* transform-origin = centro del knob (alto/2) − top del ind: 32/2 − 4 = 12px
+   (la regla base trae 17px, cocinado para el knob de 44px) */
+.mx-row .knob .ind{height:9px;top:4px;transform-origin:50% 12px;}
 .mx-row .val{font-size:9px;min-height:10px;}
