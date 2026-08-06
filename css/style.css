@@ -222,6 +222,17 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-row.fail .st-mark,.st-row.fail .st-name{color:var(--hot);}
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
+/* LEDs de actividad (ui/activity.js): la sección está HACIENDO algo.
+   En el h2 sobreviven al plegado del panel; versión mini en los tags de LFO. */
+.led{width:7px;height:7px;border-radius:50%;background:#232c38;border:1px solid #0b0f14;
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.6);display:inline-block;margin-right:7px;flex:none;
+  transition:background .15s,box-shadow .15s;}
+.led.on{background:var(--accent);box-shadow:0 0 6px var(--accent),inset 0 1px 1px rgba(255,255,255,.25);}
+.panel.osc .led.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2),inset 0 1px 1px rgba(255,255,255,.25);}
+.lfo-grp .tag .led{width:5px;height:5px;margin-right:4px;vertical-align:1px;}
+/* Knobs de "cantidad" (act en PARAMS) en su valor inerte: rayita apagada */
+.knob.off .ind,.panel.osc .knob.off .ind{background:#3d4a5a;box-shadow:none;}
+
 /* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
 .mx-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
 .mx-row select{flex:1;min-width:0;background:#0f141a;border:1px solid var(--edge);color:var(--ink);

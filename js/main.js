@@ -16,6 +16,7 @@ import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 import { initCollapsiblePanels } from './ui/collapse.js';
+import { initActivity } from './ui/activity.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
@@ -31,6 +32,7 @@ initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
 initCollapsiblePanels();
+initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.

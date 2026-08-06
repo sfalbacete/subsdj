@@ -22,6 +22,7 @@ export function bindKnobs() {
       const pos = (value - cfg.min) / (cfg.max - cfg.min);
       ind.style.transform = `rotate(${-135 + pos * 270}deg)`;
       if (valEl) valEl.textContent = fmt(value, unit);
+      if (cfg.act) el.classList.toggle('off', value === 0);   // 0 = apagado: rayita atenuada
     };
     const setVal = v => { value = Math.min(cfg.max, Math.max(cfg.min, v)); render(); applyTarget(target, value); };
     render(); applyTarget(target, value);

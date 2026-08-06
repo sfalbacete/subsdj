@@ -10,6 +10,8 @@
      step      granularidad del slider (solo sliders)
      fmt       formato de presentación específico (solo sliders)
      log       true = el slider trabaja en posición 0..1 con mapeo log min→max
+     act       true = el 0 es "apagado" (no un ajuste): el knob se atenúa a 0
+               y el parámetro cuenta para los LEDs de actividad (ui/activity.js)
    El switch de AudioEngine.set() sigue siendo quien APLICA cada parámetro
    al grafo: eso es lógica de audio, no metadatos, y ahí es legible.
    ===================================================================== */
@@ -28,27 +30,27 @@ export const PARAMS = {
   phaseB:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscB.phase' },
   octavesB: { def: 1, min: 1, max: 4, t: 'oscB.octaves' },
   mix:      { def: 0.4, min: 0, max: 1 },
-  ring:     { def: 0, min: 0, max: 1 },
-  noise:    { def: 0, min: 0, max: 1 },
+  ring:     { def: 0, min: 0, max: 1, act: true },
+  noise:    { def: 0, min: 0, max: 1, act: true },
   noiseColor:{ def: 0, min: -1, max: 1 },           // − oscuro (LP) · 0 blanco · + "aire" (HP)
   spread:   { def: 0.5, min: 0, max: 1 },
-  drift:    { def: 0, min: 0, max: 15, unit: ' ct' },   // deriva aleatoria lenta por oscilador (analógico)
+  drift:    { def: 0, min: 0, max: 15, unit: ' ct', act: true },   // deriva aleatoria lenta por oscilador (analógico)
   uniVoices:{ def: '1' },                               // unison: 1..7 copias por oscilador (seg; supersaw lo ignora)
   uniDetune:{ def: 12, min: 0, max: 50, unit: ' ct' },  // detune de los extremos del unison
   fmRatio:  { def: 1, min: 0.25, max: 12 },
-  fmIndex:  { def: 0, min: 0, max: 12 },
+  fmIndex:  { def: 0, min: 0, max: 12, act: true },
 
   // --- Modulación ---
   pulseWidth: { def: 0.5, min: 0.02, max: 0.98, step: 0.01, fmt: v => (v * 100).toFixed(0) + '%' },
-  pwmLfoLvl:  { def: 0, min: 0, max: 0.45 },
+  pwmLfoLvl:  { def: 0, min: 0, max: 0.45, act: true },
   pwmLfoSpd:  { def: 3, min: 0.05, max: 20, unit: ' Hz' },
   pwmLfoShape:{ def: 'sine' },
   amplitude:  { def: 0.8, min: 0, max: 1, step: 0.01, fmt: twoDec },
-  ampLfoLvl:  { def: 0, min: 0, max: 0.6 },
+  ampLfoLvl:  { def: 0, min: 0, max: 0.6, act: true },
   ampLfoSpd:  { def: 5, min: 0.05, max: 20, unit: ' Hz' },
   ampLfoShape:{ def: 'sine' },
   freqCents:  { def: 0, min: -1200, max: 1200, step: 1, fmt: v => v.toFixed(0) + ' ct' },
-  freqLfoLvl: { def: 0, min: 0, max: 200, unit: ' ct' },
+  freqLfoLvl: { def: 0, min: 0, max: 200, unit: ' ct', act: true },
   freqLfoSpd: { def: 5, min: 0.05, max: 20, unit: ' Hz' },
   freqLfoShape:{ def: 'sine' },
   lfoFade:    { def: 0, min: 0, max: 2, unit: ' s' },   // vibrato/PWM entran en rampa tras cada noteOn
@@ -56,18 +58,18 @@ export const PARAMS = {
   // --- Filtro (por voz) ---
   cutoff:    { def: 6000, min: 20, max: 20000, log: true,
                fmt: v => v >= 1000 ? (v / 1000).toFixed(2) + ' kHz' : v.toFixed(0) + ' Hz' },
-  cutLfoLvl: { def: 0, min: 0, max: 5000, unit: ' Hz' },
+  cutLfoLvl: { def: 0, min: 0, max: 5000, unit: ' Hz', act: true },
   cutLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
   cutLfoShape:{ def: 'sine' },
   reso:      { def: 2, min: 0.1, max: 24, step: 0.1, fmt: v => v.toFixed(1) },
-  resLfoLvl: { def: 0, min: 0, max: 15 },
+  resLfoLvl: { def: 0, min: 0, max: 15, act: true },
   resLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
   resLfoShape:{ def: 'sine' },
   morph:        { def: 0, min: 0, max: 1 },
-  filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz' },
-  keytrack:     { def: 0, min: 0, max: 1 },       // el cutoff sigue la altura de la nota (1 = 1:1)
+  filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz', act: true },
+  keytrack:     { def: 0, min: 0, max: 1, act: true },  // el cutoff sigue la altura de la nota (1 = 1:1)
   filterSlope:  { def: '12' },                    // '12' | '24' dB/oct (2ª etapa en cascada; por nota)
-  filterDrive:  { def: 0, min: 0, max: 1 },       // saturación tanh PRE-filtro por voz (0 = transparente)
+  filterDrive:  { def: 0, min: 0, max: 1, act: true },  // saturación tanh PRE-filtro por voz (0 = transparente)
   fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
   fa: { def: 0.01, min: 0.001, max: 2, unit: ' s' },
   fd: { def: 0.2,  min: 0.001, max: 2, unit: ' s' },
@@ -75,22 +77,22 @@ export const PARAMS = {
   fr: { def: 0.3,  min: 0.001, max: 3, unit: ' s' },
 
   // --- FX ---
-  dist:    { def: 0, min: 0, max: 1 },
-  flAmt:   { def: 0, min: 0, max: 1 },
+  dist:    { def: 0, min: 0, max: 1, act: true },
+  flAmt:   { def: 0, min: 0, max: 1, act: true },
   flSpd:   { def: 0.3, min: 0.05, max: 8, unit: ' Hz' },
-  chAmt:   { def: 0, min: 0, max: 1 },              // chorus/ensemble (mezcla wet)
+  chAmt:   { def: 0, min: 0, max: 1, act: true },   // chorus/ensemble (mezcla wet)
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus a 3 fases)
-  dlyAmt:  { def: 0, min: 0, max: 0.9 },
+  dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },
   dlyTime: { def: 0.3, min: 0.02, max: 1.5, unit: ' s' },
   dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)
   bpm:     { def: 120, min: 40, max: 220, unit: ' bpm' },
 
   // --- Espacio ---
-  width:      { def: 0, min: 0, max: 1 },
-  panLfoLvl:  { def: 0, min: 0, max: 1 },           // autopan por voz
+  width:      { def: 0, min: 0, max: 1, act: true },
+  panLfoLvl:  { def: 0, min: 0, max: 1, act: true },    // autopan por voz
   panLfoSpd:  { def: 0.4, min: 0.05, max: 8, unit: ' Hz' },
-  reverbMix:  { def: 0, min: 0, max: 0.6 },
+  reverbMix:  { def: 0, min: 0, max: 0.6, act: true },
   reverbSize: { def: 1.8, min: 0.2, max: 4, unit: ' s' },
   reverbDamp: { def: 0, min: 0, max: 1 },           // los agudos de la cola mueren antes (vive en la IR)
   reverbPre:  { def: 0, min: 0, max: 0.1, unit: ' s' },  // predelay: separa el ataque de la cola
@@ -100,8 +102,8 @@ export const PARAMS = {
   d: { def: 0.2,  min: 0.001, max: 2, step: 0.001, fmt: msFmt },
   s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
   r: { def: 0.3,  min: 0.001, max: 3, step: 0.001, fmt: msFmt },
-  glide:  { def: 0, min: 0, max: 1, unit: ' s' },
-  pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct' },   // envolvente de pitch por nota
+  glide:  { def: 0, min: 0, max: 1, unit: ' s', act: true },
+  pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
   pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },
   mode:   { def: 'poly' },
   arpMode: { def: 'off' },                          // off | up | down | updown | random
@@ -149,7 +151,7 @@ export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, 
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
-  PARAMS['mx' + i + 'amt'] = { def: 0, min: -1, max: 1 };
+  PARAMS['mx' + i + 'amt'] = { def: 0, min: -1, max: 1, act: true };
 }
 
 // Posición de slider (0..1 si log) <-> valor de motor. Para params sin `log`
