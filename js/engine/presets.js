@@ -35,6 +35,12 @@ export const FACTORY = {
     'Bajo cremoso (24 dB)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 10, mix: 0.45,
       cutoff: 420, reso: 3, filterSlope: '24', filterDrive: 0.5, filterEnvAmt: 1200,
       a: 0.005, d: 0.25, s: 0.5, r: 0.2, master: 0.75 },
+    /* matriz: nota→PW — abajo pulso ancho (gordo), arriba estrecho (nasal):
+       el timbre cambia a lo largo del teclado, no solo el brillo */
+    'Bajo camaleón (nota→PW)': { waveA: 'square', waveB: 'square', pulseWidth: 0.35, mix: 0.35,
+      cutoff: 900, reso: 3, keytrack: 0.3, filterEnvAmt: 1500,
+      mx1src: 'note', mx1dst: 'pw', mx1amt: -0.35,
+      a: 0.004, d: 0.22, s: 0.3, r: 0.15, master: 0.75 },
   },
 
   'Leads': {
@@ -53,6 +59,12 @@ export const FACTORY = {
       detuneB: 5, mix: 0.5, cutoff: 2890, reso: 2, a: 0.02, d: 0.2, s: 0.8, r: 0.3, width: 0.3, reverbMix: 0.15 },
     'Flauta vibrato': { waveA: 'sine', waveB: 'triangle', mix: 0.4, freqLfoLvl: 18, freqLfoSpd: 5.5,
       cutoff: 2890, a: 0.08, d: 0.1, s: 0.9, r: 0.2, reverbMix: 0.28, width: 0.2 },
+    /* matriz: el MISMO LFO hace el vibrato (ruta dedicada) y abre el filtro
+       (ruta de matriz, crudo): wah y pitch en fase, como la mano de un guitarrista */
+    'Wah al vibrato': { waveA: 'sawtooth', waveB: 'square', detuneB: 8, mix: 0.4,
+      freqLfoLvl: 25, freqLfoSpd: 5, lfoFade: 0.5,
+      cutoff: 1600, reso: 4, mx1src: 'lfoFreq', mx1dst: 'cutoff', mx1amt: 0.25,
+      a: 0.01, d: 0.2, s: 0.8, r: 0.25, dlyAmt: 0.2, width: 0.3 },
   },
 
   'Pads': {
@@ -106,6 +118,14 @@ export const FACTORY = {
       mx2src: 'env', mx2dst: 'cutoff', mx2amt: 0.3,
       mx3src: 'lfoAmp', mx3dst: 'pan', mx3amt: 0.6, ampLfoSpd: 0.3,
       width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
+    /* matriz: UN solo LFO lento (cutLFO crudo a 0.08 Hz, su Level a 0) movien-
+       do TRES destinos a la vez — filtro, pan y ±14 ct: deriva correlacionada */
+    'Deriva orgánica': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, mix: 0.45,
+      cutoff: 1300, reso: 1.5, cutLfoSpd: 0.08,
+      mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.35,
+      mx2src: 'lfoCut', mx2dst: 'pan', mx2amt: 0.6,
+      mx3src: 'lfoCut', mx3dst: 'pitch', mx3amt: 0.012,
+      a: 0.8, d: 0.5, s: 0.85, r: 2.0, width: 0.4, reverbMix: 0.3, reverbSize: 3, master: 0.58 },
   },
 
   'Plucks & Teclas': {
@@ -119,6 +139,18 @@ export const FACTORY = {
       filterEnvAmt: 2000, a: 0.003, d: 0.5, s: 0.25, r: 0.3, width: 0.3, reverbMix: 0.2 },
     'Pluck supersaw': { waveA: 'supersaw', spread: 0.6, mix: 0.2, cutoff: 1260, reso: 3, filterEnvAmt: 3000,
       a: 0.002, d: 0.25, s: 0.1, r: 0.2, width: 0.5, reverbMix: 0.25, dlyAmt: 0.25 },
+    /* matriz: vel→cutoff en octavas — tocar fuerte ABRE el filtro (con teclado
+       MIDI: la dinámica es timbre, no solo volumen; base grave a propósito) */
+    'Teclas al tacto (vel→filtro)': { waveA: 'sine', waveB: 'triangle', mix: 0.45, ring: 0.15,
+      cutoff: 800, filterEnvAmt: 800, mx1src: 'vel', mx1dst: 'cutoff', mx1amt: 0.55,
+      a: 0.003, d: 0.5, s: 0.25, r: 0.3, width: 0.3, reverbMix: 0.2 },
+    /* matriz: S&H→cutoff y →pan — cada nota sale con un color y un sitio
+       distintos (correlacionados: la MISMA tirada por voz); brutal con el arp */
+    'Pluck lotería (S&H)': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.3, mix: 0.4,
+      cutoff: 700, reso: 5, filterEnvAmt: 1800,
+      mx1src: 'rnd', mx1dst: 'cutoff', mx1amt: 0.35,
+      mx2src: 'rnd', mx2dst: 'pan', mx2amt: 0.8,
+      a: 0.002, d: 0.2, s: 0.0, r: 0.15, dlyAmt: 0.3, dlyTime: 0.4, width: 0.2, master: 0.7 },
   },
 
   'FM': {
