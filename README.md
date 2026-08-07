@@ -187,12 +187,17 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    check A/B en el selftest (morph 0 ≠ 1), presets «Órgano de tabla»,
    «Coro de vocales (tabla)» y «Campanas de tabla (S&H)», pares WT 1-4 en
    el banco de demos.
-   **W2 editor** (pendiente): dibujar a mano alzada + suavizado espectral,
-   tablas de usuario (el pipeline ya es agnóstico: cualquier generador de
-   frames sirve). **W3** (decisión aplazada): expresiones `f(x, t)` — con la
-   variable t generan una FAMILIA de frames coherentes, imposible a mano —
-   y/o editor de armónicos (aditiva pura). Los presets guardarán la
-   **receta** (expresión o puntos), nunca las muestras.
+   **W2 editor ✔** *(hecho 2026-08-07)*: panel «Editor de ondas» — dibuja a
+   mano alzada los frames A/B de la tabla **«usuario»** (canvas con el otro
+   frame de fantasma para dibujar el morph con intención); «Suavizar» atenúa
+   armónicos altos EN EL ESPECTRO y resintetiza. La receta persistida son
+   los PUNTOS (localStorage, 256/frame): puntos → DFT corta con fase
+   (senos+cosenos: el dibujo se ve como se hizo) → mips band-limited, el
+   mismo pipeline que los sets de fábrica. Selftest: DFT recupera espectro
+   conocido, ida-y-vuelta exacta, morph usuario A≠B.
+   **W3** (decisión aplazada): expresiones `f(x, t)` — con la variable t
+   generan una FAMILIA de frames coherentes, imposible a mano — y/o editor
+   de armónicos (aditiva pura).
 3. **Piel y personalidad** — tema claro/oscuro seleccionable (variables CSS +
    `data-theme` persistido en localStorage); aspecto físico: fondo de rack,
    tornillos en las esquinas de los paneles (como el SubSDJ primigenio),
