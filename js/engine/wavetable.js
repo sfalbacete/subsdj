@@ -60,9 +60,12 @@ export const WT_DEFAULT = 'analógica';
 // ---------- espectro -> mips (aditiva con armónicos truncados) ----------
 // spec: Float32Array de senos (sets de fábrica) o {sin, cos} (dibujadas:
 // el coseno conserva la FASE de cada armónico y el dibujo se ve como se hizo).
+const WT_RMS = 0.5;      // sonoridad objetivo por frame (la sierra clásica ronda 0.52)
+const WT_PEAK = 0.95;    // tope anti-clipping: manda solo si la onda es muy puntiaguda
+
 function mipsDeEspectro(spec) {
   const sinA = spec.sin || spec, cosA = spec.cos || null;
-  // ganancia única por frame (pico del nivel 0 a 0.9): los niveles agudos
+  // ganancia única por frame para TODOS los niveles: los mips agudos
   // conservan el volumen del timbre, solo pierden los parciales imposibles
   const levels = [];
   for (let L = 0; L < CAPS.length; L++) {
@@ -74,9 +77,15 @@ function mipsDeEspectro(spec) {
     }
     levels.push(d);
   }
-  let peak = 0;
-  for (const v of levels[0]) { const x = Math.abs(v); if (x > peak) peak = x; }
-  const g = peak > 1e-9 ? 0.9 / peak : 1;
+  // Normalización por SONORIDAD (RMS), no por pico: un dibujo puntiagudo a
+  // pico máximo suena a la mitad que una sierra al mismo pico (factor de
+  // cresta) — era el "las tablas de usuario suenan bajitas". El pico solo
+  // actúa de tope anti-clipping; si manda, es que la onda no puede sonar
+  // más fuerte sin recortar (física, no timidez).
+  let peak = 0, energia = 0;
+  for (const v of levels[0]) { const x = Math.abs(v); if (x > peak) peak = x; energia += v * v; }
+  const rms = Math.sqrt(energia / levels[0].length);
+  const g = (rms > 1e-9 && peak > 1e-9) ? Math.min(WT_RMS / rms, WT_PEAK / peak) : 1;
   for (const d of levels) for (let i = 0; i < d.length; i++) d[i] *= g;
   return levels;
 }
