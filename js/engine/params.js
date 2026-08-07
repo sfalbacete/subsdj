@@ -41,6 +41,7 @@ export const PARAMS = {
   fmIndex:  { def: 0, min: 0, max: 12, act: true },
   wtSet:    { def: 'analógica' },                   // tabla de ondas (oscs en modo 'Tabla'; global A+B)
   wtPos:    { def: 0, min: 0, max: 1 },             // morph: posición entre los frames de la tabla
+  wtUser:   { def: '' },                            // receta de la tabla 'usuario' DENTRO del preset ('' = respeta la dibujada)
 
   // --- Modulación ---
   pulseWidth: { def: 0.5, min: 0.02, max: 0.98, step: 0.01, fmt: v => (v * 100).toFixed(0) + '%' },

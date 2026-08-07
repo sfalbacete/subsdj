@@ -152,6 +152,18 @@ class PulseProcessor extends AudioWorkletProcessor {
       let pos = params.wtPos[0]; if (pos < 0) pos = 0; else if (pos > 1) pos = 1;
       const x = pos * (F - 1), fA = F > 1 ? Math.min(F - 2, x | 0) : 0, ff = F > 1 ? x - fA : 0;
       const fB = fA + 1 < F ? fA + 1 : fA;
+      // Compensación de sonoridad del morph: la mezcla lineal de frames poco
+      // correlados pierde energía a mitad de camino (y dos ondas en contrafase
+      // se CANCELAN). rms² de la mezcla = fórmula cerrada con la energía por
+      // frame y la correlación de vecinos (precalculadas). Tope ×2: un nulo
+      // real no se amplifica hasta el ruido. En los extremos la ganancia es 1.
+      let gMix = 1;
+      if (fB !== fA && wt.energia && wt.corr) {
+        const Ea = wt.energia[fA], Eb = wt.energia[fB], c = wt.corr[fA];
+        const mixE = (1 - ff) * (1 - ff) * Ea + ff * ff * Eb + 2 * ff * (1 - ff) * c;
+        const target = (1 - ff) * Math.sqrt(Ea) + ff * Math.sqrt(Eb);
+        gMix = mixE > 1e-6 ? Math.min(2, target / Math.sqrt(mixE)) : 2;
+      }
       for (let k = 0; k < oct; k++) {
         const base = f0 * (1 << k);
         if (base >= nyq) continue;
@@ -162,13 +174,13 @@ class PulseProcessor extends AudioWorkletProcessor {
           const allowed = nyq / f;
           let L = 0; while ((h0 >> L) > allowed && L < LMAX) L++;
           const dA = wt.frames[fA][L], dB = wt.frames[fB][L], len = dA.length;
-          const dt = f / sr, idx = k * 7 + j;
+          const dt = f / sr, idx = k * 7 + j, amp = lvl * gMix;
           let p = this.phases[idx];
           for (let i = 0; i < N; i++) {
             const xx = p * len, i0 = xx | 0, w = xx - i0, i1 = i0 + 1 === len ? 0 : i0 + 1;
             const vA = dA[i0] + (dA[i1] - dA[i0]) * w;
             const vB = dB[i0] + (dB[i1] - dB[i0]) * w;
-            ch[i] += (vA + (vB - vA) * ff) * lvl;
+            ch[i] += (vA + (vB - vA) * ff) * amp;
             p += dt; if (p >= 1) p -= 1;
           }
           this.phases[idx] = p;

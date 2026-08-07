@@ -123,6 +123,37 @@ export function puntosDeEspectro(spec, P = WE_P) {   // resíntesis (para Suaviz
   }
   return out;
 }
+// Alinea la fase del FUNDAMENTAL a 0 (rotación circular en el tiempo:
+// inaudible en solitario — la fase absoluta no se oye — pero evita que dos
+// frames dibujados "en contrafase" se CANCELEN al morfear: el 50% de una
+// onda y su inversa es el silencio). φn' = φn − n·φ1.
+function alineaFase(spec) {
+  const { sin, cos } = spec;
+  if (Math.hypot(sin[0], cos[0]) < 1e-6) return spec;   // sin fundamental: nada que alinear
+  const f1 = Math.atan2(cos[0], sin[0]);
+  const s2 = new Float32Array(sin.length), c2 = new Float32Array(cos.length);
+  for (let n = 1; n <= sin.length; n++) {
+    const a = sin[n - 1], b = cos[n - 1];
+    if (!a && !b) continue;
+    const R = Math.hypot(a, b), ph = Math.atan2(b, a) - n * f1;
+    s2[n - 1] = R * Math.cos(ph); c2[n - 1] = R * Math.sin(ph);
+  }
+  return { sin: s2, cos: c2 };
+}
+
+// La receta del preset (`wtUser`): los puntos dibujados como cadena compacta
+// (milésimas separadas por comas; frames por ';'). Con esto el preset viaja
+// AUTOCONTENIDO: la onda va dentro, no depende del localStorage de la máquina.
+export function encodeUserFrames(frames) {
+  return frames.map(f => Array.from(f, v => Math.round(v * 1000)).join(',')).join(';');
+}
+export function decodeUserFrames(str) {
+  if (!str) return null;
+  const fr = String(str).split(';').map(s => s.split(',').map(x => +x / 1000));
+  if (!fr.length || fr.some(f => f.length !== WE_P || f.some(v => !Number.isFinite(v)))) return null;
+  return fr;
+}
+
 export function defaultUserFrames() {    // sin nada dibujado: A = seno, B = sierra (algo que morfear)
   const a = new Array(WE_P), b = new Array(WE_P);
   for (let i = 0; i < WE_P; i++) { const t = i / WE_P; a[i] = Math.sin(2 * Math.PI * t); b[i] = 2 * t - 1; }
@@ -139,7 +170,7 @@ export function saveUserFrames(frames) {
   try { localStorage.setItem(WT_LS, JSON.stringify(frames.map(f => [...f].map(v => +(+v).toFixed(3))))); } catch (e) {}
   cache.delete('usuario');               // la próxima nota reconstruye los mips
 }
-WT_SETS['usuario'] = () => (loadUserFrames() || defaultUserFrames()).map(espectroDe);
+WT_SETS['usuario'] = () => (loadUserFrames() || defaultUserFrames()).map(p => alineaFase(espectroDe(p)));
 export function invalidateUserSet() { cache.delete('usuario'); }   // tras tocar localStorage a mano (selftest)
 
 // set construido y cacheado: { lens, frames: [ [Float32Array x niveles] x F ] }
@@ -148,7 +179,22 @@ export function getWtSet(name) {
   const key = WT_SETS[name] ? name : WT_DEFAULT;
   if (!cache.has(key)) {
     const frames = WT_SETS[key]().map(mipsDeEspectro);
-    cache.set(key, { h0: WT_H, lens: LENS.slice(), frames });
+    // energía por frame y correlación entre vecinos (nivel 0): con ellas el
+    // worklet aplana la sonoridad del morph — rms²(f) de la mezcla lineal es
+    // fórmula cerrada y la ganancia compensa el bache de frames poco correlados
+    const F = frames.length;
+    const energia = new Float32Array(F), corr = new Float32Array(Math.max(1, F - 1));
+    for (let i = 0; i < F; i++) {
+      const d = frames[i][0]; let e = 0;
+      for (let k = 0; k < d.length; k++) e += d[k] * d[k];
+      energia[i] = e / d.length;
+    }
+    for (let i = 0; i + 1 < F; i++) {
+      const A = frames[i][0], B = frames[i + 1][0];
+      let s = 0; for (let k = 0; k < A.length; k++) s += A[k] * B[k];
+      corr[i] = s / A.length;
+    }
+    cache.set(key, { h0: WT_H, lens: LENS.slice(), frames, energia, corr });
   }
   return cache.get(key);
 }

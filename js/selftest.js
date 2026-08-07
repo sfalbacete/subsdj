@@ -20,7 +20,8 @@ import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
-import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet } from './engine/wavetable.js';
+import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
+         encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
@@ -409,9 +410,16 @@ export async function runSelfTest() {
       let d = 0, en = 0;
       for (let i = 0; i < cA.length; i += 16) { const x = cA[i] - cB[i]; d += x * x; en += cA[i] * cA[i]; }
       const diff = Math.sqrt(d / Math.max(1e-12, en));
+      // receta wtUser: encode/decode reproduce los frames (viaja en el preset)
+      const fr0 = defaultUserFrames(), fr1 = decodeUserFrames(encodeUserFrames(fr0));
+      let errEnc = fr1 && fr1.length === fr0.length ? 0 : 1;
+      if (!errEnc) for (let i = 0; i < fr0.length; i++)
+        for (let k = 0; k < fr0[i].length; k++) errEnc = Math.max(errEnc, Math.abs(fr1[i][k] - fr0[i][k]));
+      const okEnc = errEnc < 0.001 && decodeUserFrames('') === null && decodeUserFrames('1,2;3') === null;
       const probs = [];
       if (!okDft) probs.push('DFT no recupera el espectro (h1s ' + sp.sin[0].toFixed(3) + ' h3c ' + sp.cos[2].toFixed(3) + ')');
       if (!okRt) probs.push('ida-y-vuelta con error ' + err.toFixed(4));
+      if (!okEnc) probs.push('receta wtUser no reproduce los frames (err ' + errEnc + ')');
       if (aA.bad || aB.bad) probs.push('NaN/Inf');
       if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silencio (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
       if (!(diff > 0.3)) probs.push('usuario: morph 0 vs 1 apenas difiere (diff ' + diff.toFixed(3) + ')');

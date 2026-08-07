@@ -5,8 +5,9 @@
    ESPECTRO y resintetiza: suaviza el timbre, no solo el trazo. El frame que
    no se edita se pinta como fantasma para dibujar el morph con intención. */
 import { engine } from '../engine/AudioEngine.js';
+import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
-         espectroDe, puntosDeEspectro } from '../engine/wavetable.js';
+         espectroDe, puntosDeEspectro, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
 
 const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff por pulsación de «Suavizar»
 
@@ -77,6 +78,23 @@ export function initWaveEditor() {
     for (let i = 0; i < WE_P; i++) frames[cur][i] = pts[i] * k;
     commit(); draw();
   });
+
+  // Control VIRTUAL wtUser (sin DOM): mete la onda dibujada DENTRO del preset.
+  // get: solo aporta la receta si el preset usa la tabla 'usuario' (los demás
+  // presets no cargan con ~2.5 KB de puntos). set: '' = "no traigo onda,
+  // respeta la dibujada" (es lo que aplica el Reset previo a cada carga).
+  CONTROLS.wtUser = {
+    get: () => engine.S.wtSet === 'usuario' ? encodeUserFrames(frames) : '',
+    set: v => {
+      engine.S.wtUser = v;                       // constancia en S (el motor no tiene case: dato de receta)
+      if (!v) return;
+      const fr = decodeUserFrames(v);
+      if (!fr) return;
+      frames.splice(0, frames.length, ...fr);
+      commit(); draw();
+    },
+    def: '',
+  };
 
   window.addEventListener('resize', draw);
   draw();

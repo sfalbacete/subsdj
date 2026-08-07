@@ -107,7 +107,7 @@ export class AudioEngine {
     // la caché heurística del navegador: SUBIRLO al cambiar código de worklet
     // (si no, el navegador puede casar módulos nuevos con un processor viejo
     // y los parámetros nuevos llegan undefined -> crash al crear voces).
-    const WK_V = '?v=2';
+    const WK_V = '?v=3';
     await Promise.all([
       ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js' + WK_V, import.meta.url)),
       ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js' + WK_V, import.meta.url)),
