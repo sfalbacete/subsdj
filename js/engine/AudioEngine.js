@@ -103,10 +103,14 @@ export class AudioEngine {
     this.ctx = ctx;
     this.noiseBuffer = makeNoise(ctx);
 
-    // Carga de los worklets (relativo a este módulo, robusto)
+    // Carga de los worklets (relativo a este módulo, robusto). El ?v=N rompe
+    // la caché heurística del navegador: SUBIRLO al cambiar código de worklet
+    // (si no, el navegador puede casar módulos nuevos con un processor viejo
+    // y los parámetros nuevos llegan undefined -> crash al crear voces).
+    const WK_V = '?v=2';
     await Promise.all([
-      ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js', import.meta.url)),
-      ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js', import.meta.url)),
+      ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js' + WK_V, import.meta.url)),
+      ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js' + WK_V, import.meta.url)),
     ]);
 
     const S = this.S;

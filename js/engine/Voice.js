@@ -194,7 +194,8 @@ export class Voice {
     const udParam = node.parameters.get('uniDetune'); udParam.value = this.S.uniDetune;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
-    const wtParam = node.parameters.get('wtPos'); wtParam.value = this.S.wtPos;
+    // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
+    const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
 
     // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
     fParam.value = glide > 0 ? startFreq : freq;
@@ -285,7 +286,7 @@ export class Voice {
       case 'reso':   return [this.lp.Q, this.hp.Q];
       case 'amp':    return [this.ampMod.gain];
       case 'pan':    return [this.panner.pan];
-      case 'wt':     return this.oscs.map(o => o.wt);
+      case 'wt':     return this.oscs.map(o => o.wt).filter(Boolean);
     }
     return [];
   }
@@ -340,7 +341,7 @@ export class Voice {
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
   setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
-  setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt.setTargetAtTime(v, tc, 0.02)); }
+  setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt && o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
   // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.
