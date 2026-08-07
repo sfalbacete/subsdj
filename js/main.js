@@ -3,6 +3,7 @@
    ===================================================================== */
 import { engine } from './engine/AudioEngine.js';
 import { bindKnobs } from './ui/knobs.js';
+import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
 import { bindMatrixControls } from './ui/matrixControls.js';
 import { initWaveEditor } from './ui/waveEditor.js';
@@ -21,7 +22,8 @@ import { initHelp } from './ui/help.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
-bindKnobs();          // knobs para TODO (los sliders se retiraron: log/fmt viven en el knob)
+bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
+bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira
 bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 initKeyboard();

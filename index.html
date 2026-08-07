@@ -202,13 +202,15 @@
   <div class="panel">
     <h2>ADSR</h2>
     <canvas id="adsrCanvas" style="margin-top:6px"></canvas>
-    <div class="row tight" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="a"><div class="ind"></div></div><div class="lab">Attack</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="d"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="s"><div class="ind"></div></div><div class="lab">Sustain</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="r"><div class="ind"></div></div><div class="lab">Release</div><div class="val"></div></div>
-    </div>
-    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «= Amp»). El gráfico pinta ambas envolventes.</div>
+    <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
+      <input type="range" id="s_a"></div>
+    <div class="slider" style="margin-top:6px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
+      <input type="range" id="s_d"></div>
+    <div class="slider" style="margin-top:6px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
+      <input type="range" id="s_s"></div>
+    <div class="slider" style="margin-top:6px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
+      <input type="range" id="s_r"></div>
+    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «= Amp»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira.</div>
   </div>
 
   <div class="panel">
