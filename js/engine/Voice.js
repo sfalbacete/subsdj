@@ -9,6 +9,7 @@
    destino — la misma fontanería que las rutas dedicadas, generalizada.
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN } from './params.js';
+import { getWtSet } from './wavetable.js';
 
 // Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
 // (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
@@ -176,7 +177,11 @@ export class Voice {
     // un AudioWorkletNode por octava: hasta 8 worklets por voz; ahora 2).
     const node = new AudioWorkletNode(this.ctx, 'pulse-processor', {
       numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
-      processorOptions: { type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves },
+      processorOptions: {
+        type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves,
+        // tablas mip (clonadas por el postMessage de opciones, ~170 KB por nodo)
+        ...(cfg.wave === 'tabla' ? { wt: getWtSet(this.S.wtSet) } : {}),
+      },
     });
     if (this.mod.stats) this.mod.stats.worklets++;
     const fParam = node.parameters.get('frequency');
@@ -189,6 +194,7 @@ export class Voice {
     const udParam = node.parameters.get('uniDetune'); udParam.value = this.S.uniDetune;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
+    const wtParam = node.parameters.get('wtPos'); wtParam.value = this.S.wtPos;
 
     // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
     fParam.value = glide > 0 ? startFreq : freq;
@@ -210,7 +216,7 @@ export class Voice {
 
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
-      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, ratio: 1 });
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, wt: wtParam, ratio: 1 });
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
@@ -279,6 +285,7 @@ export class Voice {
       case 'reso':   return [this.lp.Q, this.hp.Q];
       case 'amp':    return [this.ampMod.gain];
       case 'pan':    return [this.panner.pan];
+      case 'wt':     return this.oscs.map(o => o.wt);
     }
     return [];
   }
@@ -333,6 +340,7 @@ export class Voice {
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
   setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
+  setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
   // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.

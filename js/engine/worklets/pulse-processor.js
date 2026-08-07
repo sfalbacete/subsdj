@@ -1,7 +1,13 @@
 /* =====================================================================
    SubSDJ · pulse-processor (AudioWorklet)
    Oscilador band-limited (PolyBLEP). Tipos (processorOptions.type):
-     sawtooth | square | sine | triangle | supersaw
+     sawtooth | square | sine | triangle | supersaw | tabla
+   TABLA (wavetable): processorOptions.wt = { lens, frames } (mips generados
+   en el hilo principal, engine/wavetable.js). Lookup con interpolación
+   lineal de fase + morph lineal entre frames adyacentes (param wtPos);
+   el nivel (mip) se elige por frecuencia: la tabla leída no tiene parciales
+   sobre Nyquist (el equivalente tabulado del PolyBLEP). Ignora pulseWidth,
+   spread y FM; unison/octavas/drift funcionan igual que en el resto.
    MULTI-OCTAVA: processorOptions.octaves (1..4) apila las octavas DENTRO
    del processor (antes: un AudioWorkletNode por octava). La suma sale sin
    normalizar; el bus de la voz aplica 1/octavas, como siempre.
@@ -39,6 +45,7 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
       { name: 'uniVoices', defaultValue: 1,   minValue: 1,     maxValue: 7,     automationRate: 'k-rate' },
       { name: 'uniDetune', defaultValue: 0,   minValue: 0,     maxValue: 50,    automationRate: 'k-rate' },
+      { name: 'wtPos',     defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
     ];
   }
 
@@ -65,6 +72,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
     this.stopped = false;
     this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
+    this.wt = (this.type === 'tabla' && o.wt && o.wt.frames) ? o.wt : null;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
 
@@ -134,6 +142,36 @@ class PulseProcessor extends AudioWorkletProcessor {
             mp = fract(mp + mdt * N);             // mantiene la fase del modulador coherente
           }
           this.phases[idx] = p; this.modPhases[idx] = mp;
+        }
+      }
+    } else if (type === 'tabla') {
+      const wt = this.wt;
+      if (!wt) return !this.stopped;                // sin tablas: silencio (payload ausente)
+      const F = wt.frames.length, h0 = wt.h0 || 512, LMAX = wt.frames[0].length - 1;
+      // posición de morph -> par de frames adyacentes + peso
+      let pos = params.wtPos[0]; if (pos < 0) pos = 0; else if (pos > 1) pos = 1;
+      const x = pos * (F - 1), fA = F > 1 ? Math.min(F - 2, x | 0) : 0, ff = F > 1 ? x - fA : 0;
+      const fB = fA + 1 < F ? fA + 1 : fA;
+      for (let k = 0; k < oct; k++) {
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const f = base * uniMul(j);
+          // nivel (mip): el mayor nº de armónicos que cabe bajo Nyquist a esta
+          // frecuencia. Los caps van en h0 >> L => L = los "doblados" que sobran.
+          const allowed = nyq / f;
+          let L = 0; while ((h0 >> L) > allowed && L < LMAX) L++;
+          const dA = wt.frames[fA][L], dB = wt.frames[fB][L], len = dA.length;
+          const dt = f / sr, idx = k * 7 + j;
+          let p = this.phases[idx];
+          for (let i = 0; i < N; i++) {
+            const xx = p * len, i0 = xx | 0, w = xx - i0, i1 = i0 + 1 === len ? 0 : i0 + 1;
+            const vA = dA[i0] + (dA[i1] - dA[i0]) * w;
+            const vB = dB[i0] + (dB[i1] - dB[i0]) * w;
+            ch[i] += (vA + (vB - vA) * ff) * lvl;
+            p += dt; if (p >= 1) p -= 1;
+          }
+          this.phases[idx] = p;
         }
       }
     } else if (type === 'triangle') {

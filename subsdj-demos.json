@@ -1,8 +1,24 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v7 (+ matriz de modulación, 2026-08)",
+  "banco": "SubSDJ · demos de mejoras — v8 (+ tabla de ondas con morph, 2026-08)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase).",
   "presets": {
+
+    "WT 1 · tabla quieta": { "waveA": "tabla", "mix": 0, "wtSet": "analógica", "wtPos": 0.15,
+      "cutoff": 5000, "a": 0.1, "d": 0.3, "s": 0.85, "r": 0.6, "master": 0.65 },
+
+    "WT 2 · tabla que respira": { "waveA": "tabla", "mix": 0, "wtSet": "analógica", "wtPos": 0.5,
+      "cutoff": 5000, "a": 0.1, "d": 0.3, "s": 0.85, "r": 0.6, "master": 0.65,
+      "cutLfoSpd": 0.15, "mx1src": "lfoCut", "mx1dst": "wt", "mx1amt": 0.5 },
+
+    "WT 3 · vocal quieta": { "waveA": "tabla", "waveB": "tabla", "detuneB": 7, "mix": 0.5,
+      "wtSet": "formante", "wtPos": 0.35, "cutoff": 4000,
+      "a": 0.3, "d": 0.4, "s": 0.9, "r": 0.8, "width": 0.4, "reverbMix": 0.2, "master": 0.6 },
+
+    "WT 4 · vocal que barre": { "waveA": "tabla", "waveB": "tabla", "detuneB": 7, "mix": 0.5,
+      "wtSet": "formante", "wtPos": 0.35, "cutoff": 4000,
+      "a": 0.3, "d": 0.4, "s": 0.9, "r": 0.8, "width": 0.4, "reverbMix": 0.2, "master": 0.6,
+      "mx1src": "env", "mx1dst": "wt", "mx1amt": 0.6 },
 
     "MX 1 · pluck recto": { "waveA": "sawtooth", "waveB": "square", "mix": 0.35, "cutoff": 1100, "reso": 4,
       "filterEnvAmt": 2000, "a": 0.002, "d": 0.22, "s": 0.0, "r": 0.15, "width": 0.3, "master": 0.7 },

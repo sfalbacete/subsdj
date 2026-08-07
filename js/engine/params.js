@@ -39,6 +39,8 @@ export const PARAMS = {
   uniDetune:{ def: 12, min: 0, max: 50, unit: ' ct' },  // detune de los extremos del unison
   fmRatio:  { def: 1, min: 0.25, max: 12 },
   fmIndex:  { def: 0, min: 0, max: 12, act: true },
+  wtSet:    { def: 'analógica' },                   // tabla de ondas (oscs en modo 'Tabla'; global A+B)
+  wtPos:    { def: 0, min: 0, max: 1 },             // morph: posición entre los frames de la tabla
 
   // --- Modulación ---
   pulseWidth: { def: 0.5, min: 0.02, max: 0.98, step: 0.01, fmt: v => (v * 100).toFixed(0) + '%' },
@@ -146,8 +148,9 @@ export const MX_DESTS = [
   { id: 'reso',   label: 'Resonancia' },    // dB sobre la Q de la etapa final
   { id: 'amp',    label: 'Amplitud' },      // ganancia por voz TRAS el VCA (1 ± mod)
   { id: 'pan',    label: 'Pan' },
+  { id: 'wt',     label: 'Wavetable' },     // morph de la tabla (el AudioParam recorta a [0,1])
 ];
-export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1 };
+export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1 };
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };

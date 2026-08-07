@@ -1,7 +1,9 @@
 /* SubSDJ · selectores de onda + steppers de octavas + segmentos (modo de voz,
-   envolvente de filtro). Defaults desde PARAMS (el HTML no marca .active). */
+   envolvente de filtro) + selector de tabla de ondas. Defaults desde PARAMS
+   (el HTML no marca .active). */
 import { engine } from '../engine/AudioEngine.js';
 import { PARAMS } from '../engine/params.js';
+import { WT_SETS } from '../engine/wavetable.js';
 import { CONTROLS, applyTarget } from './registry.js';
 
 // Segmento genérico de botones: <button data-KEY="valor">. Registra el control
@@ -64,6 +66,19 @@ export function bindOscControls() {
   bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
   bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');
   bindLfoShapes();
+
+  // Selector de tabla de ondas (los sets viven en engine/wavetable.js)
+  const wtSel = document.getElementById('wtSetSel');
+  if (wtSel) {
+    for (const n of Object.keys(WT_SETS)) wtSel.add(new Option(n, n));
+    wtSel.addEventListener('change', () => { engine.resume(); applyTarget('wtSet', wtSel.value); });
+    CONTROLS.wtSet = {
+      get: () => wtSel.value,
+      set: v => { if ([...wtSel.options].some(o => o.value === v)) wtSel.value = v; applyTarget('wtSet', wtSel.value); },
+      def: PARAMS.wtSet.def, el: wtSel, opts: Object.keys(WT_SETS),
+    };
+    CONTROLS.wtSet.set(PARAMS.wtSet.def);
+  }
 
   document.querySelectorAll('.stepper button').forEach(b => {
     b.addEventListener('click', () => {

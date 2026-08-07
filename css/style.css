@@ -222,6 +222,10 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-row.fail .st-mark,.st-row.fail .st-name{color:var(--hot);}
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
+/* Selector de tabla de ondas (mismo look que los selects de la matriz) */
+#wtSetSel{min-width:0;background:#0f141a;border:1px solid var(--edge);color:var(--ink);
+  border-radius:6px;padding:3px 4px;font-size:11px;}
+
 /* LEDs de actividad (ui/activity.js): la sección está HACIENDO algo.
    En el h2 sobreviven al plegado del panel; versión mini en los tags de LFO. */
 .led{width:7px;height:7px;border-radius:50%;background:#232c38;border:1px solid #0b0f14;

@@ -47,7 +47,7 @@ function analyze(buf) {
   return { peak, bad };
 }
 
-async function renderState(state) {
+async function renderBuf(state) {
   const dur = Math.min(6, 1.0 + (state.r || 0.3) + 0.3);   // 1 s de nota + cola de release
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * dur), SR);
   const eng = new AudioEngine();
@@ -56,8 +56,9 @@ async function renderState(state) {
   eng.noteOn('t1', NOTE1);
   ctx.suspend(0.5).then(() => { eng.noteOn('t2', NOTE2); ctx.resume(); });
   ctx.suspend(1.0).then(() => { eng.noteOff('t1'); eng.noteOff('t2'); ctx.resume(); });
-  return analyze(await ctx.startRendering());
+  return ctx.startRendering();
 }
+async function renderState(state) { return analyze(await renderBuf(state)); }
 
 // Telemetría para ejecución headless: cada GET queda en el log del http.server
 // (aunque responda 404), así que un runner externo puede leer los resultados.
@@ -277,7 +278,7 @@ export async function runSelfTest() {
     applyCC(33, 1);
     const okBind = Math.abs(CONTROLS.reso.get() - 24) < 0.11;   // tope del rango (step 0.1)
     armLearn('waveA'); learnCapture(34);
-    applyCC(34, 0.5);                             // zona 3 de 5 → 'sine'
+    applyCC(34, 0.45);                            // zona 3 de 6 → 'sine' (6 ondas desde 'tabla')
     const okZone = CONTROLS.waveA.get() === 'sine';
     const okFree = applyCC(99, 1) === false;      // CC sin ligar no se consume
     setDevice('selftest');                        // relee de localStorage: el binding sobrevive
@@ -344,6 +345,35 @@ export async function runSelfTest() {
     } catch (e) {
       r = { name: 'matriz (env→amp atenúa · cutoff nunca llega a 0 Hz)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e && e.message) || e)] };
+    }
+    push(r);
+  }
+
+  {
+    // tabla de ondas: morph 0 (frame seno) y morph 1 (frame pulso) deben dar
+    // renders CLARAMENTE distintos y limpios. Determinista: la copia 0 del
+    // unison conserva la fase configurada y el estado base no lleva random.
+    body.appendChild(el('st-cat', 'Tabla de ondas'));
+    let r;
+    try {
+      loadState({ waveA: 'tabla', mix: 0, wtPos: 0 });
+      const bA = await renderBuf(structuredClone(engine.S));
+      loadState({ waveA: 'tabla', mix: 0, wtPos: 1 });
+      const bB = await renderBuf(structuredClone(engine.S));
+      const aA = analyze(bA), aB = analyze(bB);
+      const cA = bA.getChannelData(0), cB = bB.getChannelData(0);
+      let d = 0, en = 0;
+      for (let i = 0; i < cA.length; i += 16) { const x = cA[i] - cB[i]; d += x * x; en += cA[i] * cA[i]; }
+      const diff = Math.sqrt(d / Math.max(1e-12, en));
+      const probs = [];
+      if (aA.bad || aB.bad) probs.push('NaN/Inf');
+      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silencio (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
+      if (aA.peak > 1 || aB.peak > 1) probs.push('clipping');
+      if (!(diff > 0.3)) probs.push('morph 0 vs 1 apenas difiere (diff ' + diff.toFixed(3) + ')');
+      r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: aB.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }

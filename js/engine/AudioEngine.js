@@ -11,6 +11,7 @@ import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
 import { Arp } from './Arp.js';
 import { Seq } from './Seq.js';
+import { getWtSet } from './wavetable.js';
 
 function makeNoise(ctx) {
   const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -407,6 +408,8 @@ export class AudioEngine {
       case 'uniDetune': this._forVoices(v => v.setUnison(this.S.uniVoices, this.S.uniDetune)); break;
       case 'fmRatio':
       case 'fmIndex': this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex)); break;
+      case 'wtPos': this._forVoices(v => v.setWtPos(value)); break;
+      case 'wtSet': try { getWtSet(value); } catch (e) {} break;   // precalienta el set (aplica en la siguiente nota)
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;
       case 'reso':  this._forVoices(v => v.setReso(value)); break;
       case 'morph': this._forVoices(v => v.setMorph(value)); break;

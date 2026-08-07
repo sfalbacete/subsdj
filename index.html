@@ -45,6 +45,7 @@
       <button data-w="sine">Seno</button>
       <button data-w="triangle">Tri</button>
       <button data-w="supersaw">Súper</button>
+      <button data-w="tabla">Tabla</button>
     </div>
     <div class="row" style="margin-top:8px">
       <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
@@ -59,6 +60,7 @@
       <button data-w="sine">Seno</button>
       <button data-w="triangle">Tri</button>
       <button data-w="supersaw">Súper</button>
+      <button data-w="tabla">Tabla</button>
     </div>
     <div class="row" style="margin-top:8px">
       <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
@@ -82,6 +84,13 @@
       <div class="ctl"><div class="knob" data-knob="fmIndex"><div class="ind"></div></div><div class="lab">Index</div><div class="val"></div></div>
     </div>
     <div class="note">FM solo sobre osciladores en modo «Seno». Ratio entero = armónico; no entero = campana</div>
+
+    <div class="fieldlab" style="margin-top:12px">Tabla de ondas (osc en modo «Tabla»)</div>
+    <div class="row" style="align-items:center;gap:10px">
+      <select id="wtSetSel" style="flex:1"></select>
+      <div class="ctl"><div class="knob" data-knob="wtPos"><div class="ind"></div></div><div class="lab">Morph</div><div class="val"></div></div>
+    </div>
+    <div class="note">Morph recorre los frames de la tabla (band-limited por octava: sin aliasing) · también es destino «Wavetable» en la matriz</div>
 
     <div class="fieldlab" style="margin-top:12px">Unison</div>
     <div class="seg" id="uniVoicesSel">

@@ -118,6 +118,12 @@ export const FACTORY = {
       mx2src: 'env', mx2dst: 'cutoff', mx2amt: 0.3,
       mx3src: 'lfoAmp', mx3dst: 'pan', mx3amt: 0.6, ampLfoSpd: 0.3,
       width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
+    /* tabla 'formante' + matriz env→wt: cada nota barre de vocal (el morph
+       cabalga la envolvente) — síntesis wavetable con la matriz cerrando el círculo */
+    'Coro de vocales (tabla)': { waveA: 'tabla', waveB: 'tabla', detuneA: -5, detuneB: 7, mix: 0.5,
+      wtSet: 'formante', wtPos: 0.2, mx1src: 'env', mx1dst: 'wt', mx1amt: 0.5,
+      cutoff: 4000, a: 0.8, d: 0.6, s: 0.8, r: 2.0, chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5,
+      width: 0.6, reverbMix: 0.35, reverbSize: 3, master: 0.58 },
     /* matriz: UN solo LFO lento (cutLFO crudo a 0.08 Hz, su Level a 0) movien-
        do TRES destinos a la vez — filtro, pan y ±14 ct: deriva correlacionada */
     'Deriva orgánica': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, mix: 0.45,
@@ -144,6 +150,12 @@ export const FACTORY = {
     'Teclas al tacto (vel→filtro)': { waveA: 'sine', waveB: 'triangle', mix: 0.45, ring: 0.15,
       cutoff: 800, filterEnvAmt: 800, mx1src: 'vel', mx1dst: 'cutoff', mx1amt: 0.55,
       a: 0.003, d: 0.5, s: 0.25, r: 0.3, width: 0.3, reverbMix: 0.2 },
+    /* tabla 'metálica' + S&H→wt y →pan: cada campana con su mezcla de
+       parciales y su sitio en el estéreo */
+    'Campanas de tabla (S&H)': { waveA: 'tabla', mix: 0, wtSet: 'metálica', wtPos: 0.3,
+      mx1src: 'rnd', mx1dst: 'wt', mx1amt: 0.35, mx2src: 'rnd', mx2dst: 'pan', mx2amt: 0.7,
+      a: 0.002, d: 1.4, s: 0.0, r: 1.0, dlyAmt: 0.25, dlyTime: 0.4,
+      width: 0.4, reverbMix: 0.35, master: 0.65 },
     /* matriz: S&H→cutoff y →pan — cada nota sale con un color y un sitio
        distintos (correlacionados: la MISMA tirada por voz); brutal con el arp */
     'Pluck lotería (S&H)': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.3, mix: 0.4,
@@ -189,6 +201,10 @@ export const FACTORY = {
       cutoff: 5770, reso: 1, a: 0.005, d: 0.05, s: 1.0, r: 0.1, width: 0.3 },
     'Órgano de iglesia': { waveA: 'sine', waveB: 'sine', octavesA: 2, octavesB: 3, detuneB: 4, mix: 0.5,
       cutoff: 7100, a: 0.05, d: 0.1, s: 1.0, r: 0.4, width: 0.4, reverbMix: 0.45, reverbSize: 3.5, master: 0.55 },
+    /* tabla 'órgano': morph = tirar de drawbars (de flauta a pleno) */
+    'Órgano de tabla': { waveA: 'tabla', waveB: 'tabla', octavesB: 2, detuneB: 4, mix: 0.35,
+      wtSet: 'órgano', wtPos: 0.75, cutoff: 7100, a: 0.01, d: 0.05, s: 1.0, r: 0.15,
+      width: 0.3, reverbMix: 0.2, master: 0.65 },
   },
 
   'Percusión': {

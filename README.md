@@ -174,15 +174,25 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    learn sin casos especiales). Evidencia: check funcional en el selftest
    (env→amp atenúa; cutoff a tope negativo no silencia), preset de fábrica
    «Pad matricial» y pares A/B «MX 1‑6» en `subsdj-demos.json`.
-2. **Oscilador de tabla de ondas + editor** — nueva onda «tabla» en el
-   worklet: lookup interpolado con **mip por octava** (una tabla band-limited
-   por octava, generada truncando armónicos vía FFT propia) para que los
-   agudos no aliaseen. Editor de ondas en vista propia: dibujar a mano alzada,
-   suavizar (recorte espectral) y **expresiones matemáticas**
-   (`sin(sin(2πx))`, `sin(πx)^2`…, evaluadas con whitelist de Math sobre un
-   ciclo de 2048 muestras). Morph entre frame A y B (knob, y destino de la
-   matriz — aquí se cierra el círculo con la fase 1). Los presets guardan la
-   **receta** (expresión o puntos de control), nunca las muestras.
+2. **Oscilador de tabla de ondas + editor** — EN CURSO.
+   **W1 motor ✔** *(hecho 2026-08-07)*: onda «Tabla» en el worklet — lookup
+   interpolado con **mips por octava** (cada nivel trunca armónicos a lo que
+   cabe bajo Nyquist a esa frecuencia: el equivalente tabulado del PolyBLEP),
+   4 sets de fábrica definidos por espectro (`engine/wavetable.js`: analógica,
+   órgano, formante, metálica; 8 frames por set, mezcla lineal entre
+   keyframes), knob **Morph** (`wtPos`) que recorre los frames en vivo y es
+   **destino «Wavetable» de la matriz** — el círculo con la fase 1 cerrado:
+   env→wt = vocales que barren, S&H→wt = campanas distintas por nota.
+   Unison/octavas/drift/glide funcionan igual sobre la tabla. Evidencia:
+   check A/B en el selftest (morph 0 ≠ 1), presets «Órgano de tabla»,
+   «Coro de vocales (tabla)» y «Campanas de tabla (S&H)», pares WT 1-4 en
+   el banco de demos.
+   **W2 editor** (pendiente): dibujar a mano alzada + suavizado espectral,
+   tablas de usuario (el pipeline ya es agnóstico: cualquier generador de
+   frames sirve). **W3** (decisión aplazada): expresiones `f(x, t)` — con la
+   variable t generan una FAMILIA de frames coherentes, imposible a mano —
+   y/o editor de armónicos (aditiva pura). Los presets guardarán la
+   **receta** (expresión o puntos), nunca las muestras.
 3. **Piel y personalidad** — tema claro/oscuro seleccionable (variables CSS +
    `data-theme` persistido en localStorage); aspecto físico: fondo de rack,
    tornillos en las esquinas de los paneles (como el SubSDJ primigenio),
