@@ -3,7 +3,6 @@
    ===================================================================== */
 import { engine } from './engine/AudioEngine.js';
 import { bindKnobs } from './ui/knobs.js';
-import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
 import { bindMatrixControls } from './ui/matrixControls.js';
 import { initWaveEditor } from './ui/waveEditor.js';
@@ -18,11 +17,11 @@ import { initScope } from './ui/scope.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 import { initCollapsiblePanels } from './ui/collapse.js';
 import { initActivity } from './ui/activity.js';
+import { initHelp } from './ui/help.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
-bindKnobs();
-bindSliders();
+bindKnobs();          // knobs para TODO (los sliders se retiraron: log/fmt viven en el knob)
 bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 initKeyboard();
@@ -35,6 +34,7 @@ initADSRGraph(document.getElementById('adsrCanvas'));
 initCollapsiblePanels();
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
+initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.

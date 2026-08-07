@@ -75,6 +75,7 @@ canvas.viz{display:block;width:100%;height:120px;background:#05080b;border:1px s
   margin:0 0 10px;border-bottom:1px solid var(--edge);padding-bottom:6px;}
 .panel.osc h2{color:var(--accent2);}
 .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;}
+.row.tight{gap:2px;}   /* filas de 4 knobs: caben en una columna de rack sin saltar */
 .ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px;}
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:uppercase;letter-spacing:.5px;}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
@@ -148,7 +149,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid #0b3
   border-radius:10px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
 .viz-panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin:0 0 8px;}
 .viz-panel canvas{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
-#adsrCanvas{display:block;width:100%;height:90px;background:#05080b;border:1px solid var(--edge);border-radius:6px;margin-bottom:10px;}
+#adsrCanvas{display:block;width:100%;height:64px;background:#05080b;border:1px solid var(--edge);border-radius:6px;margin-bottom:10px;}
 #seqCanvas{display:block;width:100%;height:110px;background:#05080b;border:1px solid var(--edge);border-radius:6px;
   margin:10px 0;touch-action:none;cursor:crosshair;}
 #seqPatSel{width:100%;margin-top:2px;background:#0f141a;border:1px solid var(--edge);color:var(--ink);
@@ -236,8 +237,28 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
 /* Editor de ondas (tabla «usuario») */
-#weCanvas{width:100%;height:96px;background:#0c1117;border:1px solid var(--edge);
+#weCanvas{width:100%;height:84px;background:#0c1117;border:1px solid var(--edge);
   border-radius:8px;margin-top:8px;cursor:crosshair;touch-action:none;display:block;}
+
+/* Ayuda por módulo: el texto vive oculto (.help) y sale en el tooltip del «?» */
+.panel .help{display:none;}
+.qmark{margin-left:auto;margin-right:8px;width:14px;height:14px;flex:none;border-radius:50%;
+  border:1px solid var(--edge);color:var(--dim);font-size:9px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;cursor:help;text-transform:none;}
+.qmark:hover{color:var(--accent);border-color:var(--accent);}
+#helpTip{position:fixed;z-index:60;max-width:280px;background:#0f141a;border:1px solid var(--edge);
+  border-radius:8px;padding:8px 10px;font-size:10px;line-height:1.5;color:var(--dim);
+  box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
+#helpTip b{color:var(--ink);}
+
+/* Iconos de forma de onda (SVG inline con currentColor: inmunes al tema) */
+.seg.waves button svg{display:block;margin:0 auto;width:17px;height:12px;
+  stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Módulo apagado: su condición de uso no se cumple (FM sin osc «Seno»,
+   LFO PWM sin osc «Cuad.») — atenuado y sin puntero, salvo el h2 */
+.panel.mod-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
+.panel.mod-off h2{opacity:.6;}
 
 /* Selector de tabla de ondas (mismo look que los selects de la matriz) */
 #wtSetSel{min-width:0;background:#0f141a;border:1px solid var(--edge);color:var(--ink);
@@ -260,9 +281,4 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   border-radius:6px;padding:3px 4px;font-size:11px;}
 .mx-arrow{color:var(--dim);font-size:11px;flex:none;}
 .mx-row .ctl{width:auto;flex:none;gap:1px;}
-.mx-row .knob{width:32px;height:32px;}
-.mx-row .knob::before{inset:4px;}
-/* transform-origin = centro del knob (alto/2) − top del ind: 32/2 − 4 = 12px
-   (la regla base trae 17px, cocinado para el knob de 44px) */
-.mx-row .knob .ind{height:9px;top:4px;transform-origin:50% 12px;}
 .mx-row .val{font-size:9px;min-height:10px;}

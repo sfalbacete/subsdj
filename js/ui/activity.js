@@ -30,7 +30,9 @@ const PANELES = {
   'FM':                    S => S.fmIndex > 0,
   'Unison':                S => +S.uniVoices > 1,
   'Tabla de ondas':        S => S.oscA.wave === 'tabla' || S.oscB.wave === 'tabla',
-  'Filtro':                S => LFOS.cutLfoShape(S) || LFOS.resLfoShape(S) || dstUsed(S, 'cutoff') || dstUsed(S, 'reso'),
+  'Filtro':                S => dstUsed(S, 'cutoff') || dstUsed(S, 'reso'),
+  'LFO cutoff':            S => LFOS.cutLfoShape(S),
+  'LFO reso':              S => LFOS.resLfoShape(S),
   'Filtro · carácter':     S => S.filterDrive > 0 || S.keytrack > 0,
   'Env filtro':            S => S.filterEnvAmt !== 0,
   'LFO PWM':               S => LFOS.pwmLfoShape(S),
@@ -47,13 +49,21 @@ const PANELES = {
   'Matriz de modulación':  mxAny,
 };
 
+// Módulos que se APAGAN (atenuados, sin puntero) cuando su condición de uso
+// no se cumple: FM solo muerde sobre osciladores en «Seno», el PWM sobre «Cuad.»
+const APAGA = {
+  'FM':      S => S.oscA.wave === 'sine' || S.oscB.wave === 'sine',
+  'LFO PWM': S => S.oscA.wave === 'square' || S.oscB.wave === 'square',
+};
+
 export function initActivity() {
-  const leds = [];
+  const leds = [], apagables = [];
   const mkLed = () => { const s = document.createElement('span'); s.className = 'led'; return s; };
   for (const h2 of document.querySelectorAll('.panel h2')) {
-    const test = PANELES[h2.textContent.trim()];
-    if (!test) continue;
-    const led = mkLed(); h2.prepend(led); leds.push({ el: led, test });
+    const titulo = h2.textContent.trim();
+    const test = PANELES[titulo];
+    if (test) { const led = mkLed(); h2.prepend(led); leds.push({ el: led, test }); }
+    if (APAGA[titulo]) apagables.push({ el: h2.closest('.panel'), test: APAGA[titulo] });
   }
   for (const btn of document.querySelectorAll('.lfoShape')) {
     const test = LFOS[btn.dataset.shape];
@@ -66,6 +76,7 @@ export function initActivity() {
     pending = false;
     const S = engine.S;
     for (const l of leds) l.el.classList.toggle('on', !!l.test(S));
+    for (const a of apagables) a.el.classList.toggle('mod-off', !a.test(S));
   };
   document.addEventListener('param-change', () => {
     if (!pending) { pending = true; requestAnimationFrame(refresh); }
