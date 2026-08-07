@@ -204,13 +204,21 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    knobs torneados con muesca, sliders con guía fresada, placa con logo
    propio. Verificación con capturas CDP en ambos temas y varios anchos.
    Independiente de las otras dos fases: se intercala cuando apetezca.
-   **Primer paso ✔ — rack normalizado** *(2026-08-07, rama `subsdj-rack`)*:
+   **Primer paso ✔ — rack normalizado** *(2026-08-07/08, fusionado a master)*:
    módulos partidos por función (Osc A/B, Mezcla, FM, Unison, Tabla, Filtro,
    Filtro·carácter, Env filtro, ADSR, Voz·Master, 3 LFOs, Matriz, 4 FX,
    Espacio, Reverb, Arp, Seq, visualizadores) en una rejilla de UNIDADES
    estilo Eurorack (`--rackU`; 1U/2U/3U + `.wide`, `grid-auto-flow: dense`),
    orden por flujo de señal. CERO pérdida: todos los ids intactos (los
    binders no se enteran), sonda PARAMS↔CONTROLS sin faltas, selftest 88/88.
+   Refinado con el repaso del usuario: ayudas en tooltips «?» (nunca ocupan
+   superficie), casi todo a knobs (log/fmt en knobs.js; el ADSR conserva
+   sliders — una envolvente se dibuja, no se gira), iconos SVG de onda con
+   `currentColor` (inmunes al tema), FM y LFO PWM se apagan si ningún osc
+   los puede usar. Del testeo salieron además tres mejoras de wavetable:
+   normalización por sonoridad (RMS), morph sin cancelaciones (alineado de
+   fase + compensación por correlación) y `wtUser` (la onda dibujada viaja
+   dentro del preset).
 
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
