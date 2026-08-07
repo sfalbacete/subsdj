@@ -204,6 +204,13 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    knobs torneados con muesca, sliders con guía fresada, placa con logo
    propio. Verificación con capturas CDP en ambos temas y varios anchos.
    Independiente de las otras dos fases: se intercala cuando apetezca.
+   **Primer paso ✔ — rack normalizado** *(2026-08-07, rama `subsdj-rack`)*:
+   módulos partidos por función (Osc A/B, Mezcla, FM, Unison, Tabla, Filtro,
+   Filtro·carácter, Env filtro, ADSR, Voz·Master, 3 LFOs, Matriz, 4 FX,
+   Espacio, Reverb, Arp, Seq, visualizadores) en una rejilla de UNIDADES
+   estilo Eurorack (`--rackU`; 1U/2U/3U + `.wide`, `grid-auto-flow: dense`),
+   orden por flujo de señal. CERO pérdida: todos los ids intactos (los
+   binders no se enteran), sonda PARAMS↔CONTROLS sin faltas, selftest 88/88.
 
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o

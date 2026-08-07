@@ -21,16 +21,27 @@ const LFOS = {
   cutLfoShape:  S => S.cutLfoLvl > 0 || srcUsed(S, 'lfoCut'),
   resLfoShape:  S => S.resLfoLvl > 0 || srcUsed(S, 'lfoRes'),
 };
-// Paneles (por el título del h2): "aquí se mueve algo" — extras sobre el
-// camino base (el filtro o el ADSR siempre existen; el LED marca movimiento).
+// Módulos (por el título del h2 — OJO: renombrar un h2 obliga a tocar esto):
+// "aquí se mueve algo" — extras sobre el camino base (el filtro o el ADSR
+// siempre existen; el LED marca movimiento). Los módulos de LFO llevan
+// además su LED de tag (anclado por data-shape, inmune a los títulos).
 const PANELES = {
-  'Osciladores':           S => S.ring > 0 || S.noise > 0 || S.fmIndex > 0 || +S.uniVoices > 1 || S.drift > 0,
-  'Modulación':            S => LFOS.pwmLfoShape(S) || LFOS.ampLfoShape(S) || LFOS.freqLfoShape(S) || S.freqCents !== 0,
-  'Filtro (por voz)':      S => LFOS.cutLfoShape(S) || LFOS.resLfoShape(S) || S.filterEnvAmt !== 0 ||
-                                S.filterDrive > 0 || S.keytrack > 0 || dstUsed(S, 'cutoff') || dstUsed(S, 'reso'),
-  'FX':                    S => S.dist > 0 || S.flAmt > 0 || S.chAmt > 0 || S.dlyAmt > 0,
-  'Espacio':               S => S.width > 0 || S.panLfoLvl > 0 || S.reverbMix > 0 || dstUsed(S, 'pan'),
-  'Envelope ADSR':         S => S.pitchEnvAmt !== 0 || S.glide > 0,
+  'Mezcla':                S => S.ring > 0 || S.noise > 0 || S.drift > 0,
+  'FM':                    S => S.fmIndex > 0,
+  'Unison':                S => +S.uniVoices > 1,
+  'Tabla de ondas':        S => S.oscA.wave === 'tabla' || S.oscB.wave === 'tabla',
+  'Filtro':                S => LFOS.cutLfoShape(S) || LFOS.resLfoShape(S) || dstUsed(S, 'cutoff') || dstUsed(S, 'reso'),
+  'Filtro · carácter':     S => S.filterDrive > 0 || S.keytrack > 0,
+  'Env filtro':            S => S.filterEnvAmt !== 0,
+  'LFO PWM':               S => LFOS.pwmLfoShape(S),
+  'LFO trémolo':           S => LFOS.ampLfoShape(S),
+  'LFO vibrato':           S => LFOS.freqLfoShape(S) || S.freqCents !== 0,
+  'Voz · Master':          S => S.pitchEnvAmt !== 0 || S.glide > 0,
+  'Distorsión · Flanger':  S => S.dist > 0 || S.flAmt > 0,
+  'Chorus / Ensemble':     S => S.chAmt > 0,
+  'Delay':                 S => S.dlyAmt > 0,
+  'Espacio':               S => S.width > 0 || S.panLfoLvl > 0 || dstUsed(S, 'pan'),
+  'Reverb':                S => S.reverbMix > 0,
   'Arpegiador':            S => S.arpMode !== 'off',
   'Secuenciador':          S => S.seqOn === 'on',
   'Matriz de modulación':  mxAny,

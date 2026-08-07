@@ -34,12 +34,14 @@
   <span id="presetMsg"></span>
 </div>
 
+<!-- RACK: módulos normalizados (1U por defecto; .u2/.u3 = alto doble/triple;
+     .wide = 2 columnas). Orden por FLUJO DE SEÑAL: generación → filtro →
+     envolvente → moduladores → FX → espacio → secuenciación → visualización. -->
 <div class="rack">
 
-  <!-- OSCILADORES -->
+  <!-- ===== GENERACIÓN ===== -->
   <div class="panel osc">
-    <h2>Osciladores</h2>
-    <div class="fieldlab">Osc A</div>
+    <h2>Osc A</h2>
     <div class="seg waves" id="waveA">
       <button data-w="sawtooth">Sierra</button>
       <button data-w="square">Cuad.</button>
@@ -53,8 +55,10 @@
       <div class="ctl"><div class="knob" data-knob="phaseA"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
       <div class="ctl"><div class="stepper"><button data-oct="A" data-d="-1">−</button><span class="num" id="octA">1</span><button data-oct="A" data-d="1">+</button></div><div class="lab">Octavas</div></div>
     </div>
+  </div>
 
-    <div class="fieldlab" style="margin-top:12px">Osc B</div>
+  <div class="panel osc">
+    <h2>Osc B</h2>
     <div class="seg waves" id="waveB">
       <button data-w="sawtooth">Sierra</button>
       <button data-w="square">Cuad.</button>
@@ -68,8 +72,11 @@
       <div class="ctl"><div class="knob" data-knob="phaseB"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
       <div class="ctl"><div class="stepper"><button data-oct="B" data-d="-1">−</button><span class="num" id="octB">1</span><button data-oct="B" data-d="1">+</button></div><div class="lab">Octavas</div></div>
     </div>
+  </div>
 
-    <div class="row" style="margin-top:12px;justify-content:space-around">
+  <div class="panel osc">
+    <h2>Mezcla</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="mix"><div class="ind"></div></div><div class="lab">Mix A↔B</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="ring"><div class="ind"></div></div><div class="lab">Ring M.</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="noise"><div class="ind"></div></div><div class="lab">Ruido</div><div class="val"></div></div>
@@ -78,22 +85,19 @@
       <div class="ctl"><div class="knob" data-knob="drift"><div class="ind"></div></div><div class="lab">Drift</div><div class="val"></div></div>
     </div>
     <div class="note">Color del ruido: − oscuro · 0 blanco · + «aire» · Spread → anchura del «Súper» · Drift → deriva analógica por osc</div>
+  </div>
 
-    <div class="fieldlab" style="margin-top:12px">FM (operadores seno)</div>
-    <div class="row" style="justify-content:space-around">
+  <div class="panel osc">
+    <h2>FM</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="fmRatio"><div class="ind"></div></div><div class="lab">Ratio</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fmIndex"><div class="ind"></div></div><div class="lab">Index</div><div class="val"></div></div>
     </div>
-    <div class="note">FM solo sobre osciladores en modo «Seno». Ratio entero = armónico; no entero = campana</div>
+    <div class="note">Operadores seno: FM solo sobre osciladores en modo «Seno». Ratio entero = armónico; no entero = campana</div>
+  </div>
 
-    <div class="fieldlab" style="margin-top:12px">Tabla de ondas (osc en modo «Tabla»)</div>
-    <div class="row" style="align-items:center;gap:10px">
-      <select id="wtSetSel" style="flex:1"></select>
-      <div class="ctl"><div class="knob" data-knob="wtPos"><div class="ind"></div></div><div class="lab">Morph</div><div class="val"></div></div>
-    </div>
-    <div class="note">Morph recorre los frames de la tabla (band-limited por octava: sin aliasing) · también es destino «Wavetable» en la matriz</div>
-
-    <div class="fieldlab" style="margin-top:12px">Unison</div>
+  <div class="panel osc">
+    <h2>Unison</h2>
     <div class="seg" id="uniVoicesSel">
       <button data-uv="1">1</button>
       <button data-uv="2">2</button>
@@ -109,95 +113,165 @@
     <div class="note">N copias detunadas de CADA oscilador (cualquier onda; «Súper» ya es unison y lo ignora)</div>
   </div>
 
-  <!-- MODULACION -->
-  <div class="panel">
-    <h2>Modulación</h2>
-    <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
-      <input type="range" id="s_pw"></div>
-    <div class="note">(afecta a osc en modo «Cuad.»)</div>
-    <div class="lfo-grp"><span class="tag">LFO PWM</span><button class="lfoShape" data-shape="pwmLfoShape"></button><div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
-    </div></div>
-
-    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
-      <input type="range" id="s_amp"></div>
-    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><button class="lfoShape" data-shape="ampLfoShape"></button><div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
-    </div></div>
-
-    <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
-      <input type="range" id="s_freq"></div>
-    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><button class="lfoShape" data-shape="freqLfoShape"></button><div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
-    </div></div>
-
-    <div class="row" style="margin-top:10px;justify-content:center">
-      <div class="ctl"><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="lab">LFO Fade</div><div class="val"></div></div>
+  <div class="panel osc">
+    <h2>Tabla de ondas</h2>
+    <div class="row" style="margin-top:8px;align-items:center;gap:10px">
+      <select id="wtSetSel" style="flex:1"></select>
+      <div class="ctl"><div class="knob" data-knob="wtPos"><div class="ind"></div></div><div class="lab">Morph</div><div class="val"></div></div>
     </div>
-    <div class="note">Vibrato y PWM entran en rampa tras cada nota (vibrato retardado; 0 = inmediato)</div>
+    <div class="note">Para osc en modo «Tabla». Morph recorre los frames (band-limited por octava: sin aliasing) · también es destino «Wavetable» en la matriz</div>
   </div>
 
-  <!-- FILTRO -->
-  <div class="panel">
-    <h2>Filtro (por voz)</h2>
+  <div class="panel u2">
+    <h2>Editor de ondas</h2>
+    <div class="fieldlab">Frame</div>
+    <div class="seg" id="weFrameSel" style="max-width:120px">
+      <button data-wf="0">A</button>
+      <button data-wf="1">B</button>
+    </div>
+    <canvas id="weCanvas"></canvas>
+    <div class="row" style="margin-top:8px;gap:6px;justify-content:flex-start">
+      <button class="btn" id="weSmooth" title="Atenúa los armónicos altos en el espectro y resintetiza">Suavizar</button>
+      <button class="btn" id="weSine">Seno</button>
+      <button class="btn" id="weSaw">Sierra</button>
+    </div>
+    <div class="note">Dibuja un ciclo a mano (el fantasma es el otro frame). Se guarda como tabla <b>«usuario»</b>: elígela en «Tabla de ondas» y el Morph recorre A→B (band-limited, sin aliasing)</div>
+  </div>
+
+  <!-- ===== FILTRO ===== -->
+  <div class="panel u2">
+    <h2>Filtro</h2>
     <div class="slider"><div class="head"><span class="lab">Cutoff</span><span class="val" id="v_cut"></span></div>
       <input type="range" id="s_cut"></div>
     <div class="lfo-grp"><span class="tag">LFO</span><button class="lfoShape" data-shape="cutLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
-
     <div class="slider" style="margin-top:10px"><div class="head"><span class="lab">Resonancia</span><span class="val" id="v_res"></span></div>
       <input type="range" id="s_res"></div>
     <div class="lfo-grp"><span class="tag">LFO</span><button class="lfoShape" data-shape="resLfoShape"></button><div class="row" style="justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div></div>
+  </div>
 
-    <div class="row" style="margin-top:12px;justify-content:space-around">
+  <div class="panel">
+    <h2>Filtro · carácter</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Env Amt</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="keytrack"><div class="ind"></div></div><div class="lab">Keytrack</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterDrive"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
     </div>
-
-    <div class="fieldlab" style="margin-top:12px">Pendiente</div>
+    <div class="fieldlab" style="margin-top:10px">Pendiente</div>
     <div class="seg" id="filterSlopeSel">
       <button data-slope="12">12 dB</button>
       <button data-slope="24">24 dB</button>
     </div>
     <div class="note">24 dB = doble etapa, más cremoso (aplica en la siguiente nota) · Drive satura ANTES del filtro</div>
+  </div>
 
-    <div class="fieldlab" style="margin-top:12px">Envolvente del filtro</div>
+  <div class="panel">
+    <h2>Env filtro</h2>
     <div class="seg" id="fenvModeSel">
       <button data-fenv="link">= Amp</button>
       <button data-fenv="own">Propia</button>
     </div>
     <div class="row" style="margin-top:8px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fa"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fd"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fs"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fr"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
     </div>
-    <div class="note">«= Amp» sigue al ADSR de amplitud; «Propia» usa estos tiempos</div>
+    <div class="note">«= Amp» sigue al ADSR de amplitud; «Propia» usa estos tiempos · Amount en Hz sobre el cutoff</div>
   </div>
 
-  <!-- FX -->
+  <!-- ===== ENVOLVENTE / VOZ ===== -->
+  <div class="panel u2">
+    <h2>ADSR</h2>
+    <canvas id="adsrCanvas" style="margin-top:6px"></canvas>
+    <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
+      <input type="range" id="s_a"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
+      <input type="range" id="s_d"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
+      <input type="range" id="s_s"></div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
+      <input type="range" id="s_r"></div>
+  </div>
+
   <div class="panel">
-    <h2>FX</h2>
-    <div class="fieldlab">Distorsión</div>
-    <div class="row" style="justify-content:center">
+    <h2>Voz · Master</h2>
+    <div class="seg" id="modeSel">
+      <button data-mode="poly">Poli</button>
+      <button data-mode="mono">Mono (legato)</button>
+    </div>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="pitchEnvAmt"><div class="ind"></div></div><div class="lab">P.Env Amt</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">P.Env Dec</div><div class="val"></div></div>
+    </div>
+    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Master</span><span class="val" id="v_master"></span></div>
+      <input type="range" id="s_master"></div>
+    <div class="note">Pitch env: la nota arranca desviada Amount cents y cae al tono (bombos, toms, zaps)</div>
+  </div>
+
+  <!-- ===== MODULADORES (LFOs con ruta dedicada) ===== -->
+  <div class="panel">
+    <h2>LFO PWM</h2>
+    <div class="slider"><div class="head"><span class="lab">Pulse Width</span><span class="val" id="v_pw"></span></div>
+      <input type="range" id="s_pw"></div>
+    <div class="lfo-grp"><span class="tag">LFO PWM</span><button class="lfoShape" data-shape="pwmLfoShape"></button><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+    <div class="note">(afecta a osc en modo «Cuad.»)</div>
+  </div>
+
+  <div class="panel">
+    <h2>LFO trémolo</h2>
+    <div class="slider"><div class="head"><span class="lab">Amplitud</span><span class="val" id="v_amp"></span></div>
+      <input type="range" id="s_amp"></div>
+    <div class="lfo-grp"><span class="tag">LFO TRÉMOLO</span><button class="lfoShape" data-shape="ampLfoShape"></button><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+  </div>
+
+  <div class="panel">
+    <h2>LFO vibrato</h2>
+    <div class="slider"><div class="head"><span class="lab">Frecuencia (±cents)</span><span class="val" id="v_freq"></span></div>
+      <input type="range" id="s_freq"></div>
+    <div class="lfo-grp"><span class="tag">LFO VIBRATO</span><button class="lfoShape" data-shape="freqLfoShape"></button><div class="row" style="justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
+    </div></div>
+    <div class="row" style="margin-top:8px;justify-content:center">
+      <div class="ctl"><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="lab">LFO Fade</div><div class="val"></div></div>
+    </div>
+    <div class="note">Fade: vibrato y PWM entran en rampa tras cada nota (0 = inmediato)</div>
+  </div>
+
+  <!-- ===== MATRIZ ===== -->
+  <div class="panel u2">
+    <h2>Matriz de modulación</h2>
+    <div id="mxRows"></div>
+    <div class="note" style="margin-top:8px">Fuente → destino × cantidad (±, doble clic = 0) · los LFO entran <b>crudos</b> (su knob Level no interviene) · Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota</div>
+  </div>
+
+  <!-- ===== FX ===== -->
+  <div class="panel">
+    <h2>Distorsión · Flanger</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="dist"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Fl.Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Fl.Speed</div><div class="val"></div></div>
     </div>
-    <div class="fieldlab" style="margin-top:12px">Flanger</div>
-    <div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
-    </div>
-    <div class="fieldlab" style="margin-top:12px">Chorus / Ensemble</div>
+    <div class="note">Drive = saturación tanh global (dry/wet) · Flanger con feedback fijo</div>
+  </div>
+
+  <div class="panel">
+    <h2>Chorus / Ensemble</h2>
     <div class="seg" id="chModeSel">
       <button data-chm="chorus">Chorus</button>
       <button data-chm="ensemble">Ensemble</button>
@@ -207,8 +281,11 @@
       <div class="ctl"><div class="knob" data-knob="chSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
     <div class="note">Ensemble = triple chorus a 3 fases (máquina de cuerdas); Speed = LFO lento (el rápido va ×10)</div>
-    <div class="fieldlab" style="margin-top:12px">Delay (eco)</div>
-    <div class="row" style="justify-content:space-around">
+  </div>
+
+  <div class="panel">
+    <h2>Delay</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="bpm"><div class="ind"></div></div><div class="lab">BPM</div><div class="val"></div></div>
@@ -221,67 +298,33 @@
       <button data-sync="1/4.">¼·</button>
       <button data-sync="1/2">½</button>
     </div>
-    <div class="note">Sincado al BPM el knob Time se ignora</div>
+    <div class="note">Ping-pong estéreo (los ecos rebotan L↔R) · sincado al BPM el knob Time se ignora · el BPM también gobierna arp y seq</div>
   </div>
 
-  <!-- ESPACIO / ESTÉREO -->
+  <!-- ===== ESPACIO ===== -->
   <div class="panel">
     <h2>Espacio</h2>
-    <div class="row" style="justify-content:center">
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="width"><div class="ind"></div></div><div class="lab">Width</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="panLfoLvl"><div class="ind"></div></div><div class="lab">Pan Lvl</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="lab">Pan Spd</div><div class="val"></div></div>
     </div>
-    <div class="note">Width → reparte las voces por el estéreo (mono a 0)</div>
-    <div class="fieldlab" style="margin-top:12px">Autopan (LFO → pan)</div>
-    <div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="panLfoLvl"><div class="ind"></div></div><div class="lab">Level</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
-    </div>
-    <div class="fieldlab" style="margin-top:12px">Reverb</div>
-    <div class="row" style="justify-content:space-around">
+    <div class="note">Width reparte las voces por el estéreo (mono a 0) · Pan = autopan (LFO → pan por voz)</div>
+  </div>
+
+  <div class="panel">
+    <h2>Reverb</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="reverbMix"><div class="ind"></div></div><div class="lab">Mix</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="reverbSize"><div class="ind"></div></div><div class="lab">Size</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="reverbDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="reverbPre"><div class="ind"></div></div><div class="lab">Predelay</div><div class="val"></div></div>
     </div>
     <div class="note">Damp = la cola pierde agudos antes (sala real) · Predelay separa el ataque de la cola</div>
-    <div class="fieldlab" style="margin-top:12px">Delay = ping-pong (estéreo)</div>
-    <div class="note">Amount/Time en el panel FX; ahora los ecos rebotan L↔R</div>
   </div>
 
-  <!-- ENVELOPE + MASTER -->
-  <div class="panel">
-    <h2>Envelope ADSR</h2>
-    <div class="fieldlab">Modo de voz</div>
-    <div class="seg" id="modeSel">
-      <button data-mode="poly">Poli</button>
-      <button data-mode="mono">Mono (legato)</button>
-    </div>
-    <canvas id="adsrCanvas" style="margin-top:10px"></canvas>
-    <div class="slider"><div class="head"><span class="lab">Attack</span><span class="val" id="v_a"></span></div>
-      <input type="range" id="s_a"></div>
-    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Decay</span><span class="val" id="v_d"></span></div>
-      <input type="range" id="s_d"></div>
-    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Sustain</span><span class="val" id="v_s"></span></div>
-      <input type="range" id="s_s"></div>
-    <div class="slider" style="margin-top:8px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
-      <input type="range" id="s_r"></div>
-
-    <div class="fieldlab" style="margin-top:12px">Pitch envelope (por nota)</div>
-    <div class="row" style="justify-content:space-around">
-      <div class="ctl"><div class="knob" data-knob="pitchEnvAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div>
-    </div>
-    <div class="note">La nota arranca desviada Amount cents y cae al tono (bombos, toms, zaps)</div>
-
-    <div class="row" style="margin-top:12px;justify-content:space-around;align-items:center">
-      <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
-      <div class="slider" style="flex:1"><div class="head"><span class="lab">Master</span><span class="val" id="v_master"></span></div>
-        <input type="range" id="s_master"></div>
-    </div>
-  </div>
-
-  <!-- ARPEGIADOR -->
-  <div class="panel">
+  <!-- ===== SECUENCIACIÓN ===== -->
+  <div class="panel u2">
     <h2>Arpegiador</h2>
     <div class="fieldlab">Modo</div>
     <div class="seg waves" id="arpModeSel">
@@ -306,11 +349,10 @@
     <div class="row" style="margin-top:12px;justify-content:center">
       <div class="ctl"><div class="knob" data-knob="arpGate"><div class="ind"></div></div><div class="lab">Gate</div><div class="val"></div></div>
     </div>
-    <div class="note">Mantén notas pulsadas y el arp las secuencia al BPM (knob en el panel FX)</div>
+    <div class="note">Mantén notas pulsadas y el arp las secuencia al BPM (knob en el módulo Delay)</div>
   </div>
 
-  <!-- SECUENCIADOR -->
-  <div class="panel">
+  <div class="panel u3">
     <h2>Secuenciador</h2>
     <div class="fieldlab">Estado</div>
     <div class="seg" id="seqOnSel">
@@ -339,36 +381,10 @@
     <div class="note">La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · en mono con Gate 1 los pasos ligan (glide)</div>
   </div>
 
-  <!-- MATRIZ DE MODULACION (filas generadas por ui/matrixControls.js) -->
-  <div class="panel">
-    <h2>Matriz de modulación</h2>
-    <div id="mxRows"></div>
-    <div class="note" style="margin-top:8px">Fuente → destino × cantidad (±, doble clic = 0) · los LFO entran <b>crudos</b> (su knob Level no interviene) · Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota</div>
-  </div>
+  <!-- ===== VISUALIZADORES (módulos anchos) ===== -->
+  <div class="panel wide"><h2>Osciloscopio</h2><canvas id="scope" class="viz"></canvas></div>
+  <div class="panel wide"><h2>Espectro</h2><canvas id="spectrum" class="viz"></canvas></div>
 
-  <!-- EDITOR DE ONDAS (tabla «usuario») -->
-  <div class="panel">
-    <h2>Editor de ondas</h2>
-    <div class="fieldlab">Frame</div>
-    <div class="seg" id="weFrameSel" style="max-width:120px">
-      <button data-wf="0">A</button>
-      <button data-wf="1">B</button>
-    </div>
-    <canvas id="weCanvas"></canvas>
-    <div class="row" style="margin-top:8px;gap:6px;justify-content:flex-start">
-      <button class="btn" id="weSmooth" title="Atenúa los armónicos altos en el espectro y resintetiza">Suavizar</button>
-      <button class="btn" id="weSine">Seno</button>
-      <button class="btn" id="weSaw">Sierra</button>
-    </div>
-    <div class="note">Dibuja un ciclo a mano (el fantasma es el otro frame). Se guarda como tabla <b>«usuario»</b>: elígela en Osciladores y el Morph recorre A→B (band-limited, sin aliasing)</div>
-  </div>
-
-</div>
-
-<!-- VISUALIZADORES -->
-<div id="viz">
-  <div class="viz-panel"><h2>Osciloscopio</h2><canvas id="scope"></canvas></div>
-  <div class="viz-panel"><h2>Espectro</h2><canvas id="spectrum"></canvas></div>
 </div>
 
 <!-- TECLADO -->

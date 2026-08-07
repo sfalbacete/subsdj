@@ -55,7 +55,20 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 #presetBar input{width:160px;}
 #presetMsg{font-size:11px;color:var(--dim);margin-left:auto;}
 
-.rack{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start;}
+/* Rack con unidades (estilo Eurorack): columnas iguales; el alto se cuantiza
+   en unidades de --rackU (módulo = 1U por defecto, .u2/.u3 = 2/3 unidades;
+   minmax(...,auto) = si un módulo no cabe, SU fila crece en vez de recortar
+   contenido — nunca se pierde funcionalidad por la rejilla). dense rellena
+   huecos: rack compacto. .wide = módulo doble de ancho (visualizadores). */
+:root{--rackU:184px;}
+.rack{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;
+  grid-auto-rows:minmax(var(--rackU),auto);grid-auto-flow:dense;align-items:stretch;}
+.panel{min-width:0;}
+.panel.u2{grid-row:span 2;}
+.panel.u3{grid-row:span 3;}
+.panel.wide{grid-column:span 2;}
+@media (max-width:520px){.panel.wide{grid-column:auto;}}
+canvas.viz{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
 .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
   border-radius:10px;padding:10px 12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
 .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);
