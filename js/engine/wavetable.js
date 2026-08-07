@@ -58,16 +58,19 @@ export const WT_SETS = {
 export const WT_DEFAULT = 'analógica';
 
 // ---------- espectro -> mips (aditiva con armónicos truncados) ----------
+// spec: Float32Array de senos (sets de fábrica) o {sin, cos} (dibujadas:
+// el coseno conserva la FASE de cada armónico y el dibujo se ve como se hizo).
 function mipsDeEspectro(spec) {
+  const sinA = spec.sin || spec, cosA = spec.cos || null;
   // ganancia única por frame (pico del nivel 0 a 0.9): los niveles agudos
   // conservan el volumen del timbre, solo pierden los parciales imposibles
   const levels = [];
   for (let L = 0; L < CAPS.length; L++) {
     const cap = CAPS[L], len = LENS[L], d = new Float32Array(len), w = 2 * Math.PI / len;
     for (let n = 1; n <= Math.min(cap, WT_H); n++) {
-      const a = spec[n - 1];
-      if (!a) continue;
-      for (let i = 0; i < len; i++) d[i] += a * Math.sin(w * n * i);
+      const a = sinA[n - 1], b = cosA ? cosA[n - 1] : 0;
+      if (!a && !b) continue;
+      for (let i = 0; i < len; i++) d[i] += a * Math.sin(w * n * i) + (b ? b * Math.cos(w * n * i) : 0);
     }
     levels.push(d);
   }
@@ -77,6 +80,58 @@ function mipsDeEspectro(spec) {
   for (const d of levels) for (let i = 0; i < d.length; i++) d[i] *= g;
   return levels;
 }
+
+// ---------- tabla «usuario»: puntos dibujados a mano (editor de ondas) ----------
+// La receta persistida son los PUNTOS (WE_P por frame, localStorage), nunca
+// las muestras band-limited: puntos -> DFT corta (espectro CON fase: senos y
+// cosenos) -> mips como cualquier set de fábrica.
+export const WE_P = 256;                 // puntos por frame dibujado (128 armónicos máx: de sobra a mano)
+export const WT_LS = 'subsdj.wavetable.usuario.v1';
+
+export function espectroDe(points) {     // DFT corta: puntos -> {sin, cos} (sin DC: un osc no lleva offset)
+  const P = points.length, H = Math.min(WT_H, (P >> 1) - 1);
+  const sin = new Float32Array(WT_H), cos = new Float32Array(WT_H);
+  let mean = 0; for (const v of points) mean += v; mean /= P;
+  for (let n = 1; n <= H; n++) {
+    let a = 0, b = 0;
+    for (let i = 0; i < P; i++) {
+      const ph = 2 * Math.PI * n * i / P, x = points[i] - mean;
+      a += x * Math.sin(ph); b += x * Math.cos(ph);
+    }
+    sin[n - 1] = 2 * a / P; cos[n - 1] = 2 * b / P;
+  }
+  return { sin, cos };
+}
+export function puntosDeEspectro(spec, P = WE_P) {   // resíntesis (para Suavizar y pintar)
+  const out = new Array(P).fill(0), sinA = spec.sin || spec, cosA = spec.cos || null;
+  for (let n = 1; n <= Math.min(WT_H, P >> 1); n++) {
+    const a = sinA[n - 1], b = cosA ? cosA[n - 1] : 0;
+    if (!a && !b) continue;
+    for (let i = 0; i < P; i++) {
+      const ph = 2 * Math.PI * n * i / P;
+      out[i] += a * Math.sin(ph) + (b ? b * Math.cos(ph) : 0);
+    }
+  }
+  return out;
+}
+export function defaultUserFrames() {    // sin nada dibujado: A = seno, B = sierra (algo que morfear)
+  const a = new Array(WE_P), b = new Array(WE_P);
+  for (let i = 0; i < WE_P; i++) { const t = i / WE_P; a[i] = Math.sin(2 * Math.PI * t); b[i] = 2 * t - 1; }
+  return [a, b];
+}
+export function loadUserFrames() {
+  try {
+    const j = JSON.parse(localStorage.getItem(WT_LS));
+    if (Array.isArray(j) && j.length && j.every(f => Array.isArray(f) && f.length === WE_P)) return j;
+  } catch (e) {}
+  return null;
+}
+export function saveUserFrames(frames) {
+  try { localStorage.setItem(WT_LS, JSON.stringify(frames.map(f => [...f].map(v => +(+v).toFixed(3))))); } catch (e) {}
+  cache.delete('usuario');               // la próxima nota reconstruye los mips
+}
+WT_SETS['usuario'] = () => (loadUserFrames() || defaultUserFrames()).map(espectroDe);
+export function invalidateUserSet() { cache.delete('usuario'); }   // tras tocar localStorage a mano (selftest)
 
 // set construido y cacheado: { lens, frames: [ [Float32Array x niveles] x F ] }
 const cache = new Map();

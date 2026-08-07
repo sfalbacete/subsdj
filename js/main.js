@@ -6,6 +6,7 @@ import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
 import { bindMatrixControls } from './ui/matrixControls.js';
+import { initWaveEditor } from './ui/waveEditor.js';
 import { bindSeqControls } from './ui/seqControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
@@ -33,6 +34,7 @@ initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
 initCollapsiblePanels();
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
+initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.

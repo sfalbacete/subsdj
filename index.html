@@ -346,6 +346,23 @@
     <div class="note" style="margin-top:8px">Fuente → destino × cantidad (±, doble clic = 0) · los LFO entran <b>crudos</b> (su knob Level no interviene) · Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota</div>
   </div>
 
+  <!-- EDITOR DE ONDAS (tabla «usuario») -->
+  <div class="panel">
+    <h2>Editor de ondas</h2>
+    <div class="fieldlab">Frame</div>
+    <div class="seg" id="weFrameSel" style="max-width:120px">
+      <button data-wf="0">A</button>
+      <button data-wf="1">B</button>
+    </div>
+    <canvas id="weCanvas"></canvas>
+    <div class="row" style="margin-top:8px;gap:6px;justify-content:flex-start">
+      <button class="btn" id="weSmooth" title="Atenúa los armónicos altos en el espectro y resintetiza">Suavizar</button>
+      <button class="btn" id="weSine">Seno</button>
+      <button class="btn" id="weSaw">Sierra</button>
+    </div>
+    <div class="note">Dibuja un ciclo a mano (el fantasma es el otro frame). Se guarda como tabla <b>«usuario»</b>: elígela en Osciladores y el Morph recorre A→B (band-limited, sin aliasing)</div>
+  </div>
+
 </div>
 
 <!-- VISUALIZADORES -->

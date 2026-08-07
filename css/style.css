@@ -222,6 +222,10 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-row.fail .st-mark,.st-row.fail .st-name{color:var(--hot);}
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
+/* Editor de ondas (tabla «usuario») */
+#weCanvas{width:100%;height:96px;background:#0c1117;border:1px solid var(--edge);
+  border-radius:8px;margin-top:8px;cursor:crosshair;touch-action:none;display:block;}
+
 /* Selector de tabla de ondas (mismo look que los selects de la matriz) */
 #wtSetSel{min-width:0;background:#0f141a;border:1px solid var(--edge);color:var(--ink);
   border-radius:6px;padding:3px 4px;font-size:11px;}

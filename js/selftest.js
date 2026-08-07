@@ -20,6 +20,7 @@ import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
+import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet } from './engine/wavetable.js';
 import { PARAMS } from './engine/params.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
@@ -373,6 +374,50 @@ export async function runSelfTest() {
       r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: aB.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // editor de ondas: (1) la DFT corta recupera un espectro conocido
+    // (seno h1 + coseno h3), (2) puntos→espectro→puntos reproduce el dibujo
+    // (entrada band-limited por construcción), (3) la tabla 'usuario' (frames
+    // por defecto seno/sierra en un perfil limpio) da morph 0 ≠ 1.
+    body.appendChild(el('st-cat', 'Editor de ondas'));
+    let r;
+    try {
+      const P = 256, pts = new Array(P);
+      for (let i = 0; i < P; i++) pts[i] = Math.sin(2 * Math.PI * i / P) + 0.5 * Math.cos(2 * Math.PI * 3 * i / P);
+      const sp = espectroDe(pts);
+      const okDft = Math.abs(sp.sin[0] - 1) < 0.01 && Math.abs(sp.cos[2] - 0.5) < 0.01 &&
+                    Math.abs(sp.sin[2]) < 0.01 && Math.abs(sp.cos[0]) < 0.01;
+      const back = puntosDeEspectro(sp, P);
+      let err = 0; for (let i = 0; i < P; i++) err = Math.max(err, Math.abs(back[i] - pts[i]));
+      const okRt = err < 0.02;
+      // frames por defecto DURANTE el test (el usuario puede tener A≈B dibujado); se restaura al salir
+      const prevWt = localStorage.getItem(WT_LS);
+      saveUserFrames(defaultUserFrames());
+      loadState({ waveA: 'tabla', wtSet: 'usuario', mix: 0, wtPos: 0 });
+      const bA = await renderBuf(structuredClone(engine.S));
+      loadState({ waveA: 'tabla', wtSet: 'usuario', mix: 0, wtPos: 1 });
+      const bB = await renderBuf(structuredClone(engine.S));
+      if (prevWt === null) localStorage.removeItem(WT_LS); else localStorage.setItem(WT_LS, prevWt);
+      invalidateUserSet();
+      const aA = analyze(bA), aB = analyze(bB);
+      const cA = bA.getChannelData(0), cB = bB.getChannelData(0);
+      let d = 0, en = 0;
+      for (let i = 0; i < cA.length; i += 16) { const x = cA[i] - cB[i]; d += x * x; en += cA[i] * cA[i]; }
+      const diff = Math.sqrt(d / Math.max(1e-12, en));
+      const probs = [];
+      if (!okDft) probs.push('DFT no recupera el espectro (h1s ' + sp.sin[0].toFixed(3) + ' h3c ' + sp.cos[2].toFixed(3) + ')');
+      if (!okRt) probs.push('ida-y-vuelta con error ' + err.toFixed(4));
+      if (aA.bad || aB.bad) probs.push('NaN/Inf');
+      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silencio (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
+      if (!(diff > 0.3)) probs.push('usuario: morph 0 vs 1 apenas difiere (diff ' + diff.toFixed(3) + ')');
+      r = { name: 'editor de ondas (DFT · ida-y-vuelta · usuario A≠B)', peak: aB.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'editor de ondas (DFT · ida-y-vuelta · usuario A≠B)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
