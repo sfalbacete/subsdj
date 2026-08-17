@@ -16,8 +16,15 @@
    al grafo: eso es lógica de audio, no metadatos, y ahí es legible.
    ===================================================================== */
 
+import { VOC_ORDEN } from './vocal.js';
+
 const msFmt = v => (v * 1000).toFixed(0) + ' ms';
 const twoDec = v => v.toFixed(2);
+// knob Vocal: enseña la vocal (u, o, a…) o el tramo entre dos (u·o)
+const vowelFmt = v => {
+  const p = v * (VOC_ORDEN.length - 1), i = Math.min(VOC_ORDEN.length - 2, Math.floor(p)), w = p - i;
+  return w < 0.06 ? VOC_ORDEN[i] : w > 0.94 ? VOC_ORDEN[i + 1] : VOC_ORDEN[i] + '·' + VOC_ORDEN[i + 1];
+};
 
 export const PARAMS = {
   // --- Osciladores ---
@@ -78,6 +85,13 @@ export const PARAMS = {
   fd: { def: 0.2,  min: 0.001, max: 2, unit: ' s' },
   fs: { def: 0.7,  min: 0, max: 1 },
   fr: { def: 0.3,  min: 0.001, max: 3, unit: ' s' },
+
+  // --- Vocal (banco de formantes por voz, entre el drive y el filtro) ---
+  vocAmt:   { def: 0, min: 0, max: 1, act: true },  // dry/wet del tracto vocal (0 = sin banco)
+  vocVowel: { def: 0.5, min: 0, max: 1, fmt: vowelFmt },   // recorrido u→o→a→e→i (0.5 = /a/)
+  vocSize:  { def: 0, min: -1200, max: 1200, unit: ' ct' },// tamaño del tracto: + niño · − gigante
+  vocQ:     { def: 0.5, min: 0, max: 1 },           // definición: 0 = robot (bandas finas) · 1 = suave
+  vocVida:  { def: 0, min: 0, max: 1, act: true },  // micro-deriva de los formantes (humaniza)
 
   // --- FX ---
   dist:    { def: 0, min: 0, max: 1, act: true },
@@ -150,8 +164,9 @@ export const MX_DESTS = [
   { id: 'amp',    label: 'Amplitud' },      // ganancia por voz TRAS el VCA (1 ± mod)
   { id: 'pan',    label: 'Pan' },
   { id: 'wt',     label: 'Wavetable' },     // morph de la tabla (el AudioParam recorta a [0,1])
+  { id: 'vow',    label: 'Vocal' },         // recorre las vocales a audio-rate (los WaveShapers saturan en u/i)
 ];
-export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1 };
+export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1 };
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };

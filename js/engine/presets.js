@@ -134,6 +134,28 @@ export const FACTORY = {
       a: 0.8, d: 0.5, s: 0.85, r: 2.0, width: 0.4, reverbMix: 0.3, reverbSize: 3, master: 0.58 },
   },
 
+  /* módulo Vocal (banco de formantes por voz): tres esquinas del espacio
+     robot ↔ humano — Q fina y formantes clavados = máquina; Q natural +
+     Vida (micro-deriva) + drift + vibrato con fade + aliento = coro */
+  'Voz': {
+    'Coro humano': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, mix: 0.5,
+      vocAmt: 0.75, vocVowel: 0.5, vocQ: 0.65, vocVida: 0.6,
+      noise: 0.08, noiseColor: 0.5, drift: 3, cutoff: 4500, reso: 0.8,
+      chMode: 'ensemble', chAmt: 0.55, chSpd: 0.5, freqLfoLvl: 8, freqLfoSpd: 5.2, lfoFade: 0.8,
+      a: 0.5, d: 0.5, s: 0.85, r: 1.6, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.62 },
+    /* el LFO de cutoff CRUDO (Level 0) balbucea las vocales; sin vibrato,
+       sin drift, sin Vida: formantes congelados = máquina que habla */
+    'Robot parlante': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.45, mix: 0.35,
+      vocAmt: 1, vocVowel: 0.5, vocQ: 0.05, vocVida: 0,
+      cutLfoSpd: 1.3, mx1src: 'lfoCut', mx1dst: 'vow', mx1amt: 0.7,
+      dist: 0.15, cutoff: 5000, reso: 1, a: 0.01, d: 0.15, s: 0.8, r: 0.15, master: 0.7 },
+    'Madrigal (vocal por nota)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -5, detuneB: 7, mix: 0.5,
+      vocAmt: 0.85, vocVowel: 0.5, vocQ: 0.5, vocVida: 0.35,
+      mx1src: 'rnd', mx1dst: 'vow', mx1amt: 1,
+      drift: 2, cutoff: 4500, reso: 0.8, chMode: 'ensemble', chAmt: 0.4, chSpd: 0.5,
+      a: 0.4, d: 0.5, s: 0.85, r: 1.4, width: 0.6, reverbMix: 0.3, reverbSize: 2.8, master: 0.65 },
+  },
+
   'Plucks & Teclas': {
     'Pluck': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.35, mix: 0.4, cutoff: 448, reso: 7,
       filterEnvAmt: 3500, a: 0.002, d: 0.18, s: 0.0, r: 0.12, dlyAmt: 0.3, dlyTime: 0.33, width: 0.3 },

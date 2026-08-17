@@ -220,6 +220,23 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    fase + compensación por correlación) y `wtUser` (la onda dibujada viaja
    dentro del preset).
 
+4. **Módulo VOCAL (formantes)** ✔ *(hecho 2026-08-17)* — la voz humana como
+   lo que es físicamente: un FILTRO (modelo fuente-filtro del habla; los
+   formantes viven FIJOS en Hz y no siguen la nota — por eso el set wavetable
+   «formante» no canta: sus picos se transponen con el pitch). Banco de 3
+   biquad bandpass POR VOZ entre el drive y el LP/HP (`engine/vocal.js` +
+   etapa dry/wet en Voice.js, bajo demanda: a Mix 0 no hay nodos): el ruido
+   ya sumado se vuelve aliento y el SFZ lo hornea. Morph vocálico u→o→a→e→i
+   por WaveShaper (control ±1 → curva de cents → detune del biquad:
+   exponencial, audio-rate, y destino **«Vocal»** de la matriz — S&H = una
+   vocal por nota, env = articulación). Eje robot↔humano jugable: **Q**
+   (bandas finas = vocoder ↔ anchas = suave, con makeup 1/√BW), **Vida**
+   (micro-deriva de formantes: 4 senos sub-Hz compartidos, offset aleatorio
+   por voz), **Tamaño** (±1200 ct = niño↔gigante). Evidencia: check A/B en
+   el selftest (banco suena, /u/ ≠ /i/), presets «Coro humano», «Robot
+   parlante» y «Madrigal (vocal por nota)», pares VOC 1-6 en el banco de
+   demos (diffs 0.87/0.57/1.55 por sonda CDP).
+
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
 sondas CDP; commit por hito.

@@ -30,6 +30,7 @@ const PANELES = {
   'FM':                    S => S.fmIndex > 0,
   'Unison':                S => +S.uniVoices > 1,
   'Tabla de ondas':        S => S.oscA.wave === 'tabla' || S.oscB.wave === 'tabla',
+  'Vocal':                 S => S.vocAmt > 0,
   'Filtro':                S => dstUsed(S, 'cutoff') || dstUsed(S, 'reso'),
   'LFO cutoff':            S => LFOS.cutLfoShape(S),
   'LFO reso':              S => LFOS.resLfoShape(S),

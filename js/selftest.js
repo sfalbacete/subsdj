@@ -431,6 +431,47 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // vocal (banco de formantes): (1) activar el banco cambia CLARAMENTE el
+    // render frente al seco (la etapa suena y el makeup no lo silencia ni lo
+    // revienta), (2) vocal /u/ ≠ /i/ (la identidad vocálica es espectral y
+    // el morph por WaveShaper→detune la mueve de verdad). Deterministas:
+    // saw base sin random y vocVida a 0.
+    body.appendChild(el('st-cat', 'Vocal'));
+    let r;
+    try {
+      loadState({});
+      const bDry = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocVowel: 0.5 });
+      const bA = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocVowel: 0 });
+      const bU = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocVowel: 1 });
+      const bI = await renderBuf(structuredClone(engine.S));
+      const diff = (x, y) => {
+        const cX = x.getChannelData(0), cY = y.getChannelData(0);
+        let d = 0, en = 0;
+        for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; }
+        return Math.sqrt(d / Math.max(1e-12, en));
+      };
+      const aDry = analyze(bDry), aA = analyze(bA), aU = analyze(bU), aI = analyze(bI);
+      const probs = [];
+      if (aA.bad || aU.bad || aI.bad) probs.push('NaN/Inf');
+      for (const [n, a] of [['a', aA], ['u', aU], ['i', aI]]) {
+        if (a.peak <= SILENCE) probs.push('vocal /' + n + '/ en silencio (' + dB(a.peak) + ')');
+        if (a.peak > 1) probs.push('vocal /' + n + '/ con clipping (' + dB(a.peak) + ')');
+      }
+      const dWet = diff(bDry, bA), dVow = diff(bU, bI);
+      if (!(dWet > 0.3)) probs.push('activar el banco apenas cambia el render (diff ' + dWet.toFixed(3) + ')');
+      if (!(dVow > 0.3)) probs.push('/u/ vs /i/ apenas difieren (diff ' + dVow.toFixed(3) + ')');
+      r = { name: 'vocal (banco suena · /u/ ≠ /i/)', peak: aA.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'vocal (banco suena · /u/ ≠ /i/)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

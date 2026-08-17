@@ -19,6 +19,23 @@ function makeNoise(ctx) {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   return b;
 }
+// Deriva LENTA normalizada a ±1 para la 'Vida' del módulo Vocal: suma de 4
+// senos sub-Hz con ciclos ENTEROS en el buffer (loop sin costura — un paseo
+// aleatorio a secas daría un salto de formante en cada vuelta) y fases al
+// azar. Compartido: cada voz lo lee desde un offset aleatorio (descorrelado).
+function makeWander(ctx) {
+  const secs = 8, len = ctx.sampleRate * secs, b = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = b.getChannelData(0);
+  const comps = [3, 5, 7, 11].map(k => ({ w: 2 * Math.PI * k / secs, ph: Math.random() * 2 * Math.PI, a: 1 / k }));
+  let pk = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / ctx.sampleRate;
+    let v = 0; for (const c of comps) v += c.a * Math.sin(c.w * t + c.ph);
+    d[i] = v; const x = Math.abs(v); if (x > pk) pk = x;
+  }
+  if (pk > 1e-9) for (let i = 0; i < len; i++) d[i] /= pk;
+  return b;
+}
 // Respuesta al impulso sintética para la reverb (ruido con decaimiento, estéreo
 // descorrelacionado). damp (0..1) = decaimiento dependiente de frecuencia: un
 // one-pole lowpass cuyo cutoff se CIERRA exponencialmente a lo largo de la cola
@@ -102,6 +119,7 @@ export class AudioEngine {
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
     this.noiseBuffer = makeNoise(ctx);
+    this.wanderBuffer = makeWander(ctx);   // deriva lenta compartida (Vocal · Vida)
 
     // Carga de los worklets (relativo a este módulo, robusto). El ?v=N rompe
     // la caché heurística del navegador: SUBIRLO al cambiar código de worklet
@@ -257,7 +275,7 @@ export class AudioEngine {
     // hub de modulación que se pasa a cada voz
     this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
     this.mod = {
-      voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer,
+      voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
       pitchOffset: this.pitchOffset,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
@@ -421,6 +439,11 @@ export class AudioEngine {
       case 'filterDrive': this._forVoices(v => v.setFilterDrive(value)); break;
       case 'keytrack': this._forVoices(v => v.setKeytrack(value, this.S.cutoff)); break;
       case 'pulseWidth':   this._forVoices(v => v.setPulseWidth(value)); break;
+      case 'vocAmt':   this._forVoices(v => v.setVocAmt(value)); break;
+      case 'vocVowel': this._forVoices(v => v.setVocVowel(value)); break;
+      case 'vocSize':  this._forVoices(v => v.setVocSize(value)); break;
+      case 'vocQ':     this._forVoices(v => v.setVocQ(value)); break;
+      case 'vocVida':  this._forVoices(v => v.setVocVida(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
