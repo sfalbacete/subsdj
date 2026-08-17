@@ -12,7 +12,8 @@
 import { MX_SLOTS, MX_SPAN } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
-         VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q } from './vocal.js';
+         VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
+         VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
 
 // Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
 // (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
@@ -286,7 +287,16 @@ export class Voice {
     if (this.vocBqs || this.disposed) return;
     const ctx = this.ctx, S = this.S, bank = getVocalBank(), mul = bwMul(S.vocQ);
     this.vocCtl = ctx.createConstantSource();
-    this.vocCtl.offset.value = S.vocVowel * 2 - 1;
+    const vTarget = S.vocVowel * 2 - 1;
+    this.vocCtl.offset.value = vTarget;
+    // 'Golpe' parte 1 — transición de formantes: la boca ARRANCA cerrada
+    // (desplazada hacia /u/, proporcional al knob) y se abre a la vocal.
+    // Programada sobre t0 aunque el banco nazca a mitad de nota: eventos en
+    // el pasado = valor ya convergido (el truco del lfoFade).
+    if (S.vocAtk > 0) {
+      this.vocCtl.offset.setValueAtTime(Math.max(-1, vTarget - S.vocAtk * VOC_ATK_GLIDE), this.t0);
+      this.vocCtl.offset.setTargetAtTime(vTarget, this.t0, VOC_ATK_TRANS);
+    }
     this.vocCtl.start(this.t0);
     this.vocWet = ctx.createGain(); this.vocWet.gain.value = S.vocAmt * vocMakeup(S.vocQ);
     this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrillos = [];
@@ -330,9 +340,9 @@ export class Voice {
     this.vocBqs.forEach(bq => this.vocWanderGain.connect(bq.detune));
     this.vocWander.start(this.t0, Math.random() * buf.duration);
   }
-  // 'Golpe': burst de ruido de una sola vez por un paso-banda ANCHO centrado
-  // en el F2 de la vocal actual (punto de articulación: «ka» ≠ «ku»); entra
-  // en vocOut = sigue pasando por LP/HP, VCA y pan como todo lo demás.
+  // 'Golpe' parte 2 — burst de ruido de una sola vez por un paso-banda ANCHO
+  // centrado en el F2 de la vocal actual (punto de articulación: «ka» ≠ «ku»);
+  // entra en vocOut = sigue pasando por LP/HP, VCA y pan como todo lo demás.
   // Se agota en ~50 ms y se autolimpia; no toca el VCA ni el release.
   _vocBurst(t, vel) {
     const S = this.S, bank = getVocalBank();

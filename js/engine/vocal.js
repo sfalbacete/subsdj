@@ -60,18 +60,24 @@ export const vocMakeup = q => VOC_MAKEUP / Math.sqrt(bwMul(q));
 export const VOC_VIDA_CENTS = 60;   // 'Vida' a tope: los formantes vagan ±60 ct (~±3.5%)
 export const VOC_SMOOTH = 0.045;    // articulación del knob Vocal (la boca tarda ~50 ms)
 
-/* 'Golpe': consonante percusiva — un BURST de ruido al arrancar la nota.
-   Una /k/ real es ruido de explosión moldeado por la boca ya puesta en la
-   vocal que viene: el burst pasa por un paso-banda ANCHO centrado en el F2
-   de la vocal actual (el formante del «punto de articulación») — por eso
-   «ka» y «ku» suenan distintas. Ancho a propósito: por el banco fino la
-   plosiva perdía ~97% de la energía y quedaba en click tímido (medido:
-   +3% de RMS en el arranque). Escala con velocity y con Mix. Es un
-   transitorio pre-VCA: con attack lento del ADSR se pierde (como un coro
-   real, que tampoco articula /k/ en un crescendo). */
+/* 'Golpe': consonante percusiva al arrancar la nota, en DOS partes.
+   (1) La TRANSICIÓN de formantes: la boca sale de un cierre (posición
+   desplazada hacia /u/: F1 y F2 abajo) y se abre hacia la vocal en ~70 ms.
+   Los experimentos clásicos de percepción (Haskins) demostraron que ESTO
+   es lo que el oído usa para oír una oclusiva — la transición sola, sin
+   ruido, ya se percibe como consonante. (2) El BURST de ruido de la
+   explosión, por un paso-banda ANCHO centrado en el F2 de la vocal (el
+   «punto de articulación»: «ka» ≠ «ku»). Ancho a propósito: por el banco
+   fino la plosiva perdía ~97% de la energía y quedaba en click tímido
+   (medido: +3% de RMS). El knob escala AMBAS: bajo = «wa/da» blanda,
+   alto = «ka» dura; y escala con velocity y con Mix. Es un transitorio
+   pre-VCA: con attack lento del ADSR se pierde (como un coro real, que
+   tampoco articula /k/ en un crescendo). */
 export const VOC_ATK_GAIN = 6.0;    // nivel del burst a tope (banda ancha, sin makeup)
 export const VOC_ATK_TAU = 0.015;   // caída del burst (τ; audible ~50 ms: plosiva, no soplo)
 export const VOC_ATK_Q = 1.2;       // Q del paso-banda del burst (ancho: una explosión, no un silbido)
+export const VOC_ATK_GLIDE = 1.5;   // cierre a Golpe 1 (en el eje u↔i: desde /a/ llega hasta /u/)
+export const VOC_ATK_TRANS = 0.024; // τ de la transición cierre→vocal (~95% a 3τ ≈ 70 ms)
 
 /* ---------- curvas de morph (una vez, compartidas por todas las voces) ----------
    Para cada formante: frecuencia REF = media geométrica de las 5 vocales

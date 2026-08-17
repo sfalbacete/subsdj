@@ -476,7 +476,11 @@ export async function runSelfTest() {
     // vocal 2.0: (1) la fuente glotal morfa de verdad (relajada ≠ prensada:
     // el esfuerzo cambia el espectro), (2) Brillo mueve F4-F5 (audible),
     // (3) el Golpe consonántico mete energía extra en el ARRANQUE (RMS de
-    // los primeros 50 ms claramente mayor que sin él).
+    // los primeros 50 ms claramente mayor que sin él), y (4) su TRANSICIÓN
+    // de formantes existe: el arranque es «u-esco» (boca cerrada, F1 abajo)
+    // frente al sostenido «a-esco» — medido con Goertzel en los armónicos
+    // 2 y 5 de C3 (262/654 Hz ≈ F1 de /u/ y de /a/), normalizado contra el
+    // render sin Golpe para cancelar el color propio del ataque.
     body.appendChild(el('st-cat', 'Vocal 2.0'));
     let r;
     try {
@@ -510,12 +514,23 @@ export async function runSelfTest() {
       if (aG1.peak > 1 || aK1.peak > 1) probs.push('clipping (glotal ' + dB(aG1.peak) + ' · golpe ' + dB(aK1.peak) + ')');
       const dG = diff(bG0, bG1), dB_ = diff(bB0, bB1);
       const kRatio = rmsIni(bK1, 0.05) / Math.max(1e-9, rmsIni(bK0, 0.05));
+      const goe = (buf, f, t0, t1) => {         // energía de Goertzel de un tono en una ventana
+        const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        const cw = 2 * Math.cos(2 * Math.PI * f / SR);
+        let s1 = 0, s2 = 0;
+        for (let i = i0; i < i1; i++) { const s0 = d[i] + cw * s1 - s2; s2 = s1; s1 = s0; }
+        return s1 * s1 + s2 * s2 - cw * s1 * s2;
+      };
+      const uVsA = (b, t0, t1) => goe(b, 261.62, t0, t1) / Math.max(1e-12, goe(b, 654.06, t0, t1));
+      const rr = b => uVsA(b, 0.008, 0.045) / Math.max(1e-12, uVsA(b, 0.3, 0.5));
+      const trans = rr(bK1) / Math.max(1e-6, rr(bK0));   // medido ~76 (22.1 / 0.29)
       if (!(dG > 0.3)) probs.push('glotal: esfuerzo 0 vs 1 apenas difiere (diff ' + dG.toFixed(3) + ')');
       if (!(dB_ > 0.05)) probs.push('Brillo 0 vs 1 apenas difiere (diff ' + dB_.toFixed(3) + ')');
       if (!(kRatio > 1.2)) probs.push('el Golpe no añade energía al arranque (ratio ' + kRatio.toFixed(2) + ')');
-      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe)', peak: aK1.peak, ok: !probs.length, problems: probs };
+      if (!(trans > 5)) probs.push('el Golpe no arranca con la boca cerrada (transición ' + trans.toFixed(1) + ')');
+      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe + transición)', peak: aK1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe)', peak: 0, ok: false,
+      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe + transición)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

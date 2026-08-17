@@ -245,13 +245,18 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    formante del cantante**: la tabla crece a 5 formantes; F4-F5 se apiñan
    con F3 hacia ~3 kHz (el racimo que deja oír una voz lírica sobre la
    orquesta) y el knob **Brillo** escala su ganancia (0 = el banco de 3,
-   1 = +12 dB). (c) **Golpe** — consonante percusiva: burst de ruido al
-   arrancar la nota por un paso-banda ANCHO centrado en el F2 de la vocal
-   actual (punto de articulación: «ka» ≠ «ku»), escala con velocity; por
-   el banco fino perdía el 97% de la energía (medido: +3% RMS — de ahí la
-   banda propia). Presets «Voz glotal (esfuerzo)» y «Percusión vocal (ka)»,
-   pares VOC 7-12, selftest 95/95 (checks: glotal morfa, Brillo audible,
-   el Golpe añade energía al arranque).
+   1 = +12 dB). (c) **Golpe** — consonante al arrancar la nota, en dos
+   partes: la **transición de formantes** (la boca arranca cerrada —
+   desplazada hacia /u/ en el eje vocálico, proporcional al knob — y se
+   abre a la vocal en ~70 ms; es el indicio que el oído usa para oír una
+   oclusiva, Haskins) + el **burst** de la explosión por un paso-banda
+   ANCHO centrado en el F2 de la vocal actual (punto de articulación:
+   «ka» ≠ «ku»), escala con velocity; por el banco fino perdía el 97% de
+   la energía (medido: +3% RMS — de ahí la banda propia). Verificación de
+   la transición con Goertzel: el arranque es «u-esco» (E262/E654 = 13.1
+   con Golpe 1 frente a 0.17 sin él). Presets «Voz glotal (esfuerzo)» y
+   «Percusión vocal (ka)», pares VOC 7-12, selftest 95/95 (checks: glotal
+   morfa, Brillo audible, el Golpe añade energía y arranca cerrado).
 
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
