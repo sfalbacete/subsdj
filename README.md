@@ -236,6 +236,22 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    el selftest (banco suena, /u/ ≠ /i/), presets «Coro humano», «Robot
    parlante» y «Madrigal (vocal por nota)», pares VOC 1-6 en el banco de
    demos (diffs 0.87/0.57/1.55 por sonda CDP).
+   **Vocal 2.0 ✔** *(mismo día)* — las tres piezas con mejor ratio
+   comprensión/esfuerzo: (a) **fuente glotal** — set wavetable «glotal»
+   (modelo Rosenberg: flujo abrir-cerrar-descansar, derivado = radiación de
+   los labios; pipeline puntos→DFT→mips del editor reutilizado); el Morph
+   pasa a ser ESFUERZO vocal (relajado casi-seno → prensado brillante) y es
+   modulable (env→wt = el esfuerzo cabalga la envolvente). (b) **F4-F5 +
+   formante del cantante**: la tabla crece a 5 formantes; F4-F5 se apiñan
+   con F3 hacia ~3 kHz (el racimo que deja oír una voz lírica sobre la
+   orquesta) y el knob **Brillo** escala su ganancia (0 = el banco de 3,
+   1 = +12 dB). (c) **Golpe** — consonante percusiva: burst de ruido al
+   arrancar la nota por un paso-banda ANCHO centrado en el F2 de la vocal
+   actual (punto de articulación: «ka» ≠ «ku»), escala con velocity; por
+   el banco fino perdía el 97% de la energía (medido: +3% RMS — de ahí la
+   banda propia). Presets «Voz glotal (esfuerzo)» y «Percusión vocal (ka)»,
+   pares VOC 7-12, selftest 95/95 (checks: glotal morfa, Brillo audible,
+   el Golpe añade energía al arranque).
 
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o

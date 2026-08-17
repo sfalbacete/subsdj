@@ -444,6 +444,8 @@ export class AudioEngine {
       case 'vocSize':  this._forVoices(v => v.setVocSize(value)); break;
       case 'vocQ':     this._forVoices(v => v.setVocQ(value)); break;
       case 'vocVida':  this._forVoices(v => v.setVocVida(value)); break;
+      case 'vocBrillo':this._forVoices(v => v.setVocBrillo(value)); break;
+      // vocAtk es un evento de arranque de nota: se lee al crear cada voz
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;

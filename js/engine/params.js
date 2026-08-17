@@ -92,6 +92,8 @@ export const PARAMS = {
   vocSize:  { def: 0, min: -1200, max: 1200, unit: ' ct' },// tamaño del tracto: + niño · − gigante
   vocQ:     { def: 0.5, min: 0, max: 1 },           // definición: 0 = robot (bandas finas) · 1 = suave
   vocVida:  { def: 0, min: 0, max: 1, act: true },  // micro-deriva de los formantes (humaniza)
+  vocBrillo:{ def: 0.5, min: 0, max: 1 },           // formante del cantante (F4-F5): 0 = sin ellos · 0.5 = tabla · 1 = +12 dB
+  vocAtk:   { def: 0, min: 0, max: 1, act: true },  // golpe consonántico: burst de ruido por el tracto al arrancar la nota
 
   // --- FX ---
   dist:    { def: 0, min: 0, max: 1, act: true },

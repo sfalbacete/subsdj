@@ -1,6 +1,6 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v9 (+ módulo Vocal de formantes, 2026-08)",
+  "banco": "SubSDJ · demos de mejoras — v10 (+ Vocal 2.0: fuente glotal, formante del cantante, golpe consonántico, 2026-08)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase).",
   "presets": {
 
@@ -33,6 +33,36 @@
       "width": 0.5, "reverbMix": 0.25, "master": 0.65,
       "vocAmt": 0.85, "vocVowel": 0.5, "vocQ": 0.5,
       "mx1src": "rnd", "mx1dst": "vow", "mx1amt": 1 },
+
+    "VOC 7 · fuente sierra (canta a)": { "waveA": "sawtooth", "mix": 0,
+      "cutoff": 5000, "reso": 0.8, "a": 0.2, "d": 0.4, "s": 0.85, "r": 1.0,
+      "vocAmt": 0.85, "vocVowel": 0.5, "vocQ": 0.6,
+      "width": 0.4, "reverbMix": 0.2, "master": 0.65 },
+
+    "VOC 8 · fuente glotal (canta a)": { "waveA": "tabla", "wtSet": "glotal", "wtPos": 0.6, "mix": 0,
+      "cutoff": 5000, "reso": 0.8, "a": 0.2, "d": 0.4, "s": 0.85, "r": 1.0,
+      "vocAmt": 0.85, "vocVowel": 0.5, "vocQ": 0.6,
+      "width": 0.4, "reverbMix": 0.2, "master": 0.65 },
+
+    "VOC 9 · coro mate (sin F4-F5)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -5, "detuneB": 7, "mix": 0.5,
+      "cutoff": 5000, "reso": 0.8, "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2,
+      "vocAmt": 0.9, "vocVowel": 0.5, "vocQ": 0.6, "vocBrillo": 0,
+      "width": 0.5, "reverbMix": 0.25, "master": 0.65 },
+
+    "VOC 10 · solista lírico (F4-F5)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -5, "detuneB": 7, "mix": 0.5,
+      "cutoff": 5000, "reso": 0.8, "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2,
+      "vocAmt": 0.9, "vocVowel": 0.5, "vocQ": 0.6, "vocBrillo": 1,
+      "width": 0.5, "reverbMix": 0.25, "master": 0.65 },
+
+    "VOC 11 · vocal sin golpe": { "waveA": "sawtooth", "waveB": "square", "pulseWidth": 0.4, "mix": 0.3,
+      "cutoff": 4500, "reso": 1, "a": 0.003, "d": 0.25, "s": 0.3, "r": 0.2,
+      "vocAmt": 1, "vocVowel": 0.5, "vocQ": 0.45, "vocAtk": 0,
+      "master": 0.68 },
+
+    "VOC 12 · golpe consonántico (ka)": { "waveA": "sawtooth", "waveB": "square", "pulseWidth": 0.4, "mix": 0.3,
+      "cutoff": 4500, "reso": 1, "a": 0.003, "d": 0.25, "s": 0.3, "r": 0.2,
+      "vocAmt": 1, "vocVowel": 0.5, "vocQ": 0.45, "vocAtk": 0.9,
+      "master": 0.68 },
 
     "WT 1 · tabla quieta": { "waveA": "tabla", "mix": 0, "wtSet": "analógica", "wtPos": 0.15,
       "cutoff": 5000, "a": 0.1, "d": 0.3, "s": 0.85, "r": 0.6, "master": 0.65 },

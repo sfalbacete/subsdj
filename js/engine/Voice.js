@@ -11,7 +11,8 @@
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN } from './params.js';
 import { getWtSet } from './wavetable.js';
-import { getVocalBank, bwMul, vocMakeup, VOC_VIDA_CENTS, VOC_SMOOTH } from './vocal.js';
+import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
+         VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q } from './vocal.js';
 
 // Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
 // (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
@@ -176,6 +177,7 @@ export class Voice {
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
     if (S.vocAmt > 0) this.ensureVocal();       // banco de formantes (también lo crea la matriz vía 'vow')
     if (S.vocVida > 0) this.ensureVida();
+    if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // golpe consonántico (evento de arranque)
 
     // matriz de modulación (necesita todas las refs ya asignadas)
     this.vel = vel;
@@ -287,8 +289,8 @@ export class Voice {
     this.vocCtl.offset.value = S.vocVowel * 2 - 1;
     this.vocCtl.start(this.t0);
     this.vocWet = ctx.createGain(); this.vocWet.gain.value = S.vocAmt * vocMakeup(S.vocQ);
-    this.vocBqs = []; this.vocGains = []; this.vocShapers = [];
-    for (const f of bank) {
+    this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrillos = [];
+    bank.forEach((f, i) => {
       const bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
       bq.frequency.value = f.ref; bq.detune.value = S.vocSize;
       bq.Q.value = f.ref / (f.bw * mul);          // Q constante: el BW escala con el shift (natural)
@@ -296,10 +298,16 @@ export class Voice {
       const shF = ctx.createWaveShaper(); shF.curve = f.freqCurve;
       const shG = ctx.createWaveShaper(); shG.curve = f.gainCurve;
       this.vocCtl.connect(shF); this.vocCtl.connect(shG);
-      shF.connect(bq.detune); shG.connect(g.gain);
+      shF.connect(bq.detune);
+      // F4-F5 (racimo del cantante): su ganancia pasa por el escalado Brillo
+      if (i >= VOC_BRILLO_IX) {
+        const bg = ctx.createGain(); bg.gain.value = brilloMul(S.vocBrillo);
+        shG.connect(bg); bg.connect(g.gain);
+        this.vocBrillos.push(bg);
+      } else shG.connect(g.gain);
       this.dvOut.connect(bq); bq.connect(g); g.connect(this.vocWet);
       this.vocBqs.push(bq); this.vocGains.push(g); this.vocShapers.push(shF, shG);
-    }
+    });
     this.vocWet.connect(this.vocOut);
     // (los slots 'vow' de la matriz no necesitan recableo: mxRewire pasa por
     // _mxDestParams, que llama aquí ANTES de conectar — el banco siempre llega primero)
@@ -321,6 +329,28 @@ export class Voice {
     this.vocWander.connect(this.vocWanderGain);
     this.vocBqs.forEach(bq => this.vocWanderGain.connect(bq.detune));
     this.vocWander.start(this.t0, Math.random() * buf.duration);
+  }
+  // 'Golpe': burst de ruido de una sola vez por un paso-banda ANCHO centrado
+  // en el F2 de la vocal actual (punto de articulación: «ka» ≠ «ku»); entra
+  // en vocOut = sigue pasando por LP/HP, VCA y pan como todo lo demás.
+  // Se agota en ~50 ms y se autolimpia; no toca el VCA ni el release.
+  _vocBurst(t, vel) {
+    const S = this.S, bank = getVocalBank();
+    const f2 = bank[1];                       // F2: cents en la posición vocálica actual + Tamaño
+    const ix = Math.max(0, Math.min(f2.freqCurve.length - 1, Math.round(S.vocVowel * (f2.freqCurve.length - 1))));
+    const hz = f2.ref * Math.pow(2, (f2.freqCurve[ix] + S.vocSize) / 1200);
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.mod.noiseBuffer; src.loop = true;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(S.vocAtk * VOC_ATK_GAIN * vel * S.vocAmt, t);
+    g.gain.setTargetAtTime(0, t, VOC_ATK_TAU);
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = hz; bp.Q.value = VOC_ATK_Q;
+    src.connect(g); g.connect(bp); bp.connect(this.vocOut);
+    src.start(t, Math.random() * 1.5);        // offset aleatorio: cada consonante es distinta
+    src.stop(t + 0.25);                       // a ~16·τ el burst está a -140 dB: liberar
+    src.onended = () => { try { src.disconnect(); } catch (e) {} try { g.disconnect(); } catch (e) {} try { bp.disconnect(); } catch (e) {} };
+    this.vocBurstSrc = src; this.vocBurstGain = g; this.vocBurstBp = bp;
   }
 
   // ---------- matriz de modulación (tablas en params.js) ----------
@@ -430,6 +460,11 @@ export class Voice {
     this.vocBqs.forEach((bq, i) => bq.Q.setTargetAtTime(bank[i].ref / (bank[i].bw * mul), tc, 0.02));
     this.vocWet.gain.setTargetAtTime(this.S.vocAmt * vocMakeup(q), tc, 0.02);
   }
+  setVocBrillo(b) {
+    if (!this.vocBrillos) return;
+    const tc = this.ctx.currentTime;
+    this.vocBrillos.forEach(g => g.gain.setTargetAtTime(brilloMul(b), tc, 0.02));
+  }
   setVocVida(v) {
     if (v > 0) this.ensureVida();
     if (this.vocWanderGain) this.vocWanderGain.gain.setTargetAtTime(v * VOC_VIDA_CENTS, this.ctx.currentTime, 0.02);
@@ -514,13 +549,15 @@ export class Voice {
     [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain, this.nLP, this.nHP,
      this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.ampMod, this.panner,
      this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut,
-     this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain,
-     ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || [])].forEach(n => {
+     this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain, this.vocBurstGain, this.vocBurstBp,
+     ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || []),
+     ...(this.vocBrillos || [])].forEach(n => {
       if (n) { try { n.disconnect(); } catch (e) {} }
     });
     try { this.noiseSrc.stop(); } catch (e) {}
     try { this.fenv.stop(); } catch (e) {}
     if (this.vocCtl) { try { this.vocCtl.stop(); } catch (e) {} }
     if (this.vocWander) { try { this.vocWander.stop(); } catch (e) {} try { this.vocWander.disconnect(); } catch (e) {} }
+    if (this.vocBurstSrc) { try { this.vocBurstSrc.stop(); } catch (e) {} try { this.vocBurstSrc.disconnect(); } catch (e) {} }
   }
 }

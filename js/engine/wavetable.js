@@ -57,6 +57,38 @@ export const WT_SETS = {
 };
 export const WT_DEFAULT = 'analógica';
 
+/* ---------- set 'glotal': la FUENTE de la voz (modelo Rosenberg) ----------
+   Una sierra no es una glotis: el flujo glotal real abre-cierra-descansa y
+   lo que excita al tracto es su DERIVADA (la radiación de los labios ≈
+   derivar), con el "estallido" en el instante de cierre. El morph recorre
+   el ESFUERZO vocal: relajado (cuociente abierto grande, cierre lento =
+   oscuro, casi seno) → prensado (cierre brusco = brillante, más armónicos).
+   Pipeline reutilizado del editor: pulso en el tiempo → espectroDe (DFT con
+   fase) → mips band-limited. oq = fracción abierta del periodo; cq =
+   fracción del tramo abierto que es cierre (pequeña = portazo glotal). */
+const GL_P = 1024;                       // puntos por pulso (DFT hasta 511 armónicos)
+function pulsoGlotal(oq, cq) {
+  const tp = oq * (1 - cq), tn = oq * cq;
+  const flujo = new Array(GL_P);
+  for (let i = 0; i < GL_P; i++) {
+    const t = i / GL_P;
+    flujo[i] = t < tp ? 0.5 * (1 - Math.cos(Math.PI * t / tp))
+             : t < tp + tn ? Math.cos(Math.PI * (t - tp) / (2 * tn))
+             : 0;
+  }
+  const d = new Array(GL_P);             // derivada circular (el pulso es periódico)
+  for (let i = 0; i < GL_P; i++) d[i] = flujo[(i + 1) % GL_P] - flujo[i];
+  return d;
+}
+WT_SETS['glotal'] = () => {
+  const fr = [];
+  for (let f = 0; f < WT_FRAMES; f++) {
+    const x = f / (WT_FRAMES - 1);       // esfuerzo 0..1: oq 0.80→0.45 · cq 0.40→0.18
+    fr.push(alineaFase(espectroDe(pulsoGlotal(0.8 - 0.35 * x, 0.4 - 0.22 * x))));
+  }
+  return fr;
+};
+
 // ---------- espectro -> mips (aditiva con armónicos truncados) ----------
 // spec: Float32Array de senos (sets de fábrica) o {sin, cos} (dibujadas:
 // el coseno conserva la FASE de cada armónico y el dibujo se ve como se hizo).

@@ -18,28 +18,34 @@
    morph vocálico es fontanería pura y funciona a audio-rate.
    ===================================================================== */
 
-/* Tabla de vocales (3 formantes: [Hz], [dB]) — valores clásicos de canto
+/* Tabla de vocales (5 formantes: [Hz], [dB]) — valores clásicos de canto
    estilo Csound (tenor), redondeados: la percepción vocálica es robusta,
-   manda la ZONA de F1/F2, no el Hz exacto. ORDEN del recorrido u→o→a→e→i:
-   F2 sube monótono (700→2140) y F1 dibuja un arco (cerrada→abierta→
-   cerrada) — un solo knob barre sin zigzags; el orden alfabético haría
-   a F2 subir y desplomarse (a→o). */
+   manda la ZONA de F1/F2, no el Hz exacto. F4-F5 apenas cambian de vocal:
+   se APIÑAN con F3 hacia 2.8-3.4 kHz y ese racimo es el «formante del
+   cantante» — el brillo fijo que deja oír una voz lírica sobre una
+   orquesta (knob Brillo: escala la ganancia de F4-F5). ORDEN del recorrido
+   u→o→a→e→i: F2 sube monótono (700→2140) y F1 dibuja un arco (cerrada→
+   abierta→cerrada) — un solo knob barre sin zigzags; el orden alfabético
+   haría a F2 subir y desplomarse (a→o). */
 export const VOWELS = [
-  { v: 'u', f: [325, 700, 2530], db: [0, -12, -17] },
-  { v: 'o', f: [450, 800, 2830], db: [0, -10, -14] },
-  { v: 'a', f: [660, 1120, 2750], db: [0, -6, -12] },
-  { v: 'e', f: [440, 1800, 2700], db: [0, -9, -10] },
-  { v: 'i', f: [270, 2140, 2950], db: [0, -12, -9] },
+  { v: 'u', f: [325, 700, 2530, 2900, 3300], db: [0, -12, -17, -14, -22] },
+  { v: 'o', f: [450, 800, 2830, 3000, 3350], db: [0, -10, -14, -12, -22] },
+  { v: 'a', f: [660, 1120, 2750, 3000, 3350], db: [0, -6, -12, -9, -18] },
+  { v: 'e', f: [440, 1800, 2700, 3100, 3400], db: [0, -9, -10, -8, -18] },
+  { v: 'i', f: [270, 2140, 2950, 3300, 3600], db: [0, -12, -9, -10, -16] },
 ];
 export const VOC_ORDEN = VOWELS.map(w => w.v).join('');   // 'uoaei' (formato del knob)
-const N_FORM = 3;
+const N_FORM = 5;
+export const VOC_BRILLO_IX = 3;   // desde este índice actúa Brillo (F4-F5, el racimo del cantante)
+// 0 = sin F4-F5 (el banco de 3 de siempre) · 0.5 = la tabla · 1 = +12 dB
+export const brilloMul = b => (2 * b) * (2 * b);
 
 /* Ancho de banda natural por formante (Hz). Fijo por formante (la
    identidad vocálica vive en posición+amplitud; el BW es de segundo
    orden) y escalado por el knob Q: bandas finas = electrónico/vocoder,
    anchas = blando. OJO WebAudio: la Q del BANDPASS es LINEAL (Q = f/BW),
    no en dB como lowpass/highpass — la trampa de julio, en espejo. */
-const BWS = [75, 90, 120];
+const BWS = [75, 90, 120, 130, 140];
 const BW_MUL_MIN = 0.35;      // knob Q a 0: robot (Q ≈ 3× la natural)
 const BW_MUL_MAX = 2.5;       // knob Q a 1: suave, casi soplado
 export const bwMul = q => BW_MUL_MIN * Math.pow(BW_MUL_MAX / BW_MUL_MIN, q);
@@ -53,6 +59,19 @@ export const vocMakeup = q => VOC_MAKEUP / Math.sqrt(bwMul(q));
 
 export const VOC_VIDA_CENTS = 60;   // 'Vida' a tope: los formantes vagan ±60 ct (~±3.5%)
 export const VOC_SMOOTH = 0.045;    // articulación del knob Vocal (la boca tarda ~50 ms)
+
+/* 'Golpe': consonante percusiva — un BURST de ruido al arrancar la nota.
+   Una /k/ real es ruido de explosión moldeado por la boca ya puesta en la
+   vocal que viene: el burst pasa por un paso-banda ANCHO centrado en el F2
+   de la vocal actual (el formante del «punto de articulación») — por eso
+   «ka» y «ku» suenan distintas. Ancho a propósito: por el banco fino la
+   plosiva perdía ~97% de la energía y quedaba en click tímido (medido:
+   +3% de RMS en el arranque). Escala con velocity y con Mix. Es un
+   transitorio pre-VCA: con attack lento del ADSR se pierde (como un coro
+   real, que tampoco articula /k/ en un crescendo). */
+export const VOC_ATK_GAIN = 6.0;    // nivel del burst a tope (banda ancha, sin makeup)
+export const VOC_ATK_TAU = 0.015;   // caída del burst (τ; audible ~50 ms: plosiva, no soplo)
+export const VOC_ATK_Q = 1.2;       // Q del paso-banda del burst (ancho: una explosión, no un silbido)
 
 /* ---------- curvas de morph (una vez, compartidas por todas las voces) ----------
    Para cada formante: frecuencia REF = media geométrica de las 5 vocales

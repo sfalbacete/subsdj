@@ -472,6 +472,55 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // vocal 2.0: (1) la fuente glotal morfa de verdad (relajada ≠ prensada:
+    // el esfuerzo cambia el espectro), (2) Brillo mueve F4-F5 (audible),
+    // (3) el Golpe consonántico mete energía extra en el ARRANQUE (RMS de
+    // los primeros 50 ms claramente mayor que sin él).
+    body.appendChild(el('st-cat', 'Vocal 2.0'));
+    let r;
+    try {
+      const diff = (x, y) => {
+        const cX = x.getChannelData(0), cY = y.getChannelData(0);
+        let d = 0, en = 0;
+        for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; }
+        return Math.sqrt(d / Math.max(1e-12, en));
+      };
+      const rmsIni = (buf, secs) => {
+        const d = buf.getChannelData(0), n = Math.min(d.length, Math.floor(44100 * secs));
+        let s = 0; for (let i = 0; i < n; i++) s += d[i] * d[i];
+        return Math.sqrt(s / Math.max(1, n));
+      };
+      loadState({ waveA: 'tabla', wtSet: 'glotal', mix: 0, wtPos: 0 });
+      const bG0 = await renderBuf(structuredClone(engine.S));
+      loadState({ waveA: 'tabla', wtSet: 'glotal', mix: 0, wtPos: 1 });
+      const bG1 = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocBrillo: 0 });
+      const bB0 = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocBrillo: 1 });
+      const bB1 = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocAtk: 0, a: 0.005 });
+      const bK0 = await renderBuf(structuredClone(engine.S));
+      loadState({ vocAmt: 1, vocAtk: 1, a: 0.005 });
+      const bK1 = await renderBuf(structuredClone(engine.S));
+      const probs = [];
+      const aG0 = analyze(bG0), aG1 = analyze(bG1), aB1 = analyze(bB1), aK1 = analyze(bK1);
+      if (aG0.bad || aG1.bad || aB1.bad || aK1.bad) probs.push('NaN/Inf');
+      if (aG0.peak <= SILENCE || aG1.peak <= SILENCE) probs.push('glotal en silencio (' + dB(aG0.peak) + ' / ' + dB(aG1.peak) + ')');
+      if (aG1.peak > 1 || aK1.peak > 1) probs.push('clipping (glotal ' + dB(aG1.peak) + ' · golpe ' + dB(aK1.peak) + ')');
+      const dG = diff(bG0, bG1), dB_ = diff(bB0, bB1);
+      const kRatio = rmsIni(bK1, 0.05) / Math.max(1e-9, rmsIni(bK0, 0.05));
+      if (!(dG > 0.3)) probs.push('glotal: esfuerzo 0 vs 1 apenas difiere (diff ' + dG.toFixed(3) + ')');
+      if (!(dB_ > 0.05)) probs.push('Brillo 0 vs 1 apenas difiere (diff ' + dB_.toFixed(3) + ')');
+      if (!(kRatio > 1.2)) probs.push('el Golpe no añade energía al arranque (ratio ' + kRatio.toFixed(2) + ')');
+      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe)', peak: aK1.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

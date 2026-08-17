@@ -154,6 +154,20 @@ export const FACTORY = {
       mx1src: 'rnd', mx1dst: 'vow', mx1amt: 1,
       drift: 2, cutoff: 4500, reso: 0.8, chMode: 'ensemble', chAmt: 0.4, chSpd: 0.5,
       a: 0.4, d: 0.5, s: 0.85, r: 1.4, width: 0.6, reverbMix: 0.3, reverbSize: 2.8, master: 0.65 },
+    /* la fuente CORRECTA: pulso glotal (set 'glotal') en vez de sierra;
+       env→wt = el esfuerzo vocal cabalga la envolvente (ataca prensado,
+       se relaja al sostener) + Brillo alto = solista que corta la mezcla */
+    'Voz glotal (esfuerzo)': { waveA: 'tabla', wtSet: 'glotal', wtPos: 0.2, mix: 0,
+      vocAmt: 0.85, vocVowel: 0.55, vocQ: 0.6, vocVida: 0.5, vocBrillo: 0.75,
+      mx1src: 'env', mx1dst: 'wt', mx1amt: 0.6,
+      freqLfoLvl: 9, freqLfoSpd: 5.2, lfoFade: 0.6, drift: 2, cutoff: 5000, reso: 0.8,
+      a: 0.15, d: 0.4, s: 0.8, r: 0.9, width: 0.4, reverbMix: 0.25, master: 0.65 },
+    /* Golpe a tope + ataque rápido: cada nota dice «ka» (el burst pasa por
+       el tracto en la vocal actual — cámbiala y cambia la consonante) */
+    'Percusión vocal (ka)': { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.4, mix: 0.3,
+      vocAmt: 1, vocVowel: 0.5, vocQ: 0.45, vocAtk: 0.9, vocBrillo: 0.6,
+      cutoff: 4500, reso: 1, filterEnvAmt: 1200, a: 0.003, d: 0.25, s: 0.25, r: 0.2,
+      dlyAmt: 0.2, dlyTime: 0.28, width: 0.3, master: 0.68 },
   },
 
   'Plucks & Teclas': {
