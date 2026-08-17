@@ -61,7 +61,7 @@
 
     "VOC 12 · golpe consonántico (ka)": { "waveA": "sawtooth", "waveB": "square", "pulseWidth": 0.4, "mix": 0.3,
       "cutoff": 4500, "reso": 1, "a": 0.003, "d": 0.25, "s": 0.3, "r": 0.2,
-      "vocAmt": 1, "vocVowel": 0.5, "vocQ": 0.45, "vocAtk": 0.9,
+      "vocAmt": 1, "vocVowel": 0.5, "vocQ": 0.45, "vocAtk": 0.35,
       "master": 0.68 },
 
     "WT 1 · tabla quieta": { "waveA": "tabla", "mix": 0, "wtSet": "analógica", "wtPos": 0.15,

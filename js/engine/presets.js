@@ -162,10 +162,13 @@ export const FACTORY = {
       mx1src: 'env', mx1dst: 'wt', mx1amt: 0.6,
       freqLfoLvl: 9, freqLfoSpd: 5.2, lfoFade: 0.6, drift: 2, cutoff: 5000, reso: 0.8,
       a: 0.15, d: 0.4, s: 0.8, r: 0.9, width: 0.4, reverbMix: 0.25, master: 0.65 },
-    /* Golpe a tope + ataque rápido: cada nota dice «ka» (el burst pasa por
-       el tracto en la vocal actual — cámbiala y cambia la consonante) */
+    /* la receta calibrada DE OÍDO (2026-08-18): el Golpe con sentido vive
+       BAJO (~0.12 — más arriba degenera en percusión); la consonante la
+       redondean el ruido con color y una pizca de drive. Ataque rápido:
+       cada nota silabiza «ka» (cambia la vocal y cambia la consonante) */
     'Percusión vocal (ka)': { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.4, mix: 0.3,
-      vocAmt: 1, vocVowel: 0.5, vocQ: 0.45, vocAtk: 0.9, vocBrillo: 0.6,
+      vocAmt: 1, vocVowel: 0.5, vocQ: 0.45, vocAtk: 0.12, vocBrillo: 0.6,
+      noise: 0.12, noiseColor: 0.35, dist: 0.18,
       cutoff: 4500, reso: 1, filterEnvAmt: 1200, a: 0.003, d: 0.25, s: 0.25, r: 0.2,
       dlyAmt: 0.2, dlyTime: 0.28, width: 0.3, master: 0.68 },
   },
