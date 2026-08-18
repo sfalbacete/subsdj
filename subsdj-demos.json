@@ -1,8 +1,43 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v10 (+ Vocal 2.0: fuente glotal, formante del cantante, golpe consonántico, 2026-08)",
-  "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase).",
+  "banco": "SubSDJ · demos de mejoras — v11 (+ secuencia de tabla / wave sequencing, 2026-08)",
+  "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "WS 1 · tabla estática (morph fijo)": { "waveA": "tabla", "waveB": "tabla", "detuneA": -5, "detuneB": 7, "mix": 0.5,
+      "wtSet": "metálica", "wtPos": 0.3, "bpm": 120,
+      "cutoff": 5000, "reso": 1, "a": 0.15, "d": 0.4, "s": 0.85, "r": 1.2,
+      "width": 0.5, "reverbMix": 0.25, "master": 0.6 },
+
+    "WS 2 · tabla secuenciada (loop)": { "waveA": "tabla", "waveB": "tabla", "detuneA": -5, "detuneB": 7, "mix": 0.5,
+      "wtSet": "metálica", "wtPos": 0.3, "bpm": 120,
+      "wsOn": "on", "wsPat": "0 . 7 . 3 5 7 2", "wsDiv": "1/16", "wsXf": 0.3,
+      "cutoff": 5000, "reso": 1, "a": 0.15, "d": 0.4, "s": 0.85, "r": 1.2,
+      "width": 0.5, "reverbMix": 0.25, "master": 0.6 },
+
+    "WS 3 · secuencia percusiva (fundido 0)": { "waveA": "tabla", "mix": 0,
+      "wtSet": "analógica", "wtPos": 0, "bpm": 120,
+      "wsOn": "on", "wsPat": "0 7 2 5", "wsDiv": "1/8", "wsXf": 0,
+      "cutoff": 4500, "reso": 1, "a": 0.05, "d": 0.3, "s": 0.85, "r": 0.8,
+      "width": 0.3, "reverbMix": 0.2, "master": 0.65 },
+
+    "WS 4 · secuencia fluida (fundido 100%)": { "waveA": "tabla", "mix": 0,
+      "wtSet": "analógica", "wtPos": 0, "bpm": 120,
+      "wsOn": "on", "wsPat": "0 7 2 5", "wsDiv": "1/8", "wsXf": 1,
+      "cutoff": 4500, "reso": 1, "a": 0.05, "d": 0.3, "s": 0.85, "r": 0.8,
+      "width": 0.3, "reverbMix": 0.2, "master": 0.65 },
+
+    "WS 5 · frase en loop": { "waveA": "tabla", "mix": 0,
+      "wtSet": "analógica", "wtPos": 1, "bpm": 130,
+      "wsOn": "on", "wsMode": "loop", "wsPat": "7 5 1", "wsDiv": "1/16", "wsXf": 1,
+      "cutoff": 3500, "reso": 1.5, "a": 0.003, "d": 0.5, "s": 0.55, "r": 0.3,
+      "width": 0.3, "reverbMix": 0.2, "master": 0.7 },
+
+    "WS 6 · envolvente de timbre (1shot)": { "waveA": "tabla", "mix": 0,
+      "wtSet": "analógica", "wtPos": 1, "bpm": 130,
+      "wsOn": "on", "wsMode": "1shot", "wsPat": "7 5 1", "wsDiv": "1/16", "wsXf": 1,
+      "cutoff": 3500, "reso": 1.5, "a": 0.003, "d": 0.5, "s": 0.55, "r": 0.3,
+      "width": 0.3, "reverbMix": 0.2, "master": 0.7 },
 
     "VOC 1 · pad seco": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "mix": 0.5,
       "cutoff": 4500, "reso": 0.8, "a": 0.3, "d": 0.4, "s": 0.85, "r": 1.2,

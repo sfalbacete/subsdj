@@ -18,6 +18,7 @@
 import { AudioEngine, engine } from './engine/AudioEngine.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
+import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
@@ -536,6 +537,56 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // secuencia de tabla (wave sequencing): (1) el parser lee frames/mantener
+    // y recorta a 0..7, (2) secuenciar cambia CLARAMENTE el render frente al
+    // morph estático, (3) en '1shot' la frase converge: con '0 7' el tramo
+    // FINAL debe sonar idéntico a wtPos=1 estático (la automatización acaba
+    // clavada en el último frame) mientras el ARRANQUE difiere (empieza en 0).
+    // Determinista: la planificación offline va entera en el noteOn, sin timers.
+    body.appendChild(el('st-cat', 'Secuencia de tabla'));
+    let r;
+    try {
+      const p = parseWsPattern('0 7 . 3 9 -2');
+      const okParse = p.length === 6 && p[0] === 0 && p[1] === 7 && p[2] === null &&
+                      p[3] === 3 && p[4] === 7 && p[5] === 0 && parseWsPattern('').length === 0;
+      const base = { waveA: 'tabla', mix: 0, wtPos: 0, bpm: 120 };
+      loadState(base);
+      const bOff = await renderBuf(structuredClone(engine.S));
+      loadState({ ...base, wsOn: 'on', wsPat: '0 7', wsDiv: '1/16', wsXf: 0.1 });
+      const bLoop = await renderBuf(structuredClone(engine.S));
+      loadState({ ...base, wsOn: 'on', wsPat: '0 7', wsDiv: '1/16', wsXf: 0.1, wsMode: '1shot' });
+      const b1s = await renderBuf(structuredClone(engine.S));
+      loadState({ ...base, wtPos: 1 });
+      const bTop = await renderBuf(structuredClone(engine.S));
+      // diff relativo en una VENTANA [t0,t1) — la convergencia del 1shot se
+      // mide donde ambas voces ya se asentaron, el arranque donde aún no
+      const diffW = (x, y, t0, t1) => {
+        const cX = x.getChannelData(0), cY = y.getChannelData(0);
+        const i0 = Math.floor(t0 * SR), i1 = Math.min(cX.length, Math.floor(t1 * SR));
+        let d = 0, en = 0;
+        for (let i = i0; i < i1; i += 4) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; }
+        return Math.sqrt(d / Math.max(1e-12, en));
+      };
+      const aLoop = analyze(bLoop), a1s = analyze(b1s);
+      const probs = [];
+      if (aLoop.bad || a1s.bad) probs.push('NaN/Inf');
+      if (aLoop.peak <= SILENCE || a1s.peak <= SILENCE) probs.push('silencio (' + dB(aLoop.peak) + ' / ' + dB(a1s.peak) + ')');
+      if (aLoop.peak > 1 || a1s.peak > 1) probs.push('clipping');
+      if (!okParse) probs.push('parser: ' + JSON.stringify(p));
+      const dOn = diffW(bOff, bLoop, 0.05, 1.0);
+      if (!(dOn > 0.2)) probs.push('secuenciar apenas cambia el render (diff ' + dOn.toFixed(3) + ')');
+      const dEarly = diffW(bTop, b1s, 0.02, 0.12), dLate = diffW(bTop, b1s, 0.8, 1.0);
+      if (!(dEarly > 0.2)) probs.push('1shot: el arranque no difiere del frame final (diff ' + dEarly.toFixed(3) + ')');
+      if (!(dLate < 0.05)) probs.push('1shot: no converge al último frame (diff final ' + dLate.toFixed(3) + ')');
+      r = { name: 'secuencia de tabla (parser · secuencia audible · 1shot converge)', peak: aLoop.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'secuencia de tabla (parser · secuencia audible · 1shot converge)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);
@@ -570,6 +621,38 @@ export async function runSelfTest() {
     push(r);
     ping('i=' + results.length + '&ok=' + (r.ok ? 1 : 0) + '&peak=' + r.peak.toFixed(3) + '&name=stress' +
          (r.ok ? '' : '&why=' + encodeURIComponent(r.problems.join(' | '))));
+  }
+
+  // Sonda de pares A/B del banco de demos (?selftest=1&demos=PREFIJO):
+  // renderiza los presets del banco cuyo nombre empieza por el prefijo y
+  // pinga el diff relativo de cada par consecutivo — la evidencia
+  // CUANTITATIVA de que el parámetro nuevo cambia el sonido (regla del
+  // banco: cada mejora entra con su par). Corre en headless igual que el
+  // resto: los pings quedan en el log del http.server.
+  const demosPrefix = new URLSearchParams(location.search).get('demos');
+  if (demosPrefix) {
+    try {
+      const bank = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
+      const names = Object.keys(bank.presets).filter(n => n.startsWith(demosPrefix));
+      const bufs = {};
+      for (const n of names) {
+        loadState(bank.presets[n]);
+        bufs[n] = await renderBuf(structuredClone(engine.S));
+      }
+      for (let i = 0; i + 1 < names.length; i += 2) {
+        const A = names[i], B = names[i + 1];
+        const cA = bufs[A].getChannelData(0), cB = bufs[B].getChannelData(0);
+        let d = 0, en = 0;
+        const len = Math.min(cA.length, cB.length);
+        for (let k = 0; k < len; k += 16) { const e = cA[k] - cB[k]; d += e * e; en += cA[k] * cA[k]; }
+        const diff = Math.sqrt(d / Math.max(1e-12, en));
+        const pA = analyze(bufs[A]), pB = analyze(bufs[B]);
+        console.log('demo par', A, '||', B, 'diff', diff.toFixed(3));
+        ping('demo=' + encodeURIComponent(A + ' || ' + B) + '&diff=' + diff.toFixed(3) +
+             '&peakA=' + pA.peak.toFixed(3) + '&peakB=' + pB.peak.toFixed(3) +
+             ((pA.bad || pB.bad) ? '&bad=1' : ''));
+      }
+    } catch (e) { ping('demo_error=' + encodeURIComponent((e && e.message) || e)); }
   }
 
   loadState({});                             // deja el synth en valores por defecto

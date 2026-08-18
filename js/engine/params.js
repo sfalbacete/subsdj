@@ -135,6 +135,11 @@ export const PARAMS = {
   seqGate:   { def: 0.6, min: 0.05, max: 1 },       // duración de cada paso (fracción)
   seqLatch:  { def: 'off' },                        // on: la frase sigue al soltar la tecla
   seqRetrig: { def: 'off' },                        // on: nueva tecla reinicia la frase (en rejilla)
+  wsOn:   { def: 'off' },                           // off | on — secuencia de tabla (wave sequencing)
+  wsPat:  { def: '0 . 7 . 3 5 7 .' },               // frase de FRAMES 0..7, '.' = mantener (máx 16 pasos)
+  wsDiv:  { def: '1/16' },                          // división musical del paso (usa bpm)
+  wsMode: { def: 'loop' },                          // loop | 1shot (una pasada: envolvente de timbre)
+  wsXf:   { def: 0.25, min: 0, max: 1, fmt: v => (v * 100).toFixed(0) + '%' },  // fundido: fracción del paso (1 = glissando)
   master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
 };
 

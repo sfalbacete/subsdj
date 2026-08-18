@@ -258,6 +258,32 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    «Percusión vocal (ka)», pares VOC 7-12, selftest 95/95 (checks: glotal
    morfa, Brillo audible, el Golpe añade energía y arranca cerrado).
 
+5. **Secuencia de tabla (wave sequencing)** ✔ *(hecho 2026-08-19)* — el
+   timbre pasa de knob a FRASE, la misma promoción que el Seq le dio al
+   pitch (idea robada del Korg Wavestation). Módulo «Tabla · secuencia»:
+   patrón de frames 0..7 ('.' = mantener → pasos largos, ritmo desigual),
+   división sobre el BPM, **Fundido** (0 = salto seco · 100% = glissando:
+   la rampa ATRAVIESA los frames intermedios con fase alineada — barrido
+   de morph, un color que el Wavestation ni tenía) y modo **Loop / 1shot**
+   (una pasada que se queda en el último frame: envolvente de timbre
+   multi-tramo, el «sample de ataque + synth de cuerpo» del D-50).
+   Cómo (`engine/WaveSeq.js`): automatización del AudioParam `wtPos` POR
+   VOZ desde su noteOn (`setValueAtTime` + rampa) — cada voz arranca su
+   frase al nacer, así un acorde arpegiado queda internamente desfasado
+   (imposible con un LFO global); al ser el valor intrínseco del param,
+   la matriz sigue sumando encima. Planificación: offline (selftest/SFZ)
+   todo de golpe en el noteOn; en vivo, ticker de 25 ms + look-ahead de
+   120 ms (el patrón de Arp/Seq) — editar patrón/división/bpm entra en el
+   siguiente paso. No añade espectro: organiza EN EL TIEMPO los frames
+   que ya hay; con el Seq a otra longitud de frase sale polirritmia
+   pitch×timbre. Evidencia: checks en el selftest (parser, secuencia
+   audible, 1shot converge al último frame), presets «Textura Wavestation
+   (ws)» y «Ataque digital (1shot)», pares WS 1-6 en el banco de demos
+   (diffs 0.56/0.55/0.50, selftest 98/98). De paso, la sonda de pares se
+   institucionaliza: `?selftest=1&demos=PREFIJO` renderiza los pares del
+   banco de demos con ese prefijo y pinga el diff de cada uno (headless:
+   queda en el log del http.server) — la regla del banco con herramienta.
+
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
 sondas CDP; commit por hito.

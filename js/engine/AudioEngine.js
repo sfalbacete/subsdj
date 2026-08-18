@@ -11,6 +11,7 @@ import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
 import { Arp } from './Arp.js';
 import { Seq } from './Seq.js';
+import { WaveSeq } from './WaveSeq.js';
 import { getWtSet } from './wavetable.js';
 
 function makeNoise(ctx) {
@@ -111,6 +112,7 @@ export class AudioEngine {
     this.monoVoice = null;        // voz única en modo mono
     this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
     this.seq = new Seq(this);     // secuenciador de pasos (activo cuando S.seqOn == 'on')
+    this.wseq = new WaveSeq(this);// secuencia de tabla (activa cuando S.wsOn == 'on')
   }
 
   // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
@@ -315,6 +317,7 @@ export class AudioEngine {
     }
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
     if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
+    this.wseq.attach(v);                 // secuencia de tabla: cada voz arranca su frase en su noteOn
     this.voices.set(id, v);
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
@@ -342,6 +345,7 @@ export class AudioEngine {
       this._killMono();
       const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
       if (this._bend) v.ensurePitch();
+      this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)
       this.monoVoice = v; this.voices.set('mono', v);
       this.lastFreq = freq;
       this.voiceCount++; this._updateBusGain();

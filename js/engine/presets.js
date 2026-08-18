@@ -124,6 +124,13 @@ export const FACTORY = {
       wtSet: 'formante', wtPos: 0.2, mx1src: 'env', mx1dst: 'wt', mx1amt: 0.5,
       cutoff: 4000, a: 0.8, d: 0.6, s: 0.8, r: 2.0, chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5,
       width: 0.6, reverbMix: 0.35, reverbSize: 3, master: 0.58 },
+    /* secuencia de tabla en loop: acorde MANTENIDO = groove tímbrico al BPM
+       (los '.' alargan pasos: ritmo desigual); cada voz desfasa su frase */
+    'Textura Wavestation (ws)': { waveA: 'tabla', waveB: 'tabla', detuneA: -5, detuneB: 7, mix: 0.5,
+      wtSet: 'metálica', wtPos: 0,
+      wsOn: 'on', wsPat: '0 . 7 . 3 5 7 2', wsDiv: '1/16', wsXf: 0.3,
+      cutoff: 5000, reso: 1, a: 0.15, d: 0.4, s: 0.85, r: 1.5,
+      dlySync: '1/8', dlyAmt: 0.25, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.6 },
     /* matriz: UN solo LFO lento (cutLFO crudo a 0.08 Hz, su Level a 0) movien-
        do TRES destinos a la vez — filtro, pan y ±14 ct: deriva correlacionada */
     'Deriva orgánica': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, mix: 0.45,
@@ -195,6 +202,12 @@ export const FACTORY = {
       mx1src: 'rnd', mx1dst: 'wt', mx1amt: 0.35, mx2src: 'rnd', mx2dst: 'pan', mx2amt: 0.7,
       a: 0.002, d: 1.4, s: 0.0, r: 1.0, dlyAmt: 0.25, dlyTime: 0.4,
       width: 0.4, reverbMix: 0.35, master: 0.65 },
+    /* secuencia 1shot rapidísima: arranca en el frame brillante y se asienta
+       en el suave — "sample de ataque + synth de cuerpo", el truco del D-50 */
+    'Ataque digital (1shot)': { waveA: 'tabla', mix: 0, wtSet: 'analógica', wtPos: 1,
+      wsOn: 'on', wsMode: '1shot', wsPat: '7 5 1', wsDiv: '1/16', wsXf: 1,
+      cutoff: 3500, reso: 1.5, a: 0.003, d: 0.5, s: 0.55, r: 0.3,
+      dlyAmt: 0.2, dlyTime: 0.3, width: 0.3, reverbMix: 0.2, master: 0.7 },
     /* matriz: S&H→cutoff y →pan — cada nota sale con un color y un sitio
        distintos (correlacionados: la MISMA tirada por voz); brutal con el arp */
     'Pluck lotería (S&H)': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.3, mix: 0.4,

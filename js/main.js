@@ -8,6 +8,7 @@ import { bindOscControls } from './ui/oscControls.js';
 import { bindMatrixControls } from './ui/matrixControls.js';
 import { initWaveEditor } from './ui/waveEditor.js';
 import { bindSeqControls } from './ui/seqControls.js';
+import { bindWsControls } from './ui/wsControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
@@ -26,6 +27,7 @@ bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
 bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira
 bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
+bindWsControls();    // secuencia de tabla (wave sequencing)
 initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap

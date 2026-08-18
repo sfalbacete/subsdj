@@ -232,7 +232,8 @@ export class Voice {
 
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
-      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, wt: wtParam, ratio: 1 });
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, wt: wtParam,
+      isWt: cfg.wave === 'tabla', ratio: 1 });   // isWt: la secuencia de tabla solo automatiza estos
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 

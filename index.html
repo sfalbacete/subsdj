@@ -124,6 +124,24 @@
     <div class="help"><b>Tabla de ondas</b> (para osciladores en modo «Tabla»). Morph recorre los frames de la tabla — band-limited por octava: sin aliasing en los agudos. También es destino <b>«Wavetable»</b> en la matriz (env→wt, S&amp;H→wt…). La tabla «usuario» se dibuja en el Editor de ondas.</div>
   </div>
 
+  <div class="panel osc u2">
+    <h2>Tabla · secuencia</h2>
+    <div class="row" style="gap:8px;align-items:flex-start">
+      <div style="flex:1"><div class="fieldlab">Estado</div>
+        <div class="seg" id="wsOnSel"><button data-wson="off">Off</button><button data-wson="on">On</button></div></div>
+      <div style="flex:1"><div class="fieldlab">División</div>
+        <div class="seg" id="wsDivSel"><button data-wsdiv="1/4">¼</button><button data-wsdiv="1/8">⅛</button><button data-wsdiv="1/16">1/16</button></div></div>
+    </div>
+    <canvas id="wsCanvas"></canvas>
+    <div class="row" style="justify-content:space-evenly;align-items:flex-start">
+      <div class="ctl"><div class="stepper"><button id="wsLenDec">−</button><span class="num" id="wsLenNum">8</span><button id="wsLenInc">+</button></div><div class="lab">Pasos</div></div>
+      <div class="ctl"><div class="knob" data-knob="wsXf"><div class="ind"></div></div><div class="lab">Fundido</div><div class="val"></div></div>
+      <div><div class="fieldlab">Modo</div>
+        <div class="seg" id="wsModeSel"><button data-wsmode="loop">Loop</button><button data-wsmode="1shot">1shot</button></div></div>
+    </div>
+    <div class="help"><b>Secuencia de tabla</b> (wave sequencing, a la Wavestation): el Morph deja de ser un knob y toca una FRASE de frames (0-7) al BPM — ritmo en el timbre, no en el pitch. Cada VOZ arranca su frase en su noteOn (un acorde arpegiado se desfasa). Arrastra un paso = frame · toque corto = mantener (pasos largos = ritmo desigual) · Fundido: 0 = salto seco, 100% = glissando de morph · 1shot: una pasada y se queda en el último frame (envolvente de timbre, ataque «digital» estilo D-50). Con la secuencia activa el knob Morph solo pone el punto de partida de los '.' iniciales; la matriz sigue sumando encima.</div>
+  </div>
+
   <div class="panel">
     <h2>Editor de ondas</h2>
     <div class="row" style="align-items:center;gap:6px">
