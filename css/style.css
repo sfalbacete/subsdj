@@ -75,7 +75,8 @@ canvas.viz{display:block;width:100%;height:120px;background:#05080b;border:1px s
   margin:0 0 10px;border-bottom:1px solid var(--edge);padding-bottom:6px;}
 .panel.osc h2{color:var(--accent2);}
 .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;}
-.row.tight{gap:2px;}   /* filas de 4 knobs: caben en una columna de rack sin saltar */
+.row.tight{gap:2px;}   /* filas de 4-5 knobs en una columna de rack: los .ctl reparten el ancho en vez de medir 62px fijos */
+.row.tight .ctl{flex:1 1 0;width:auto;min-width:46px;}
 .ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px;}
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:uppercase;letter-spacing:.5px;}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}

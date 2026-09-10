@@ -333,10 +333,12 @@
 
   <div class="panel">
     <h2>Delay</h2>
-    <div class="row" style="margin-top:8px;justify-content:space-around">
+    <div class="row tight" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="bpm"><div class="ind"></div></div><div class="lab">BPM</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="dlyDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="dlyWow"><div class="ind"></div></div><div class="lab">Wow</div><div class="val"></div></div>
     </div>
     <div class="seg waves" id="dlySyncSel" style="margin-top:8px">
       <button data-sync="libre">Libre</button>
@@ -346,7 +348,7 @@
       <button data-sync="1/4.">¼·</button>
       <button data-sync="1/2">½</button>
     </div>
-    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador.</div>
+    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador. <b>Damp</b> = filtro DENTRO del bucle: cada repetición pierde agudos (y algo de graves), como la cinta o los BBD — a 0 es transparente exacto. <b>Wow</b> desafina un pelo cada repetición (modulación lenta del tiempo, distinta en L y R): el eco se ensancha.</div>
   </div>
 
   <!-- ===== ESPACIO ===== -->

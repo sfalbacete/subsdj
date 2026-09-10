@@ -99,6 +99,15 @@ function mkPhasedLFO(ctx, freq, depth, phaseDeg) {
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
 const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés de la más vieja
 
+// Delay «de cinta»: filtros DENTRO del bucle del ping-pong y wow del tiempo.
+// Damp recorre en log el LP de Nyquist a DLY_DAMP_LP_MIN y el HP de 0 Hz a
+// DLY_DAMP_HP_MAX (cinta/BBD: cada vuelta pierde agudos y algo de graves).
+// Wow = dos LFOs lentos a velocidades distintas L/R sobre delayTime; a tope
+// ±DLY_WOW_DEPTH s => desvío de pitch ≈ 2π·f·d ≈ ±1 % (unos 17 ct) por repetición.
+const DLY_DAMP_LP_MIN = 1200;                        // Hz: LP del bucle a Damp 1
+const DLY_DAMP_HP_MIN = 20, DLY_DAMP_HP_MAX = 200;   // Hz: HP del bucle (Damp 0+ … Damp 1)
+const DLY_WOW_HZ = 0.6, DLY_WOW_DEPTH = 0.0025;      // s: ±2,5 ms a Wow 1
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -196,6 +205,18 @@ export class AudioEngine {
     this.ppMerge = ctx.createChannelMerger(2);
     this.dlWet = ctx.createGain(); this.dlWet.gain.value = S.dlyAmt;
     this.dlOut = ctx.createGain();
+    // «Cinta»: LP+HP Butterworth (Q en dB: −3 = plano) a la ENTRADA de cada
+    // línea — así la 1ª repetición ya pasa una vez por el filtro, la 2ª dos…
+    // como el eco de cinta/BBD, que oscurece cada vuelta. A Damp 0 el LP se
+    // pone en Nyquist y el HP en 0 Hz: el biquad de WebAudio los reduce a la
+    // IDENTIDAD exacta (coeficientes unidad), los presets de siempre no cambian.
+    const dampF = this._dampFreqs(S.dlyDamp);
+    const mkDamp = () => {
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.Q.value = -3; lp.frequency.value = dampF.lp;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.Q.value = -3; hp.frequency.value = dampF.hp;
+      lp.connect(hp); return { lp, hp };
+    };
+    this.dampL = mkDamp(); this.dampR = mkDamp();
 
     // Reverb por convolución (IR generada), dry/wet. DOS convolvers en A/B:
     // la IR nueva entra por el que está apagado y se cruza en ~50 ms, sin
@@ -241,11 +262,12 @@ export class AudioEngine {
     this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
     // Delay ping-pong
     this.chOut.connect(this.dlDry); this.dlDry.connect(this.dlOut);          // seco (conserva el estéreo de las voces)
-    this.chOut.connect(this.ppSend); this.ppSend.connect(this.dlyL);          // envío mono
+    this.chOut.connect(this.ppSend); this.ppSend.connect(this.dampL.lp);      // envío mono -> filtro de cinta -> línea L
+    this.dampL.hp.connect(this.dlyL); this.dampR.hp.connect(this.dlyR);
     this.dlyL.connect(this.ppMerge, 0, 0);                                    // dlyL -> canal izquierdo
     this.dlyR.connect(this.ppMerge, 0, 1);                                    // dlyR -> canal derecho
-    this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dlyR);             // realimentación cruzada L->R
-    this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dlyL);             // realimentación cruzada R->L
+    this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dampR.lp);         // realimentación cruzada L->R (filtrada otra vez)
+    this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dampL.lp);         // realimentación cruzada R->L
     this.ppMerge.connect(this.dlWet); this.dlWet.connect(this.dlOut);
     // Reverb (convB no recibe entrada hasta el primer cambio de Size/Damp)
     this.dlOut.connect(this.revDry); this.revDry.connect(this.revOut);
@@ -267,6 +289,10 @@ export class AudioEngine {
     this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
     this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
     this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
+    // wow del delay: dos LFOs lentos a velocidades distintas L/R (descorrelados:
+    // cada rebote del ping-pong se desafina distinto y el eco se ensancha)
+    this.wowL = mkLFO(ctx, DLY_WOW_HZ, S.dlyWow * DLY_WOW_DEPTH);        this.wowL.depth.connect(this.dlyL.delayTime);
+    this.wowR = mkLFO(ctx, DLY_WOW_HZ * 1.13, S.dlyWow * DLY_WOW_DEPTH); this.wowR.depth.connect(this.dlyR.delayTime);
     // formas de onda de los LFOs (el estado puede traerlas de un preset)
     this.ampLFO.osc.type = S.ampLfoShape;   this.freqLFO.osc.type = S.freqLfoShape;
     this.pwmLFO.osc.type = S.pwmLfoShape;   this.cutLFO.osc.type = S.cutLfoShape;
@@ -493,6 +519,9 @@ export class AudioEngine {
         smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
         break;
       case 'dlyAmt': { const fb = Math.min(0.8, value * 0.85); smooth(this.dlWet.gain, value); smooth(this.ppFbL.gain, fb); smooth(this.ppFbR.gain, fb); break; }
+      case 'dlyDamp': { const f = this._dampFreqs(value);
+        [this.dampL, this.dampR].forEach(d => { smooth(d.lp.frequency, f.lp); smooth(d.hp.frequency, f.hp); }); break; }
+      case 'dlyWow': smooth(this.wowL.depth.gain, value * DLY_WOW_DEPTH); smooth(this.wowR.depth.gain, value * DLY_WOW_DEPTH); break;
       case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
       case 'dlySync':
       case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
@@ -527,6 +556,16 @@ export class AudioEngine {
     clearTimeout(this._revOffTimer);
     this._revOffTimer = setTimeout(() => { try { this.revPre.disconnect(front.c); } catch (e) {} }, 400);
     this._revFront = this._revFront === 'A' ? 'B' : 'A';
+  }
+
+  // Damp 0..1 -> cortes del filtro del bucle (recorrido log): LP de Nyquist a
+  // DLY_DAMP_LP_MIN, HP de DLY_DAMP_HP_MIN a DLY_DAMP_HP_MAX. A 0 exactamente
+  // Nyquist / 0 Hz (identidad en el biquad), por eso la rama aparte.
+  _dampFreqs(d) {
+    const nyq = this.ctx.sampleRate / 2;
+    if (!(d > 0)) return { lp: nyq, hp: 0 };
+    return { lp: nyq * Math.pow(DLY_DAMP_LP_MIN / nyq, d),
+             hp: DLY_DAMP_HP_MIN * Math.pow(DLY_DAMP_HP_MAX / DLY_DAMP_HP_MIN, d) };
   }
 
   // Tiempo efectivo del delay: libre (knob Time) o división musical del BPM

@@ -587,6 +587,72 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // delay de cinta: render PROPIO de una sola nota (C3, pluck con s=0: se
+    // apaga en ~60 ms) para que los ecos sean copias limpias de la nota.
+    // (1) a Damp 0 el bucle es TRANSPARENTE: los ecos tienen el mismo tilt
+    // espectral (energía de la 1ª diferencia / energía ∝ centroide) que la
+    // nota directa — identidad del biquad en Nyquist / 0 Hz, y 0.25 s son
+    // 11025 muestras exactas a 44.1 kHz (sin pérdida por interpolación);
+    // (2) Damp 1 OSCURECE los ecos (tilt a menos de la mitad) sin apagarlos;
+    // (3) el wow cambia los ecos (los desafina) sin NaN. Ventanas: directo
+    // [0, 0.2) (la nota muere en ~0.13 s); solo ecos, canal L, [0.22, fin)
+    // (0.25, 0.75, 1.25, 1.75 s; Amount 0.9 ⇒ realimentación 0.77, así los
+    // ecos tardíos aún tienen energía para medir).
+    body.appendChild(el('st-cat', 'Delay de cinta'));
+    let r;
+    try {
+      const render1 = async state => {
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.2), SR);
+        const eng = new AudioEngine(); eng.S = state;
+        await eng.init(ctx);
+        eng.noteOn('t1', NOTE1);
+        ctx.suspend(0.3).then(() => { eng.noteOff('t1'); ctx.resume(); });
+        return ctx.startRendering();
+      };
+      const base = { waveA: 'sawtooth', mix: 0, cutoff: 12000, reso: 0.7, a: 0.002, d: 0.12, s: 0, r: 0.1,
+                     dlyAmt: 0.9, dlyTime: 0.25, dlySync: 'libre', width: 0 };
+      loadState(base);
+      const b0 = await render1(structuredClone(engine.S));
+      loadState({ ...base, dlyDamp: 1 });
+      const b1 = await render1(structuredClone(engine.S));
+      loadState({ ...base, dlyWow: 1 });
+      const bW = await render1(structuredClone(engine.S));
+      const win = (buf, t0, t1) => { const d = buf.getChannelData(0); return [d, Math.floor(t0 * SR), Math.min(d.length, Math.floor(t1 * SR))]; };
+      const tilt = (buf, t0, t1) => { const [d, i0, i1] = win(buf, t0, t1); let hf = 0, en = 0;
+        for (let i = i0 + 1; i < i1; i++) { const e = d[i] - d[i - 1]; hf += e * e; en += d[i] * d[i]; }
+        return hf / Math.max(1e-12, en); };
+      const rms = (buf, t0, t1) => { const [d, i0, i1] = win(buf, t0, t1); let s = 0;
+        for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const diffW = (x, y, t0, t1) => { const cX = x.getChannelData(0), cY = y.getChannelData(0);
+        const i0 = Math.floor(t0 * SR), i1 = Math.min(cX.length, Math.floor(t1 * SR)); let d = 0, en = 0;
+        for (let i = i0; i < i1; i += 4) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; }
+        return Math.sqrt(d / Math.max(1e-12, en)); };
+      const end = b0.length / SR;
+      const a0 = analyze(b0), a1 = analyze(b1), aW = analyze(bW);
+      const probs = [];
+      if (a0.bad || a1.bad || aW.bad) probs.push('NaN/Inf');
+      if (a0.peak > 1 || a1.peak > 1 || aW.peak > 1) probs.push('clipping');
+      const T_ECO = 0.22;
+      const tDir = tilt(b0, 0, 0.2), tEco0 = tilt(b0, T_ECO, end), tEco1 = tilt(b1, T_ECO, end);
+      const rEco0 = rms(b0, T_ECO, end), rEco1 = rms(b1, T_ECO, end);
+      if (!(rEco0 > 1e-3)) probs.push('sin ecos en la ventana de cola (rms ' + dB(rEco0) + ')');
+      const transp = tEco0 / Math.max(1e-12, tDir);
+      if (!(transp > 0.8 && transp < 1.25)) probs.push('a Damp 0 los ecos no son copias (tilt ecos/directo ' + transp.toFixed(3) + ')');
+      if (!(tEco1 < 0.5 * tEco0)) probs.push('Damp 1 no oscurece los ecos (tilt ' + tEco1.toExponential(2) + ' vs ' + tEco0.toExponential(2) + ')');
+      if (!(rEco1 > 0.25 * rEco0)) probs.push('Damp 1 apaga los ecos (rms ' + dB(rEco1) + ' vs ' + dB(rEco0) + ')');
+      const dW = diffW(b0, bW, T_ECO, end);
+      if (!(dW > 0.2)) probs.push('el wow apenas cambia los ecos (diff ' + dW.toFixed(3) + ')');
+      console.log('delay de cinta: tilt directo', tDir.toExponential(3), 'ecos@0', tEco0.toExponential(3), 'ecos@1', tEco1.toExponential(3),
+                  'rms ecos', rEco0.toFixed(4), rEco1.toFixed(4), 'wow diff', dW.toFixed(3));
+      r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: a1.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

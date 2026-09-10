@@ -105,6 +105,8 @@ export const PARAMS = {
   dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },
   dlyTime: { def: 0.3, min: 0.02, max: 1.5, unit: ' s' },
   dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)
+  dlyDamp: { def: 0, min: 0, max: 1, act: true },   // filtro EN EL BUCLE: cada repetición pierde agudos (y algo de graves), como cinta/BBD
+  dlyWow:  { def: 0, min: 0, max: 1, act: true },   // modulación lenta del tiempo: cada repetición se desafina un pelo (wow de cinta)
   bpm:     { def: 120, min: 40, max: 220, unit: ' bpm' },
 
   // --- Espacio ---

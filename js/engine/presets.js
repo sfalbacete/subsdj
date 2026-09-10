@@ -296,6 +296,13 @@ export const FACTORY = {
       cutLfoLvl: 1000, cutLfoSpd: 2, cutLfoShape: 'square', dist: 0.25,
       dlyAmt: 0.35, dlySync: '1/8.', bpm: 140, panLfoLvl: 0.4, panLfoSpd: 0.8,
       a: 0.005, d: 0.3, s: 0.8, r: 0.2 },
+    /* delay de cinta: el bucle pierde agudos en cada vuelta (Damp) y el wow
+       desafina un pelo cada repetición — el eco dub que un delay digital
+       limpio no da (a Damp 0 y Wow 0 es el ping-pong de siempre) */
+    'Dub de cinta': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.4, detuneB: 5, mix: 0.4,
+      cutoff: 1800, reso: 4, filterEnvAmt: 2200, a: 0.003, d: 0.18, s: 0, r: 0.25,
+      dlyAmt: 0.6, dlySync: '1/4.', bpm: 90, dlyDamp: 0.65, dlyWow: 0.35,
+      width: 0.3, reverbMix: 0.15, reverbSize: 2.2, master: 0.65 },
   },
 };
 

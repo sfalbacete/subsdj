@@ -301,10 +301,21 @@ son JUGADORES) y duplicar el rack por parte.
 
 **Eje A · que suene fino** (piezas pequeñas, cada una con su par A/B):
 
-- **A1 Delay amortiguado** — LP (+HP suave) DENTRO del bucle de realimentación
-  y una modulación mínima del tiempo. Un eco digital sin amortiguar repite el
-  espectro entero en cada vuelta y el oído lo lee como barato; la cinta y los
-  BBD oscurecían cada repetición, de ahí el «suena bien» de los delays clásicos.
+- **A1 Delay amortiguado** ✔ *(hecho 2026-09-10)* — knobs **Damp** y **Wow** en
+  el módulo Delay. Damp = LP+HP Butterworth (Q −3 dB) a la ENTRADA de cada
+  línea del ping-pong, así la 1ª repetición ya pasa una vez por el filtro, la
+  2ª dos… (cinta/BBD: el eco pierde agudos —y algo de graves— en cada vuelta;
+  recorrido log, LP de Nyquist a 1,2 kHz y HP de 0 a 200 Hz). A 0 el LP queda
+  en Nyquist y el HP en 0 Hz, que el biquad de WebAudio reduce a la identidad
+  exacta: los presets de siempre no cambian ni una muestra. Wow = dos LFOs
+  lentos (0,6 Hz en L, ×1,13 en R: descorrelados) sobre `delayTime`, ±2,5 ms
+  a tope ≈ ±1 % de pitch por repetición — el eco se ensancha y se desafina un
+  pelo. Por qué: un eco digital sin amortiguar repite el espectro entero en
+  cada vuelta y el oído lo lee como barato; de ahí el «suena bien» de los
+  delays clásicos. Evidencia: check en el selftest (a Damp 0 los ecos tienen
+  el MISMO tilt espectral que la nota directa; Damp 1 lo baja a menos de la
+  mitad sin apagarlos; el wow cambia los ecos), preset «Dub de cinta» y pares
+  DLY 1-4 en el banco de demos.
 - **A2 Reverb de placa algorítmica** (modelo Dattorro, linaje Lexicon 224)
   como AudioWorklet: difusores allpass + tanque en figura de ocho con
   modulación. La densidad de ecos CRECE con el tiempo y la modulación mata los
