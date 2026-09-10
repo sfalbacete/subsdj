@@ -287,3 +287,91 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
 Método por fase (el de siempre): selftest en verde antes y después; si la
 mejora es audible, pares A/B en `subsdj-demos.json`; si es visual, capturas o
 sondas CDP; commit por hito.
+
+## Roadmap 4.0 «partes y música generativa» (acordado 2026-09-10)
+
+Origen: un compañero del usuario enseñó un motor de música ambiental generativa
+(4 partes FM con algoritmos DX, pestañas Parts/Mixer/Sequencers/Harmony/
+Arrangement, sin teclado). No se copia: se toman los HUECOS que deja ver.
+Tres ejes independientes; el rack actual no se toca y con Partes apagadas el
+synth es exactamente el de hoy. El teclado se queda: es el banco de pruebas
+para confeccionar un sonido antes de guardarlo como preset y usarlo en una
+escena. Fuera a propósito: piano roll / línea de tiempo (nadie escribe notas:
+son JUGADORES) y duplicar el rack por parte.
+
+**Eje A · que suene fino** (piezas pequeñas, cada una con su par A/B):
+
+- **A1 Delay amortiguado** — LP (+HP suave) DENTRO del bucle de realimentación
+  y una modulación mínima del tiempo. Un eco digital sin amortiguar repite el
+  espectro entero en cada vuelta y el oído lo lee como barato; la cinta y los
+  BBD oscurecían cada repetición, de ahí el «suena bien» de los delays clásicos.
+- **A2 Reverb de placa algorítmica** (modelo Dattorro, linaje Lexicon 224)
+  como AudioWorklet: difusores allpass + tanque en figura de ocho con
+  modulación. La densidad de ecos CRECE con el tiempo y la modulación mata los
+  modos metálicos; la IR de ruido es estática y granulada. La convolución se
+  queda como opción «Sala (IR)» junto a «Placa».
+- **A3 Curva de envolvente** — knob lineal↔exponencial en ataque y decay (el
+  release ya es exponencial: la sonoridad es logarítmica, un decay lineal en
+  amplitud «se queda colgado y luego cae de golpe»).
+- **A4 Filtro BP y notch explícitos** — BP = LP y HP en serie. Notch: la suma
+  de los numeradores RBJ de LP y HP con el mismo corte da 1 − 2cos·z⁻¹ + z⁻²,
+  el notch del cookbook: el morph al 50 % YA es un notch a −6 dB. Prioridad
+  baja; demostración bonita para el selftest (sonda Goertzel en el corte).
+
+**Eje B · FM de verdad** — la FM como FUENTE que luego pasa por nuestro
+filtro, vocal y matriz: lo que el DX7 nunca tuvo. Nota: una sierra invertida
+tiene el mismo espectro de magnitud que la normal (sola suena igual: el oído
+es casi sordo a la fase); solo importa como MODULADORA de FM, sumada a otro
+oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
+
+- **B1 `fmIndex` como destino de la matriz** — ya es AudioParam por voz:
+  env→índice = pluck/campana DX (ataque brillante, cuerpo suave), vel→índice =
+  el tacto del DX7, S&H→índice = una campana por nota. Más knob de feedback
+  del operador (el seno se acerca a una sierra).
+- **B2 Oscilador «FM4»** — tipo de onda nuevo, como lo fue «Tabla»: 4
+  operadores, ~8 algoritmos dibujados como grafos (las hojas modulan, las
+  raíces suenan), ratio/nivel/feedback y decay por operador. Aguas abajo todo
+  sigue valiendo: filtro, vocal, wave sequencing, SFZ.
+
+**Eje C · partes y música generativa** (el giro de cabeza; no es un multipista):
+
+- **C1 Partes + mezclador** — PARTE = un `AudioEngine` completo en el
+  AudioContext compartido (`init(ctx)` ya lo permite; el selftest instancia
+  varios) con su preset, voces, Arp/Seq/WaveSeq e inserciones (dist, flanger,
+  chorus). Salida → MEZCLADOR (nivel, pan, envío delay, envío reverb) → delay
+  y reverb COMPARTIDOS (una sola sala) → limitador → máster. El rack edita la
+  parte SELECCIONADA (selector de 4 partes; la única indirección: que
+  `registry.applyTarget` y las referencias al singleton en `ui/` pasen por
+  «parte actual»). Teclado y MIDI tocan la parte seleccionada (o en capa).
+  **Instrumento vs escena:** los presets mezclan hoy dos clases de parámetros.
+  Los del INSTRUMENTO (voz, inserciones, arp/seq/ws y los ENVÍOS reverbMix /
+  dlyAmt) siguen en el preset, por parte. Los de la ESCENA (bpm, reverbSize /
+  Damp / Pre, tiempo / sync / realimentación del delay, master) son únicos por
+  sesión: en modo Partes viven en un módulo global «Sala» fuera de los presets
+  — RECOMENDADO, pendiente de confirmar; la alternativa «el último preset
+  cargado manda» haría que cargar un bajo en la parte 2 encogiera la catedral
+  de la parte 1 (es lo que hacían los multitímbricos de los 90: la
+  Performance tiene la reverb, cada Part su envío). Con Partes apagadas el
+  preset sigue mandando en todo, como hoy. Evidencia: escena offline en el
+  selftest (4 partes, N compases: sin NaN, sin clipping, cada parte audible).
+- **C2 Armonía + jugadores** — Armonía global: raíz, escala (mayor, menor,
+  dórica, pentatónica, hirajoshi, tonos enteros…), progresión por grados con
+  compases por acorde o paseo de Markov sobre funciones tonales; TODO lo
+  generado se cuantiza a escala y acorde vigente (por eso lo aleatorio suena
+  musical: las alturas están acotadas; densidad, registro y ritmo hacen el
+  resto). Un JUGADOR por parte: **Pulso** (ritmos euclídeos E(k,n) de
+  Bjorklund, rotación, probabilidad, acento), **Arpegio** (el Arp actual
+  alimentado con las notas del acorde), **Melodía** (paseo por grados con
+  gravedad hacia el acorde y probabilidad de silencio), **Dron** (raíz o
+  quinta, cambia con la progresión), **Frase** (el Seq transpuesto por la raíz
+  del acorde). Cada jugador solo emite noteOn/noteOff en el reloj de audio con
+  el ticker de 25 ms + look-ahead de 120 ms del Arp: dedos virtuales, el motor
+  no se entera.
+- **C3 Arreglo y escenas** — reloj maestro en compases, curva de densidad por
+  parte sobre un ciclo largo, macro «energía» (densidad, velocity, apertura del
+  filtro), deriva lenta de 1-2 parámetros por parte (las manos del que
+  improvisa). PRNG con semilla: ESCENA = semilla + 4 presets + armonía + sala,
+  exportable como JSON y reproducible. El grabador ya captura el máster.
+
+Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
+para intercalar cuando apetezca. Método por fase: el de siempre.
