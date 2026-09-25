@@ -54,7 +54,16 @@ export class Conductor {
     if (!this.timer) return;
     clearInterval(this.timer); this.timer = null; this.running = false;
     const t = this.ctx.currentTime;
-    this.players.forEach(p => { p.stop(t); p.part.engine.setMacro(0); });
+    this.players.forEach(p => {
+      p.stop(t); const e = p.part.engine; e.setMacro(0);
+      // el Seq con latch seguiría la frase tras soltar la raíz: parar es parar
+      if (e.S.seqOn === 'on' && !e.seq.held.length && e.seq.latched) { e.seq.latched = null; e.seq._maybeStop(); }
+    });
+  }
+  // Pánico: para el director, cancela lo pendiente y corta todo en todas las partes
+  panic() {
+    this.stop();
+    this.players.forEach(p => { p.clearPending(); p.part.engine.allNotesOff(); });
   }
   _tick() {
     const now = this.ctx.currentTime;

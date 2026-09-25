@@ -13,6 +13,7 @@
 import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer } from '../engine/parts.js';
 import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
+import { panic } from './keyboard.js';
 
 const SALA_PANELS = ['Delay', 'Reverb'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
@@ -141,6 +142,9 @@ export function initPartsControls() {
   const btn = $('partsBtn'); if (!btn) return;
   salaPanels = SALA_PANELS.map(panelByTitle).filter(Boolean);
   btn.addEventListener('click', () => toggle(btn));
+  // Pánico: el director para y cancela lo pendiente, y todas las partes sueltan todo
+  const pb = $('panicBtn');
+  if (pb) pb.addEventListener('click', () => { const sc = getScene(); if (sc) sc.conductor.panic(); panic(); document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on: sceneOn() } })); });
   document.querySelectorAll('#partSel button').forEach(b => b.addEventListener('click', () => { part().resume(); choose(+b.dataset.p); }));
   document.addEventListener('param-change', e => { if (sceneOn() && SEND_KEYS.has(e.detail.target)) refreshCurrent(); });
   // escena cargada desde JSON (playerControls): tiras, rack y módulos de la escena al día

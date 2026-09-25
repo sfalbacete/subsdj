@@ -104,7 +104,7 @@ function bindKeyEl(el, midi) {
   el.addEventListener('pointerup', () => release(midi));
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
-function panic() { held.clear(); eachPart(e => e.allNotesOff()); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+export function panic() { held.clear(); eachPart(e => e.allNotesOff()); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
 // así QWERTY y MIDI comparten estado visual y no se doble-disparan.
@@ -145,6 +145,7 @@ export function initKeyboard() {
       if (open) return;                              // desplegable abierto de verdad: respétalo
       e.stopPropagation(); e.target.blur();
     }
+    if (k === 'escape') { e.preventDefault(); panic(); return; }   // Escape = pánico (corta todo)
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
       e.preventDefault(); panic(); octaveTouched = true;
       baseOctave = k === 'pageup' ? Math.min(9 - numOctaves, baseOctave + 1) : Math.max(0, baseOctave - 1);

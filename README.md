@@ -483,7 +483,15 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   la demo carga y suena a −4 dB), 108/108; sonda CDP de la página real 19/19
   (demo por el camino de la UI, tiras y rack, armonía y sala desde la
   escena, macro y deriva en vivo con el knob siguiéndola, indicador de
-  ciclo/energía/quién toca, autoguardado y ↺ Última) y capturas.
+  ciclo/energía/quién toca, autoguardado y ↺ Última) y capturas. Cazadas
+  después dos notas colgadas al parar (sonda que las reproduce): (a) las
+  partes con Arp/Seq reciben las notas del jugador por temporizador, y al
+  parar dentro de la ventana de anticipación el note-off llegaba ANTES que
+  el note-on → el Arp se quedaba sosteniendo (ahora los note-on pendientes
+  se cancelan y los note-off «ya» son síncronos); (b) el Seq con latch
+  seguía la frase al soltar la raíz (parar la limpia). Botón **⏹ Pánico** en
+  la cabecera (y tecla Escape): para el director y corta todo en todas las
+  partes.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

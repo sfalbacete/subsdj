@@ -62,6 +62,7 @@ export class Player {
     this.cfg = { ...PLAYER_DEF };
     this.log = null;            // [] para registrar los eventos (selftest)
     this.derivaKey = 'off'; this.derivaBase = undefined;
+    this.pending = new Map();   // id → {timer, when}: note-on por temporizador aún sin disparar (partes con Arp/Seq)
     this.reset();
   }
   reset() {
@@ -72,7 +73,7 @@ export class Player {
   }
   setMode(mode) {
     if (mode === this.cfg.mode) return;
-    this.releaseHeld(this.c.ctx.currentTime);
+    this.releaseHeld(this.c.ctx.currentTime); this.clearPending();
     this.cfg.mode = mode;
     if (MODE_OCT[mode] !== undefined) this.cfg.oct = MODE_OCT[mode];
     this.busy = 0; this.melIdx = -1; this.lastKey = null;
@@ -83,8 +84,12 @@ export class Player {
     this.cfg.deriva = key; this.derivaKey = key;
     this.derivaBase = key !== 'off' ? this.part.engine.S[key] : undefined;
   }
-  stop(when) { this.releaseHeld(when); this.busy = 0; this.lastKey = null; }
+  stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
   releaseHeld(when) { for (const id of this.held) this._off(id, when); this.held = []; }
+  // Cancela los note-on por temporizador que aún no han sonado: si no, tras
+  // parar (o cambiar de modo) llegarían DESPUÉS de su note-off y la nota se
+  // quedaría colgada en el Arp/Seq de la parte — el «sonido residente».
+  clearPending() { for (const p of this.pending.values()) clearTimeout(p.timer); this.pending.clear(); }
 
   _id() { return 'p' + this.i + '_' + (this.seq++); }
   _routed() { const S = this.part.engine.S; return S.seqOn === 'on' || S.arpMode !== 'off'; }
@@ -92,15 +97,21 @@ export class Player {
     if (this.log) this.log.push([+when.toFixed(4), 'on', midi, +vel.toFixed(2)]);
     if (this.c.dry) return;
     const e = this.part.engine, f = 440 * Math.pow(2, (midi - 69) / 12);
-    if (this._routed()) setTimeout(() => e.noteOn(id, f, vel), Math.max(0, (when - e.ctx.currentTime) * 1000));
-    else e._directOn(id, f, vel, when);
+    if (this._routed()) {
+      const timer = setTimeout(() => { this.pending.delete(id); e.noteOn(id, f, vel); }, Math.max(0, (when - e.ctx.currentTime) * 1000));
+      this.pending.set(id, { timer, when });
+    } else e._directOn(id, f, vel, when);
   }
   _off(id, when) {
     if (this.log) this.log.push([+when.toFixed(4), 'off']);
     if (this.c.dry) return;
     const e = this.part.engine;
-    if (this._routed()) setTimeout(() => e.noteOff(id), Math.max(0, (when - e.ctx.currentTime) * 1000));
-    else e._directOff(id, when);
+    if (this._routed()) {
+      const p = this.pending.get(id);
+      if (p && when <= p.when + 1e-6) { clearTimeout(p.timer); this.pending.delete(id); return; }   // aún no había empezado: no empieza
+      const ms = (when - e.ctx.currentTime) * 1000;
+      if (ms < 1) e.noteOff(id); else setTimeout(() => e.noteOff(id), ms);   // «ya» es síncrono: stop() limpia el latch del Seq justo después
+    } else e._directOff(id, when);
   }
   base() { return 12 * (this.cfg.oct + 1); }   // MIDI del Do de la octava elegida (oct 4 → 60)
   _arr(b) { return this.c.arrangeFor(this, b); }   // {E, active, velMul, probMul, dens}
