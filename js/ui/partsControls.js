@@ -29,7 +29,7 @@ const panFmt = v => v < -0.02 ? 'L' + Math.round(-v * 100) : v > 0.02 ? 'R' + Ma
 
 function buildStrips() {
   const host = $('mixStrips'), sc = getScene();
-  host.innerHTML = ''; strips = [];
+  host.innerHTML = ''; strips = []; silent = true;   // los knobs disparan onChange al nacer: no reescribir el motor
   sc.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
@@ -55,6 +55,7 @@ function buildStrips() {
     };
     strips.push(st);
     div.querySelector('.pname').addEventListener('click', () => choose(i));
+    div.querySelector('.mute').classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
     div.querySelector('.mute').addEventListener('click', e => {
       setPartMute(i, !p.mute);
       e.currentTarget.classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
@@ -68,10 +69,11 @@ function buildStrips() {
     `<label class="chk"><input type="checkbox" id="layerChk"> Capa: el teclado toca todas</label>`;
   host.appendChild(sala);
   const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
-  attachKnob(kM, { min: 0, max: 1, def: 0.7 }, v => sc.sala.setMaster(v));
-  attachKnob(kFb, { min: 0, max: 0.85, def: 0.45, act: true }, v => sc.sala.setFeedback(v));
-  attachKnob(kToRev, { min: 0, max: 1, def: 0.5, act: true }, v => sc.sala.setDlyToRev(v));
+  attachKnob(kM, { min: 0, max: 1, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
+  attachKnob(kFb, { min: 0, max: 0.85, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });
+  attachKnob(kToRev, { min: 0, max: 1, def: sc.salaCfg.dlyToRev, act: true }, v => { sc.salaCfg.dlyToRev = v; sc.sala.setDlyToRev(v); });
   $('layerChk').addEventListener('change', e => setLayer(e.target.checked));
+  silent = false;
   refreshNames();
 }
 
@@ -87,7 +89,8 @@ function refreshNames() {
 // La tira de la parte que edita el rack refleja sus knobs Master / Amount / Mix
 function refreshCurrent() {
   const sc = getScene(); if (!sc) return;
-  const st = strips[sc.sel], S = part().S;
+  const st = strips[sc.sel]; if (!st) return;   // en plena reconstrucción de tiras aún no existe
+  const S = part().S;
   silent = true;
   try { st.level.set(S.master); st.dly.set(S.dlyAmt); st.rev.set(S.reverbMix); }
   finally { silent = false; }
@@ -108,7 +111,7 @@ function setUI(on) {
   $('partsBtn').classList.toggle('on', on);
   $('partSel').hidden = !on;
   $('mixer').hidden = !on;
-  $('harmony').hidden = !on; $('player').hidden = !on;
+  $('harmony').hidden = !on; $('player').hidden = !on; $('arrange').hidden = !on;
   document.body.classList.toggle('parts', on);
   document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));
   for (const panel of salaPanels) {
@@ -140,6 +143,8 @@ export function initPartsControls() {
   btn.addEventListener('click', () => toggle(btn));
   document.querySelectorAll('#partSel button').forEach(b => b.addEventListener('click', () => { part().resume(); choose(+b.dataset.p); }));
   document.addEventListener('param-change', e => { if (sceneOn() && SEND_KEYS.has(e.detail.target)) refreshCurrent(); });
+  // escena cargada desde JSON (playerControls): tiras, rack y módulos de la escena al día
+  document.addEventListener('scene-loaded', () => { if (!sceneOn()) return; buildStrips(); setUI(true); syncControls(part().S); });
   document.addEventListener('preset-loaded', e => {
     const sc = getScene(); if (!sc) return;
     const p = sc.parts[sc.sel]; p.presetVal = e.detail.value; p.presetName = e.detail.name;

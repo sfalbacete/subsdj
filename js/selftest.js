@@ -25,7 +25,9 @@ import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
-import { createScene } from './engine/parts.js';
+import { createScene, sceneToJSON, applySceneJSON } from './engine/parts.js';
+import { mulberry32 } from './engine/Harmony.js';
+import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
 import { euclid } from './engine/Player.js';
 import { Conductor } from './engine/Conductor.js';
@@ -673,8 +675,11 @@ export async function runSelfTest() {
     // del SOSTENIDO (control: con índice fijo ese cociente se queda ≈ 1 — la
     // amplitud no entra en el tilt); (2) velocity→índice: pegar fuerte (vel
     // 1) da más brillo que pegar flojo (vel 0.3); (3) el feedback del
-    // modulador añade armónicos (tilt sube) y a tope + índice máximo no
-    // produce NaN ni clipping (el portador es un seno: ≤ 1 por construcción).
+    // modulador añade armónicos (tilt sube) — se mide a feedback MÁXIMO
+    // (bucle caótico, espectro ancho): con feedback medio la ganancia
+    // depende de la fase aleatoria del modulador (1,3-2,4×) y el check
+    // bailaba — y a tope + índice máximo no produce NaN ni clipping (el
+    // portador es un seno: ≤ 1 por construcción).
     body.appendChild(el('st-cat', 'FM en la matriz'));
     let r;
     try {
@@ -690,7 +695,7 @@ export async function runSelfTest() {
       const bVelLo = await renderOne(structuredClone(engine.S), { ...opt, vel: 0.3 });
       loadState({ ...base, fmIndex: 2, fmFb: 0 });
       const bFb0 = await renderOne(structuredClone(engine.S), opt);
-      loadState({ ...base, fmIndex: 2, fmFb: 0.6 });
+      loadState({ ...base, fmIndex: 2, fmFb: 1 });
       const bFb1 = await renderOne(structuredClone(engine.S), opt);
       loadState({ ...base, fmIndex: 12, fmFb: 1 });
       const bFbMax = await renderOne(structuredClone(engine.S), opt);
@@ -709,7 +714,7 @@ export async function runSelfTest() {
       const tF0 = tiltW(bFb0, 0.2, 0.95), tF1 = tiltW(bFb1, 0.2, 0.95);
       if (!(tF1 > 1.3 * tF0)) probs.push('el feedback no añade armónicos (tilt ' + tF1.toExponential(2) + ' vs ' + tF0.toExponential(2) + ')');
       console.log('fm matriz: env arranque/sostenido', ratioEnv.toFixed(2), 'control', ratioFix.toFixed(2),
-                  'vel hi/lo', (tHi / Math.max(1e-12, tLo)).toFixed(2), 'fb 0.6/0', (tF1 / Math.max(1e-12, tF0)).toFixed(2), 'pico fb max', dB(aMax.peak));
+                  'vel hi/lo', (tHi / Math.max(1e-12, tLo)).toFixed(2), 'fb 1/0', (tF1 / Math.max(1e-12, tF0)).toFixed(2), 'pico fb max', dB(aMax.peak));
       r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: aMax.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: 0, ok: false,
@@ -812,6 +817,7 @@ export async function runSelfTest() {
         p2.setMode('melodia'); Object.assign(p2.cfg, { densidad: 0.7, silencio: 0.1 });
         p3.setMode('acorde');  Object.assign(p3.cfg, { notas: 3 });
         p4.setMode('raiz');    Object.assign(p4.cfg, { cada: 1, quinta: 1 });
+        Object.assign(cd.arr.cfg, { energia: 1, vaiven: 0, sorpresa: 0, apertura: 0 });   // arreglo neutro: aquí se prueban los jugadores
         cd.players.forEach(p => { p.log = []; });
       };
       const logs = cd => JSON.stringify(cd.players.map(p => p.log));
@@ -839,6 +845,98 @@ export async function runSelfTest() {
       r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Arreglo y escenas (Roadmap 4.0 · C3): (1) energía: acotada, arranca en
+    // energía − vaivén/2 y culmina a mitad de ciclo; una parte con umbral
+    // alto calla al principio y entra en la cumbre; la sorpresa es
+    // determinista; (2) escena JSON: exportar → alterar → importar devuelve
+    // exactamente lo exportado (sala, director, partes); (3) misma semilla
+    // ⇒ mismas MUESTRAS: dos renders offline de la misma escena (Math.random
+    // sembrado: ruido e IR iguales; presets sin azar en el worklet) coinciden
+    // hasta el ÚLTIMO BIT (WebAudio suma las entradas de un nodo en un orden
+    // que depende de direcciones de memoria: diferencias ~1e-7, −140 dB), y
+    // con otra semilla difieren de verdad; (4) la escena de demo del repo
+    // carga y suena.
+    body.appendChild(el('st-cat', 'Arreglo y escenas'));
+    let r;
+    try {
+      const probs = [];
+      const fake = { seed: 3 }, arr = new Arrangement(fake);
+      Object.assign(arr.cfg, { energia: 0.6, vaiven: 0.6, ciclo: 16, sorpresa: 0 });
+      const E0 = arr.energyAt(0), E8 = arr.energyAt(8), Emax = Math.max(...[...Array(64)].map((_, b) => arr.energyAt(b))), Emin = Math.min(...[...Array(64)].map((_, b) => arr.energyAt(b)));
+      if (!(Math.abs(E0 - 0.3) < 1e-9 && Math.abs(E8 - 0.9) < 1e-9)) probs.push('energía: E(0)=' + E0.toFixed(3) + ' E(8)=' + E8.toFixed(3));
+      if (Emin < 0 || Emax > 1) probs.push('energía fuera de [0,1]');
+      const pc = { umbral: 0.85 };
+      if (arr.stateAt(0, 0, pc).active || !arr.stateAt(8, 0, pc).active) probs.push('umbral: la parte no calla/entra donde toca');
+      arr.cfg.sorpresa = 1;
+      const rests = [...Array(40)].map((_, b) => arr.rest(b, 1)), rests2 = [...Array(40)].map((_, b) => arr.rest(b, 1));
+      const nRest = rests.filter(Boolean).length;
+      if (rests.join() !== rests2.join()) probs.push('sorpresa no determinista');
+      if (!(nRest >= 3 && nRest <= 20)) probs.push('sorpresa: ' + nRest + ' silencios de 40 (esperados ~10)');
+      // (2)-(4): escena offline
+      const presets = [FACTORY['Percusión']['Bombo 808'], FACTORY['Leads']['Lead cuadrado'],
+                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.2 }, FACTORY['Bajos']['Bajo pluck']];
+      const conf = cd => {
+        Object.assign(cd.harmony, { root: 4, scale: 'dórica', prog: [1, 4], bars: 1, modo: 'lista' });
+        Object.assign(cd.arr.cfg, { energia: 0.6, vaiven: 0.6, ciclo: 2, apertura: 1, sorpresa: 0.3 });
+        const [p1, p2, p3, p4] = cd.players;
+        p1.setMode('pulso');   Object.assign(p1.cfg, { k: 4, n: 16, umbral: 0.4 });
+        p2.setMode('melodia'); Object.assign(p2.cfg, { densidad: 0.7, silencio: 0.1 });
+        p3.setMode('acorde');  Object.assign(p3.cfg, { notas: 3, umbral: 0.2 });
+        p4.setMode('raiz');    Object.assign(p4.cfg, { cada: 1, quinta: 1 });
+      };
+      const secs = 4.0, realRandom = Math.random;
+      const render = async (seed, mrSeed = 77) => {
+        Math.random = mulberry32(mrSeed);
+        try {
+          const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+          const sc = await createScene(ctx, presets, { salaS: { bpm: 120 } });
+          conf(sc.conductor); sc.conductor.setSeed(seed); sc.conductor.scheduleAll(secs);
+          return { sc, buf: await ctx.startRendering() };
+        } finally { Math.random = realRandom; }
+      };
+      const A = await render(11), B = await render(11), C = await render(12);
+      const aA = analyze(A.buf);
+      if (aA.bad) probs.push('NaN/Inf'); if (aA.peak > 1) probs.push('clipping'); if (aA.peak <= SILENCE) probs.push('silencio');
+      const cmp = (x, y) => { const a = x.getChannelData(0), b = y.getChannelData(0); let n = 0, mx = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); if (d > 0) { n++; if (d > mx) mx = d; } } return { n, mx }; };
+      const dAB = cmp(A.buf, B.buf), dAC = cmp(A.buf, C.buf);
+      if (!(dAB.mx < 1e-5)) probs.push('misma semilla, renders distintos (' + dAB.n + ' muestras, máx ' + dAB.mx.toExponential(2) + ')');
+      if (!(dAC.mx > 1e-3)) probs.push('otra semilla, render igual (máx ' + dAC.mx.toExponential(2) + ')');
+      // macro: con apertura 1 la energía mueve el detune de los filtros
+      const cents0 = A.sc.conductor.arr.macroCents(0), cents1 = A.sc.conductor.arr.macroCents(1);
+      if (!(cents0 < -400 && cents1 > 500)) probs.push('macro de apertura: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
+      // JSON ida y vuelta sobre la escena A
+      const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.fecha; return JSON.stringify(o); };
+      sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.salaCfg.fb = 0.61;
+      const J1 = sceneToJSON(sc);
+      sc.conductor.setSeed(1); Object.assign(sc.conductor.harmony, { root: 0, scale: 'mayor', prog: [1], bars: 2 });
+      Object.assign(sc.conductor.arr.cfg, { energia: 0.1, ciclo: 8 }); sc.conductor.players.forEach(p => { p.cfg.mode = 'off'; p.cfg.umbral = 0; });
+      sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.salaCfg.fb = 0.2; sc.S.reverbSize = 1.0;
+      sc.parts[0].engine.set('cutoff', 555);
+      const J2 = sceneToJSON(sc);
+      if (strip(J1) === strip(J2)) probs.push('alterar la escena no cambia su JSON');
+      applySceneJSON(sc, JSON.parse(JSON.stringify(J1)));
+      const J3 = sceneToJSON(sc);
+      if (strip(J3) !== strip(J1)) probs.push('escena JSON: ida y vuelta no es exacta');
+      if (sc.parts[0].engine.S.cutoff !== J1.partes[0].estado.cutoff) probs.push('importar no restaura el estado de la parte');
+      // (4) demo del repo
+      const demo = await (await fetch('subsdj-escena-demo.json', { cache: 'no-store' })).json();
+      const ctxD = new OfflineAudioContext(2, Math.ceil(SR * 4), SR);
+      const scD = await createScene(ctxD, []);
+      applySceneJSON(scD, demo);
+      scD.conductor.scheduleAll(4);
+      const aD = analyze(await ctxD.startRendering());
+      if (aD.bad) probs.push('demo: NaN/Inf'); if (aD.peak > 1) probs.push('demo: clipping'); if (aD.peak <= SILENCE) probs.push('demo en silencio (' + dB(aD.peak) + ')');
+      if (scD.parts.map(p => p.presetName).join('|') !== demo.partes.map(p => p.preset).join('|')) probs.push('demo: nombres de preset no aplicados');
+      console.log('escenas: E(0)', E0.toFixed(2), 'E(8)', E8.toFixed(2), '· sorpresas', nRest + '/40', '· A=B máx', dAB.mx.toExponential(1), '· A≠C máx', dAC.mx.toExponential(1), '· macro', cents0.toFixed(0) + '/' + cents1.toFixed(0), 'ct · demo pico', dB(aD.peak));
+      r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: aA.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

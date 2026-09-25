@@ -44,6 +44,10 @@ export class AudioEngine {
     if (this.ctx) return;
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
+    // Render offline (selftest, SFZ): el reloj de audio corre más rápido que el
+    // de pared, así que los temporizadores de las colas no valen (y matarían
+    // voces a destiempo, de forma NO determinista). Sin tope de colas offline.
+    this.offline = typeof ctx.startRendering === 'function';
     this.noiseBuffer = makeNoise(ctx);
     this.wanderBuffer = makeWander(ctx);   // deriva lenta compartida (Vocal · Vida)
 
@@ -167,12 +171,16 @@ export class AudioEngine {
     this.resLFO.osc.type = S.resLfoShape;
 
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
+    // Macro de apertura (arreglo de la escena): cents que se SUMAN al detune
+    // de los filtros de todas las voces (exponencial, sin cruzar 0 Hz — la
+    // misma ruta que el destino Cutoff de la matriz). A 0 no hace nada.
+    this.macroCut = ctx.createConstantSource(); this.macroCut.offset.value = 0; this.macroCut.start();
 
     // hub de modulación que se pasa a cada voz
     this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
-      pitchOffset: this.pitchOffset,
+      pitchOffset: this.pitchOffset, macroCut: this.macroCut,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
@@ -280,6 +288,7 @@ export class AudioEngine {
   _scheduleTail(v, rel, when = null) {
     this.tails.add(v);
     const end = v.release(rel, when);
+    if (this.offline) return;                     // offline: la cola vive hasta el final del render
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
     v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); }, ms);
     if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
@@ -416,8 +425,13 @@ export class AudioEngine {
     if (cents) this._forVoices(v => v.ensurePitch());
   }
 
-  // ---------- modo Partes: mute / pan / desmontaje ----------
+  // ---------- modo Partes: mute / pan / macro / desmontaje ----------
   setMute(on) { if (this.ready) this.muteG.gain.setTargetAtTime(on ? 0 : 1, this.ctx.currentTime, 0.02); }
+  setMacro(cents, tau = 0.3) { if (this.ready) this.macroCut.offset.setTargetAtTime(cents, this.ctx.currentTime, tau); }
+  automateMacro(cents, t, ramp) {     // offline: valor (o rampa hasta) `cents` en t
+    if (!this.ready) return;
+    if (ramp) this.macroCut.offset.linearRampToValueAtTime(cents, t); else this.macroCut.offset.setValueAtTime(cents, t);
+  }
   setPan(v)   { if (this.ready) this.partPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), this.ctx.currentTime, 0.02); }
   // Desmonta el motor (al apagar la escena): suelta voces y colas, para los
   // planificadores y los osciladores de LFO — un OscillatorNode arrancado
@@ -432,6 +446,7 @@ export class AudioEngine {
                   this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast];
     for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
+    try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
     this.sala.engines = this.sala.engines.filter(e => e !== this);
     if (this.ownsSala) this.sala.dispose();

@@ -111,14 +111,17 @@ js/engine/
   nodes.js                     nodos auxiliares: ruido, deriva, IR de reverb, curva de distorsión, LFOs
   Harmony.js                   armonía de la escena: escalas, progresión / paseo de funciones, acordes, PRNG con semilla
   Player.js                    jugador por parte: pulso euclídeo, acorde, melodía, raíz (dedos virtuales)
-  Conductor.js                 reloj maestro en beats: ticker + look-ahead; scheduleAll() para el render offline
+  Conductor.js                 reloj maestro en beats: ticker + look-ahead; scheduleAll() para el render offline; toJSON/fromJSON
+  Arrangement.js               arreglo: energía en ciclos de compases, umbral de entrada, sorpresa, macro de apertura
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
-  playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla) y Jugador (modo + knobs)
+  playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
+                               y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
+subsdj-escena-demo.json        escena de demo «Ambient nocturno» (⇧ Escena en el módulo Arreglo)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
@@ -356,7 +359,8 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   DURANTE la nota. Evidencia (check «FM en la matriz» del selftest, medido):
   env→FM multiplica por 24 el tilt espectral del arranque frente al
   sostenido (0,9 en el control con índice fijo); vel 1 frente a 0,3 da ×7 de
-  brillo; feedback 0,6 sube el tilt ×2,25; feedback 1 con índice 12: pico
+  brillo; feedback a tope sube el tilt ×11 (con 0,6 salía ×1,3-2,4
+  según la fase aleatoria del modulador: el check se mide a tope); feedback 1 con índice 12: pico
   −4,7 dB, sin NaN. Presets «Campana DX (env→FM)», «E-piano DX (vel→FM)»,
   «Brass FM (feedback)» y «Hat FM (feedback)»; pares FM 1-4 en el banco de
   demos (diffs 1,37 y 1,38). Selftest 105/105. El worklet sube a `?v=4`.
@@ -436,11 +440,50 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   emiten eventos idénticos), 107/107; sonda CDP de la página real 16/16
   (armonía por la UI, modos por parte, ▶ emite en todas las partes y en
   escala, el Jugador sigue a la parte, ■ deja cero voces) y capturas.
-- **C3 Arreglo y escenas** — reloj maestro en compases, curva de densidad por
-  parte sobre un ciclo largo, macro «energía» (densidad, velocity, apertura del
-  filtro), deriva lenta de 1-2 parámetros por parte (las manos del que
-  improvisa). PRNG con semilla: ESCENA = semilla + 4 presets + armonía + sala,
-  exportable como JSON y reproducible. El grabador ya captura el máster.
+- **C3 Arreglo y escenas** ✔ *(hecho 2026-09-26)* — `engine/Arrangement.js`:
+  la forma a escala de minutos. ENERGÍA E(compás) = Energía (centro) +
+  Vaivén × un vaivén en coseno de Ciclo compases (arranca abajo, culmina a
+  mitad, vuelve a bajar). Cada parte tiene un umbral («Entra», en Jugador):
+  toca solo cuando E ≥ umbral — el dron a 0 siempre, el bombo a 0,7 cuando
+  la cosa se anima; la curva no lleva ruido, así no hay parpadeos. La
+  energía escala además velocity (70-100 %), probabilidad del pulso
+  (75-100 %) y densidad de la melodía (±0,25). SORPRESA = silencios de un
+  compás por parte, hash determinista de (semilla, compás, parte). APERTURA
+  = macro que suma cents al detune de los filtros de todas las voces de
+  todas las partes (`macroCut`, la misma ruta exponencial que el destino
+  Cutoff de la matriz): ±1 octava entre energía 0 y 1; en vivo va suavizada
+  cada 100 ms, offline automatizada por compás en el propio AudioParam.
+  DERIVA por parte («Deriva» + «Cantidad» en Jugador): un parámetro del
+  preset pasea despacio alrededor del valor que tenía — 3 senos de periodos
+  primos (23, 37, 59 beats) con fases de la semilla; cutoff en octavas, el
+  resto en ± mitad del rango; el knob del rack la sigue si es la parte que
+  editas. Todo determinista con la semilla. ESCENA = JSON
+  (`subsdj-escena-v1`): sala (SALA_KEYS + máster, realimentación,
+  eco→reverb), director (semilla, armonía, arreglo, los 4 jugadores) y
+  partes (estado completo del preset, nombre, pan, mute; o bien `preset` de
+  fábrica + `ajustes`, como la demo escrita a mano). Botones en Arreglo:
+  ⇩ exporta, ⇧ importa (enciende Partes si hace falta), ↺ Última recupera
+  el autoguardado (localStorage cada 3 s y al cerrar). `subsdj-escena-demo.
+  json`: «Ambient nocturno», Re menor i-VI-III-VII a 72 bpm, pad (acorde,
+  deriva de cutoff), sub (raíz), campana DX (melodía escasa) y hat FM
+  (pulso E(5,16)) entrando por umbrales 0 / 0,3 / 0,55 / 0,75.
+  Dos hallazgos por el camino: (1) el motor ahora sabe si el contexto es
+  OFFLINE (`ctx.startRendering`) y entonces no aplica el tope de colas ni
+  sus temporizadores de reloj de pared — offline el reloj de audio corre
+  más rápido y `MAX_TAILS` mataba voces a destiempo, no determinista y
+  silenciando notas por sonar (afectaba a renders con muchas notas cortas);
+  (2) WebAudio suma las entradas de un nodo en un orden que depende de
+  direcciones de memoria: dos renders idénticos difieren en el último bit
+  (~1e-7, −140 dB), así que «misma semilla = mismas muestras» se mide con
+  esa tolerancia. Evidencia: check en el selftest (energía E(0)=0,3 y
+  E(8)=0,9 con Energía 0,6/Vaivén 0,6/Ciclo 16; umbral 0,85 calla al
+  arrancar y entra en la cumbre; sorpresa determinista, 13/40 a tope; JSON
+  exportar → alterar → importar devuelve exactamente lo exportado; misma
+  semilla: máx 2e-7 entre renders, otra semilla: 0,6; macro −480/+960 ct;
+  la demo carga y suena a −4 dB), 108/108; sonda CDP de la página real 19/19
+  (demo por el camino de la UI, tiras y rack, armonía y sala desde la
+  escena, macro y deriva en vivo con el knob siguiéndola, indicador de
+  ciclo/energía/quién toca, autoguardado y ↺ Última) y capturas.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

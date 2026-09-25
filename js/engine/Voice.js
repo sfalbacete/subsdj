@@ -134,6 +134,8 @@ export class Voice {
     mod.cutLFOGain.connect(lp.frequency); mod.cutLFOGain.connect(hp.frequency);
     if (lp2) { mod.cutLFOGain.connect(lp2.frequency); mod.cutLFOGain.connect(hp2.frequency); }
     mod.resLFOGain.connect(lp.Q);         mod.resLFOGain.connect(hp.Q);
+    // macro de apertura del arreglo (cents sobre el detune: exponencial)
+    if (mod.macroCut) [lp, hp, lp2, hp2].forEach(f => { if (f) mod.macroCut.connect(f.detune); });
 
     // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff
     const fenv = ctx.createConstantSource(); fenv.offset.value = 0;

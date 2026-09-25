@@ -16,6 +16,10 @@ import { AudioEngine, engine as single } from './AudioEngine.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 import { makeDefaultState, applyPreset, toControls } from './state.js';
 import { Conductor } from './Conductor.js';
+import { PARAMS } from './params.js';
+import { factoryPreset } from './presets.js';
+
+export const ESCENA_FORMATO = 'subsdj-escena-v1';
 
 export const N_PARTS = 4;
 let scene = null, current = single, layer = false;
@@ -55,9 +59,53 @@ export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, d
     await e.init(ctx, { sala });
     parts.push({ i, engine: e, name: 'Parte ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
   }
-  const scene = { ctx, sala, parts, S, sel: 0 };
-  scene.conductor = new Conductor(scene, { seed: 1 });   // armonía + jugadores (C2)
+  const scene = { ctx, sala, parts, S, sel: 0, salaCfg: { fb, dlyToRev, master } };
+  scene.conductor = new Conductor(scene, { seed: 1 });   // armonía + jugadores + arreglo (C2/C3)
   return scene;
+}
+
+// Aplica un estado (claves de PARAMS) a un motor VIVO sin pasar por la UI —
+// el equivalente de loadState para las partes que no edita el rack. Las
+// claves de la sala se saltan (son de la escena).
+export function applyStateToEngine(e, state) {
+  for (const k in state) {
+    const p = PARAMS[k]; if (!p || SALA_KEYS.has(k)) continue;
+    const t = p.t || k;
+    if (t.includes('.')) { const [o, kk] = t.split('.'); e.setOsc(o, kk, state[k]); }
+    else e.set(k, state[k]);
+  }
+}
+
+// ---------- la ESCENA como JSON: sala + director (semilla, armonía, arreglo, jugadores) + partes ----------
+export function sceneToJSON(sc) {
+  const sala = {}; for (const k of SALA_KEYS) sala[k] = sc.S[k];
+  return {
+    formato: ESCENA_FORMATO, fecha: new Date().toISOString(),
+    sala: { ...sala, ...sc.salaCfg },
+    director: sc.conductor.toJSON(),
+    partes: sc.parts.map(p => ({ nombre: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, estado: toControls(p.engine.S) })),
+  };
+}
+// Una parte puede venir con `estado` completo (escena exportada) o con
+// `preset` de fábrica + `ajustes` (escenas escritas a mano, como la demo).
+export function applySceneJSON(sc, j) {
+  if (!j || j.formato !== ESCENA_FORMATO) throw new Error('no es una escena SubSDJ (' + ESCENA_FORMATO + ')');
+  const s = j.sala || {};
+  for (const k of SALA_KEYS) if (k in s) sc.sala.set(k, s[k]);
+  if (typeof s.fb === 'number') { sc.salaCfg.fb = s.fb; sc.sala.setFeedback(s.fb); }
+  if (typeof s.dlyToRev === 'number') { sc.salaCfg.dlyToRev = s.dlyToRev; sc.sala.setDlyToRev(s.dlyToRev); }
+  if (typeof s.master === 'number') { sc.salaCfg.master = s.master; sc.sala.setMaster(s.master); }
+  (j.partes || []).forEach((pj, i) => {
+    const p = sc.parts[i]; if (!p) return;
+    let st = pj.estado;
+    if (!st && pj.preset) st = { ...(factoryPreset(pj.preset) || {}), ...(pj.ajustes || {}) };
+    if (st) { p.engine.allNotesOff(); applyStateToEngine(p.engine, { ...toControls(makeDefaultState()), ...st }); }   // base limpia + estado
+    p.presetName = pj.nombre || pj.preset || p.presetName;
+    p.presetVal = pj.presetVal || (pj.preset ? 'f:' + pj.preset : p.presetVal);
+    if (typeof pj.pan === 'number') { p.pan = pj.pan; p.engine.setPan(pj.pan); }
+    p.mute = !!pj.mute; p.engine.setMute(p.mute);
+  });
+  if (j.director) sc.conductor.fromJSON(j.director);
 }
 
 // Enciende el modo Partes sobre el contexto del motor único. La parte 1

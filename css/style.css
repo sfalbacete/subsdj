@@ -76,6 +76,8 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 #harmProg{width:110px;}
 #harmSeed{width:76px;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
+#playerArr select{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;padding:4px 6px;font-size:11px;
+  height:44px;box-sizing:border-box;max-width:92px;}
 
 #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
   background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);

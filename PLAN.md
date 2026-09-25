@@ -2,8 +2,8 @@
 
 Fecha: 2026-09-26 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
-(`12b71f6`) y **C2 Armonía + jugadores** (2026-09-26, selftest 107/107). Este documento
-complementa al README: allí
+(`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`) y **C3 Arreglo + escenas** (2026-09-26,
+selftest 108/108). El eje C está COMPLETO. Este documento complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
 y en el README.
@@ -17,7 +17,7 @@ y va aparte, porque conviene meter primero los baratos.
 |---|--------|------------|-------|------------|
 | 1 | **C1 Partes + mezclador** ✔ | la puerta a todo lo generativo: 4 presets sonando a la vez — HECHO | alto (arquitectura) | — |
 | 2 | **C2 Armonía + jugadores** ✔ | la musiquita: sonido que se hace solo y suena musical — HECHO | alto | — |
-| 3 | **C3 Arreglo + escenas** | ambient de verdad: evolución lenta, sesiones reproducibles | medio | C2 |
+| 3 | **C3 Arreglo + escenas** ✔ | ambient de verdad: evolución lenta, sesiones reproducibles — HECHO | medio | — |
 | 4 | **A2 Reverb de placa** | el «suena fino» más grande; la sala donde vive el ambient | alto (DSP) | — |
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
 | 6 | **B2 Oscilador FM4** | la FM completa: 4 operadores y algoritmos | alto | B1 (conviene) |
@@ -28,7 +28,8 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → C3, con A2 y B2 intercalados cuando apetezca;
+**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ (eje C completo); quedan A2 y B2 como
+bloques grandes y
 A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -137,6 +138,10 @@ ver C3) sin NaN ni clipping. Pares A/B: mismo preset con jugador Pulso E(3,8) vs
 
 ### 3 · C3 Arreglo y escenas
 
+**✔ HECHO 2026-09-26** — selftest 108/108; detalle, medidas y evidencia en el README. La
+«curva de densidad por parte» quedó como un umbral de entrada por parte sobre una sola curva
+de energía (más simple de entender y de tocar); las secciones salen solas de los umbrales.
+
 **Propósito.** Que la música evolucione sola a escala de minutos (eso es el ambient: cambio
 lento, colas largas, eventos escasos) y que una sesión buena se pueda repetir y guardar.
 
@@ -155,7 +160,7 @@ lento, colas largas, eventos escasos) y que una sesión buena se pueda repetir y
 **Evidencia.** Dos renders offline con la misma semilla son idénticos muestra a muestra; con
 semilla distinta difieren. Escena de demo en el repo.
 
-**Coste.** Medio.
+**Coste.** Medio. Hecho en una sesión.
 
 ### 4 · A2 Reverb de placa algorítmica
 
