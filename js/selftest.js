@@ -924,16 +924,26 @@ export async function runSelfTest() {
       const J3 = sceneToJSON(sc);
       if (strip(J3) !== strip(J1)) probs.push('escena JSON: ida y vuelta no es exacta');
       if (sc.parts[0].engine.S.cutoff !== J1.partes[0].estado.cutoff) probs.push('importar no restaura el estado de la parte');
-      // (4) demo del repo
-      const demo = await (await fetch('subsdj-escena-demo.json', { cache: 'no-store' })).json();
-      const ctxD = new OfflineAudioContext(2, Math.ceil(SR * 4), SR);
-      const scD = await createScene(ctxD, []);
-      applySceneJSON(scD, demo);
-      scD.conductor.scheduleAll(4);
-      const aD = analyze(await ctxD.startRendering());
-      if (aD.bad) probs.push('demo: NaN/Inf'); if (aD.peak > 1) probs.push('demo: clipping'); if (aD.peak <= SILENCE) probs.push('demo en silencio (' + dB(aD.peak) + ')');
-      if (scD.parts.map(p => p.presetName).join('|') !== demo.partes.map(p => p.preset).join('|')) probs.push('demo: nombres de preset no aplicados');
-      console.log('escenas: E(0)', E0.toFixed(2), 'E(8)', E8.toFixed(2), '· sorpresas', nRest + '/40', '· A=B máx', dAB.mx.toExponential(1), '· A≠C máx', dAC.mx.toExponential(1), '· macro', cents0.toFixed(0) + '/' + cents1.toFixed(0), 'ct · demo pico', dB(aD.peak));
+      // (4) las escenas del repo (escenas/*.json): cargan, sus presets se
+      // aplican, suenan sin NaN ni clipping y todo lo emitido está en su escala
+      const ESCENAS = ['ambient-nocturno', 'amanecer-dorico', 'techno-hipnotico', 'coro-robotico'];
+      const picos = [];
+      for (const nombre of ESCENAS) {
+        const j = await (await fetch('escenas/' + nombre + '.json', { cache: 'no-store' })).json();
+        const ctxD = new OfflineAudioContext(2, Math.ceil(SR * 4), SR);
+        const scD = await createScene(ctxD, []);
+        applySceneJSON(scD, j);
+        scD.conductor.players.forEach(p => { p.log = []; });
+        scD.conductor.scheduleAll(4);
+        const aD = analyze(await ctxD.startRendering());
+        picos.push(nombre + ' ' + dB(aD.peak));
+        if (aD.bad) probs.push(nombre + ': NaN/Inf'); if (aD.peak > 1) probs.push(nombre + ': clipping'); if (aD.peak <= SILENCE) probs.push(nombre + ' en silencio (' + dB(aD.peak) + ')');
+        if (scD.parts.map(p => p.presetName).join('|') !== j.partes.map(p => p.preset).join('|')) probs.push(nombre + ': nombres de preset no aplicados');
+        const esc = scD.conductor.harmony.scaleSet(), ons = scD.conductor.players.flatMap(p => p.log.filter(x => x[1] === 'on'));
+        if (!ons.length) probs.push(nombre + ': ningún jugador emite');
+        if (ons.some(x => !esc.has(((x[2] % 12) + 12) % 12))) probs.push(nombre + ': notas fuera de la escala');
+      }
+      console.log('escenas: E(0)', E0.toFixed(2), 'E(8)', E8.toFixed(2), '· sorpresas', nRest + '/40', '· A=B máx', dAB.mx.toExponential(1), '· A≠C máx', dAC.mx.toExponential(1), '· macro', cents0.toFixed(0) + '/' + cents1.toFixed(0), 'ct · picos', picos.join(' · '));
       r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: aA.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: 0, ok: false,

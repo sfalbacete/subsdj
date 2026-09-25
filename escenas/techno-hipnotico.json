@@ -1,0 +1,24 @@
+{
+  "formato": "subsdj-escena-v1",
+  "nombre": "Techno hipnótico",
+  "nota": "La pentatónica menor a 126 bpm, casi estática (i-i-iv-i, un compás por acorde). Bombo 808 a negras que se cae en los valles de energía (breakdown), un Ácido 303 en modo mono cuya frase del SECUENCIADOR se transpone con la raíz de cada acorde (Raíz + Seq = Frase) y cuyo cutoff deriva solo, una textura Wavestation ARPEGIADA a semicorcheas en dos octavas (Acorde + Arp) que solo entra en la cumbre, y un hat FM en E(7,16) con acentos. Ciclo de 16 compases, Sorpresa alta: huecos de un compás. OJO: el Seq y el Arp son de tiempo real — en el render offline del selftest esas dos partes callan.",
+  "sala": { "bpm": 126, "dlySync": "1/8.", "dlyDamp": 0.45, "dlyWow": 0.1, "reverbSize": 1.6, "reverbDamp": 0.4, "reverbPre": 0.01,
+            "fb": 0.5, "dlyToRev": 0.3, "master": 0.7 },
+  "director": {
+    "seed": 3,
+    "armonia": { "root": 9, "scale": "penta menor", "prog": [1, 1, 4, 1], "bars": 1, "modo": "lista" },
+    "arreglo": { "energia": 0.75, "vaiven": 0.4, "ciclo": 16, "apertura": 0.6, "sorpresa": 0.25 },
+    "jugadores": [
+      { "mode": "pulso", "k": 4, "n": 16, "rot": 0, "prob": 1, "gate": 0.6, "acento": 0, "oct": 2, "vel": 1, "umbral": 0.6 },
+      { "mode": "raiz", "quinta": 0, "cada": 1, "oct": 1, "vel": 0.9, "umbral": 0.3, "deriva": "cutoff", "derivaAmt": 0.5 },
+      { "mode": "acorde", "notas": 3, "oct": 4, "vel": 0.8, "umbral": 0.7 },
+      { "mode": "pulso", "k": 7, "n": 16, "rot": 1, "prob": 0.85, "gate": 0.3, "acento": 0.6, "oct": 4, "vel": 0.6, "umbral": 0.45 }
+    ]
+  },
+  "partes": [
+    { "preset": "Bombo 808", "ajustes": { "reverbMix": 0, "dlyAmt": 0, "master": 0.9 }, "pan": 0 },
+    { "preset": "Ácido 303", "ajustes": { "seqOn": "on", "seqPat": "0 0 12 0 3 3 7 10", "seqDiv": "1/16", "seqGate": 0.55, "seqLatch": "off", "dlyAmt": 0.2, "reverbMix": 0.1, "master": 0.6 }, "pan": 0 },
+    { "preset": "Textura Wavestation (ws)", "ajustes": { "arpMode": "up", "arpDiv": "1/16", "arpOct": "2", "arpGate": 0.4, "dlyAmt": 0.3, "reverbMix": 0.25, "master": 0.5 }, "pan": 0.2 },
+    { "preset": "Hat FM (feedback)", "ajustes": { "dlyAmt": 0.15, "reverbMix": 0.05, "master": 0.5 }, "pan": -0.3 }
+  ]
+}

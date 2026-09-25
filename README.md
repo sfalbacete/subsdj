@@ -55,6 +55,17 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
 - **Arpegiador** (panel propio): mantén notas pulsadas y las secuencia al BPM del
   panel FX. Modos Up/Down/U·D/Rnd, división ¼/⅛/1/16, 1–3 octavas y knob Gate.
   Los pasos entran con precisión de reloj de audio (look-ahead de 120 ms).
+- **Escenas** (`escenas/*.json`, modo Partes): la escena completa — sala,
+  armonía, arreglo, los 4 jugadores y los 4 presets con su mezcla — como JSON.
+  ⇧ Escena en el módulo Arreglo la carga (enciende Partes si hace falta); ▶
+  Tocar en Armonía la arranca. Cuatro en el repo: **Ambient nocturno** (Re
+  menor, 72 bpm: pad, sub, campana DX y hat entrando por energía), **Amanecer
+  dórico** (Fa dórico, 84 bpm: coro de vocales de tabla con el morph derivando,
+  bajo cremoso, glockenspiel FM y caja de música), **Techno hipnótico** (La
+  pentatónica, 126 bpm: bombo que se cae en los valles, Ácido 303 cuya frase
+  del Seq se transpone con el acorde, Wavestation arpegiada, hat E(7,16)) y
+  **Coro robótico** (Re hirajoshi, 66 bpm, armonía por funciones: todo el
+  módulo Vocal — madrigal, voz glotal, robot parlante y percusión «ka»).
 
 ## Teclado
 
@@ -121,7 +132,8 @@ js/ui/
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
   playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
-subsdj-escena-demo.json        escena de demo «Ambient nocturno» (⇧ Escena en el módulo Arreglo)
+escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
+                               dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato

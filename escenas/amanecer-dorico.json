@@ -1,0 +1,24 @@
+{
+  "formato": "subsdj-escena-v1",
+  "nombre": "Amanecer dórico",
+  "nota": "Fa dórico, i-IV-VII-IV a 84 bpm: el vamp dórico de siempre, luminoso sin ser mayor. Un coro de vocales de tabla sostiene los acordes con el morph derivando (las vocales cambian solas), un bajo cremoso entra con la primera luz, el glockenspiel FM dibuja una melodía escasa por dos octavas y una caja de música marca un tresillo cuando la energía sube. Ciclo de 24 compases; Apertura alta para que el filtro amanezca con la energía.",
+  "sala": { "bpm": 84, "dlySync": "1/8.", "dlyDamp": 0.5, "dlyWow": 0.2, "reverbSize": 3.0, "reverbDamp": 0.5, "reverbPre": 0.02,
+            "fb": 0.45, "dlyToRev": 0.5, "master": 0.7 },
+  "director": {
+    "seed": 21,
+    "armonia": { "root": 5, "scale": "dórica", "prog": [1, 4, 7, 4], "bars": 2, "modo": "lista" },
+    "arreglo": { "energia": 0.55, "vaiven": 0.6, "ciclo": 24, "apertura": 0.6, "sorpresa": 0.1 },
+    "jugadores": [
+      { "mode": "acorde", "notas": 4, "oct": 3, "vel": 0.75, "umbral": 0, "deriva": "wtPos", "derivaAmt": 0.6 },
+      { "mode": "raiz", "quinta": 0, "cada": 2, "oct": 2, "vel": 0.85, "umbral": 0.25 },
+      { "mode": "melodia", "densidad": 0.35, "silencio": 0.4, "gravedad": 0.7, "rango": 2, "legato": 0.9, "oct": 5, "vel": 0.65, "umbral": 0.5 },
+      { "mode": "pulso", "k": 3, "n": 8, "rot": 0, "prob": 0.6, "gate": 0.5, "acento": 0.4, "oct": 5, "vel": 0.5, "umbral": 0.7 }
+    ]
+  },
+  "partes": [
+    { "preset": "Coro de vocales (tabla)", "ajustes": { "reverbMix": 0.4, "dlyAmt": 0.1, "master": 0.65 }, "pan": -0.15 },
+    { "preset": "Bajo cremoso (24 dB)", "ajustes": { "reverbMix": 0.05, "dlyAmt": 0, "master": 0.85 }, "pan": 0 },
+    { "preset": "Glockenspiel FM", "ajustes": { "dlyAmt": 0.4, "reverbMix": 0.35, "master": 0.6 }, "pan": 0.3 },
+    { "preset": "Caja de música", "ajustes": { "dlyAmt": 0.3, "reverbMix": 0.3, "master": 0.5 }, "pan": -0.35 }
+  ]
+}

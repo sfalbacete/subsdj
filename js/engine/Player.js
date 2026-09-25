@@ -168,7 +168,9 @@ export class Player {
       const t = this.c.timeAt(b);
       this.releaseHeld(t);
       const root = this.base() + ch.rootPc;
-      for (const m of (c.quinta ? [root, root + 7] : [root])) { const id = this._id(); this._on(id, m, Math.min(1, c.vel * a.velMul), t); this.held.push(id); }
+      // la quinta, DENTRO de la escala: sobre algunos grados de hirajoshi o blues no hay quinta justa
+      const notes = c.quinta ? [root, this.c.harmony.quantize(root + 7)] : [root];
+      for (const m of notes) { const id = this._id(); this._on(id, m, Math.min(1, c.vel * a.velMul), t); this.held.push(id); }
       this.lastKey = ch.rootPc;
     }
     this.nextBeat = b + BAR;
