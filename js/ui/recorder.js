@@ -4,7 +4,7 @@
    altavoces) y acumula bloques mientras graba; al parar se codifica un
    WAV 16-bit estéreo y se descarga.
    ===================================================================== */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 
 let node = null, chunksL = null, chunksR = null, recording = false, t0 = 0, timer = null;
 
@@ -39,10 +39,10 @@ export function download(blob, name) {
 
 function startRec(btn) {
   if (!node) {
-    node = new AudioWorkletNode(engine.ctx, 'recorder-processor',
+    node = new AudioWorkletNode(part().ctx, 'recorder-processor',
       { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
-    engine.getAnalyser().connect(node);
-    node.connect(engine.ctx.destination);     // salida (silencio): garantiza que el grafo lo procese
+    part().getAnalyser().connect(node);
+    node.connect(part().ctx.destination);     // salida (silencio): garantiza que el grafo lo procese
     node.port.onmessage = (e) => { if (recording) { chunksL.push(e.data.L); chunksR.push(e.data.R); } };
   }
   chunksL = []; chunksR = [];
@@ -56,7 +56,7 @@ function stopRec(btn) {
   node.port.postMessage('stop');
   recording = false; clearInterval(timer);
   btn.classList.remove('rec'); btn.textContent = '⏺ Grabar';
-  const blob = encodeWav(chunksL, chunksR, engine.ctx.sampleRate);
+  const blob = encodeWav(chunksL, chunksR, part().ctx.sampleRate);
   const d = new Date(), p = x => String(x).padStart(2, '0');
   download(blob, `subsdj-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`);
   chunksL = chunksR = null;
@@ -66,8 +66,8 @@ export function initRecorder() {
   const btn = document.getElementById('recBtn');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    engine.resume();
-    if (!engine.ready) return;
+    part().resume();
+    if (!part().ready) return;
     if (recording) stopRec(btn); else startRec(btn);
   });
 }

@@ -32,7 +32,11 @@ function dataFor(v) {
 
 function loadCurrent() {
   const data = dataFor(selEl.value);
-  if (data) { loadState(data); msg('Cargado: ' + selEl.selectedOptions[0].textContent); }
+  if (data) {
+    const name = selEl.selectedOptions[0].textContent;
+    loadState(data); msg('Cargado: ' + name);
+    document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name, value: selEl.value } }));   // el mezclador etiqueta la parte
+  }
 }
 export function stepPreset(dir) {
   const n = selEl ? selEl.options.length : 0;  // incluye opciones de ambos optgroups

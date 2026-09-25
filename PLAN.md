@@ -1,8 +1,8 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-09-25 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
-cinta** (`1db2a19`) y **B1 FM en la matriz + feedback** (2026-09-25, selftest 105/105). Este
-documento complementa al README: allí
+cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`) y **C1 Partes + mezclador**
+(2026-09-25, selftest 106/106). Este documento complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
 y en el README.
@@ -14,7 +14,7 @@ y va aparte, porque conviene meter primero los baratos.
 
 | # | Bloque | Qué nos da | Coste | Depende de |
 |---|--------|------------|-------|------------|
-| 1 | **C1 Partes + mezclador** | la puerta a todo lo generativo: 4 presets sonando a la vez | alto (arquitectura) | decisión «Sala» |
+| 1 | **C1 Partes + mezclador** ✔ | la puerta a todo lo generativo: 4 presets sonando a la vez — HECHO | alto (arquitectura) | — |
 | 2 | **C2 Armonía + jugadores** | la musiquita: sonido que se hace solo y suena musical | alto | C1 |
 | 3 | **C3 Arreglo + escenas** | ambient de verdad: evolución lenta, sesiones reproducibles | medio | C2 |
 | 4 | **A2 Reverb de placa** | el «suena fino» más grande; la sala donde vive el ambient | alto (DSP) | — |
@@ -27,7 +27,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** ~~B1~~ → C1 → C2 → C3, con A2 y B2 intercalados cuando apetezca;
+**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → C2 → C3, con A2 y B2 intercalados cuando apetezca;
 A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -36,7 +36,8 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 
 ## Decisiones abiertas (te tocan a ti)
 
-1. **«Sala» como módulo de escena (C1).** Hoy un preset mezcla dos clases de parámetros: los del
+1. **«Sala» como módulo de escena (C1).** ✔ DECIDIDA el 2026-09-25: opción (b), sala global por
+   envío, hecha en C1. El razonamiento, para el recuerdo: un preset mezcla dos clases de parámetros: los del
    INSTRUMENTO (voz, inserciones, arp/seq/ws y los envíos `reverbMix`/`dlyAmt`) y los de la
    SALA (`reverbSize`/`Damp`/`Pre`, tiempo/sync/realimentación del delay, `bpm`, `master`). Con
    cuatro partes y una sola reverb compartida solo puede haber una sala. Opciones: (a) «el
@@ -50,12 +51,14 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 3. **Escucha de A1:** preset «Dub de cinta» y pares DLY 1/2 (damp) y DLY 3/4 (wow) del banco de
    demos. Si el recorrido de Damp (LP hasta 1,2 kHz, HP hasta 200 Hz) o el wow (±2,5 ms) te
    parecen cortos o largos, son constantes al principio de `AudioEngine.js`.
-4. **Partes: 4 ranuras genéricas con nombre** (propuesta) o número configurable. Y en modo Partes,
-   si el teclado toca solo la parte seleccionada o hay un botón «capa» para tocar varias.
+4. ✔ Resuelta en C1: 4 ranuras genéricas (constante `N_PARTS` en `engine/parts.js`) y casilla
+   «Capa» en el mezclador para que el teclado toque todas las partes.
 
 ## Detalle por bloque
 
 ### 1 · C1 Partes + mezclador
+
+**✔ HECHO 2026-09-25** — selftest 106/106; detalle, medidas y evidencia en el README.
 
 **Propósito.** Poder echar a andar varios instrumentos (presets) a la vez. Sin esto no existe
 nada de lo generativo. No es un multipista: nadie escribe notas.
@@ -90,7 +93,7 @@ nada de lo generativo. No es un multipista: nadie escribe notas.
 notas programadas; sin NaN, sin clipping, cada parte audible por separado (silenciar las otras
 tres y medir pico). Captura del selector y del mezclador.
 
-**Coste.** Alto: es el bloque arquitectónico. Dos o tres sesiones.
+**Coste.** Alto: es el bloque arquitectónico. Hecho en una sesión.
 
 ### 2 · C2 Armonía + jugadores
 

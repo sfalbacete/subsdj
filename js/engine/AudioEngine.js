@@ -1,11 +1,13 @@
 /* =====================================================================
-   SubSDJ · AudioEngine — grafo global, LFOs, gestión de voces.
-   Cadena global:
+   SubSDJ · AudioEngine — grafo de UN instrumento: LFOs, gestión de voces,
+   inserciones. Cadena:
      voicesBus(auto-gain) -> amp(+LFO trémolo) -> distorsión -> flanger
-       -> chorus|ensemble -> delay ping-pong -> reverb -> limitador
-       -> master -> analyser -> destino
-   El filtro ahora es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
-   son globales pero se conectan a los params de cada voz al crearse.
+       -> chorus|ensemble -> nivel -> [seco + envío delay + envío reverb]
+       -> Sala (engine/Sala.js: delay ping-pong, reverb, limitador, máster)
+   Modo de siempre: el motor crea su propia Sala. Modo Partes (parts.js):
+   varios motores comparten UNA Sala (modelo send/return).
+   El filtro es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
+   son globales al motor pero se conectan a los params de cada voz al crearse.
    ===================================================================== */
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
@@ -14,99 +16,11 @@ import { Seq } from './Seq.js';
 import { WaveSeq } from './WaveSeq.js';
 import { getWtSet } from './wavetable.js';
 
-function makeNoise(ctx) {
-  const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = b.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  return b;
-}
-// Deriva LENTA normalizada a ±1 para la 'Vida' del módulo Vocal: suma de 4
-// senos sub-Hz con ciclos ENTEROS en el buffer (loop sin costura — un paseo
-// aleatorio a secas daría un salto de formante en cada vuelta) y fases al
-// azar. Compartido: cada voz lo lee desde un offset aleatorio (descorrelado).
-function makeWander(ctx) {
-  const secs = 8, len = ctx.sampleRate * secs, b = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = b.getChannelData(0);
-  const comps = [3, 5, 7, 11].map(k => ({ w: 2 * Math.PI * k / secs, ph: Math.random() * 2 * Math.PI, a: 1 / k }));
-  let pk = 0;
-  for (let i = 0; i < len; i++) {
-    const t = i / ctx.sampleRate;
-    let v = 0; for (const c of comps) v += c.a * Math.sin(c.w * t + c.ph);
-    d[i] = v; const x = Math.abs(v); if (x > pk) pk = x;
-  }
-  if (pk > 1e-9) for (let i = 0; i < len; i++) d[i] /= pk;
-  return b;
-}
-// Respuesta al impulso sintética para la reverb (ruido con decaimiento, estéreo
-// descorrelacionado). damp (0..1) = decaimiento dependiente de frecuencia: un
-// one-pole lowpass cuyo cutoff se CIERRA exponencialmente a lo largo de la cola
-// (14 kHz -> hasta 200 Hz a tope), como en una sala real. La energía se
-// renormaliza a la del IR sin filtrar: el knob oscurece, no baja el wet.
-function makeIR(ctx, seconds, decay, damp = 0) {
-  const rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate * seconds));
-  const buf = ctx.createBuffer(2, len, rate);
-  const fMax = 14000, fMin = fMax * Math.pow(200 / fMax, damp);
-  for (let ch = 0; ch < 2; ch++) {
-    const d = buf.getChannelData(ch);
-    let y = 0, expEnergy = 0, actEnergy = 0;
-    for (let i = 0; i < len; i++) {
-      const env = Math.pow(1 - i / len, decay);
-      const x = (Math.random() * 2 - 1) * env;
-      if (damp > 0) {
-        const fc = fMax * Math.pow(fMin / fMax, i / len);
-        const a = 1 - Math.exp(-6.2832 * fc / rate);
-        y += a * (x - y);
-        d[i] = y;
-      } else d[i] = x;
-      expEnergy += env * env; actEnergy += d[i] * d[i];
-    }
-    if (damp > 0 && actEnergy > 1e-12) {
-      const g = Math.sqrt(expEnergy / 3 / actEnergy);   // E[x²] del ruido U(-1,1)·env = env²/3
-      for (let i = 0; i < len; i++) d[i] *= g;
-    }
-  }
-  return buf;
-}
-// Curva de saturación FIJA (tanh). Antes se regeneraba con cada gesto del knob
-// Drive: un Float32Array(1024) por evento y el swap de curva podía hacer click.
-// Ahora el drive vive en la ganancia de entrada (distPre) y la normalización (distPost).
-function makeDistCurve() {
-  const n = 1024, c = new Float32Array(n), k = 4;
-  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
-  return c;
-}
-function mkLFO(ctx, freq, depth) {
-  const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
-  const gain = ctx.createGain(); gain.gain.value = depth;
-  osc.connect(gain); osc.start();
-  return { osc, depth: gain };
-}
-// LFO seno con fase inicial (los OscillatorNode no la tienen): un PeriodicWave
-// con sin(wt+phi) = sin(phi)·cos(wt) + cos(phi)·sin(wt). Para el ensemble a 3 fases.
-function mkPhasedLFO(ctx, freq, depth, phaseDeg) {
-  const ph = phaseDeg * Math.PI / 180;
-  const osc = ctx.createOscillator();
-  osc.setPeriodicWave(ctx.createPeriodicWave(
-    new Float32Array([0, Math.sin(ph)]),
-    new Float32Array([0, Math.cos(ph)]),
-    { disableNormalization: true }));
-  osc.frequency.value = freq;
-  const gain = ctx.createGain(); gain.gain.value = depth;
-  osc.connect(gain); osc.start();
-  return { osc, depth: gain };
-}
+import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO } from './nodes.js';
+import { Sala, SALA_KEYS } from './Sala.js';
 
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
 const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés de la más vieja
-
-// Delay «de cinta»: filtros DENTRO del bucle del ping-pong y wow del tiempo.
-// Damp recorre en log el LP de Nyquist a DLY_DAMP_LP_MIN y el HP de 0 Hz a
-// DLY_DAMP_HP_MAX (cinta/BBD: cada vuelta pierde agudos y algo de graves).
-// Wow = dos LFOs lentos a velocidades distintas L/R sobre delayTime; a tope
-// ±DLY_WOW_DEPTH s => desvío de pitch ≈ 2π·f·d ≈ ±1 % (unos 17 ct) por repetición.
-const DLY_DAMP_LP_MIN = 1200;                        // Hz: LP del bucle a Damp 1
-const DLY_DAMP_HP_MIN = 20, DLY_DAMP_HP_MAX = 200;   // Hz: HP del bucle (Damp 0+ … Damp 1)
-const DLY_WOW_HZ = 0.6, DLY_WOW_DEPTH = 0.0025;      // s: ±2,5 ms a Wow 1
 
 export class AudioEngine {
   constructor() {
@@ -125,7 +39,8 @@ export class AudioEngine {
   }
 
   // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
-  async init(providedCtx = null) {
+  // sala opcional: la Sala COMPARTIDA (modo Partes); sin ella el motor crea la suya.
+  async init(providedCtx = null, { sala = null } = {}) {
     if (this.ctx) return;
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
@@ -194,50 +109,20 @@ export class AudioEngine {
       this.ensDelays.push(d); this.ensSlow.push(slow); this.ensFast.push(fast);
     }
 
-    // Delay ping-pong (estéreo): los ecos rebotan L<->R
-    this.dlDry = ctx.createGain();
-    this.ppSend = ctx.createGain();                 // suma a mono el envío al ping-pong
-    this.ppSend.channelCount = 1; this.ppSend.channelCountMode = 'explicit';
-    this.dlyL = ctx.createDelay(2.0); this.dlyL.delayTime.value = this._effDelay();
-    this.dlyR = ctx.createDelay(2.0); this.dlyR.delayTime.value = this._effDelay();
-    this.ppFbL = ctx.createGain(); this.ppFbR = ctx.createGain();
-    this.ppFbL.gain.value = this.ppFbR.gain.value = Math.min(0.8, S.dlyAmt * 0.85);
-    this.ppMerge = ctx.createChannelMerger(2);
-    this.dlWet = ctx.createGain(); this.dlWet.gain.value = S.dlyAmt;
-    this.dlOut = ctx.createGain();
-    // «Cinta»: LP+HP Butterworth (Q en dB: −3 = plano) a la ENTRADA de cada
-    // línea — así la 1ª repetición ya pasa una vez por el filtro, la 2ª dos…
-    // como el eco de cinta/BBD, que oscurece cada vuelta. A Damp 0 el LP se
-    // pone en Nyquist y el HP en 0 Hz: el biquad de WebAudio los reduce a la
-    // IDENTIDAD exacta (coeficientes unidad), los presets de siempre no cambian.
-    const dampF = this._dampFreqs(S.dlyDamp);
-    const mkDamp = () => {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.Q.value = -3; lp.frequency.value = dampF.lp;
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.Q.value = -3; hp.frequency.value = dampF.hp;
-      lp.connect(hp); return { lp, hp };
-    };
-    this.dampL = mkDamp(); this.dampR = mkDamp();
-
-    // Reverb por convolución (IR generada), dry/wet. DOS convolvers en A/B:
-    // la IR nueva entra por el que está apagado y se cruza en ~50 ms, sin
-    // cortar en seco la cola de la anterior (antes: swap de buffer = corte).
-    // Predelay: DelayNode antes de los convolvers (separa el ataque de la cola).
-    this.revPre = ctx.createDelay(0.1); this.revPre.delayTime.value = S.reverbPre;
-    this.convA = ctx.createConvolver(); this.convA.buffer = makeIR(ctx, S.reverbSize, 2.5, S.reverbDamp);
-    this.convB = ctx.createConvolver();
-    this.revXA = ctx.createGain(); this.revXA.gain.value = 1;
-    this.revXB = ctx.createGain(); this.revXB.gain.value = 0;
-    this._revFront = 'A';
-    this.revDry = ctx.createGain();
-    this.revWet = ctx.createGain(); this.revWet.gain.value = S.reverbMix;
-    this.revOut = ctx.createGain();
-
-    // Limitador de salida -> master -> analyser
-    this.comp = ctx.createDynamicsCompressor();
-    this.comp.threshold.value = -3; this.comp.knee.value = 0; this.comp.ratio.value = 20;
-    this.comp.attack.value = 0.002; this.comp.release.value = 0.1;
-    this.master = ctx.createGain(); this.master.gain.value = S.master;
-    this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.8;
+    // --- Salida del motor: nivel → seco + dos ENVÍOS (delay, reverb) → Sala ---
+    // La Sala (engine/Sala.js) es el espacio: delay ping-pong de cinta, reverb,
+    // limitador, máster y analizador. Modo de siempre: este motor crea la suya
+    // (y `master` es su máster, como siempre). Modo Partes (engine/parts.js):
+    // recibe la Sala COMPARTIDA; `master` pasa a ser el fader de la parte y
+    // los knobs de la sala (tiempo, damp, size, bpm…) la editan para todas.
+    this.ownsSala = !sala;
+    this.sala = sala || new Sala(ctx, S, { fb: Math.min(0.8, S.dlyAmt * 0.85), dlyToRev: S.reverbMix, master: S.master });
+    this.sala.engines.push(this);
+    this.level = ctx.createGain(); this.level.gain.value = this.ownsSala ? 1 : S.master;
+    this.muteG = ctx.createGain();                                            // mute de la parte (mezclador)
+    this.partPan = ctx.createStereoPanner();                                  // pan de la parte (mezclador)
+    this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // envío al delay
+    this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // envío a la reverb
 
     // Conexiones globales
     this.voicesBus.connect(this.amp);
@@ -260,24 +145,11 @@ export class AudioEngine {
     this.ensDelays[1].connect(this.ensCtr); this.ensCtr.connect(this.ensL); this.ensCtr.connect(this.ensR);
     this.ensL.connect(this.ensMerge, 0, 0); this.ensR.connect(this.ensMerge, 0, 1);
     this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
-    // Delay ping-pong
-    this.chOut.connect(this.dlDry); this.dlDry.connect(this.dlOut);          // seco (conserva el estéreo de las voces)
-    this.chOut.connect(this.ppSend); this.ppSend.connect(this.dampL.lp);      // envío mono -> filtro de cinta -> línea L
-    this.dampL.hp.connect(this.dlyL); this.dampR.hp.connect(this.dlyR);
-    this.dlyL.connect(this.ppMerge, 0, 0);                                    // dlyL -> canal izquierdo
-    this.dlyR.connect(this.ppMerge, 0, 1);                                    // dlyR -> canal derecho
-    this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dampR.lp);         // realimentación cruzada L->R (filtrada otra vez)
-    this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dampL.lp);         // realimentación cruzada R->L
-    this.ppMerge.connect(this.dlWet); this.dlWet.connect(this.dlOut);
-    // Reverb (convB no recibe entrada hasta el primer cambio de Size/Damp)
-    this.dlOut.connect(this.revDry); this.revDry.connect(this.revOut);
-    this.dlOut.connect(this.revPre); this.revPre.connect(this.convA);
-    this.convA.connect(this.revXA); this.revXA.connect(this.revWet);
-    this.convB.connect(this.revXB); this.revXB.connect(this.revWet);
-    this.revWet.connect(this.revOut);
-    // Salida
-    this.revOut.connect(this.comp); this.comp.connect(this.master);
-    this.master.connect(this.analyser); this.analyser.connect(ctx.destination);
+    // Salida: chOut -> nivel -> mute -> [pan -> seco de la Sala] + [envíos]
+    this.chOut.connect(this.level); this.level.connect(this.muteG);
+    this.muteG.connect(this.partPan); this.partPan.connect(this.sala.dry);
+    this.muteG.connect(this.sendDly); this.sendDly.connect(this.sala.dlyIn);
+    this.muteG.connect(this.sendRev); this.sendRev.connect(this.sala.revIn);
 
     // LFOs
     this.ampLFO = mkLFO(ctx, S.ampLfoSpd, S.ampLfoLvl); this.ampLFO.depth.connect(this.amp.gain);
@@ -289,10 +161,6 @@ export class AudioEngine {
     this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
     this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
     this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
-    // wow del delay: dos LFOs lentos a velocidades distintas L/R (descorrelados:
-    // cada rebote del ping-pong se desafina distinto y el eco se ensancha)
-    this.wowL = mkLFO(ctx, DLY_WOW_HZ, S.dlyWow * DLY_WOW_DEPTH);        this.wowL.depth.connect(this.dlyL.delayTime);
-    this.wowR = mkLFO(ctx, DLY_WOW_HZ * 1.13, S.dlyWow * DLY_WOW_DEPTH); this.wowR.depth.connect(this.dlyR.delayTime);
     // formas de onda de los LFOs (el estado puede traerlas de un preset)
     this.ampLFO.osc.type = S.ampLfoShape;   this.freqLFO.osc.type = S.freqLfoShape;
     this.pwmLFO.osc.type = S.pwmLfoShape;   this.cutLFO.osc.type = S.cutLfoShape;
@@ -448,6 +316,10 @@ export class AudioEngine {
     // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
     if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
+    // Claves de la SALA (bpm, tiempo/damp/wow del eco, size/damp/pre de la
+    // reverb): las aplica la Sala, que en modo Partes es compartida — y
+    // propaga el valor al S de todas las partes (un solo reloj).
+    if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
     const now = this.ctx.currentTime, smooth = (p, val) => p.setTargetAtTime(val, now, 0.02);
     switch (name) {
       case 'mix':   this._forVoices(v => v.setMix(value)); break;
@@ -519,60 +391,19 @@ export class AudioEngine {
         smooth(this.chWet.gain, value === 'chorus' ? this.S.chAmt : 0);
         smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
         break;
-      case 'dlyAmt': { const fb = Math.min(0.8, value * 0.85); smooth(this.dlWet.gain, value); smooth(this.ppFbL.gain, fb); smooth(this.ppFbR.gain, fb); break; }
-      case 'dlyDamp': { const f = this._dampFreqs(value);
-        [this.dampL, this.dampR].forEach(d => { smooth(d.lp.frequency, f.lp); smooth(d.hp.frequency, f.hp); }); break; }
-      case 'dlyWow': smooth(this.wowL.depth.gain, value * DLY_WOW_DEPTH); smooth(this.wowR.depth.gain, value * DLY_WOW_DEPTH); break;
-      case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
-      case 'dlySync':
-      case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
+      // Envíos a la Sala. En modo único la realimentación del eco sigue al
+      // Amount y los ecos entran en la reverb según el Mix — como siempre; en
+      // modo Partes eso lo gobierna la columna Sala del mezclador.
+      case 'dlyAmt': smooth(this.sendDly.gain, value); if (this.ownsSala) this.sala.setFeedback(Math.min(0.8, value * 0.85)); break;
       case 'width': this._forVoices(v => v.setWidth(value)); break;
-      case 'reverbMix': smooth(this.revWet.gain, value); break;
-      case 'reverbPre': smooth(this.revPre.delayTime, value); break;
-      case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
-      case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
-        clearTimeout(this._revTimer);
-        this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
-        break;
-      case 'master': smooth(this.master.gain, value); break;
+      case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsSala) this.sala.setDlyToRev(value); break;
+      case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Partes: fader de la parte
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
       // a, d, s, r, glide, lfoFade, filterSlope: se leen al crear cada voz (sin nodo en vivo)
     }
-  }
-
-  // Nueva IR por el convolver trasero + crossfade; el delantero se desconecta
-  // al acabar el fundido (un convolver con entrada consume CPU aunque su salida
-  // esté a 0). connect() duplicado sobre el mismo par es inocuo (lo ignora).
-  _swapIR(seconds) {
-    const t = this.ctx.currentTime;
-    const front = this._revFront === 'A' ? { c: this.convA, g: this.revXA } : { c: this.convB, g: this.revXB };
-    const back  = this._revFront === 'A' ? { c: this.convB, g: this.revXB } : { c: this.convA, g: this.revXA };
-    try { back.c.buffer = makeIR(this.ctx, seconds, 2.5, this.S.reverbDamp); } catch (e) { return; }
-    this.revPre.connect(back.c);
-    back.g.gain.setTargetAtTime(1, t, 0.05);
-    front.g.gain.setTargetAtTime(0, t, 0.05);
-    clearTimeout(this._revOffTimer);
-    this._revOffTimer = setTimeout(() => { try { this.revPre.disconnect(front.c); } catch (e) {} }, 400);
-    this._revFront = this._revFront === 'A' ? 'B' : 'A';
-  }
-
-  // Damp 0..1 -> cortes del filtro del bucle (recorrido log): LP de Nyquist a
-  // DLY_DAMP_LP_MIN, HP de DLY_DAMP_HP_MIN a DLY_DAMP_HP_MAX. A 0 exactamente
-  // Nyquist / 0 Hz (identidad en el biquad), por eso la rama aparte.
-  _dampFreqs(d) {
-    const nyq = this.ctx.sampleRate / 2;
-    if (!(d > 0)) return { lp: nyq, hp: 0 };
-    return { lp: nyq * Math.pow(DLY_DAMP_LP_MIN / nyq, d),
-             hp: DLY_DAMP_HP_MIN * Math.pow(DLY_DAMP_HP_MAX / DLY_DAMP_HP_MIN, d) };
-  }
-
-  // Tiempo efectivo del delay: libre (knob Time) o división musical del BPM
-  _effDelay() {
-    const div = { '1/8': 0.5, '1/8.': 0.75, '1/4': 1, '1/4.': 1.5, '1/2': 2 }[this.S.dlySync];
-    return div ? Math.min(1.5, (60 / this.S.bpm) * div) : this.S.dlyTime;
   }
 
   // Pitch bend MIDI (cents). Va por fuera de CONTROLS/presets: se SUMA al
@@ -584,7 +415,29 @@ export class AudioEngine {
     if (cents) this._forVoices(v => v.ensurePitch());
   }
 
-  getAnalyser() { return this.analyser; }
+  // ---------- modo Partes: mute / pan / desmontaje ----------
+  setMute(on) { if (this.ready) this.muteG.gain.setTargetAtTime(on ? 0 : 1, this.ctx.currentTime, 0.02); }
+  setPan(v)   { if (this.ready) this.partPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), this.ctx.currentTime, 0.02); }
+  // Desmonta el motor (al apagar la escena): suelta voces y colas, para los
+  // planificadores y los osciladores de LFO — un OscillatorNode arrancado
+  // sigue consumiendo aunque nadie lo escuche — y se desengancha de la Sala.
+  dispose() {
+    if (!this.ready) return;
+    this.allNotesOff();
+    for (const v of this.tails) { if (v._timer) clearTimeout(v._timer); this._dispose(v); }
+    this.tails.clear();
+    clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
+    const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
+                  this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast];
+    for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
+    try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
+    for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
+    this.sala.engines = this.sala.engines.filter(e => e !== this);
+    if (this.ownsSala) this.sala.dispose();
+    this.ready = false;
+  }
+
+  getAnalyser() { return this.sala ? this.sala.analyser : null; }
   stats() { return { pressed: this.voiceCount, tails: this.tails.size, worklets: this.modStats ? this.modStats.worklets : 0 }; }
 }
 

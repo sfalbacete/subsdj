@@ -19,7 +19,8 @@
      ampeg_release = release del preset para que soltar la nota en el
      sampler suene como en el synth.
    ===================================================================== */
-import { AudioEngine, engine } from '../engine/AudioEngine.js';
+import { AudioEngine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { encodeWav, download } from './recorder.js';
 
 const SR = 44100;
@@ -211,7 +212,7 @@ export function initSfzExport() {
     const name = (sel && sel.selectedOptions[0] && sel.selectedOptions[0].textContent) || 'preset';
     try {
       // exporta lo que SUENA ahora: el preset cargado + los retoques de knobs
-      const kit = await exportPresetSFZ(name, structuredClone(engine.S),
+      const kit = await exportPresetSFZ(name, structuredClone(part().S),
         (i, n) => say('SFZ: render ' + i + '/' + n + '…'));
       say('SFZ exportado: ' + kit.samples.length + ' samples · cárgalo en Sforzando/Renoise.');
     } catch (e) {

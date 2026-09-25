@@ -2,6 +2,7 @@
    SubSDJ · punto de entrada. Sirve por HTTP (módulos ES + AudioWorklet).
    ===================================================================== */
 import { engine } from './engine/AudioEngine.js';
+import { part } from './engine/parts.js';
 import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
@@ -20,6 +21,7 @@ import { initADSRGraph } from './ui/adsrGraph.js';
 import { initCollapsiblePanels } from './ui/collapse.js';
 import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
+import { initPartsControls } from './ui/partsControls.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
@@ -39,6 +41,7 @@ initCollapsiblePanels();
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
+initPartsControls(); // modo Partes: selector en la cabecera + mezclador (después de help: etiqueta los h2)
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.
@@ -60,8 +63,8 @@ engine.init()
 // 3) Mini-HUD de diagnóstico: voces pulsadas · colas de release · worklets vivos
 setInterval(() => {
   const el = document.getElementById('dbgInfo');
-  if (el && engine.ready) {
-    const s = engine.stats();
+  if (el && part().ready) {                   // la parte que edita el rack (el motor único si no hay escena)
+    const s = part().stats();
     el.textContent = `voces ${s.pressed} · colas ${s.tails} · osc ${s.worklets}`;
   }
 }, 500);

@@ -4,7 +4,7 @@
    en espectro + mips band-limited. «Suavizar» atenúa armónicos altos EN EL
    ESPECTRO y resintetiza: suaviza el timbre, no solo el trazo. El frame que
    no se edita se pinta como fantasma para dibujar el morph con intención. */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
          espectroDe, puntosDeEspectro, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
@@ -51,7 +51,7 @@ export function initWaveEditor() {
     pts[i] = v; last = { i, v };
     draw();
   }
-  cv.addEventListener('pointerdown', e => { engine.resume(); dragging = true; last = null; cv.setPointerCapture(e.pointerId); paint(e); e.preventDefault(); });
+  cv.addEventListener('pointerdown', e => { part().resume(); dragging = true; last = null; cv.setPointerCapture(e.pointerId); paint(e); e.preventDefault(); });
   cv.addEventListener('pointermove', e => { if (dragging) paint(e); });
   const end = e => { if (!dragging) return; dragging = false; last = null; try { cv.releasePointerCapture(e.pointerId); } catch (_) {} commit(); };
   cv.addEventListener('pointerup', end);
@@ -84,9 +84,9 @@ export function initWaveEditor() {
   // presets no cargan con ~2.5 KB de puntos). set: '' = "no traigo onda,
   // respeta la dibujada" (es lo que aplica el Reset previo a cada carga).
   CONTROLS.wtUser = {
-    get: () => engine.S.wtSet === 'usuario' ? encodeUserFrames(frames) : '',
+    get: () => part().S.wtSet === 'usuario' ? encodeUserFrames(frames) : '',
     set: v => {
-      engine.S.wtUser = v;                       // constancia en S (el motor no tiene case: dato de receta)
+      part().S.wtUser = v;                       // constancia en S (el motor no tiene case: dato de receta)
       if (!v) return;
       const fr = decodeUserFrames(v);
       if (!fr) return;

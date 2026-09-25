@@ -1,5 +1,5 @@
 /* SubSDJ · osciloscopio (dominio del tiempo) + analizador de espectro */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 
 function fit(c) { c.width = c.clientWidth || 300; c.height = c.clientHeight || 90; }
 
@@ -39,7 +39,7 @@ export function initScope(scopeCanvas, specCanvas) {
 
   function frame() {
     requestAnimationFrame(frame);
-    const an = engine.getAnalyser();
+    const an = part().getAnalyser();
     if (!an) return;
     if (!timeData) { timeData = new Uint8Array(an.fftSize); freqData = new Uint8Array(an.frequencyBinCount); }
     an.getByteTimeDomainData(timeData); drawScope(timeData);

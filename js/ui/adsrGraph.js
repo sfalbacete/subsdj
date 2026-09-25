@@ -1,5 +1,5 @@
 /* SubSDJ · gráfico de la envolvente ADSR (amp + filtro comparten A/D/S/R) */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 
 export function initADSRGraph(canvas) {
   const ctx = canvas.getContext('2d');
@@ -7,7 +7,7 @@ export function initADSRGraph(canvas) {
 
   function draw() {
     fit();
-    const S = engine.S, w = canvas.width, h = canvas.height, pad = 8;
+    const S = part().S, w = canvas.width, h = canvas.height, pad = 8;
     ctx.clearRect(0, 0, w, h);
 
     const { a, d, s, r } = S;

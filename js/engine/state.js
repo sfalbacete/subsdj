@@ -14,3 +14,27 @@ export function makeDefaultState() {
   }
   return S;
 }
+
+// Preset (claves de PARAMS, espacio-motor) -> estado S, SIN pasar por la UI
+// (las partes nacen con su preset). Claves desconocidas: se ignoran, como
+// en loadState. Devuelve el mismo S.
+export function applyPreset(S, preset) {
+  for (const name in preset) {
+    const p = PARAMS[name]; if (!p) continue;
+    const t = p.t || name;
+    if (t.includes('.')) { const [o, k] = t.split('.'); S[o][k] = preset[name]; }
+    else S[t] = preset[name];
+  }
+  return S;
+}
+// Estado S -> objeto con las claves de PARAMS (lo que enseñan los controles):
+// la inversa de applyPreset; al cambiar de parte el rack la vuelca (syncControls).
+export function toControls(S) {
+  const o = {};
+  for (const name in PARAMS) {
+    const t = PARAMS[name].t || name;
+    if (t.includes('.')) { const [a, k] = t.split('.'); o[name] = S[a][k]; }
+    else o[name] = S[t];
+  }
+  return o;
+}

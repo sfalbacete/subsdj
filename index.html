@@ -15,6 +15,10 @@
   <button id="midiLearnBtn" class="btn" title="MIDI learn: liga los mandos físicos (CC) a los controles de la UI">🎛 MIDI map</button>
   <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
   <button id="recBtn" class="btn" title="Grabar la salida a un archivo WAV">⏺ Grabar</button>
+  <span id="partsBar">
+    <button id="partsBtn" class="btn" title="Modo Partes: 4 instrumentos a la vez sobre una sala compartida (el rack edita la parte elegida)">▦ Partes</button>
+    <span class="seg" id="partSel" hidden><button data-p="0" title="Editar la parte 1">1</button><button data-p="1" title="Editar la parte 2">2</button><button data-p="2" title="Editar la parte 3">3</button><button data-p="3" title="Editar la parte 4">4</button></span>
+  </span>
   <span id="powerInfo">⏻ cargando audio…</span>
   <span id="dbgInfo" title="voces pulsadas · colas de release · osciladores worklet vivos"></span>
 </header>
@@ -349,7 +353,7 @@
       <button data-sync="1/4.">¼·</button>
       <button data-sync="1/2">½</button>
     </div>
-    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador. <b>Damp</b> = filtro DENTRO del bucle: cada repetición pierde agudos (y algo de graves), como la cinta o los BBD — a 0 es transparente exacto. <b>Wow</b> desafina un pelo cada repetición (modulación lenta del tiempo, distinta en L y R): el eco se ensancha.</div>
+    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador. <b>Damp</b> = filtro DENTRO del bucle: cada repetición pierde agudos (y algo de graves), como la cinta o los BBD — a 0 es transparente exacto. <b>Wow</b> desafina un pelo cada repetición (modulación lenta del tiempo, distinta en L y R): el eco se ensancha. En modo <b>Partes</b>: Amount es el ENVÍO de esta parte; Time/BPM/Damp/Wow y el sync son de la sala compartida.</div>
   </div>
 
   <!-- ===== ESPACIO ===== -->
@@ -371,7 +375,7 @@
       <div class="ctl"><div class="knob" data-knob="reverbDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="reverbPre"><div class="ind"></div></div><div class="lab">Predelay</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Reverb</b> por convolución (IR generada por código). Damp = la cola pierde agudos antes, como una sala real · Predelay separa el ataque de la cola.</div>
+    <div class="help"><b>Reverb</b> por convolución (IR generada por código). Damp = la cola pierde agudos antes, como una sala real · Predelay separa el ataque de la cola. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; Size/Damp/Predelay son de la sala compartida.</div>
   </div>
 
   <!-- ===== SECUENCIACIÓN ===== -->
@@ -426,6 +430,13 @@
   </div>
 
   <!-- ===== VISUALIZADORES (módulos anchos) ===== -->
+  <!-- ===== PARTES (solo con la escena encendida) ===== -->
+  <div class="panel wide" id="mixer" hidden>
+    <h2>Mezclador</h2>
+    <div class="mix" id="mixStrips"></div>
+    <div class="help"><b>Mezclador de partes.</b> Cada tira es una parte: Nivel = el Master de su preset, Delay/Reverb = sus ENVÍOS a la sala compartida (el Amount del delay y el Mix de la reverb del preset), Pan y M (silenciar). Clic en el nombre = el rack pasa a editar esa parte. Columna Sala: máster de la escena, realimentación del eco y cuánto eco entra en la reverb. Capa = el teclado toca todas las partes.</div>
+  </div>
+
   <div class="panel wide"><h2>Osciloscopio</h2><canvas id="scope" class="viz"></canvas></div>
   <div class="panel wide"><h2>Espectro</h2><canvas id="spectrum" class="viz"></canvas></div>
 

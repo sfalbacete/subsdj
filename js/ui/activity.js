@@ -6,7 +6,7 @@
    como activo si su Level > 0 O si algún slot de la matriz lo usa en crudo.
    Event-driven: escucha el 'param-change' que ya emite el registro y
    recalcula con debounce de un frame — sin polling. */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { MX_SLOTS } from '../engine/params.js';
 
 const srcUsed = (S, id) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] === id && S['mx' + i + 'amt']) return true; return false; };
@@ -75,7 +75,7 @@ export function initActivity() {
   let pending = false;
   const refresh = () => {
     pending = false;
-    const S = engine.S;
+    const S = part().S;
     for (const l of leds) l.el.classList.toggle('on', !!l.test(S));
     for (const a of apagables) a.el.classList.toggle('mod-off', !a.test(S));
   };

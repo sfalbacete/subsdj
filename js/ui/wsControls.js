@@ -4,13 +4,13 @@
    (así se hacen pasos largos: ritmo desigual). Clon adaptado del editor del
    secuenciador; el marcador sigue a la voz más reciente (cada voz lleva su
    propia fase — en un acorde el marcador es solo orientativo). */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { WS_MAX_STEPS, WS_TOP, parseWsPattern } from '../engine/WaveSeq.js';
 
-const tokensOf = () => engine.S.wsPat.trim().split(/\s+/).filter(Boolean).slice(0, WS_MAX_STEPS);
+const tokensOf = () => part().S.wsPat.trim().split(/\s+/).filter(Boolean).slice(0, WS_MAX_STEPS);
 
 export function bindWsControls() {
   bindSeg('wsOnSel', 'wson', 'wsOn', 'wsOn');
@@ -19,7 +19,7 @@ export function bindWsControls() {
 
   // wsPat: el editor canvas es su único widget. Sin `el`: fuera de MIDI learn.
   CONTROLS.wsPat = {
-    get: () => engine.S.wsPat,
+    get: () => part().S.wsPat,
     set: v => applyTarget('wsPat', String(v ?? PARAMS.wsPat.def)),
     def: PARAMS.wsPat.def,
   };
@@ -41,8 +41,8 @@ function initWsEditor(canvas) {
 
   function draw() {
     fit();
-    const w = canvas.width, h = canvas.height, steps = parseWsPattern(engine.S.wsPat);
-    const play = engine.ready ? engine.wseq.playingStep() : -1;
+    const w = canvas.width, h = canvas.height, steps = parseWsPattern(part().S.wsPat);
+    const play = part().ready ? part().wseq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
     g.strokeStyle = 'rgba(125,138,153,.18)';
@@ -55,7 +55,7 @@ function initWsEditor(canvas) {
     if (!steps.length) return;
     const cw = (w - 2 * PAD) / steps.length;
     g.font = '8px system-ui';
-    let held = Math.round(engine.S.wtPos * WS_TOP);    // '.' inicial hereda del knob Morph
+    let held = Math.round(part().S.wtPos * WS_TOP);    // '.' inicial hereda del knob Morph
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
       if (i) { g.strokeStyle = 'rgba(125,138,153,.10)'; g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
@@ -83,13 +83,13 @@ function initWsEditor(canvas) {
 
   let drag = null;
   canvas.addEventListener('pointerdown', e => {
-    engine.resume();
+    part().resume();
     const toks = tokensOf();
     if (!toks.length) return;
     const rect = canvas.getBoundingClientRect();
     const cw = (canvas.width - 2 * PAD) / toks.length;
     const step = Math.max(0, Math.min(toks.length - 1, Math.floor((e.clientX - rect.left - PAD) / cw)));
-    const st = parseWsPattern(engine.S.wsPat)[step];
+    const st = parseWsPattern(part().S.wsPat)[step];
     drag = { step, startY: e.clientY, startFr: st !== null ? st : 0, wasHold: st === null, moved: false };
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -125,7 +125,7 @@ function initWsEditor(canvas) {
   window.addEventListener('resize', draw);             // collapse.js dispara resize al desplegar
   let lastPlay = -1;                                   // marcador: redibuja solo al cambiar de paso
   setInterval(() => {
-    const p = engine.ready ? engine.wseq.playingStep() : -1;
+    const p = part().ready ? part().wseq.playingStep() : -1;
     if (p !== lastPlay) { lastPlay = p; draw(); }
   }, 40);
   draw();

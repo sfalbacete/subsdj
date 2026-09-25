@@ -24,6 +24,8 @@ import { FACTORY, migrateV1 } from './engine/presets.js';
 import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS } from './engine/params.js';
+import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
+import { createScene } from './engine/parts.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
@@ -708,6 +710,58 @@ export async function runSelfTest() {
       r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: aMax.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Partes (Roadmap 4.0 · C1): (1) estado↔controles: applyPreset y toControls
+    // son inversas y respetan los defaults; (2) escena offline con 4 partes
+    // sobre UNA Sala: cada parte suena en su ventana, la silenciada no, sin
+    // NaN ni clipping; (3) la sala es compartida: un cambio de BPM desde una
+    // parte y de predelay desde la sala llegan al S de todas; (4) el envío a
+    // reverb de la parte 4 deja cola en la sala cuando su VCA ya cerró.
+    body.appendChild(el('st-cat', 'Partes'));
+    let r;
+    try {
+      const probs = [];
+      const def = toControls(makeDefaultState());
+      for (const k in PARAMS) if (def[k] !== PARAMS[k].def) { probs.push('toControls: ' + k + ' ≠ default'); break; }
+      const pr = FACTORY['Pads']['Pad catedral'], back = toControls(applyPreset(makeDefaultState(), pr));
+      for (const k in pr) if (back[k] !== pr[k]) { probs.push('applyPreset/toControls no es ida y vuelta en ' + k); break; }
+      const secs = 3.2, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+      // la parte 4 (la última en sonar) lleva ataque corto y envío a reverb a
+      // tope: su cola es lo único que queda al final del render
+      const presets = [FACTORY['Bajos']['Bajo pluck'], FACTORY['Leads']['Lead cuadrado'], FACTORY['Percusión']['Bombo 808'],
+                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
+      // reverbSize va en la creación: regenerar la IR en vivo lleva debounce (timer real: no determinista offline)
+      const sc = await createScene(ctx, presets, { salaS: { reverbSize: 2.6 } });
+      sc.parts[1].engine.setMute(true);
+      sc.parts[0].engine.set('bpm', 99);                       // desde una parte…
+      sc.sala.set('reverbPre', 0.02);                          // …y desde la sala
+      if (!(sc.parts.every(p => p.engine.S.bpm === 99 && p.engine.S.reverbPre === 0.02 && p.engine.S.reverbSize === 2.6) && sc.S.bpm === 99))
+        probs.push('la sala no se comparte (bpm / reverbPre / reverbSize no llegan a todas las partes)');
+      const T = i => 0.1 + 0.6 * i;                            // cada parte toca C3 en su ventana
+      sc.parts.forEach((p, i) => {
+        ctx.suspend(T(i)).then(() => { p.engine.noteOn('n', NOTE1); ctx.resume(); });
+        ctx.suspend(T(i) + 0.25).then(() => { p.engine.noteOff('n'); ctx.resume(); });
+      });
+      const buf = await ctx.startRendering();
+      const a = analyze(buf);
+      if (a.bad) probs.push('NaN/Inf');
+      if (a.peak > 1) probs.push('clipping (' + dB(a.peak) + ')');
+      const rmsW = (t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const lv = sc.parts.map((p, i) => rmsW(T(i) + 0.02, T(i) + 0.25));
+      [0, 2, 3].forEach(i => { if (!(lv[i] > SILENCE)) probs.push('la parte ' + (i + 1) + ' no suena (' + dB(lv[i]) + ')'); });
+      if (!(lv[1] < SILENCE * 0.3)) probs.push('la parte 2 silenciada suena (' + dB(lv[1]) + ')');
+      const tail = rmsW(2.75, 3.2);  // parte 4: nota 1.9-2.15 s, VCA cerrado en ~2.4 s (r 0.15) → solo queda la cola de la reverb compartida
+      if (!(tail > 1e-3)) probs.push('sin cola de reverb de la parte 4 en la sala (' + dB(tail) + ')');
+      console.log('partes: niveles', lv.map(v => dB(v)).join(' · '), '· cola', dB(tail), '· pico', dB(a.peak));
+      r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: a.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

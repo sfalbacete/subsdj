@@ -1,5 +1,5 @@
 /* SubSDJ · teclado en pantalla + teclado del PC (polifónico) */
-import { engine } from '../engine/AudioEngine.js';
+import { part, playOn, playOff, eachPart } from '../engine/parts.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // Layout estilo tracker (FastTracker/Impulse): dos filas de notas, semitonos desde la octava base.
@@ -87,7 +87,7 @@ function buildKeyboard() {
 
 function press(midi, vel = 1) {
   if (active.has(midi)) return;
-  engine.noteOn('m' + midi, midiToFreq(midi), vel);
+  playOn('m' + midi, midiToFreq(midi), vel);
   const el = kb.querySelector(`[data-midi="${midi}"]`);
   if (el) el.classList.add('on');
   active.set(midi, el || null);
@@ -95,16 +95,16 @@ function press(midi, vel = 1) {
 }
 function release(midi) {
   if (!active.has(midi)) return;
-  engine.noteOff('m' + midi);
+  playOff('m' + midi);
   const el = active.get(midi); if (el) el.classList.remove('on');
   active.delete(midi);
 }
 function bindKeyEl(el, midi) {
-  el.addEventListener('pointerdown', e => { engine.resume(); press(midi); el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerdown', e => { part().resume(); press(midi); el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointerup', () => release(midi));
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
-function panic() { held.clear(); engine.allNotesOff(); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+function panic() { held.clear(); eachPart(e => e.allNotesOff()); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
 // así QWERTY y MIDI comparten estado visual y no se doble-disparan.
@@ -153,7 +153,7 @@ export function initKeyboard() {
     if (!(k in KEYMAP)) return;
     if (held.has(k) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
     e.preventDefault();                              // evita atajos del navegador con '/', ',', etc.
-    held.add(k); engine.resume();
+    held.add(k); part().resume();
     press((baseOctave + 1) * 12 + KEYMAP[k]);
   }, true);   // fase de CAPTURA: corre antes de que un combo enfocado procese la tecla
   window.addEventListener('keyup', e => {

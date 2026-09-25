@@ -1,7 +1,7 @@
 /* SubSDJ · selectores de onda + steppers de octavas + segmentos (modo de voz,
    envolvente de filtro) + selector de tabla de ondas. Defaults desde PARAMS
    (el HTML no marca .active). */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { WT_SETS } from '../engine/wavetable.js';
 import { CONTROLS, applyTarget } from './registry.js';
@@ -39,7 +39,7 @@ function bindLfoShapes() {
       btn.dataset.cur = v; btn.textContent = SHAPE_LABEL[v];
       applyTarget(name, v);
     };
-    btn.addEventListener('click', () => { engine.resume(); set(SHAPES[(SHAPES.indexOf(btn.dataset.cur) + 1) % SHAPES.length]); });
+    btn.addEventListener('click', () => { part().resume(); set(SHAPES[(SHAPES.indexOf(btn.dataset.cur) + 1) % SHAPES.length]); });
     CONTROLS[name] = { get: () => btn.dataset.cur, set, def: PARAMS[name].def, el: btn, opts: SHAPES };
     set(PARAMS[name].def);
   });
@@ -71,7 +71,7 @@ export function bindOscControls() {
   const wtSel = document.getElementById('wtSetSel');
   if (wtSel) {
     for (const n of Object.keys(WT_SETS)) wtSel.add(new Option(n, n));
-    wtSel.addEventListener('change', () => { engine.resume(); applyTarget('wtSet', wtSel.value); });
+    wtSel.addEventListener('change', () => { part().resume(); applyTarget('wtSet', wtSel.value); });
     CONTROLS.wtSet = {
       get: () => wtSel.value,
       set: v => { if ([...wtSel.options].some(o => o.value === v)) wtSel.value = v; applyTarget('wtSet', wtSel.value); },
@@ -84,11 +84,11 @@ export function bindOscControls() {
     b.addEventListener('click', () => {
       if (!b.dataset.oct) return;                    // otros steppers (p.ej. pasos del seq) se cablean aparte
       const which = 'osc' + b.dataset.oct;
-      setOctave(which, engine.S[which].octaves + parseInt(b.dataset.d, 10));
+      setOctave(which, part().S[which].octaves + parseInt(b.dataset.d, 10));
     });
   });
   ['A', 'B'].forEach(s => {
-    CONTROLS['octaves' + s] = { get: () => engine.S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def,
+    CONTROLS['octaves' + s] = { get: () => part().S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def,
       el: document.getElementById('oct' + s).closest('.ctl'), opts: [1, 2, 3, 4] };
     setOctave('osc' + s, PARAMS['octaves' + s].def);
   });

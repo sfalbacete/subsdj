@@ -1,14 +1,14 @@
 /* =====================================================================
    SubSDJ · entrada Web MIDI.
    Notas con velocity -> pressNote/releaseNote (comparte ids y visuales con
-   el teclado en pantalla). Pitch bend ±200 ct -> engine.setBend (no pasa
+   el teclado en pantalla). Pitch bend ±200 ct -> part().setBend (no pasa
    por presets). Sustain (CC64) retenido aquí, salvo que el usuario lo
    remapee. El resto de CCs pasa por el mapa de midimap.js (MIDI learn);
    de fábrica: CC1 -> vibrato, CC74/CC71 -> cutoff/resonancia (los
    controles giran en pantalla: misma filosofía que un panel analógico).
    Program change n -> preset n del banco (módulo del tamaño del banco).
    ===================================================================== */
-import { engine } from '../engine/AudioEngine.js';
+import { part, eachPart } from '../engine/parts.js';
 import { pressNote, releaseNote } from './keyboard.js';
 import { applyCC, learnCapture, setDevice } from './midimap.js';
 import { loadPresetIndex } from './presetBank.js';
@@ -20,7 +20,7 @@ function onMsg(e) {
   const [st, d1, d2] = e.data;
   const cmd = st & 0xf0;
   if (cmd === 0x90 && d2 > 0) {                        // note on
-    engine.resume();
+    part().resume();
     if (pedalHeld.has(d1)) { pedalHeld.delete(d1); releaseNote(d1); }   // retrigger de nota sostenida
     pressNote(d1, d2 / 127);
   } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {   // note off
@@ -36,7 +36,7 @@ function onMsg(e) {
   } else if (cmd === 0xc0) {                           // program change → preset del banco
     loadPresetIndex(d1);
   } else if (cmd === 0xe0) {                           // pitch bend ±200 ct (±2 semitonos)
-    engine.setBend((((d2 << 7) | d1) - 8192) / 8192 * 200);
+    eachPart(e => e.setBend((((d2 << 7) | d1) - 8192) / 8192 * 200));
   }
 }
 

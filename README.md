@@ -105,12 +105,16 @@ js/selftest.js                 autotest offline (?selftest=1)
 js/engine/
   params.js                    PARAMS: tabla ÚNICA de parámetros (defaults, rangos, formato)
   state.js                     estado S del synth, derivado de PARAMS
-  AudioEngine.js               grafo global (FX, LFOs, limitador) + gestión de voces
+  AudioEngine.js               grafo de UN instrumento (LFOs, inserciones) + gestión de voces
+  Sala.js                      el espacio: delay de cinta, reverb, limitador, máster (por envíos; compartida en Partes)
+  parts.js                     modo Partes: 4 motores sobre un contexto + Sala compartida; part() = el que edita el rack
+  nodes.js                     nodos auxiliares: ruido, deriva, IR de reverb, curva de distorsión, LFOs
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
+  partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
@@ -359,25 +363,37 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
 
 **Eje C · partes y música generativa** (el giro de cabeza; no es un multipista):
 
-- **C1 Partes + mezclador** — PARTE = un `AudioEngine` completo en el
-  AudioContext compartido (`init(ctx)` ya lo permite; el selftest instancia
-  varios) con su preset, voces, Arp/Seq/WaveSeq e inserciones (dist, flanger,
-  chorus). Salida → MEZCLADOR (nivel, pan, envío delay, envío reverb) → delay
-  y reverb COMPARTIDOS (una sola sala) → limitador → máster. El rack edita la
-  parte SELECCIONADA (selector de 4 partes; la única indirección: que
-  `registry.applyTarget` y las referencias al singleton en `ui/` pasen por
-  «parte actual»). Teclado y MIDI tocan la parte seleccionada (o en capa).
-  **Instrumento vs escena:** los presets mezclan hoy dos clases de parámetros.
-  Los del INSTRUMENTO (voz, inserciones, arp/seq/ws y los ENVÍOS reverbMix /
-  dlyAmt) siguen en el preset, por parte. Los de la ESCENA (bpm, reverbSize /
-  Damp / Pre, tiempo / sync / realimentación del delay, master) son únicos por
-  sesión: en modo Partes viven en un módulo global «Sala» fuera de los presets
-  — RECOMENDADO, pendiente de confirmar; la alternativa «el último preset
-  cargado manda» haría que cargar un bajo en la parte 2 encogiera la catedral
-  de la parte 1 (es lo que hacían los multitímbricos de los 90: la
-  Performance tiene la reverb, cada Part su envío). Con Partes apagadas el
-  preset sigue mandando en todo, como hoy. Evidencia: escena offline en el
-  selftest (4 partes, N compases: sin NaN, sin clipping, cada parte audible).
+- **C1 Partes + mezclador** ✔ *(hecho 2026-09-25; decisión «sala global por
+  envío» confirmada por el usuario)* — `engine/Sala.js`: el ESPACIO (delay
+  ping-pong de cinta, reverb, limitador, máster, analizador) sale del motor a
+  una clase propia con modelo send/return, el de los multitímbricos de los
+  90: cada motor le manda su señal seca y dos ENVÍOS (el `dlyAmt` y el
+  `reverbMix` del preset). En modo de siempre cada motor crea su Sala y
+  suena igual — probado con un render DETERMINISTA (Math.random sembrado) de
+  8 presets antes y después de la refactorización: de 1,37 M de muestras a
+  16 bit, 380 difieren en 1 LSB (reordenar ganancias lineales cambia el
+  orden de las sumas en coma flotante) y el resto son idénticas.
+  `engine/parts.js`: PARTE = `AudioEngine` completo (`init(ctx, {sala})`)
+  sobre el contexto compartido; `part()` es el motor que edita el rack y
+  toca el teclado — la UI solo habla con él (registry, keyboard, midi,
+  seq…); con la escena apagada es el motor único y nada cambia. `SALA_KEYS`
+  (bpm, tiempo/sync/damp/wow del eco, size/damp/pre de la reverb) son de la
+  sala: en escena el rack las edita para todas las partes (etiqueta «sala»
+  en Delay y Reverb), los presets no las tocan y Reset no las resetea;
+  `master` pasa a ser el fader de la parte. `syncControls` vuelca el estado
+  de la parte elegida en los controles SIN reaplicarlo (reaplicar cortaría
+  sus notas: 'mode'/'seqOn' hacen allNotesOff). UI: botón **▦ Partes** +
+  selector 1-4 en la cabecera; módulo **Mezclador** a todo el ancho: por
+  parte Nivel/Pan/Delay/Reverb/M (silenciar), columna Sala (máster de la
+  escena, realimentación del eco, eco→reverb) y **Capa** (el teclado toca
+  todas). La parte 1 hereda el sonido que había al encender. Sin
+  persistencia todavía (C3). Evidencia: check «partes» en el selftest
+  (estado↔controles ida y vuelta; escena offline de 4 partes: cada una
+  suena en su ventana, la silenciada no, bpm/predelay/size llegan al S de
+  todas, la cola de reverb de la parte 4 queda en la sala a −44 dB; 106/106),
+  sonda CDP en la página real (21 comprobaciones: encender, heredar el
+  sonido, elegir parte, cargar preset sin tocar la sala, knobs de sala a
+  todas, tira↔rack, capa, mute, apagar) y capturas de cabecera y mezclador.
 - **C2 Armonía + jugadores** — Armonía global: raíz, escala (mayor, menor,
   dórica, pentatónica, hirajoshi, tonos enteros…), progresión por grados con
   compases por acorde o paseo de Markov sobre funciones tonales; TODO lo

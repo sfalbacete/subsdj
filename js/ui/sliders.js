@@ -1,7 +1,7 @@
 /* SubSDJ · sliders (range). Config en PARAMS (tabla única); el HTML no lleva
    min/max/step/value: se fijan aquí. Los params `log` (cutoff) usan el slider
    como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en espacio-motor. */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { PARAMS, posToVal, valToPos } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 
@@ -31,7 +31,7 @@ export function bindSliders() {
       if (vEl) vEl.textContent = p.fmt ? p.fmt(val) : String(val);
     };
     el.addEventListener('input', update);
-    el.addEventListener('pointerdown', () => engine.resume());
+    el.addEventListener('pointerdown', () => part().resume());
     el.value = valToPos(p, p.def);
     update();
     CONTROLS[name] = {

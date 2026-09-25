@@ -45,6 +45,31 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;line-height:1;}
 
+/* Partes: botón + selector 1-4 en la cabecera; mezclador; etiqueta «sala» */
+#partsBar{display:flex;align-items:center;gap:8px;}
+#partSel{display:inline-flex;}
+#partSel[hidden]{display:none;}
+#partSel button{padding:5px 11px;font-size:12px;}
+.panel[hidden]{display:none;}
+#mixer{grid-column:1 / -1;}   /* el mezclador ocupa todo el ancho del rack: 4 tiras + sala en una fila */
+.mix{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-top:8px;}
+.strip{flex:1 1 200px;min-width:200px;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;
+  padding:8px;display:flex;flex-direction:column;gap:6px;}
+.strip.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
+.strip.muted .row{opacity:.45;}
+.strip .pname{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;padding:5px 8px;
+  font-size:11px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.strip .pname:hover{border-color:var(--accent);color:var(--accent);}
+.strip.cur .pname{color:var(--accent);}
+.strip .pname.static{cursor:default;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;text-align:center;}
+.strip.sala{flex:0 1 200px;}
+.strip .mute{align-self:flex-start;padding:2px 9px;font-size:10px;font-weight:700;background:#0f141a;
+  border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
+.strip .mute.on{color:var(--hot);border-color:var(--hot);}
+.chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
+.tag-sala{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#04140e;background:var(--accent);
+  border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;}
+
 #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
   background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
   border-radius:10px;padding:9px 12px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
@@ -67,7 +92,7 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .panel.u2{grid-row:span 2;}
 .panel.u3{grid-row:span 3;}
 .panel.wide{grid-column:span 2;}
-@media (max-width:520px){.panel.wide{grid-column:auto;}}
+@media (max-width:520px){.panel.wide,#mixer{grid-column:auto;}}
 canvas.viz{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
 .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
   border-radius:10px;padding:10px 12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}

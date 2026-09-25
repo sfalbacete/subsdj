@@ -1,13 +1,13 @@
 /* SubSDJ · panel del secuenciador: segs, editor de pasos en canvas (edita el
    param string seqPat), stepper de longitud y exclusión mutua con el arp.
    La frase son offsets en semitonos sobre la tecla mantenida ('.' = silencio). */
-import { engine } from '../engine/AudioEngine.js';
+import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq } from '../engine/Seq.js';
 
-const tokensOf = () => engine.S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
+const tokensOf = () => part().S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
 // Banco de frases prefabricadas (offsets sobre la raíz; div = división recomendada).
 // El selector es azúcar de UI: solo reescribe seqPat/seqDiv vía CONTROLS.
@@ -47,7 +47,7 @@ export function bindSeqControls() {
   // seqPat: el editor canvas es su único widget. Sin `el`: fuera de MIDI learn
   // (un CC no puede editar un string; applyCC lo consumiría sin efecto igualmente).
   CONTROLS.seqPat = {
-    get: () => engine.S.seqPat,
+    get: () => part().S.seqPat,
     set: v => applyTarget('seqPat', String(v ?? PARAMS.seqPat.def)),
     def: PARAMS.seqPat.def,
   };
@@ -74,7 +74,7 @@ function initSeqPatterns() {
   });
   const norm = s => String(s).trim().split(/\s+/).join(' ');
   const sync = () => {
-    const cur = norm(engine.S.seqPat);
+    const cur = norm(part().S.seqPat);
     const chosen = SEQ_PATTERNS[+sel.value];
     if (chosen && norm(chosen.pat) === cur) return;   // la selección vigente ya casa (hay patrones repetidos entre grupos)
     const i = SEQ_PATTERNS.findIndex(p => norm(p.pat) === cur);
@@ -83,7 +83,7 @@ function initSeqPatterns() {
   sel.addEventListener('change', () => {
     const p = SEQ_PATTERNS[+sel.value];
     if (!p) { sync(); return; }               // «personalizada» no pisa nada
-    engine.resume();
+    part().resume();
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
     if (p.bpm) CONTROLS.bpm.set(p.bpm);       // las clásicas caen en su tempo
@@ -103,8 +103,8 @@ function initSeqEditor(canvas) {
 
   function draw() {
     fit();
-    const w = canvas.width, h = canvas.height, steps = parsePattern(engine.S.seqPat);
-    const play = engine.ready && engine.seq.timer ? engine.seq.playingStep() : -1;
+    const w = canvas.width, h = canvas.height, steps = parsePattern(part().S.seqPat);
+    const play = part().ready && part().seq.timer ? part().seq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
     g.strokeStyle = 'rgba(125,138,153,.18)';
@@ -143,22 +143,22 @@ function initSeqEditor(canvas) {
   // (raíz de referencia C4). Si la frase YA está sonando, el loop te guía.
   let prevTimer = null;
   function preview(off) {
-    if (!engine.ready || engine.seq.timer) return;
-    if (engine.S.mode === 'mono' && engine.heldStack.length) return;   // no robar una voz mono en uso
-    engine._directOn('seqprev', stepFreq(261.63, off), 0.8);
+    if (!part().ready || part().seq.timer) return;
+    if (part().S.mode === 'mono' && part().heldStack.length) return;   // no robar una voz mono en uso
+    part()._directOn('seqprev', stepFreq(261.63, off), 0.8);
     clearTimeout(prevTimer);
-    prevTimer = setTimeout(() => engine._directOff('seqprev'), 180);
+    prevTimer = setTimeout(() => part()._directOff('seqprev'), 180);
   }
 
   let drag = null;
   canvas.addEventListener('pointerdown', e => {
-    engine.resume();
+    part().resume();
     const toks = tokensOf();
     if (!toks.length) return;
     const rect = canvas.getBoundingClientRect();
     const cw = (canvas.width - 2 * PAD) / toks.length;
     const step = Math.max(0, Math.min(toks.length - 1, Math.floor((e.clientX - rect.left - PAD) / cw)));
-    const st = parsePattern(engine.S.seqPat)[step];
+    const st = parsePattern(part().S.seqPat)[step];
     drag = { step, startY: e.clientY, startOff: st ? st.off : 0, wasRest: !st, moved: false };
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -194,7 +194,7 @@ function initSeqEditor(canvas) {
   window.addEventListener('resize', draw);           // collapse.js dispara resize al desplegar
   let lastPlay = -1;                                 // marcador: redibuja solo al cambiar de paso
   setInterval(() => {
-    const p = engine.ready && engine.seq.timer ? engine.seq.playingStep() : -1;
+    const p = part().ready && part().seq.timer ? part().seq.playingStep() : -1;
     if (p !== lastPlay) { lastPlay = p; draw(); }
   }, 40);
   draw();
