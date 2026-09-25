@@ -499,17 +499,19 @@ export class Voice {
   }
 
   // ---------- release ----------
-  release(rel) {
+  release(rel, at = null) {
     rel = Math.max(0.006, rel);
-    const t = this.ctx.currentTime, tau = rel / 4;
+    const now = this.ctx.currentTime, tau = rel / 4;
+    const t = at !== null && at > now ? at : now;   // los jugadores programan el note-off en el reloj de audio
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
     // Release EXPONENCIAL anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
     // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
     // rampa-destino y el parámetro se queda clavado en el ÚLTIMO evento (el pico del attack)
     // -> la ganancia saltaría de golpe a peak = re-disparo audible al soltar. Anclar primero
     // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
-    this._releaseParam(this.vca.gain, t, tau);
-    this._releaseParam(this.fenv.offset, t, fRel / 4);
+    const rp = t > now ? this._releaseParamAt : this._releaseParam;
+    rp.call(this, this.vca.gain, t, tau);
+    rp.call(this, this.fenv.offset, t, fRel / 4);
     return t + rel * 2;     // a ~8·tau la cola está sobre -70 dB: liberar los nodos ahí es inaudible
                             // (manda el release de amplitud: con el VCA cerrado el filtro no suena)
   }
@@ -517,6 +519,15 @@ export class Voice {
     const cur = param.value;            // refleja el valor de la rampa en curso
     param.cancelScheduledValues(t);
     param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
+    param.setTargetAtTime(0, t, tau);
+  }
+  // Release programado en el FUTURO (jugadores): el valor que tendrá la rampa
+  // en t aún no se puede leer — cancelAndHoldAtTime congela la automatización
+  // en t con ese valor y desde ahí cae el release. (cancelScheduledValues(t)
+  // borraría una rampa de ataque que termine después de t: la nota callaría.)
+  _releaseParamAt(param, t, tau) {
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
+    else { const cur = param.value; param.cancelScheduledValues(t); param.setValueAtTime(cur, t); }
     param.setTargetAtTime(0, t, tau);
   }
 

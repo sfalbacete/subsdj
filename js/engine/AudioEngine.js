@@ -216,9 +216,10 @@ export class AudioEngine {
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
   }
-  _directOff(id) {
-    if (this.S.mode === 'mono') return this._monoOff(id);
-    this._releaseVoice(id, this.S.r);
+  // `when` opcional: note-off programado en el reloj de audio (jugadores)
+  _directOff(id, when = null) {
+    if (this.S.mode === 'mono') return this._monoOff(id, when);
+    this._releaseVoice(id, this.S.r, when);
   }
   allNotesOff() {
     this.arp.held = []; this.arp._maybeStop();
@@ -245,20 +246,20 @@ export class AudioEngine {
       this.voiceCount++; this._updateBusGain();
     }
   }
-  _monoOff(id) {
+  _monoOff(id, when = null) {
     this.heldStack = this.heldStack.filter(n => n.id !== id);
     if (this.heldStack.length) {
       const top = this.heldStack[this.heldStack.length - 1];
       if (this.monoVoice && !this.monoVoice.disposed) { this.monoVoice.glideTo(top.freq, this.S.glide); this.lastFreq = top.freq; }
     } else {
-      this._releaseMono(this.S.r);
+      this._releaseMono(this.S.r, when);
     }
   }
-  _releaseMono(rel) {
+  _releaseMono(rel, when = null) {
     const v = this.monoVoice; if (!v) return;
     this.voices.delete('mono'); this.monoVoice = null;
     this.voiceCount = Math.max(0, this.voiceCount - 1); this._updateBusGain();
-    this._scheduleTail(v, rel);
+    this._scheduleTail(v, rel, when);
   }
   _killMono() {
     const v = this.monoVoice; if (!v) return;
@@ -267,18 +268,18 @@ export class AudioEngine {
     this.voiceCount = Math.max(0, this.voiceCount - 1); this._updateBusGain();
   }
 
-  _releaseVoice(id, rel) {
+  _releaseVoice(id, rel, when = null) {
     const v = this.voices.get(id); if (!v) return;
     this.voices.delete(id);
     this.voiceCount = Math.max(0, this.voiceCount - 1);   // deja de contar como "pulsada" al soltar
     this._updateBusGain();
-    this._scheduleTail(v, rel);
+    this._scheduleTail(v, rel, when);
   }
   // La voz soltada pasa a ser una "cola": suena su release y se libera al acabar.
   // MAX_TAILS acota el coste de acumular colas largas tocando rápido.
-  _scheduleTail(v, rel) {
+  _scheduleTail(v, rel, when = null) {
     this.tails.add(v);
-    const end = v.release(rel);
+    const end = v.release(rel, when);
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
     v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); }, ms);
     if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);

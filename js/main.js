@@ -22,6 +22,7 @@ import { initCollapsiblePanels } from './ui/collapse.js';
 import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
+import { initPlayerControls } from './ui/playerControls.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
@@ -42,6 +43,7 @@ initActivity();      // LEDs de actividad (después de los binders: lee engine.S
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
 initPartsControls(); // modo Partes: selector en la cabecera + mezclador (después de help: etiqueta los h2)
+initPlayerControls(); // armonía + jugadores de la escena (escucha scene-changed / part-changed)
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.

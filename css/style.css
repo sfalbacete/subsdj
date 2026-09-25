@@ -69,6 +69,13 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
 .tag-sala{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#04140e;background:var(--accent);
   border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;}
+/* Armonía / Jugador */
+#harmony select,#harmony input{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;
+  padding:4px 6px;font-size:12px;min-width:0;}
+#harmony select{flex:1;}
+#harmProg{width:110px;}
+#harmSeed{width:76px;}
+#playBtn.on{color:var(--hot);border-color:var(--hot);}
 
 #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
   background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);

@@ -26,6 +26,9 @@ import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS,
 import { PARAMS } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
 import { createScene } from './engine/parts.js';
+import { Harmony } from './engine/Harmony.js';
+import { euclid } from './engine/Player.js';
+import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
@@ -762,6 +765,80 @@ export async function runSelfTest() {
       r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Armonía + jugadores (Roadmap 4.0 · C2): (1) armonía — cuantización a la
+    // escala (empate hacia abajo), acordes por terceras sobre la escala, paseo
+    // de funciones determinista con la semilla (y distinto con otra); (2)
+    // euclídeo — E(3,8) es el tresillo y E(k,n) tiene k golpes en cualquier
+    // rotación; (3) escena offline con 4 jugadores (pulso, melodía, acorde,
+    // raíz) sobre 4 partes, 2 compases a 120: TODAS las notas emitidas están
+    // en la escala, el pulso emite k por compás, el acorde `notas` por cambio,
+    // la raíz 2 por compás (con quinta), sin NaN ni clipping y audible; (4)
+    // determinismo — dos directores con la misma semilla emiten exactamente
+    // los mismos eventos; con otra semilla, distintos.
+    body.appendChild(el('st-cat', 'Armonía y jugadores'));
+    let r;
+    try {
+      const probs = [];
+      const h = new Harmony({ root: 0, scale: 'mayor', prog: [1, 6, 4, 5], bars: 1, seed: 3 });
+      const q = [h.quantize(61), h.quantize(66), h.quantize(62)];
+      if (q.join() !== '60,65,62') probs.push('cuantización: ' + q.join());
+      const tri = b => h.chordAt(b).tones.slice(0, 3).join('.');
+      if (tri(0) !== '0.4.7' || tri(1) !== '9.0.4' || tri(3) !== '7.11.2') probs.push('acordes: ' + [tri(0), tri(1), tri(3)].join(' | '));
+      const walk = seed => { const hf = new Harmony({ modo: 'funciones', seed }); return [...Array(16)].map((_, i) => hf.degreeAt(i)); };
+      const w = walk(5), w2 = walk(5), w3 = walk(6);
+      if (w.join() !== w2.join()) probs.push('paseo de funciones no determinista');
+      if (w.join() === w3.join()) probs.push('paseo de funciones igual con otra semilla');
+      if (!w.every(d => d >= 1 && d <= 7)) probs.push('grado fuera de 1..7');
+      const e38 = euclid(3, 8).join('');
+      if (e38 !== '10010010') probs.push('E(3,8) = ' + e38);
+      for (const [k, n] of [[5, 8], [7, 16], [4, 16], [9, 12]]) for (let rot = 0; rot < n; rot += 3) {
+        const s = euclid(k, n, rot).reduce((a, b) => a + b, 0);
+        if (s !== k) { probs.push('E(' + k + ',' + n + ') rot ' + rot + ': ' + s + ' golpes'); break; }
+      }
+      const secs = 4.0, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+      const presets = [FACTORY['Percusión']['Bombo 808'], FACTORY['Leads']['Lead cuadrado'],
+                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.2 }, FACTORY['Bajos']['Bajo pluck']];
+      const sc = await createScene(ctx, presets, { salaS: { bpm: 120 } });
+      const setup = cd => {
+        Object.assign(cd.harmony, { root: 2, scale: 'menor', prog: [1, 6, 4, 5], bars: 1, modo: 'lista' });
+        const [p1, p2, p3, p4] = cd.players;
+        p1.setMode('pulso');   Object.assign(p1.cfg, { k: 4, n: 16, prob: 1 });
+        p2.setMode('melodia'); Object.assign(p2.cfg, { densidad: 0.7, silencio: 0.1 });
+        p3.setMode('acorde');  Object.assign(p3.cfg, { notas: 3 });
+        p4.setMode('raiz');    Object.assign(p4.cfg, { cada: 1, quinta: 1 });
+        cd.players.forEach(p => { p.log = []; });
+      };
+      const logs = cd => JSON.stringify(cd.players.map(p => p.log));
+      const cdA = new Conductor(sc, { seed: 11 }), cdB = new Conductor(sc, { seed: 11 }), cdC = new Conductor(sc, { seed: 12 });
+      for (const cd of [cdA, cdB, cdC]) { cd.dry = true; setup(cd); cd.scheduleAll(secs); }
+      if (logs(cdA) !== logs(cdB)) probs.push('jugadores no deterministas con la misma semilla');
+      if (logs(cdA) === logs(cdC)) probs.push('jugadores iguales con otra semilla');
+      const cd = sc.conductor; cd.setSeed(11); setup(cd); cd.scheduleAll(secs);
+      const buf = await ctx.startRendering();
+      const a = analyze(buf);
+      if (a.bad) probs.push('NaN/Inf');
+      if (a.peak > 1) probs.push('clipping (' + dB(a.peak) + ')');
+      if (a.peak <= SILENCE) probs.push('silencio');
+      const scale = cd.harmony.scaleSet();
+      const ons = cd.players.map(p => p.log.filter(e => e[1] === 'on'));
+      const fuera = ons.flat().filter(e => !scale.has(((e[2] % 12) + 12) % 12)).length;
+      if (fuera) probs.push(fuera + ' notas fuera de la escala');
+      if (ons[0].length !== 8) probs.push('pulso: ' + ons[0].length + ' golpes (esperados 4 × 2 compases)');
+      if (ons[2].length !== 6) probs.push('acorde: ' + ons[2].length + ' notas (esperadas 3 × 2 acordes)');
+      if (ons[3].length !== 4) probs.push('raíz: ' + ons[3].length + ' notas (esperadas 2 × 2 compases)');
+      if (!(ons[1].length >= 4)) probs.push('melodía: solo ' + ons[1].length + ' notas');
+      const grid = ons[0].every(e => Math.abs(e[0] / 0.125 - Math.round(e[0] / 0.125)) < 1e-3);
+      if (!grid) probs.push('pulso fuera de la rejilla de semicorcheas');
+      console.log('jugadores: notas', ons.map(o => o.length).join('/'), '· fuera de escala', fuera, '· pico', dB(a.peak), '· paseo', w.join(' '));
+      r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: a.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

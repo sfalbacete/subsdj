@@ -8,12 +8,14 @@
    habla con él (registry, keyboard, midi, seq…). Con la escena apagada,
    part() es el motor de siempre (`engine`) y NADA cambia.
    Escena = { ctx, sala, parts:[{i, engine, name, presetVal, presetName,
-   pan, mute}], S (estado de la sala), sel }. Capa: el teclado toca todas.
+   pan, mute}], S (estado de la sala), sel, conductor }. Capa: el teclado
+   toca todas. El director (engine/Conductor.js) lleva armonía y jugadores.
    Sin persistencia todavía (Roadmap 4.0 · C3 «escenas»).
    ===================================================================== */
 import { AudioEngine, engine as single } from './AudioEngine.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 import { makeDefaultState, applyPreset, toControls } from './state.js';
+import { Conductor } from './Conductor.js';
 
 export const N_PARTS = 4;
 let scene = null, current = single, layer = false;
@@ -53,7 +55,9 @@ export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, d
     await e.init(ctx, { sala });
     parts.push({ i, engine: e, name: 'Parte ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
   }
-  return { ctx, sala, parts, S, sel: 0 };
+  const scene = { ctx, sala, parts, S, sel: 0 };
+  scene.conductor = new Conductor(scene, { seed: 1 });   // armonía + jugadores (C2)
+  return scene;
 }
 
 // Enciende el modo Partes sobre el contexto del motor único. La parte 1
@@ -72,6 +76,7 @@ export async function enableScene() {
 }
 export function disableScene() {
   if (!scene) return;
+  scene.conductor.stop();
   for (const p of scene.parts) p.engine.dispose();
   scene.sala.dispose();
   scene = null; layer = false; current = single;

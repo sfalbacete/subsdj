@@ -437,6 +437,43 @@
     <div class="help"><b>Mezclador de partes.</b> Cada tira es una parte: Nivel = el Master de su preset, Delay/Reverb = sus ENVÍOS a la sala compartida (el Amount del delay y el Mix de la reverb del preset), Pan y M (silenciar). Clic en el nombre = el rack pasa a editar esa parte. Columna Sala: máster de la escena, realimentación del eco y cuánto eco entra en la reverb. Capa = el teclado toca todas las partes.</div>
   </div>
 
+  <div class="panel u2" id="harmony" hidden>
+    <h2>Armonía</h2>
+    <div class="row" style="margin-top:8px;gap:8px;align-items:center">
+      <button id="playBtn" class="btn" style="min-width:92px">▶ Tocar</button>
+      <span id="harmInfo" class="badge">parado</span>
+    </div>
+    <div class="fieldlab" style="margin-top:8px">Raíz · Escala</div>
+    <div class="row" style="gap:6px"><select id="harmRoot" title="Tónica"></select><select id="harmScale" title="Escala"></select></div>
+    <div class="fieldlab" style="margin-top:8px">Progresión (grados) · compases por acorde</div>
+    <div class="row" style="gap:6px;align-items:center">
+      <input id="harmProg" type="text" value="1 6 4 5" title="Grados de la escala: 1 6 4 5 (o I vi IV V)">
+      <div class="stepper"><button data-hbar="-1">−</button><span class="num" id="harmBars">2</span><button data-hbar="1">+</button></div>
+    </div>
+    <div class="seg" id="harmModo" style="margin-top:8px">
+      <button data-m="lista" title="La progresión escrita, en bucle">Lista</button>
+      <button data-m="funciones" title="Paseo aleatorio por funciones tonales (T → S/D → T)">Funciones</button>
+    </div>
+    <div class="row" style="gap:6px;align-items:center;margin-top:8px">
+      <span class="badge">Semilla</span><input id="harmSeed" type="number" value="1" min="1" max="999999">
+      <button class="btn" id="harmDice" title="Semilla nueva al azar">🎲</button>
+    </div>
+    <div class="help"><b>Armonía de la escena.</b> Todo lo que tocan los jugadores se cuantiza a la escala y al acorde vigente: por eso lo aleatorio suena musical. Progresión = grados de la escala («1 6 4 5»), cada uno durante N compases; «Funciones» = paseo aleatorio T→S/D→T con las probabilidades del uso común. El tempo es el BPM de la sala (módulo Delay). La semilla fija el azar: misma semilla, misma sesión.</div>
+  </div>
+
+  <div class="panel u2" id="player" hidden>
+    <h2>Jugador</h2>
+    <div class="badge" id="playerWho" style="margin-top:6px">Parte 1</div>
+    <div class="seg" id="playerMode" style="margin-top:6px">
+      <button data-pm="off">Off</button><button data-pm="pulso" title="Ritmo euclídeo con la fundamental">Pulso</button>
+      <button data-pm="acorde" title="Mantiene el acorde (con Arp: arpegio)">Acorde</button>
+      <button data-pm="melodia" title="Paseo por la escala con gravedad al acorde">Melodía</button>
+      <button data-pm="raiz" title="Fundamental mantenida (con Seq: raíz de la frase)">Raíz</button>
+    </div>
+    <div class="row tight" id="playerKnobs" style="margin-top:10px;justify-content:space-around"></div>
+    <div class="help"><b>Jugador de la parte que edita el rack</b> (los ajustes son del músico, no del preset). <b>Pulso</b>: E(k, n) reparte k golpes en n pasos por compás lo más uniformemente posible (Bjorklund): E(3,8) es el tresillo. <b>Acorde</b>: 3-4 notas del acorde mantenidas; con el Arp de la parte encendido, las arpegia. <b>Melodía</b>: paseo por la escala; Gravedad = probabilidad de caer en nota del acorde en tiempo fuerte; Densidad acorta las notas; Silencio = probabilidad de pausa. <b>Raíz</b>: la fundamental (+ Quinta) re-disparada cada N compases; con el Seq encendido es la raíz que transpone la frase.</div>
+  </div>
+
   <div class="panel wide"><h2>Osciloscopio</h2><canvas id="scope" class="viz"></canvas></div>
   <div class="panel wide"><h2>Espectro</h2><canvas id="spectrum" class="viz"></canvas></div>
 

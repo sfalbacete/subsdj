@@ -101,13 +101,16 @@ function choose(i) {
   if (sel && p.presetVal) sel.value = p.presetVal;
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Parte ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
   refreshNames();
+  document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte
 }
 
 function setUI(on) {
   $('partsBtn').classList.toggle('on', on);
   $('partSel').hidden = !on;
   $('mixer').hidden = !on;
+  $('harmony').hidden = !on; $('player').hidden = !on;
   document.body.classList.toggle('parts', on);
+  document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));
   for (const panel of salaPanels) {
     const h2 = panel.querySelector('h2');
     let tag = h2.querySelector('.tag-sala');

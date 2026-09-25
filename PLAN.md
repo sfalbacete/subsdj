@@ -1,8 +1,9 @@
 # SubSDJ · Plan de pendientes
 
-Fecha: 2026-09-25 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
-cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`) y **C1 Partes + mezclador**
-(2026-09-25, selftest 106/106). Este documento complementa al README: allí
+Fecha: 2026-09-26 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
+(`12b71f6`) y **C2 Armonía + jugadores** (2026-09-26, selftest 107/107). Este documento
+complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
 y en el README.
@@ -15,7 +16,7 @@ y va aparte, porque conviene meter primero los baratos.
 | # | Bloque | Qué nos da | Coste | Depende de |
 |---|--------|------------|-------|------------|
 | 1 | **C1 Partes + mezclador** ✔ | la puerta a todo lo generativo: 4 presets sonando a la vez — HECHO | alto (arquitectura) | — |
-| 2 | **C2 Armonía + jugadores** | la musiquita: sonido que se hace solo y suena musical | alto | C1 |
+| 2 | **C2 Armonía + jugadores** ✔ | la musiquita: sonido que se hace solo y suena musical — HECHO | alto | — |
 | 3 | **C3 Arreglo + escenas** | ambient de verdad: evolución lenta, sesiones reproducibles | medio | C2 |
 | 4 | **A2 Reverb de placa** | el «suena fino» más grande; la sala donde vive el ambient | alto (DSP) | — |
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
@@ -27,7 +28,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → C2 → C3, con A2 y B2 intercalados cuando apetezca;
+**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → C3, con A2 y B2 intercalados cuando apetezca;
 A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -97,6 +98,10 @@ tres y medir pico). Captura del selector y del mezclador.
 
 ### 2 · C2 Armonía + jugadores
 
+**✔ HECHO 2026-09-26** — selftest 107/107; detalle, medidas y evidencia en el README. Los cinco
+jugadores del plan quedaron en cuatro modos: Acorde con el Arp de la parte encendido ES el
+Arpegio, y Raíz con el Seq encendido ES la Frase.
+
 **Propósito.** Que suene música sin escribirla: cada parte tiene un jugador que decide qué notas
 tocar, y una armonía global hace que todo lo que toquen encaje.
 
@@ -128,8 +133,7 @@ tocar, y una armonía global hace que todo lo que toquen encaje.
 notas emitidas están en la escala; escena offline con jugadores (determinista con semilla,
 ver C3) sin NaN ni clipping. Pares A/B: mismo preset con jugador Pulso E(3,8) vs E(5,8).
 
-**Coste.** Alto, pero repartido: armonía + un jugador (Pulso) es una sesión; cada jugador
-siguiente, una tarde.
+**Coste.** Alto. Hecho en una sesión.
 
 ### 3 · C3 Arreglo y escenas
 

@@ -109,12 +109,16 @@ js/engine/
   Sala.js                      el espacio: delay de cinta, reverb, limitador, máster (por envíos; compartida en Partes)
   parts.js                     modo Partes: 4 motores sobre un contexto + Sala compartida; part() = el que edita el rack
   nodes.js                     nodos auxiliares: ruido, deriva, IR de reverb, curva de distorsión, LFOs
+  Harmony.js                   armonía de la escena: escalas, progresión / paseo de funciones, acordes, PRNG con semilla
+  Player.js                    jugador por parte: pulso euclídeo, acorde, melodía, raíz (dedos virtuales)
+  Conductor.js                 reloj maestro en beats: ticker + look-ahead; scheduleAll() para el render offline
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
+  playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla) y Jugador (modo + knobs)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
@@ -394,19 +398,44 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   sonda CDP en la página real (21 comprobaciones: encender, heredar el
   sonido, elegir parte, cargar preset sin tocar la sala, knobs de sala a
   todas, tira↔rack, capa, mute, apagar) y capturas de cabecera y mezclador.
-- **C2 Armonía + jugadores** — Armonía global: raíz, escala (mayor, menor,
-  dórica, pentatónica, hirajoshi, tonos enteros…), progresión por grados con
-  compases por acorde o paseo de Markov sobre funciones tonales; TODO lo
-  generado se cuantiza a escala y acorde vigente (por eso lo aleatorio suena
-  musical: las alturas están acotadas; densidad, registro y ritmo hacen el
-  resto). Un JUGADOR por parte: **Pulso** (ritmos euclídeos E(k,n) de
-  Bjorklund, rotación, probabilidad, acento), **Arpegio** (el Arp actual
-  alimentado con las notas del acorde), **Melodía** (paseo por grados con
-  gravedad hacia el acorde y probabilidad de silencio), **Dron** (raíz o
-  quinta, cambia con la progresión), **Frase** (el Seq transpuesto por la raíz
-  del acorde). Cada jugador solo emite noteOn/noteOff en el reloj de audio con
-  el ticker de 25 ms + look-ahead de 120 ms del Arp: dedos virtuales, el motor
-  no se entera.
+- **C2 Armonía + jugadores** ✔ *(hecho 2026-09-26)* — `engine/Harmony.js`:
+  raíz + escala (13: mayor, menor, menor armónica, dórica, frigia, lidia,
+  mixolidia, pentatónicas, blues, tonos enteros, hirajoshi, in sen) +
+  progresión de grados con N compases por acorde («1 6 4 5» o «I vi IV V»)
+  o PASEO de funciones tonales (T reposo · S tensión suave · D tensión que
+  resuelve, con las probabilidades del uso común: T→S/D, S→D, D→T).
+  Acordes por terceras SOBRE LA ESCALA (grado, +2, +4, +6 pasos): en 7
+  notas salen las tríadas diatónicas; en una pentatónica nunca sale una
+  nota ajena. PRNG con semilla (mulberry32): misma semilla, misma sesión;
+  cada jugador con su propio flujo. `engine/Player.js`: un jugador por
+  parte, cuatro modos (los cinco del plan quedaron en cuatro porque
+  Arpegio y Frase salen solos): **Pulso** = ritmo euclídeo E(k, n) — golpe
+  en el paso i cuando el acumulador i·k mod n da la vuelta, la recta de
+  pendiente k/n dibujada en píxeles (Bresenham); E(3,8) es el tresillo —
+  con rotación, probabilidad, acento y gate, sobre la fundamental del
+  acorde; **Acorde** = mantiene 3-4 notas del acorde (con el Arp de la
+  parte encendido las arpegia; sin él, pad); **Melodía** = paseo por grados
+  de la escala con gravedad hacia el acorde en tiempos fuertes, silencios y
+  duraciones según la densidad; **Raíz** = fundamental (± quinta)
+  re-disparada cada N compases (con el Seq encendido es la raíz que
+  transpone la frase). `engine/Conductor.js`: reloj maestro en beats
+  (compás = 4) con el patrón del Arp (ticker 25 ms + look-ahead 120 ms);
+  tempo = BPM de la sala; `scheduleAll()` planifica todo de golpe para el
+  render offline. Los note-off van PROGRAMADOS en el reloj de audio:
+  `Voice.release(rel, at)` usa `cancelAndHoldAtTime` (cancelScheduledValues
+  borraría una rampa de ataque que acabe después de t) y `when` viaja por
+  `_directOff → _releaseVoice → _scheduleTail`. UI: módulos **Armonía**
+  (▶ Tocar, raíz, escala, progresión, compases/acorde, Lista/Funciones,
+  semilla 🎲, indicador de compás y acorde) y **Jugador** (el de la parte que
+  edita el rack: modo + sus knobs). Evidencia: check en el selftest
+  (cuantización con empate hacia abajo; I/vi/V de Do mayor; paseo
+  determinista con la semilla y distinto con otra; E(3,8) = 10010010 y k
+  golpes en toda rotación; escena offline de 4 jugadores sobre 4 partes, 2
+  compases: notas 8/7/6/4, 0 fuera de la escala, pulso en la rejilla de
+  semicorcheas, sin NaN ni clipping; dos directores con la misma semilla
+  emiten eventos idénticos), 107/107; sonda CDP de la página real 16/16
+  (armonía por la UI, modos por parte, ▶ emite en todas las partes y en
+  escala, el Jugador sigue a la parte, ■ deja cero voces) y capturas.
 - **C3 Arreglo y escenas** — reloj maestro en compases, curva de densidad por
   parte sobre un ciclo largo, macro «energía» (densidad, velocity, apertura del
   filtro), deriva lenta de 1-2 parámetros por parte (las manos del que
