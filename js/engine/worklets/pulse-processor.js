@@ -15,7 +15,8 @@
    paga 1 vez por bloque, no por muestra — a 20 Hz de vibrato el escalón de
    2.9 ms es inaudible): frequency (Hz, glide), detune (cents, vibrato),
    drift (cents, deriva aleatoria lenta independiente por oscilador),
-   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex (FM 2-op en seno),
+   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex/fmFb (FM 2-op en
+   seno; fmFb = realimentación del modulador),
    uniVoices/uniDetune (UNISON generalizado: 1..7 copias detunadas para
    cualquier onda salvo supersaw, que ya es unison; nivel 1/sqrt(N); la
    copia 0 conserva la fase configurada -> con N=1 es bit-idéntico al
@@ -33,6 +34,13 @@ function fract(x) { return x - Math.floor(x); }
 // Offsets de detune del Super Saw (curva del JP-8000, según el análisis de Adam Szabo).
 const SS_DETUNE = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01952356, 0.06288439, 0.11002313];
 
+// Realimentación del modulador FM (fmFb 0..1 → β radianes): y = sin(θ + β·ȳ),
+// con ȳ = media de las DOS salidas anteriores (el truco de Yamaha: sin
+// promediar, a β alta la muestra alterna de signo y el bucle silba a Nyquist).
+// β ≈ 1.5 ya da una sierra razonable; hacia 3 el bucle se vuelve caótico =
+// ruido metálico (los hats FM del TX81Z, sin generador de ruido).
+const FM_FB_MAX = 3;
+
 class PulseProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -43,6 +51,7 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'spread',    defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'fmRatio',   defaultValue: 1,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
       { name: 'fmIndex',   defaultValue: 0,   minValue: 0,     maxValue: 12,    automationRate: 'k-rate' },
+      { name: 'fmFb',      defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'uniVoices', defaultValue: 1,   minValue: 1,     maxValue: 7,     automationRate: 'k-rate' },
       { name: 'uniDetune', defaultValue: 0,   minValue: 0,     maxValue: 50,    automationRate: 'k-rate' },
       { name: 'wtPos',     defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
@@ -65,6 +74,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       // el resto aleatoria. modPhases = moduladores FM (siempre aleatorios).
       this.phases = new Float32Array(this.octaves * 7);
       this.modPhases = new Float32Array(this.octaves * 7);
+      this.fb1 = new Float32Array(this.octaves * 7);   // últimas dos salidas del modulador (feedback)
+      this.fb2 = new Float32Array(this.octaves * 7);
       for (let i = 0; i < this.phases.length; i++) {
         this.phases[i] = (i % 7 === 0) ? ph : Math.random();
         this.modPhases[i] = Math.random();
@@ -121,6 +132,7 @@ class PulseProcessor extends AudioWorkletProcessor {
       // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
       // Con unison, cada copia lleva su propio par portadora/modulador.
       const ratio = params.fmRatio[0], index = params.fmIndex[0];
+      const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX;
       for (let k = 0; k < oct; k++) {
         const base = f0 * (1 << k);
         if (base >= nyq) continue;
@@ -128,7 +140,18 @@ class PulseProcessor extends AudioWorkletProcessor {
           const f = base * uniMul(j);
           const dt = f / sr, mdt = (f * ratio) / sr, idx = k * 7 + j;
           let p = this.phases[idx], mp = this.modPhases[idx];
-          if (index > 0) {
+          if (index > 0 && beta > 0) {
+            // modulador realimentado: su propia salida (promediada) entra en su fase
+            let y1 = this.fb1[idx], y2 = this.fb2[idx];
+            for (let i = 0; i < N; i++) {
+              const m = Math.sin(TWO_PI * mp + beta * (y1 + y2) * 0.5);
+              y2 = y1; y1 = m;
+              ch[i] += Math.sin(TWO_PI * (p + m * index)) * lvl;
+              p += dt; if (p >= 1) p -= 1;
+              mp += mdt; if (mp >= 1) mp -= Math.floor(mp);
+            }
+            this.fb1[idx] = y1; this.fb2[idx] = y2;
+          } else if (index > 0) {
             for (let i = 0; i < N; i++) {
               ch[i] += Math.sin(TWO_PI * (p + Math.sin(TWO_PI * mp) * index)) * lvl;
               p += dt; if (p >= 1) p -= 1;

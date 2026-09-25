@@ -108,7 +108,7 @@ js/engine/
   AudioEngine.js               grafo global (FX, LFOs, limitador) + gestión de voces
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
-  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw, FM 2-op)
+  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
@@ -335,10 +335,23 @@ tiene el mismo espectro de magnitud que la normal (sola suena igual: el oído
 es casi sordo a la fase); solo importa como MODULADORA de FM, sumada a otro
 oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
 
-- **B1 `fmIndex` como destino de la matriz** — ya es AudioParam por voz:
-  env→índice = pluck/campana DX (ataque brillante, cuerpo suave), vel→índice =
-  el tacto del DX7, S&H→índice = una campana por nota. Más knob de feedback
-  del operador (el seno se acerca a una sierra).
+- **B1 `fmIndex` como destino de la matriz + feedback** ✔ *(hecho 2026-09-25)*
+  — destino «FM índice» en la matriz (`MX_SPAN.fm = 8`, sobre el AudioParam
+  `fmIndex` de cada worklet, que recorta en 0): env→índice = pluck y campana
+  DX (ataque brillante, cuerpo suave), vel→índice = el tacto del DX7,
+  S&H→índice = una campana distinta por nota. Knob **Feedback** (`fmFb`): el
+  modulador se realimenta con la media de sus dos salidas anteriores (el
+  truco de Yamaha para que no silbe a Nyquist), `y = sin(θ + β·ȳ)` con β
+  hasta 3 rad — a ~1,5 el seno ya es una sierra razonable; a tope el bucle es
+  caótico = ruido metálico (los hats FM del TX81Z, sin generador de ruido).
+  Por qué importa: la FM estática aburre; el DX7 vive de que el índice cambie
+  DURANTE la nota. Evidencia (check «FM en la matriz» del selftest, medido):
+  env→FM multiplica por 24 el tilt espectral del arranque frente al
+  sostenido (0,9 en el control con índice fijo); vel 1 frente a 0,3 da ×7 de
+  brillo; feedback 0,6 sube el tilt ×2,25; feedback 1 con índice 12: pico
+  −4,7 dB, sin NaN. Presets «Campana DX (env→FM)», «E-piano DX (vel→FM)»,
+  «Brass FM (feedback)» y «Hat FM (feedback)»; pares FM 1-4 en el banco de
+  demos (diffs 1,37 y 1,38). Selftest 105/105. El worklet sube a `?v=4`.
 - **B2 Oscilador «FM4»** — tipo de onda nuevo, como lo fue «Tabla»: 4
   operadores, ~8 algoritmos dibujados como grafos (las hojas modulan, las
   raíces suenan), ratio/nivel/feedback y decay por operador. Aguas abajo todo

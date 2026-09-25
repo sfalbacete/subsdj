@@ -62,6 +62,25 @@ async function renderBuf(state) {
   return ctx.startRendering();
 }
 async function renderState(state) { return analyze(await renderBuf(state)); }
+// Render de UNA sola nota (C3, velocity `vel`) de `secs` segundos con noteOff
+// en `offAt`: para checks que miden ventanas temporales sin que la 2ª nota
+// del render estándar las contamine (delay de cinta, FM en la matriz).
+async function renderOne(state, { secs = 2.2, offAt = 0.3, vel = 1 } = {}) {
+  const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+  const eng = new AudioEngine(); eng.S = state;
+  await eng.init(ctx);
+  eng.noteOn('t1', NOTE1, vel);
+  ctx.suspend(offAt).then(() => { eng.noteOff('t1'); ctx.resume(); });
+  return ctx.startRendering();
+}
+// Tilt espectral de una ventana [t0,t1): energía de la 1ª diferencia / energía
+// (∝ centroide; independiente del nivel). Sube con el brillo.
+function tiltW(buf, t0, t1) {
+  const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+  let hf = 0, en = 0;
+  for (let i = i0 + 1; i < i1; i++) { const e = d[i] - d[i - 1]; hf += e * e; en += d[i] * d[i]; }
+  return hf / Math.max(1e-12, en);
+}
 
 // Telemetría para ejecución headless: cada GET queda en el log del http.server
 // (aunque responda 404), así que un runner externo puede leer los resultados.
@@ -602,26 +621,16 @@ export async function runSelfTest() {
     body.appendChild(el('st-cat', 'Delay de cinta'));
     let r;
     try {
-      const render1 = async state => {
-        const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.2), SR);
-        const eng = new AudioEngine(); eng.S = state;
-        await eng.init(ctx);
-        eng.noteOn('t1', NOTE1);
-        ctx.suspend(0.3).then(() => { eng.noteOff('t1'); ctx.resume(); });
-        return ctx.startRendering();
-      };
       const base = { waveA: 'sawtooth', mix: 0, cutoff: 12000, reso: 0.7, a: 0.002, d: 0.12, s: 0, r: 0.1,
                      dlyAmt: 0.9, dlyTime: 0.25, dlySync: 'libre', width: 0 };
       loadState(base);
-      const b0 = await render1(structuredClone(engine.S));
+      const b0 = await renderOne(structuredClone(engine.S));
       loadState({ ...base, dlyDamp: 1 });
-      const b1 = await render1(structuredClone(engine.S));
+      const b1 = await renderOne(structuredClone(engine.S));
       loadState({ ...base, dlyWow: 1 });
-      const bW = await render1(structuredClone(engine.S));
+      const bW = await renderOne(structuredClone(engine.S));
       const win = (buf, t0, t1) => { const d = buf.getChannelData(0); return [d, Math.floor(t0 * SR), Math.min(d.length, Math.floor(t1 * SR))]; };
-      const tilt = (buf, t0, t1) => { const [d, i0, i1] = win(buf, t0, t1); let hf = 0, en = 0;
-        for (let i = i0 + 1; i < i1; i++) { const e = d[i] - d[i - 1]; hf += e * e; en += d[i] * d[i]; }
-        return hf / Math.max(1e-12, en); };
+      const tilt = tiltW;
       const rms = (buf, t0, t1) => { const [d, i0, i1] = win(buf, t0, t1); let s = 0;
         for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
       const diffW = (x, y, t0, t1) => { const cX = x.getChannelData(0), cY = y.getChannelData(0);
@@ -648,6 +657,57 @@ export async function runSelfTest() {
       r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // FM en la matriz + feedback: (1) env→«FM índice»: el índice cabalga la
+    // envolvente ⇒ el tilt espectral del ARRANQUE es claramente mayor que el
+    // del SOSTENIDO (control: con índice fijo ese cociente se queda ≈ 1 — la
+    // amplitud no entra en el tilt); (2) velocity→índice: pegar fuerte (vel
+    // 1) da más brillo que pegar flojo (vel 0.3); (3) el feedback del
+    // modulador añade armónicos (tilt sube) y a tope + índice máximo no
+    // produce NaN ni clipping (el portador es un seno: ≤ 1 por construcción).
+    body.appendChild(el('st-cat', 'FM en la matriz'));
+    let r;
+    try {
+      const base = { waveA: 'sine', waveB: 'sine', mix: 0.5, fmRatio: 2, fmIndex: 0.5, cutoff: 20000,
+                     a: 0.002, d: 0.4, s: 0.1, r: 0.1, width: 0 };
+      const opt = { secs: 1.2, offAt: 1.0 };
+      loadState(base);
+      const bFix = await renderOne(structuredClone(engine.S), opt);
+      loadState({ ...base, mx1src: 'env', mx1dst: 'fm', mx1amt: 0.8 });
+      const bEnv = await renderOne(structuredClone(engine.S), opt);
+      loadState({ ...base, mx1src: 'vel', mx1dst: 'fm', mx1amt: 0.8 });
+      const bVelHi = await renderOne(structuredClone(engine.S), { ...opt, vel: 1 });
+      const bVelLo = await renderOne(structuredClone(engine.S), { ...opt, vel: 0.3 });
+      loadState({ ...base, fmIndex: 2, fmFb: 0 });
+      const bFb0 = await renderOne(structuredClone(engine.S), opt);
+      loadState({ ...base, fmIndex: 2, fmFb: 0.6 });
+      const bFb1 = await renderOne(structuredClone(engine.S), opt);
+      loadState({ ...base, fmIndex: 12, fmFb: 1 });
+      const bFbMax = await renderOne(structuredClone(engine.S), opt);
+      const probs = [];
+      const aEnv = analyze(bEnv), aFb1 = analyze(bFb1), aMax = analyze(bFbMax);
+      if (aEnv.bad || aFb1.bad || aMax.bad) probs.push('NaN/Inf');
+      if (aEnv.peak > 1 || aFb1.peak > 1 || aMax.peak > 1) probs.push('clipping');
+      if (aMax.peak <= SILENCE) probs.push('feedback a tope en silencio (' + dB(aMax.peak) + ')');
+      // arranque [0.01, 0.06) vs sostenido [0.6, 0.95): el decay (0.4 s) ya acabó
+      const ratioEnv = tiltW(bEnv, 0.01, 0.06) / Math.max(1e-12, tiltW(bEnv, 0.6, 0.95));
+      const ratioFix = tiltW(bFix, 0.01, 0.06) / Math.max(1e-12, tiltW(bFix, 0.6, 0.95));
+      if (!(ratioEnv > 2.5)) probs.push('env→FM no abrillanta el arranque (tilt arranque/sostenido ' + ratioEnv.toFixed(2) + ')');
+      if (!(ratioFix < 1.5)) probs.push('control: con índice fijo el arranque ya difiere (' + ratioFix.toFixed(2) + ')');
+      const tHi = tiltW(bVelHi, 0.2, 0.95), tLo = tiltW(bVelLo, 0.2, 0.95);
+      if (!(tHi > 1.3 * tLo)) probs.push('vel→FM: pegar fuerte no abrillanta (tilt ' + tHi.toExponential(2) + ' vs ' + tLo.toExponential(2) + ')');
+      const tF0 = tiltW(bFb0, 0.2, 0.95), tF1 = tiltW(bFb1, 0.2, 0.95);
+      if (!(tF1 > 1.3 * tF0)) probs.push('el feedback no añade armónicos (tilt ' + tF1.toExponential(2) + ' vs ' + tF0.toExponential(2) + ')');
+      console.log('fm matriz: env arranque/sostenido', ratioEnv.toFixed(2), 'control', ratioFix.toFixed(2),
+                  'vel hi/lo', (tHi / Math.max(1e-12, tLo)).toFixed(2), 'fb 0.6/0', (tF1 / Math.max(1e-12, tF0)).toFixed(2), 'pico fb max', dB(aMax.peak));
+      r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: aMax.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

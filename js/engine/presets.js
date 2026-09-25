@@ -244,6 +244,22 @@ export const FACTORY = {
       cutoff: 2890, a: 0.7, d: 0.6, s: 0.8, r: 2.0, width: 0.6, reverbMix: 0.4, reverbSize: 3, master: 0.58 },
     'Sci-fi FM': { waveA: 'sine', waveB: 'sine', mix: 0.5, fmRatio: 5.7, fmIndex: 6,
       cutLfoLvl: 2000, cutLfoSpd: 0.18, a: 0.6, d: 0.6, s: 0.85, r: 2.0, dlyAmt: 0.3, dlyTime: 0.6, width: 0.5, reverbMix: 0.4, master: 0.55 },
+    /* matriz → FM índice: el índice CABALGA la envolvente (env = el ADSR de amp
+       en modo «= Amp»): ataque brillante que se apaga con la nota — la campana
+       y el pluck del DX7, imposibles con índice fijo */
+    'Campana DX (env→FM)': { waveA: 'sine', waveB: 'sine', detuneB: 5, mix: 0.4, fmRatio: 3.5, fmIndex: 0.6,
+      mx1src: 'env', mx1dst: 'fm', mx1amt: 0.5,
+      a: 0.002, d: 1.8, s: 0.0, r: 1.2, dlyAmt: 0.2, dlyTime: 0.35, width: 0.45, reverbMix: 0.35, reverbSize: 2.8, master: 0.6 },
+    /* velocity → FM índice: pegar fuerte abre el timbre, no solo el volumen (el
+       tacto del DX7); un env→FM corto (env propia, 120 ms) pone el «tine» del ataque */
+    'E-piano DX (vel→FM)': { waveA: 'sine', waveB: 'sine', mix: 0.4, fmRatio: 1, fmIndex: 0.5,
+      mx1src: 'vel', mx1dst: 'fm', mx1amt: 0.2, mx2src: 'env', mx2dst: 'fm', mx2amt: 0.15,
+      fenvMode: 'own', fa: 0.002, fd: 0.12, fs: 0.0, fr: 0.2,
+      a: 0.002, d: 0.9, s: 0.25, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.3, reverbMix: 0.22 },
+    /* feedback del modulador: su seno se vuelve sierra y el brass gana mordiente */
+    'Brass FM (feedback)': { waveA: 'sine', waveB: 'sine', detuneB: 7, mix: 0.5, fmRatio: 1, fmIndex: 1.2, fmFb: 0.45,
+      mx1src: 'env', mx1dst: 'fm', mx1amt: 0.25,
+      a: 0.06, d: 0.3, s: 0.7, r: 0.25, width: 0.35, reverbMix: 0.2 },
   },
 
   'Órgano': {
@@ -269,6 +285,10 @@ export const FACTORY = {
       a: 0.001, d: 0.18, s: 0.0, r: 0.12, master: 0.8 },
     'Láser zap': { waveA: 'sawtooth', mix: 0, pitchEnvAmt: -2400, pitchEnvDec: 0.25, cutoff: 5020,
       reso: 8, a: 0.001, d: 0.4, s: 0.0, r: 0.2, dlyAmt: 0.25, dlyTime: 0.25, width: 0.3 },
+    /* FM con feedback a tope: el modulador entra en caos = ruido metálico; ratio
+       no entero + paso-alto (morph 1) = hi-hat sin tocar el generador de ruido */
+    'Hat FM (feedback)': { waveA: 'sine', mix: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1,
+      cutoff: 6500, morph: 1, a: 0.001, d: 0.09, s: 0.0, r: 0.06, width: 0.2, master: 0.8 },
   },
 
   'Stabs': {

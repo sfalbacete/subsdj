@@ -136,7 +136,7 @@ export class AudioEngine {
     // la caché heurística del navegador: SUBIRLO al cambiar código de worklet
     // (si no, el navegador puede casar módulos nuevos con un processor viejo
     // y los parámetros nuevos llegan undefined -> crash al crear voces).
-    const WK_V = '?v=3';
+    const WK_V = '?v=4';
     await Promise.all([
       ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js' + WK_V, import.meta.url)),
       ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js' + WK_V, import.meta.url)),
@@ -459,7 +459,8 @@ export class AudioEngine {
       case 'uniVoices':                                    // el seg da string: coerción en setUnison
       case 'uniDetune': this._forVoices(v => v.setUnison(this.S.uniVoices, this.S.uniDetune)); break;
       case 'fmRatio':
-      case 'fmIndex': this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex)); break;
+      case 'fmIndex':
+      case 'fmFb':    this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex, this.S.fmFb)); break;
       case 'wtPos': this._forVoices(v => v.setWtPos(value)); break;
       case 'wtSet': try { getWtSet(value); } catch (e) {} break;   // precalienta el set (aplica en la siguiente nota)
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;

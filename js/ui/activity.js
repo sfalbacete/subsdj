@@ -27,7 +27,7 @@ const LFOS = {
 // además su LED de tag (anclado por data-shape, inmune a los títulos).
 const PANELES = {
   'Mezcla':                S => S.ring > 0 || S.noise > 0 || S.drift > 0,
-  'FM':                    S => S.fmIndex > 0,
+  'FM':                    S => S.fmIndex > 0 || dstUsed(S, 'fm'),
   'Unison':                S => +S.uniVoices > 1,
   'Tabla de ondas':        S => S.oscA.wave === 'tabla' || S.oscB.wave === 'tabla',
   'Vocal':                 S => S.vocAmt > 0,

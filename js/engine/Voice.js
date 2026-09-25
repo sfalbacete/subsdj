@@ -209,6 +209,7 @@ export class Voice {
     const udParam = node.parameters.get('uniDetune'); udParam.value = this.S.uniDetune;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
+    const fmFParam = node.parameters.get('fmFb'); if (fmFParam) fmFParam.value = this.S.fmFb;   // puede faltar (worklet viejo en caché)
     // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
 
@@ -232,7 +233,7 @@ export class Voice {
 
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
-      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, wt: wtParam,
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam,
       isWt: cfg.wave === 'tabla', ratio: 1 });   // isWt: la secuencia de tabla solo automatiza estos
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
@@ -390,6 +391,7 @@ export class Voice {
       case 'amp':    return [this.ampMod.gain];
       case 'pan':    return [this.panner.pan];
       case 'wt':     return this.oscs.map(o => o.wt).filter(Boolean);
+      case 'fm':     return this.oscs.map(o => o.fmI);           // índice FM (k-rate; su min 0 recorta)
       // vocal: el slot suma su señal en la ENTRADA de los WaveShapers (junto
       // al ConstantSource del knob) — connect() acepta nodos igual que params.
       // Fuera de [-1,1] el shaper satura: el barrido se queda en u / i.
@@ -447,7 +449,7 @@ export class Voice {
   setSpread(v)        { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.sp.setTargetAtTime(v, tc, 0.02)); }
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
-  setFM(ratio, index) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); }); }
+  setFM(ratio, index, fb = 0) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); if (o.fmF) o.fmF.setTargetAtTime(fb, tc, 0.02); }); }
   setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt && o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 

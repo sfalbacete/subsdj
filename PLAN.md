@@ -1,7 +1,8 @@
 # SubSDJ · Plan de pendientes
 
-Fecha: 2026-09-25 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README), fase **A1 delay de
-cinta HECHA** (commit `1db2a19`, selftest 100/100). Este documento complementa al README: allí
+Fecha: 2026-09-25 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+cinta** (`1db2a19`) y **B1 FM en la matriz + feedback** (2026-09-25, selftest 105/105). Este
+documento complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
 y en el README.
@@ -17,7 +18,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 2 | **C2 Armonía + jugadores** | la musiquita: sonido que se hace solo y suena musical | alto | C1 |
 | 3 | **C3 Arreglo + escenas** | ambient de verdad: evolución lenta, sesiones reproducibles | medio | C2 |
 | 4 | **A2 Reverb de placa** | el «suena fino» más grande; la sala donde vive el ambient | alto (DSP) | — |
-| 5 | **B1 fmIndex en la matriz + feedback** | pluck, campana y tacto DX por casi nada | bajo | — |
+| 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
 | 6 | **B2 Oscilador FM4** | la FM completa: 4 operadores y algoritmos | alto | B1 (conviene) |
 | 7 | **A3 Curva de envolvente** | ataques y decays que suenan naturales | bajo | — |
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
@@ -26,7 +27,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** B1 → C1 → C2 → C3, con A2 y B2 intercalados cuando apetezca;
+**Orden de ejecución acordado:** ~~B1~~ → C1 → C2 → C3, con A2 y B2 intercalados cuando apetezca;
 A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -171,6 +172,8 @@ inestable a Decay máximo. Pares A/B: mismo pad con IR vs placa. Y oído, mucho 
 
 ### 5 · B1 fmIndex como destino de la matriz + feedback del operador
 
+**✔ HECHO 2026-09-25** — selftest 105/105; el detalle y las medidas están en el README.
+
 **Propósito.** La FM estática aburre: el DX7 vive de que el índice de modulación cambie durante
 la nota. Con el índice en la matriz: env→índice = pluck y campana (ataque brillante, cuerpo
 suave); velocity→índice = el tacto del DX7; S&H→índice = una campana distinta por nota. Y el
@@ -188,7 +191,7 @@ feedback del operador acerca el seno a una sierra (el truco del operador 6 del D
 mayor que el del tramo sostenido; con feedback el espectro gana armónicos (tilt sube). Presets
 «Campana DX (env→FM)», «E-piano DX (vel→FM)»; pares FM 1-4.
 
-**Coste.** Bajo: una tarde. Es el siguiente en el orden de ejecución.
+**Coste.** Bajo: una tarde. Hecho.
 
 ### 6 · B2 Oscilador «FM4»
 

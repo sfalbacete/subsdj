@@ -46,6 +46,7 @@ export const PARAMS = {
   uniDetune:{ def: 12, min: 0, max: 50, unit: ' ct' },  // detune de los extremos del unison
   fmRatio:  { def: 1, min: 0.25, max: 12 },
   fmIndex:  { def: 0, min: 0, max: 12, act: true },
+  fmFb:     { def: 0, min: 0, max: 1, act: true },   // realimentación del modulador (op. 6 del DX7): su seno se acerca a una sierra; a tope, ruido
   wtSet:    { def: 'analógica' },                   // tabla de ondas (oscs en modo 'Tabla'; global A+B)
   wtPos:    { def: 0, min: 0, max: 1 },             // morph: posición entre los frames de la tabla
   wtUser:   { def: '' },                            // receta de la tabla 'usuario' DENTRO del preset ('' = respeta la dibujada)
@@ -174,8 +175,9 @@ export const MX_DESTS = [
   { id: 'pan',    label: 'Pan' },
   { id: 'wt',     label: 'Wavetable' },     // morph de la tabla (el AudioParam recorta a [0,1])
   { id: 'vow',    label: 'Vocal' },         // recorre las vocales a audio-rate (los WaveShapers saturan en u/i)
+  { id: 'fm',     label: 'FM índice' },     // índice de modulación (el AudioParam recorta en 0): env→fm = pluck DX, vel→fm = tacto DX
 ];
-export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1 };
+export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8 };
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
