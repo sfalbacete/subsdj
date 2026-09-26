@@ -142,6 +142,7 @@ export function initPartsControls() {
   const btn = $('partsBtn'); if (!btn) return;
   salaPanels = SALA_PANELS.map(panelByTitle).filter(Boolean);
   btn.addEventListener('click', () => toggle(btn));
+  const hint = $('partsHintBtn'); if (hint) hint.addEventListener('click', () => btn.click());   // aviso de Escena (pantalla Secuenciacion)
   // Pánico: el director para y cancela lo pendiente, y todas las partes sueltan todo
   const pb = $('panicBtn');
   if (pb) pb.addEventListener('click', () => { const sc = getScene(); if (sc) sc.conductor.panic(); panic(); document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on: sceneOn() } })); });

@@ -23,6 +23,8 @@ import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
+import { initScreens } from './ui/screens.js';
+import { initPresetScreen } from './ui/presetScreen.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
@@ -35,10 +37,12 @@ initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
 initPresetBank();
+initPresetScreen();  // pantalla Presets: la lista del banco (refleja el <select> del banco)
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
 initCollapsiblePanels();
+initScreens();       // pestanas Diseno / Secuenciacion / Presets (filtran el rack; recuerdan la eleccion)
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)

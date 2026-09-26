@@ -35,6 +35,12 @@ que ejercita el robo de voz (`MAX_POLY`) y el recorte de colas (`MAX_TAILS`).
 Resultados en un panel en pantalla, en consola (`console.table`) y en el título
 de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el motor.**
 
+Sin abrir el navegador: `node tools/run-selftest.mjs ["selftest=1&demos=DLY"]` lanza
+Chrome headless por CDP con un servidor estático propio (8001), espera el ping «done»
+e imprime resumen, filas fallidas con su motivo, pares de demos (diff y picos), logs
+de medida y errores JS; sale con 1 si algo falla. Solo Node ≥ 22 y Chrome (ruta por la
+variable `CHROME` si no es la habitual).
+
 ## Grabación, presets y arpegiador
 
 - **⏺ Grabar** (cabecera): graba la salida (lo mismo que suena) y al parar
@@ -66,6 +72,45 @@ de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el mot
   del Seq se transpone con el acorde, Wavestation arpegiada, hat E(7,16)) y
   **Coro robótico** (Re hirajoshi, 66 bpm, armonía por funciones: todo el
   módulo Vocal — madrigal, voz glotal, robot parlante y percusión «ka»).
+
+## Pantallas
+
+El rack tiene ya ~35 módulos: en un monitor grande cabe todo pero apabulla, y
+en uno pequeño no cabe. Tres pestañas en la cabecera enseñan solo lo que toca
+a cada tarea. El rack es el MISMO: las pantallas son filtros, no copias. Cada
+`.panel` declara en qué pantallas vive (`data-screens="diseno secuenciacion"`)
+y el CSS oculta el resto (`body[data-screen]` lo pone `ui/screens.js`), así
+que los ids, los LEDs, el plegado, el MIDI learn y el motor no se enteran, y
+un módulo puede estar en varias.
+
+- **Diseño** — crear un sonido: osciladores, FM y FM4, unison, tabla de ondas
+  y su editor, vocal, filtro y carácter, LFOs, envolventes, voz/master, matriz,
+  distorsión/flanger, chorus, delay, espacio, reverb, osciloscopio y espectro.
+  La barra rápida de presets vive aquí (y en Presets: guardar, borrar,
+  exportar e importar son sus botones).
+- **Secuenciación** — que la música se haga sola: arpegiador, secuenciador,
+  tabla · secuencia y, con ▦ Partes, mezclador, armonía, jugador y arreglo.
+  Delay y Reverb están también aquí en su papel de sala compartida (etiqueta
+  «sala»). Con las Partes apagadas, un aviso «Escena» explica qué falta y las
+  enciende.
+- **Presets** — todo el banco a la vista, por secciones (las mismas del
+  selector rápido): un clic carga en la parte que edita el rack y el teclado
+  sirve para probarlo. Es una lista v0 que se alimenta del `<select>` del
+  banco (`ui/presetScreen.js`, MutationObserver: guardar, borrar e importar
+  la repueblan); la biblioteca con secciones propias, favoritos y búsqueda es
+  el bloque 13b del plan.
+
+El **teclado** está en las tres, pegado al borde inferior (`position:
+sticky`): si el rack hace scroll sigue a mano; si la página es corta se queda
+en su sitio sin tapar nada. La pestaña elegida se recuerda
+(`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se dispara un
+`resize` porque los canvas de un módulo oculto medían 0 (el mismo truco que
+al desplegar un panel). Evidencia: check «pantallas» del selftest (ningún
+módulo huérfano y ninguna pantalla vacía; cada pestaña muestra EXACTAMENTE
+sus módulos, por estilo computado; la pestaña se marca y se recuerda; la
+barra rápida está en Diseño y Presets y no en Secuenciación; la lista de
+Presets refleja el banco y un clic carga y queda marcado) y capturas de las
+tres pantallas con `node tools/shot.mjs "pantalla:secuenciacion" out.png`.
 
 ## Teclado
 
@@ -135,10 +180,14 @@ js/ui/
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
+  screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack
+  presetScreen.js              pantalla Presets: el banco entero por secciones, un clic carga (refleja el <select>)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
   keyboard.js presetBank.js recorder.js scope.js adsrGraph.js
+tools/run-selftest.mjs         selftest en Chrome headless (CDP, sin dependencias): node tools/run-selftest.mjs "selftest=1&demos=DLY"
+tools/shot.mjs                 captura PNG de un módulo o de una pantalla: node tools/shot.mjs "pantalla:presets" out.png [ancho] ["JS previo"]
 ```
 
 Los presets (formato **v2**) guardan valores en **espacio-motor** (`cutoff` en Hz,
@@ -559,6 +608,15 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   seguía la frase al soltar la raíz (parar la limpia). Botón **⏹ Pánico** en
   la cabecera (y tecla Escape): para el director y corta todo en todas las
   partes.
+
+**Fuera de los ejes · 13a Pantallas** ✔ *(hecho 2026-09-27; propuesto por el
+usuario)* — pestañas Diseño / Secuenciación / Presets como filtros sobre el
+mismo rack (`data-screens` por módulo + CSS, `ui/screens.js`), teclado
+pegajoso, pantalla Presets con el banco entero por secciones
+(`ui/presetScreen.js`), aviso «Escena» en Secuenciación con las Partes
+apagadas. Check «pantallas» en el selftest, 119/119; sección «Pantallas»
+arriba. De paso, el runner headless y la captura viven ya en `tools/`
+(punto 11 del plan): `node tools/run-selftest.mjs` sale con 1 si algo falla.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

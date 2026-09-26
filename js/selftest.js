@@ -37,6 +37,7 @@ import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
 import { loadPresetIndex } from './ui/presetBank.js';
+import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -349,6 +350,51 @@ export async function runSelfTest() {
     const okA = okStep && okOnce && okEdge && okPC;
     push({ name: 'MIDI acciones (banco: ‹ › y program change)', peak: 0, ok: okA,
            problems: okA ? [] : ['paso:' + okStep + ' única:' + okOnce + ' flanco:' + okEdge + ' pc:' + okPC] });
+  }
+  {
+    // pantallas (13a): ningún módulo huérfano (todos en al menos una pestaña
+    // conocida) y ninguna pestaña vacía; cambiar de pestaña muestra EXACTAMENTE
+    // los módulos que la declaran (estilo computado), marca la pestaña y se
+    // recuerda; la barra rápida vive en Diseño y Presets; la lista de la
+    // pantalla Presets refleja el banco y un clic carga por el mismo camino
+    // que el selector y queda marcado como actual.
+    body.appendChild(el('st-cat', 'Pantallas'));
+    const panels = [...document.querySelectorAll('.rack .panel')];
+    const tags = p => (p.dataset.screens || '').split(' ').filter(Boolean);
+    const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();   // sin LED ni «?»
+    const probs = [];
+    const orphans = panels.filter(p => !tags(p).some(t => SCREENS.includes(t))).map(title);
+    const unknown = panels.flatMap(p => tags(p).filter(t => !SCREENS.includes(t)));
+    const empty = SCREENS.filter(s => !panels.some(p => tags(p).includes(s)));
+    if (orphans.length) probs.push('huérfanos: ' + orphans.join(', '));
+    if (unknown.length) probs.push('pantallas desconocidas: ' + unknown.join(', '));
+    if (empty.length) probs.push('pantallas vacías: ' + empty.join(', '));
+    const before = currentScreen();
+    for (const s of SCREENS) {
+      showScreen(s);
+      const shown = panels.filter(p => getComputedStyle(p).display !== 'none');
+      const want = panels.filter(p => tags(p).includes(s) && !p.hidden);
+      if (shown.length !== want.length || !shown.every(p => tags(p).includes(s)))
+        probs.push(s + ': visibles ' + shown.length + ' ≠ esperados ' + want.length);
+      if (localStorage.getItem('subsdj.screen.v1') !== s) probs.push(s + ': no se recuerda');
+      if (!document.querySelector('#screenTabs button.active[data-screen="' + s + '"]')) probs.push(s + ': pestaña sin marcar');
+    }
+    const bar = document.getElementById('presetBar');
+    showScreen('secuenciacion');
+    if (getComputedStyle(bar).display !== 'none') probs.push('la barra de presets sigue en Secuenciación');
+    showScreen('presets');
+    if (getComputedStyle(bar).display === 'none') probs.push('la barra de presets falta en Presets');
+    const sel = document.getElementById('presetSelect');
+    const items = [...document.querySelectorAll('#presetList .pl-item')];
+    if (!items.length || items.length !== sel.options.length) probs.push('lista: ' + items.length + ' ítems vs ' + sel.options.length + ' opciones');
+    const target = items.find(b => b.dataset.v !== sel.value);
+    if (target) {
+      target.click();
+      const curs = document.querySelectorAll('#presetList .pl-item.cur');
+      if (sel.value !== target.dataset.v || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + sel.value + ')');
+    }
+    showScreen(before);
+    push({ name: 'pantallas (huérfanos · filtro · memoria · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {

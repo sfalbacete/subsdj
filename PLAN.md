@@ -4,7 +4,8 @@ Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
-(2026-09-27); selftest 118/118. Los ejes B y C están COMPLETOS y del eje A solo queda A4. Fuera del plan:
+(2026-09-27), **13a Pantallas** y **11 runner en `tools/`** (2026-09-27); selftest 119/119. Los ejes B y C están
+COMPLETOS y del eje A solo queda A4. Fuera del plan:
 notas colgadas + Pánico (`4e2b47e`), cuatro
 escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
 complementa al README: allí
@@ -29,14 +30,14 @@ y va aparte, porque conviene meter primero los baratos.
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
 | 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
-| 11 | **Runner headless en el repo** | selftest, capturas, golden y sondas sin depender de la sesión | bajo | — |
+| 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
-| 13 | **Pantallas + biblioteca de presets** | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer | 13a bajo · 13b alto | — |
+| 13 | **Pantallas** ✔ **+ biblioteca de presets** | que el synth vuelva a ser disfrutable: ver solo lo que toca (13a HECHA); presets que se pueden ordenar, podar y querer (13b) | 13a bajo · 13b alto | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
-→ ~~A3~~. **Siguiente sesión: 13a (pantallas) y 13b (biblioteca de presets)**, que el usuario pone por
-delante de todo: con salas y partes el rack ya no cabe en un monitor sin agobiar. Después A4 y 9
-como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
+→ ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso). **Siguiente: 13b
+(biblioteca de presets)**, que el usuario pone por delante de todo; antes, sus tres decisiones
+(punto 5 de abajo). Después A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -62,6 +63,14 @@ visual, capturas CDP; commit por hito; README y este plan al día.
    `AudioEngine.js` hasta C1).
 4. ✔ Resuelta en C1: 4 ranuras genéricas (constante `N_PARTS` en `engine/parts.js`) y casilla
    «Capa» en el mezclador para que el teclado toque todas las partes.
+5. **13b · biblioteca de presets** (antes de empezarla). (a) ¿Los de fábrica se BORRAN de la
+   biblioteca, con «volver a traer de fábrica» como red, o solo se ocultan? **Recomendada: borrar
+   con la red** — es lo que pide «quedarse con lo que le gusta»; ocultar es un borrado que no
+   libera la lista. (b) ¿Las escenas (`escenas/*.json`) entran como sección propia? **Recomendada:
+   sí**, sección «Escenas» con la misma tarjeta (cargar = ⇧ Escena del módulo Arreglo); así hay un
+   solo sitio donde buscar. (c) ¿La barra rápida de Diseño recorre la biblioteca entera o solo una
+   sección «activa»? **Recomendada: entera**, con los optgroups = secciones y los favoritos
+   primero: ‹ › y el Program Change MIDI siguen recorriendo todo, como hoy.
 
 ## Hecho fuera del plan (2026-09-26/27)
 
@@ -328,6 +337,10 @@ placa con logo, LFOs animados (el indicador gira a la velocidad real).
 
 ### 11 · Runner headless en el repo
 
+**✔ HECHO 2026-09-27** (de paso, con 13a): `tools/run-selftest.mjs` (sale con 1 si hay fallos) y
+`tools/shot.mjs` (módulo por título o `pantalla:NOMBRE` entera, con JS previo opcional). Ruta relativa al
+script; Chrome por la variable `CHROME` si no está en la ruta habitual. golden/sondas siguen en el temp.
+
 **Propósito.** Verificar sin depender de la sesión de Claude. Hoy el selftest se lanza en
 Chrome headless con dos scripts Node que viven en el scratchpad de la sesión (efímero):
 `run-selftest.mjs` (servidor estático propio en 8001 que captura los pings, CDP por
@@ -346,7 +359,12 @@ el camino.
 pequeño y apabullante. No hace falta ver todo en todo momento. Tres pantallas por función, y una
 gestión de presets de verdad.
 
-**13a · Pantallas** (una tarde). Pestañas en la cabecera: **Diseño** (crear sonidos: Osc A/B,
+**13a · Pantallas** ✔ **HECHO 2026-09-27** — selftest 119/119 (check «pantallas»); sección «Pantallas»
+del README; capturas de las tres pantallas. Lo que quedó distinto del plan: la barra rápida vive en
+Diseño Y en Presets (guardar/borrar/exportar/importar son sus botones); un aviso «Escena» en
+Secuenciación con las Partes apagadas (explica y las enciende); la pantalla Presets estrena una
+lista v0 del banco por secciones alimentada del `<select>` (13b la sustituirá por la biblioteca);
+el teclado es `position: sticky`. El plan era: pestañas en la cabecera: **Diseño** (crear sonidos: Osc A/B,
 Mezcla, FM, FM4, Unison, Tabla de ondas + editor, Vocal, Filtro + carácter, LFOs, Env filtro,
 ADSR, Voz·Master, Matriz, Distorsión·Flanger, Chorus, Delay, Espacio, Reverb, Osciloscopio,
 Espectro), **Secuenciación** (generar y automatizar música: Arpegiador, Secuenciador,
