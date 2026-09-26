@@ -1086,7 +1086,14 @@ export async function runSelfTest() {
       if (!(atk > 1.5)) probs.push('la curva no acelera el ataque (' + atk.toFixed(2) + ')');
       if (!(dec < 0.6)) probs.push('la curva no posa el decay (' + dec.toFixed(2) + ')');
       if (!(Math.abs(sus - 1) < 0.1)) probs.push('el sostenido cambia con la curva (' + sus.toFixed(3) + ')');
-      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3));
+      // soltar DURANTE el ataque (bug cazado por el usuario: con setValueCurveAtTime
+      // el release lanzaba excepción y la voz se quedaba colgada) → la nota debe morir
+      loadState({ ...base, envCurve: 1 });
+      const bCut = await renderOne(structuredClone(engine.S), { secs: 1.2, offAt: 0.15 });
+      const tail = rmsW(bCut, 0.9, 1.2), aCut = analyze(bCut);
+      if (aCut.bad) probs.push('soltar en el ataque: NaN/Inf');
+      if (!(tail < 1e-4)) probs.push('soltar durante el ataque no apaga la nota (' + dB(tail) + ' a 0,9-1,2 s)');
+      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3), '· cola tras soltar en el ataque', dB(tail));
       r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: 0, ok: false,

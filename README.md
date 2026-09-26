@@ -374,9 +374,13 @@ son JUGADORES) y duplicar el rack por parte.
   lineales, como siempre (bit-idéntico: el golden no cambia); al subirla se
   vuelven tramos exponenciales tipo RC, como en un ADSR analógico (el
   condensador se carga hacia el objetivo): el ataque sube deprisa y frena al
-  llegar, el decay cae deprisa y se posa despacio. Curvatura k = 6·Curva,
-  muestreada en 48 puntos con `setValueCurveAtTime` (el decay arranca justo
-  donde acaba el ataque); vale para la envolvente de amplitud y la del filtro
+  llegar, el decay cae deprisa y se posa despacio. Curvatura k = 6·Curva;
+  cada tramo va como CADENA de 12 rampas lineales que siguen la exponencial —
+  no como `setValueCurveAtTime`: en Chrome una curva en curso no se puede
+  cancelar ni anclar (soltar la nota durante el ataque lanzaba una excepción,
+  la voz se quedaba colgada y la página llegaba a caerse; lo cazó el usuario
+  al primer uso y ahora el selftest suelta una nota a mitad del ataque y
+  exige que muera); vale para la envolvente de amplitud y la del filtro
   (`Voice._envSegs`); el gráfico del ADSR dibuja la curva real. Por qué: la
   sonoridad es logarítmica, un decay lineal en amplitud «se queda colgado y
   luego cae de golpe»; el release ya era exponencial. Evidencia: check en el

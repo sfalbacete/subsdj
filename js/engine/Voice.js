@@ -29,14 +29,12 @@ const DRIVE_CURVE = (() => {
 // decay cae deprisa y se posa despacio. k = curvatura = ENV_K·envCurve. Por qué
 // suena mejor: la sonoridad es logarítmica — un decay lineal en amplitud «se
 // queda colgado y luego cae de golpe»; el exponencial se oye parejo (por eso el
-// release ya era exponencial). Muestreada en ENV_PTS puntos (setValueCurveAtTime
-// interpola entre ellos).
-const ENV_K = 6, ENV_PTS = 48;
-function envCurve(from, to, k, n = ENV_PTS) {
-  const c = new Float32Array(n), den = 1 - Math.exp(-k);
-  for (let i = 0; i < n; i++) { const x = i / (n - 1); c[i] = from + (to - from) * (1 - Math.exp(-k * x)) / den; }
-  return c;
-}
+// release ya era exponencial). Cada tramo va como CADENA de ENV_SEG rampas
+// lineales que siguen la exponencial — NO como setValueCurveAtTime: en Chrome
+// una curva en curso no se puede cancelar ni anclar (setValueAtTime dentro de
+// su tramo lanza NotSupportedError), así que soltar la nota durante el ataque
+// o el decay dejaba la voz colgada. Las rampas se cortan sin problema.
+const ENV_K = 6, ENV_SEG = 12;
 
 export class Voice {
   constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
@@ -257,14 +255,15 @@ export class Voice {
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
   // Ataque y decay de una envolvente: lineales (envCurve 0: bit-idéntico a
-  // siempre) o con curva RC (envCurve > 0). El decay arranca justo donde acaba
-  // el ataque: setValueCurveAtTime exige que el siguiente evento no empiece antes.
+  // siempre) o con curva RC (envCurve > 0) aproximada por ENV_SEG rampas por tramo.
   _envSegs(p, from, peak, sus, t, a, d) {
     const k = ENV_K * (this.S.envCurve || 0);
     if (!(k > 0)) { p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
-    a = Math.max(0.001, a); d = Math.max(0.001, d);
-    p.setValueCurveAtTime(envCurve(from, peak, k), t, a);
-    p.setValueCurveAtTime(envCurve(peak, sus, k), t + a, d);
+    const den = 1 - Math.exp(-k);
+    const tramo = (v0, v1, t0, dur) => {
+      for (let i = 1; i <= ENV_SEG; i++) { const x = i / ENV_SEG; p.linearRampToValueAtTime(v0 + (v1 - v0) * (1 - Math.exp(-k * x)) / den, t0 + dur * x); }
+    };
+    tramo(from, peak, t, a); tramo(peak, sus, t + a, d);
   }
 
   // Color del ruido -> cutoffs de LP/HP (barridos exponenciales) + makeup de
