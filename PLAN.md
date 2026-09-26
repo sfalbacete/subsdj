@@ -31,9 +31,12 @@ y va aparte, porque conviene meter primero los baratos.
 | 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
 | 11 | **Runner headless en el repo** | selftest, capturas, golden y sondas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
+| 13 | **Pantallas + biblioteca de presets** | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer | 13a bajo · 13b alto | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
-→ ~~A3~~; quedan A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
+→ ~~A3~~. **Siguiente sesión: 13a (pantallas) y 13b (biblioteca de presets)**, que el usuario pone por
+delante de todo: con salas y partes el rack ya no cabe en un monitor sin agobiar. Después A4 y 9
+como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -336,6 +339,42 @@ el camino.
 "selftest=1&demos=DLY"`). No es build: el proyecto sigue sin dependencias.
 
 **Coste.** Mínimo.
+
+### 13 · Pantallas y biblioteca de presets (propuesto por el usuario, 2026-09-27)
+
+**Propósito.** El rack tiene ya ~35 módulos: en un monitor 4K está todo lleno y con zoom-out se ve
+pequeño y apabullante. No hace falta ver todo en todo momento. Tres pantallas por función, y una
+gestión de presets de verdad.
+
+**13a · Pantallas** (una tarde). Pestañas en la cabecera: **Diseño** (crear sonidos: Osc A/B,
+Mezcla, FM, FM4, Unison, Tabla de ondas + editor, Vocal, Filtro + carácter, LFOs, Env filtro,
+ADSR, Voz·Master, Matriz, Distorsión·Flanger, Chorus, Delay, Espacio, Reverb, Osciloscopio,
+Espectro), **Secuenciación** (generar y automatizar música: Arpegiador, Secuenciador,
+Tabla·secuencia, Partes/Mezclador, Armonía, Jugador, Arreglo, y Delay/Reverb en su papel de
+Sala compartida) y **Presets** (13b). Un módulo puede vivir en varias pantallas: las pantallas
+son FILTROS sobre el mismo rack (cada `.panel` lleva `data-screens="diseno secuenciacion"` y
+un CSS oculta el resto), no copias. El **teclado** en las tres, fijo abajo, para probar e
+improvisar; la barra de presets rápida se queda en Diseño. La pestaña se recuerda en
+localStorage; LEDs, plegado y el motor no se tocan. Evidencia: capturas de las tres pantallas y
+sonda que comprueba que ningún módulo queda huérfano (todos en al menos una pantalla).
+
+**13b · Biblioteca de presets** (una o dos sesiones). Hoy la gestión es un selector apretado y
+los presets viven en tres sitios: fábrica (código), `subsdj-demos.json` / `subsdj-presets-2.0.json`
+(ficheros) y los del usuario (localStorage). Una BIBLIOTECA única (`subsdj.biblioteca.v1` en
+localStorage, exportable/importable entera como JSON) con SECCIONES que se crean, renombran y
+borran; mover presets entre secciones, borrar, renombrar, favoritos, buscar; los de fábrica y
+los ficheros del repo como SEMILLA: se importan a la biblioteca la primera vez (y desde un botón
+«volver a traer de fábrica») y a partir de ahí manda el usuario: quedarse con lo que le gusta y
+tirar lo que no. Pantalla con lista por secciones, previsualización al pulsar (carga en la parte
+que edita el rack; el teclado suena debajo) y arrastrar para mover. El selector rápido y el
+Program Change MIDI recorren la biblioteca. Evidencia: selftest del modelo (crear/mover/borrar
+secciones y presets, importar/exportar ida y vuelta, migración de los tres orígenes sin
+duplicados) y sonda de la pantalla.
+
+**Decisiones a tomar antes:** ¿los presets de fábrica se pueden BORRAR de la biblioteca (con
+«volver a traer de fábrica» como red) o solo ocultar? ¿Las escenas (`escenas/*.json`) entran
+también en la biblioteca, como sección propia? ¿La barra rápida de Diseño muestra la biblioteca
+entera o solo una sección «activa»?
 
 ### 12 · Recámara antigua (ya en el README)
 
