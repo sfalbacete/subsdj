@@ -105,6 +105,11 @@ function bindKeyEl(el, midi) {
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
 export function panic() { held.clear(); eachPart(e => e.allNotesOff()); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+// Soltar solo lo que sostiene ESTE teclado (QWERTY / ratón / MIDI): al perder el
+// foco de la ventana los keyup se pierden. Antes se llamaba a panic(), que
+// cortaba TODAS las voces de todas las partes — con la escena tocando, los pads
+// y drones de los jugadores desaparecían hasta el siguiente acorde.
+function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); }
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
 // así QWERTY y MIDI comparten estado visual y no se doble-disparan.
@@ -147,7 +152,7 @@ export function initKeyboard() {
     }
     if (k === 'escape') { e.preventDefault(); panic(); return; }   // Escape = pánico (corta todo)
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
-      e.preventDefault(); panic(); octaveTouched = true;
+      e.preventDefault(); releaseHeldKeys(); octaveTouched = true;
       baseOctave = k === 'pageup' ? Math.min(9 - numOctaves, baseOctave + 1) : Math.max(0, baseOctave - 1);
       buildKeyboard(); return;
     }
@@ -163,5 +168,5 @@ export function initKeyboard() {
     held.delete(k);
     release((baseOctave + 1) * 12 + KEYMAP[k]);
   });
-  window.addEventListener('blur', panic);
+  window.addEventListener('blur', releaseHeldKeys);
 }

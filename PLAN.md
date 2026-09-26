@@ -71,6 +71,13 @@ visual, capturas CDP; commit por hito; README y este plan al día.
   hipnótico y coro robótico. Niveles equilibrados con una sonda offline que renderiza cada parte
   en solo; la quinta del dron se cuantiza a la escala (bug cazado: nota fuera de escala en
   hirajoshi). Las dos ambientales usan la placa (`29f172d`). El selftest las renderiza todas.
+- **Cortes con la escena tocando** (reportado por el usuario, 2026-09-27): el blur de la ventana y
+  RePág/AvPág llamaban al pánico, que cortaba todas las voces de todas las partes; ahora solo
+  sueltan las teclas del teclado. Y los jugadores Acorde/Raíz reponen sus notas en el compás
+  siguiente si alguien las cortó (cargar un preset, Reset, poli↔mono, encender el Seq); cambiar la
+  semilla en marcha suelta antes las notas. Sonda `probe-focus.mjs`.
+- **Curva de envolvente**: cazado por el usuario al primer uso — `setValueCurveAtTime` no se puede
+  cancelar a mitad en Chrome (notas colgadas y caída de la página); ahora cadena de 12 rampas.
 - **Herramientas de verificación**, hoy en `%TEMP%\subsdj-tools` (efímeras: de ahí el punto 11):
   `run-selftest.mjs` (selftest headless + pings), `shot.mjs` (captura de un módulo por su título),
   `golden.mjs` (render determinista con `Math.random` sembrado antes y después de un refactor,

@@ -66,6 +66,8 @@ export class Player {
     this.reset();
   }
   reset() {
+    if (this.held && this.held.length) this.releaseHeld(this.c.ctx.currentTime);   // cambiar la semilla en marcha no deja notas huérfanas
+    if (this.pending) this.clearPending();
     this.nextBeat = 0; this.held = []; this.seq = 0; this.busy = 0; this.melIdx = -1; this.lastKey = null;
     this.rng = mulberry32((this.c.seed * 7919 + this.i * 104729 + 13) | 0);
     const rngD = mulberry32((this.c.seed * 31 + this.i * 17 + 5) | 0);
@@ -92,6 +94,12 @@ export class Player {
   clearPending() { for (const p of this.pending.values()) clearTimeout(p.timer); this.pending.clear(); }
 
   _id() { return 'p' + this.i + '_' + (this.seq++); }
+  // ¿Sigue viva en el motor la nota con este id? (voz poli, pila mono, o retenida
+  // por el Arp/Seq de la parte). Si alguien cortó las notas sostenidas — cargar
+  // un preset, Reset, cambiar poli↔mono, encender el Seq — el jugador lo nota y
+  // las repone en el siguiente compás en vez de esperar al cambio de acorde.
+  _alive(id) { const e = this.part.engine; return e.voices.has(id) || e.heldStack.some(n => n.id === id) || e.arp.held.some(h => h.id === id) || e.seq.held.some(h => h.id === id); }
+  _checkHeld() { if (this.held.length && !this.held.some(id => this._alive(id))) { this.held = []; this.lastKey = null; } }
   _routed() { const S = this.part.engine.S; return S.seqOn === 'on' || S.arpMode !== 'off'; }
   _on(id, midi, vel, when) {
     if (this.log) this.log.push([+when.toFixed(4), 'on', midi, +vel.toFixed(2)]);
@@ -144,6 +152,7 @@ export class Player {
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / BAR) * BAR;
     const b = this.nextBeat, a = this._arr(b);
     if (!a.active) { if (this.held.length) this.releaseHeld(this.c.timeAt(b)); this.lastKey = null; this.nextBeat = b + BAR; return; }
+    this._checkHeld();
     const ch = this.c.chordAtBeat(b), pcs = ch.tones.slice(0, c.notas), key = pcs.join(',');
     if (key !== this.lastKey) {                     // solo al cambiar de acorde (un pad se mantiene)
       const t = this.c.timeAt(b);
@@ -163,6 +172,7 @@ export class Player {
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / BAR) * BAR;
     const b = this.nextBeat, bar = Math.round(b / BAR), a = this._arr(b);
     if (!a.active) { if (this.held.length) this.releaseHeld(this.c.timeAt(b)); this.lastKey = null; this.nextBeat = b + BAR; return; }
+    this._checkHeld();
     const ch = this.c.chordAtBeat(b);
     if (ch.rootPc !== this.lastKey || bar % Math.max(1, c.cada) === 0) {
       const t = this.c.timeAt(b);
