@@ -122,7 +122,7 @@ function initWsEditor(canvas) {
   document.addEventListener('param-change', e => {
     if (e.detail.target === 'wsPat' || e.detail.target === 'wtPos') draw();
   });
-  window.addEventListener('resize', draw);             // collapse.js dispara resize al desplegar
+  window.addEventListener('resize', draw);             // screens.js dispara resize al cambiar de pestaña
   let lastPlay = -1;                                   // marcador: redibuja solo al cambiar de paso
   setInterval(() => {
     const p = part().ready ? part().wseq.playingStep() : -1;

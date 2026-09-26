@@ -75,6 +75,15 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 
 ## Hecho fuera del plan (2026-09-26/27)
 
+- **Revisión tras el bloque 13** (sugerencias del usuario, 2026-09-27): cabecera como módulo fijo con
+  osciloscopio, espectro (globales, como el teclado) y **CPU audio** (worklet `load-processor` que
+  cronometra los huecos entre quanta: Chrome no expone la carga); Diseño en grupos por función con
+  título (Osciladores / Filtro / Amplitud y modulación / Efectos), cada grupo con su rejilla; **▶/⏹**
+  en las escenas de la biblioteca (carga + enciende Partes + arranca; una sola; ⏹ no apaga las Partes);
+  el gráfico ADSR dibuja el release exponencial del motor; fuera el plegado de módulos (en una rejilla
+  de unidades no liberaba sitio) y el aviso «Escena»; sin alturas fijas de 2U. Respuestas dadas:
+  los presets viven en localStorage (por navegador y origen) con la fábrica/repo como semilla;
+  Delay/Reverb son el mismo módulo en Diseño y Secuenciación (sala compartida en Partes).
 - **Notas colgadas al parar el director** (`4e2b47e`). En partes con Arp/Seq el note-on del
   jugador va por temporizador y, al parar dentro de la ventana de anticipación, el note-off
   llegaba antes: el Arp se quedaba sosteniendo. Ahora los note-on pendientes se cancelan, los

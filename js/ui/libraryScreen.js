@@ -8,10 +8,10 @@
    de ⇧ Escena del módulo Arreglo (enciende las Partes si hace falta). */
 import { library, normaliza } from '../engine/library.js';
 import { loadPresetId } from './presetBank.js';
-import { loadScene } from './playerControls.js';
+import { loadScene, setPlaying, isPlaying } from './playerControls.js';
 
 const $ = id => document.getElementById(id);
-let list, sel, msgEl, filtro = '', soloFav = false, dragId = null;
+let list, sel, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: la escena que suena (solo una)
 const msg = t => { if (msgEl) msgEl.textContent = t; };
 
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -43,6 +43,13 @@ function row(it, cur) {
   star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale el primero en el selector rápido';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
   r.appendChild(star);
+  if (it.tipo === 'escena') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
+    const on = playingId === it.id && isPlaying();
+    const p = mk('span', 'pl-play' + (on ? ' on' : ''), on ? '⏹' : '▶');
+    p.title = on ? 'Parar la escena (las Partes siguen encendidas)' : 'Cargar la escena y ponerla a sonar (solo una a la vez)';
+    p.addEventListener('click', e => { e.stopPropagation(); togglePlay(it); });
+    r.appendChild(p);
+  }
   const label = mk('span', 'pl-label', it.nombre); r.appendChild(label);
   if (it.tipo === 'escena') r.appendChild(mk('span', 'pl-tag', 'escena'));
   const tools = mk('span', 'pl-tools');
@@ -57,6 +64,12 @@ function row(it, cur) {
   return r;
 }
 
+async function togglePlay(it) {
+  if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Escena parada: ' + it.nombre + '.'); return; }
+  try { await loadScene(it.datos); } catch (err) { msg('Escena no válida: ' + (err.message || err)); return; }
+  playingId = it.id;            // después de cargar: scene-loaded acaba de limpiarlo
+  setPlaying(true); msg('Suena: ' + it.nombre + '.');
+}
 async function cargar(it) {
   if (it.tipo === 'escena') {
     try { await loadScene(it.datos); msg('Escena cargada: ' + it.nombre + ' (▶ Tocar en Armonía).'); }
@@ -127,5 +140,8 @@ export function initLibraryScreen() {
   if (sel) sel.addEventListener('change', mark);
   document.addEventListener('preset-loaded', mark);   // ‹ ›, program change
   document.addEventListener('part-changed', mark);    // cambiar de parte pone sel.value sin change
+  document.addEventListener('play-changed', render);   // ▶/⏹ de las escenas al día (también desde ▶ Tocar)
+  document.addEventListener('scene-changed', render);  // Pánico o Partes apagadas paran el director
+  document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // otra escena (⇧ Escena, ↺ Última)
   render();
 }

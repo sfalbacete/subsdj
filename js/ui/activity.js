@@ -1,8 +1,7 @@
 /* SubSDJ · LEDs de actividad: qué partes del synth están HACIENDO algo.
    "Activo" es computable: casi toda cantidad tiene el 0 como valor inerte
    (esos params llevan act:true en PARAMS, que además atenúa su knob).
-   Un LED por panel (en el h2: sobrevive al plegado — el panel puede quedar
-   plegado y seguir "chivando") y otro por grupo de LFO. OJO: un LFO cuenta
+   Un LED por panel (en el h2) y otro por grupo de LFO. OJO: un LFO cuenta
    como activo si su Level > 0 O si algún slot de la matriz lo usa en crudo.
    Event-driven: escucha el 'param-change' que ya emite el registro y
    recalcula con debounce de un frame — sin polling. */

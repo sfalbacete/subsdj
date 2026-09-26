@@ -382,6 +382,10 @@ export async function runSelfTest() {
         probs.push(s + ': visibles ' + shown.length + ' ≠ esperados ' + want.length);
       if (localStorage.getItem('subsdj.screen.v1') !== s) probs.push(s + ': no se recuerda');
       if (!document.querySelector('#screenTabs button.active[data-screen="' + s + '"]')) probs.push(s + ': pestaña sin marcar');
+      for (const g of document.querySelectorAll('.rack-group')) {
+        const has = [...g.querySelectorAll('.panel')].some(p => tags(p).includes(s));
+        if (g.hidden === has) probs.push(s + ': grupo «' + ((g.querySelector('.rack-title') || {}).textContent || '?') + '» ' + (has ? 'oculto con módulos' : 'visible y vacío'));
+      }
     }
     const bar = document.getElementById('presetBar');
     showScreen('secuenciacion');

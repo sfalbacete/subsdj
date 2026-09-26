@@ -30,13 +30,22 @@ body{margin:0;min-height:100%;}   /* min: el teclado pegajoso necesita que body 
 body{
   background:radial-gradient(1200px 600px at 50% -10%, #1a2230, var(--bg));
   color:var(--ink); font:13px/1.4 "Segoe UI",system-ui,sans-serif;
-  -webkit-user-select:none; user-select:none; padding:14px 14px 0;
+  -webkit-user-select:none; user-select:none; padding:0 14px 0;   /* la cabecera-módulo va pegada arriba */
 }
 h1{font-size:18px;margin:0;letter-spacing:2px;}
 h1 small{color:var(--dim);font-weight:400;letter-spacing:0;}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:12px;}
+/* Cabecera = módulo fijo (sticky arriba): título, pestañas, botones, visualizadores y estado */
+header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:14px;
+  margin:0 -14px 12px;padding:9px 14px;background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--edge);border-top:none;border-radius:0 0 12px 12px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+#hdrRight{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+#hdrViz{display:flex;gap:6px;}
+.hviz{display:block;width:170px;height:36px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
+#cpuInfo{font-size:10px;color:var(--dim);}
+#cpuInfo.warn{color:#ffd166;}
+#cpuInfo.hot{color:var(--hot);}
 .badge{font-size:11px;color:var(--dim);}
-#hdrInfo{margin-left:auto;display:flex;align-items:center;gap:16px;}   /* estado + HUD: si la cabecera envuelve, van juntos a la derecha */
+#hdrInfo{display:flex;align-items:center;gap:14px;}
 #powerInfo{font-size:11px;color:var(--hot);}
 #powerInfo.on{color:var(--accent);}
 #dbgInfo{font-size:10px;color:var(--dim);min-width:150px;text-align:right;}
@@ -109,7 +118,9 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:12p
 .panel.u3{grid-row:span 3;}
 .panel.wide{grid-column:span 2;}
 @media (max-width:520px){.panel.wide,#mixer{grid-column:auto;}}
-canvas.viz{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
+.rack-group{margin-bottom:16px;}
+.rack-group[hidden]{display:none;}
+.rack-title{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin:0 0 6px 4px;}
 .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
   border-radius:10px;padding:10px 12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
 .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);
@@ -176,21 +187,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid #0b3
 .lfoShape:hover{border-color:var(--accent2);}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}
 
-/* Paneles colapsables (clic en el título) */
-.panel h2,.viz-panel h2{cursor:pointer;display:flex;align-items:center;}
-.panel h2::after,.viz-panel h2::after{content:'▾';margin-left:auto;color:var(--dim);font-size:10px;
-  transition:transform .15s;}
-.panel.collapsed h2::after,.viz-panel.collapsed h2::after{transform:rotate(-90deg);}
-.panel.collapsed > :not(h2),.viz-panel.collapsed > :not(h2){display:none !important;}
-.panel.collapsed h2,.viz-panel.collapsed h2{margin-bottom:0;border-bottom:none;padding-bottom:0;}
-.panel.collapsed{padding-bottom:10px;}
+.panel h2{display:flex;align-items:center;}   /* LED · título · «?» · etiqueta «sala» */
 
-/* Visualizadores */
-#viz{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0;align-items:start;}
-.viz-panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
-  border-radius:10px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
-.viz-panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin:0 0 8px;}
-.viz-panel canvas{display:block;width:100%;height:120px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
 #adsrCanvas{display:block;width:100%;height:64px;background:#05080b;border:1px solid var(--edge);border-radius:6px;margin-bottom:10px;}
 #seqCanvas,#wsCanvas{display:block;width:100%;height:110px;background:#05080b;border:1px solid var(--edge);border-radius:6px;
   margin:10px 0;touch-action:none;cursor:crosshair;}
@@ -288,7 +286,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 
 /* Ayuda por módulo: el texto vive oculto (.help) y sale en el tooltip del «?» */
 .panel .help{display:none;}
-.qmark{margin-left:auto;margin-right:8px;width:14px;height:14px;flex:none;border-radius:50%;
+.qmark{margin-left:auto;width:14px;height:14px;flex:none;border-radius:50%;
   border:1px solid var(--edge);color:var(--dim);font-size:9px;font-weight:600;
   display:inline-flex;align-items:center;justify-content:center;cursor:help;text-transform:none;}
 .qmark:hover{color:var(--accent);border-color:var(--accent);}
@@ -338,7 +336,6 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 body[data-screen="diseno"] [data-screens]:not([data-screens~="diseno"]),
 body[data-screen="secuenciacion"] [data-screens]:not([data-screens~="secuenciacion"]),
 body[data-screen="presets"] [data-screens]:not([data-screens~="presets"]){display:none !important;}
-body.parts #partsHint{display:none;}   /* el aviso de Escena sobra con las Partes encendidas */
 
 /* Pantalla Presets: la biblioteca por secciones, en columnas (ui/libraryScreen.js) */
 #library{grid-column:1 / -1;}
@@ -355,6 +352,9 @@ body.parts #partsHint{display:none;}   /* el aviso de Escena sobra con las Parte
 .pl-star:hover{color:#ffd166;}
 .pl-star.on{color:#ffd166;text-shadow:0 0 5px rgba(255,209,102,.6);}
 .pl-tag{font-size:9px;color:var(--accent2);border:1px solid var(--edge);border-radius:4px;padding:0 4px;flex:none;letter-spacing:.5px;}
+.pl-play{color:var(--accent2);cursor:pointer;flex:none;width:16px;text-align:center;font-size:11px;}
+.pl-play:hover{filter:brightness(1.35);}
+.pl-play.on{color:var(--hot);}
 .pl-tools{display:inline-flex;gap:2px;margin-left:auto;opacity:0;flex:none;}
 .pl-item:hover .pl-tools,.pl-head:hover .pl-tools{opacity:1;}
 .pl-btn{color:var(--dim);cursor:pointer;padding:0 4px;border-radius:4px;font-size:11px;line-height:1.3;}

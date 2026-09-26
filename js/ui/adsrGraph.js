@@ -28,7 +28,12 @@ export function initADSRGraph(canvas) {
     const seg = (t0, t1, v0, v1) => { const n = k > 0 ? 14 : 1, out = [];
       for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, v0 + (v1 - v0) * (k > 0 ? (1 - Math.exp(-k * x)) / den : x)]); }
       return out; };
-    const pts = [[0, 0], ...seg(0, a, 0, 1), ...seg(a, a + d, 1, s), [a + d + susT, s], [a + d + susT + r, 0]];
+    // release: el motor hace setTargetAtTime(0, t, r/4) (Voice.release), exponencial SIEMPRE
+    // (no depende del knob Curva): v = s·e^(−4x); a x = 1 queda s·e⁻⁴ ≈ 2 %, se cierra a 0.
+    const rel = (t0, t1, v0) => { const n = 14, out = [];
+      for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, i === n ? 0 : v0 * Math.exp(-4 * x)]); }
+      return out; };
+    const pts = [[0, 0], ...seg(0, a, 0, 1), ...seg(a, a + d, 1, s), [a + d + susT, s], ...rel(a + d + susT, a + d + susT + r, s)];
 
     // relleno bajo la curva de amplitud
     ctx.beginPath(); ctx.moveTo(X(0), Y(0));
@@ -48,7 +53,7 @@ export function initADSRGraph(canvas) {
     // overlay de la envolvente de filtro (tiempos propios si own; invertida si amount < 0)
     if (S.filterEnvAmt) {
       const up = S.filterEnvAmt > 0;
-      const fp = [[0, 0], ...seg(0, fa, 0, 1), ...seg(fa, fa + fd, 1, fs), [fa + fd + susT, fs], [fa + fd + susT + fr, 0]]
+      const fp = [[0, 0], ...seg(0, fa, 0, 1), ...seg(fa, fa + fd, 1, fs), [fa + fd + susT, fs], ...rel(fa + fd + susT, fa + fd + susT + fr, fs)]
         .map(([t, v]) => [t, up ? v : 1 - v]);
       ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = '#34c0ff';
       ctx.beginPath();

@@ -79,6 +79,16 @@ function setPlayBtn(on) {
   const b = $('playBtn'); b.textContent = on ? '■ Parar' : '▶ Tocar'; b.classList.toggle('on', on);
   if (!on) { $('harmInfo').textContent = 'parado'; $('arrInfo').textContent = '—'; }
 }
+export function isPlaying() { const c = conductor(); return !!(c && c.running); }
+// ▶ Tocar y los ▶/⏹ de las escenas en la biblioteca pasan por aquí; avisa con play-changed
+export function setPlaying(on) {
+  const c = conductor(); if (!c) return false;
+  if (on && !c.running) { part().resume(); c.start(); }
+  else if (!on && c.running) c.stop();
+  setPlayBtn(c.running);
+  document.dispatchEvent(new CustomEvent('play-changed', { detail: { on: c.running } }));
+  return c.running;
+}
 function refreshInfo() {
   const c = conductor(); if (!c || !c.running) return;
   const bar = c.barNow(), ch = c.harmony.chordAt(bar);
@@ -116,11 +126,7 @@ export function initPlayerControls() {
   }));
   $('harmSeed').addEventListener('change', () => { const c = conductor(); if (c) c.setSeed(Math.max(1, +$('harmSeed').value | 0)); });
   $('harmDice').addEventListener('click', () => { const c = conductor(); if (!c) return; const s = 1 + Math.floor(Math.random() * 99999); $('harmSeed').value = s; c.setSeed(s); });
-  $('playBtn').addEventListener('click', () => {
-    const c = conductor(); if (!c) return;
-    if (c.running) c.stop(); else { part().resume(); c.start(); }
-    setPlayBtn(c.running);
-  });
+  $('playBtn').addEventListener('click', () => setPlaying(!isPlaying()));
   document.querySelectorAll('#playerMode button').forEach(b => b.addEventListener('click', () => {
     const pl = currentPlayer(); if (!pl || !PLAYER_MODES.includes(b.dataset.pm)) return;
     pl.setMode(b.dataset.pm); buildPlayerUI();

@@ -82,9 +82,9 @@ variable `CHROME` si no es la habitual).
   Los pasos entran con precisión de reloj de audio (look-ahead de 120 ms).
 - **Escenas** (`escenas/*.json`, modo Partes): la escena completa — sala,
   armonía, arreglo, los 4 jugadores y los 4 presets con su mezcla — como JSON.
-  ⇧ Escena en el módulo Arreglo, o un clic en la sección «Escenas» de la
-  biblioteca, la carga (enciende Partes si hace falta); ▶
-  Tocar en Armonía la arranca. Cuatro en el repo: **Ambient nocturno** (Re
+  ⇧ Escena en el módulo Arreglo o un clic en la sección «Escenas» de la
+  biblioteca la carga (enciende Partes si hace falta); ▶ Tocar en Armonía, o
+  el ▶ de la escena en la biblioteca, la arranca. Cuatro en el repo: **Ambient nocturno** (Re
   menor, 72 bpm: pad, sub, campana DX y hat entrando por energía), **Amanecer
   dórico** (Fa dórico, 84 bpm: coro de vocales de tabla con el morph derivando,
   bajo cremoso, glockenspiel FM y caja de música), **Techno hipnótico** (La
@@ -93,43 +93,77 @@ variable `CHROME` si no es la habitual).
   **Coro robótico** (Re hirajoshi, 66 bpm, armonía por funciones: todo el
   módulo Vocal — madrigal, voz glotal, robot parlante y percusión «ka»).
 
-## Pantallas
+## Pantallas y cabecera
 
 El rack tiene ya ~35 módulos: en un monitor grande cabe todo pero apabulla, y
-en uno pequeño no cabe. Tres pestañas en la cabecera enseñan solo lo que toca
-a cada tarea. El rack es el MISMO: las pantallas son filtros, no copias. Cada
-`.panel` declara en qué pantallas vive (`data-screens="diseno secuenciacion"`)
-y el CSS oculta el resto (`body[data-screen]` lo pone `ui/screens.js`), así
-que los ids, los LEDs, el plegado, el MIDI learn y el motor no se enteran, y
-un módulo puede estar en varias.
+en uno pequeño no cabe. Tres pestañas enseñan solo lo que toca a cada tarea.
+El rack es el MISMO: las pantallas son filtros, no copias. Cada `.panel`
+declara en qué pantallas vive (`data-screens="diseno secuenciacion"`) y el
+CSS oculta el resto (`body[data-screen]` lo pone `ui/screens.js`), así que
+los ids, los LEDs, el MIDI learn y el motor no se enteran, y un módulo puede
+estar en varias. Los módulos van en GRUPOS por función, cada grupo con su
+propia rejilla y su título: así el relleno «dense» de la rejilla no saca un
+módulo de su grupo, y un grupo sin módulos en la pantalla se oculta entero.
+Las filas crecen con su módulo más alto (ya no hay alturas fijas de 2U, que
+dejaban una fila casi vacía debajo de FM4 o de la matriz).
 
-- **Diseño** — crear un sonido: osciladores, FM y FM4, unison, tabla de ondas
-  y su editor, vocal, filtro y carácter, LFOs, envolventes, voz/master, matriz,
-  distorsión/flanger, chorus, delay, espacio, reverb, osciloscopio y espectro.
-  La barra rápida de presets vive aquí (y en Presets: guardar, borrar,
+- **Diseño** — crear un sonido, en cuatro grupos: **Osciladores** (Osc A/B,
+  mezcla, unison, LFO PWM, FM, FM4, tabla de ondas y su editor, vocal),
+  **Filtro** (filtro, carácter, env de filtro, LFO cutoff y reso),
+  **Amplitud y modulación** (ADSR, voz/master, LFO trémolo y vibrato, matriz)
+  y **Efectos** (distorsión/flanger, chorus, delay, reverb, espacio). La
+  barra rápida de presets vive aquí (y en Presets: guardar, borrar,
   exportar e importar son sus botones).
-- **Secuenciación** — que la música se haga sola: arpegiador, secuenciador,
-  tabla · secuencia y, con ▦ Partes, mezclador, armonía, jugador y arreglo.
-  Delay y Reverb están también aquí en su papel de sala compartida (etiqueta
-  «sala»). Con las Partes apagadas, un aviso «Escena» explica qué falta y las
-  enciende.
+- **Secuenciación** — que la música se haga sola: **Secuencia y escena**
+  (arpegiador, secuenciador, tabla · secuencia y, con ▦ Partes, mezclador,
+  armonía, jugador y arreglo) y debajo **Efectos** con Delay y Reverb en su
+  papel de sala compartida (etiqueta «sala»). Son el MISMO módulo que en
+  Diseño: con Partes encendidas sus tiempos (tamaño, damping, tempo y
+  realimentación del eco) son de la escena y solo los envíos de cada parte
+  son del preset; están aquí para ajustar la sala sin cambiar de pestaña.
 - **Presets** — la biblioteca entera a la vista y en la mano
   (`ui/libraryScreen.js`): secciones en columnas, un clic carga (un preset en
   la parte que edita el rack; una escena enciende las Partes) y el teclado
   sirve para probar; ★, renombrar en línea, arrastrar, borrar, buscar sin
-  acentos y «solo ★». Detalle en «Grabación, presets y arpegiador».
+  acentos y «solo ★». Las escenas llevan **▶**: carga la escena, enciende las
+  Partes y arranca el director; el icono pasa a **⏹** (solo una escena suena
+  a la vez) y ⏹ la para sin apagar las Partes. Detalle en «Grabación,
+  presets y arpegiador».
 
-El **teclado** está en las tres, pegado al borde inferior (`position:
-sticky`): si el rack hace scroll sigue a mano; si la página es corta se queda
-en su sitio sin tapar nada. La pestaña elegida se recuerda
-(`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se dispara un
-`resize` porque los canvas de un módulo oculto medían 0 (el mismo truco que
-al desplegar un panel). Evidencia: check «pantallas» del selftest (ningún
-módulo huérfano y ninguna pantalla vacía; cada pestaña muestra EXACTAMENTE
-sus módulos, por estilo computado; la pestaña se marca y se recuerda; la
-barra rápida está en Diseño y Presets y no en Secuenciación; la lista de
-Presets refleja el banco y un clic carga y queda marcado) y capturas de las
-tres pantallas con `node tools/shot.mjs "pantalla:secuenciacion" out.png`.
+La **cabecera** es un módulo fijo, pegado arriba: título, pestañas, botones,
+el **osciloscopio y el espectro** del máster (globales como el teclado: lo
+que suena, en todas las pantallas, a resolución física del monitor) y el
+estado (audio, **CPU audio**, HUD de voces). El **teclado** está en las tres,
+pegado al borde inferior (`position: sticky`): si el rack hace scroll sigue
+a mano; si la página es corta se queda en su sitio. La pestaña elegida se
+recuerda (`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se
+dispara un `resize` porque los canvas de un módulo oculto medían 0. El
+plegado de módulos (clic en el título) se quitó: en una rejilla de unidades
+no liberaba sitio.
+
+**CPU audio** es la carga del hilo de audio: tiempo renderizando por segundo
+de reloj. Chrome no la expone (`AudioContext.renderCapacity` no está en la
+152) ni deja `performance.now()` en el worklet, así que la mide un worklet
+propio (`engine/worklets/load-processor.js`) con `Date.now()` (1 ms) y la
+estructura del render: el hilo trabaja a RÁFAGAS de 3-4 quanta de 128
+muestras por callback de la tarjeta (`baseLatency`, 10 ms) y duerme el
+resto; el hueco entre dos llamadas seguidas del medidor dentro de una ráfaga
+ES el tiempo de render de un quantum del grafo entero (nodos nativos
+incluidos) y los N huecos mayores por segundo (N = 1 s / `baseLatency`) son
+los sueños; ocupado = ventana − sueños, corregido por Q/(Q−1) porque de una
+ráfaga de Q quanta solo se ven Q−1 huecos. Con reloj de 1 ms cada hueco
+vale 0 o 1, pero la suma cuenta cruces de milisegundo: estimador sin sesgo,
+ruidoso, suavizado en la UI (< 50 % normal, ámbar, rojo desde 80 %).
+Orientativo: no ve el hilo principal y supone que el callback es
+`baseLatency`.
+
+Evidencia: check «pantallas» del selftest (ningún módulo huérfano y ninguna
+pantalla vacía; cada pestaña muestra EXACTAMENTE sus módulos, por estilo
+computado, y oculta los grupos sin módulos; la pestaña se marca y se
+recuerda; la barra rápida está en Diseño y Presets y no en Secuenciación; la
+lista de Presets refleja la biblioteca y un clic carga y queda marcado) y
+capturas con `node tools/shot.mjs "pantalla:secuenciacion" out.png` (el
+cuarto argumento, `"@fichero.js"`, evalúa una sonda antes de capturar).
 
 ## Teclado
 
@@ -193,6 +227,7 @@ js/engine/
   library.js                   la BIBLIOTECA: secciones e ítems (preset/escena), semilla, ★, búsqueda, export/import (sin DOM)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
+  worklets/load-processor.js   medidor de carga del hilo de audio («CPU audio»): huecos entre quanta
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
@@ -200,7 +235,8 @@ js/ui/
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
-  screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack
+  screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack; grupos
+  cpuMeter.js                  indicador «CPU audio» de la cabecera (lee el worklet load-processor)
   libraryScreen.js             pantalla Presets: la biblioteca (secciones, ★, renombrar, arrastrar, buscar, escenas)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
@@ -658,6 +694,15 @@ repo por fetch: 114 la primera vez, 0 la segunda), 120/120; capturas de la
 pantalla con favorito y filtro. Las escenas guardadas antes de la biblioteca
 (`presetVal` de la forma `f:Nombre`) siguen etiquetando la parte: se
 resuelven por nombre.
+
+**Revisión tras 13** *(2026-09-27, sugerencias del usuario)* — cabecera
+como módulo fijo con osciloscopio, espectro y **CPU audio** (worklet que
+cronometra los huecos entre quanta; sección «Pantallas y cabecera»); Diseño
+en grupos por función con título, cada grupo con su rejilla; **▶/⏹** en las
+escenas de la biblioteca (carga, enciende Partes y arranca; una sola a la
+vez; ⏹ para sin apagar las Partes); el gráfico ADSR dibuja el release
+exponencial que el motor siempre tuvo (setTargetAtTime, τ = r/4); fuera el
+plegado de módulos y el aviso «Escena»; sin alturas fijas de 2U. 120/120.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

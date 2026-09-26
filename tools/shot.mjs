@@ -34,7 +34,8 @@ await send('Emulation.setDeviceMetricsOverride', { width: W, height: 1000, devic
 await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' });
 for (let i = 0; i < 50; i++) { await sleep(200); if (await ev('document.readyState') === 'complete') break; }
 await sleep(800);
-if (pre) { console.log('previo:', JSON.stringify(await ev(pre))); await sleep(600); }
+const preSrc = pre && pre.startsWith('@') ? fs.readFileSync(pre.slice(1), 'utf8') : pre;   // "@fichero.js": sondas largas
+if (preSrc) { console.log('previo:', JSON.stringify(await ev(preSrc))); await sleep(600); }
 const screen = target.startsWith('pantalla:') ? target.slice(9) : null;
 let clip = null;
 if (screen) {
