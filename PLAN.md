@@ -1,9 +1,11 @@
 # SubSDJ · Plan de pendientes
 
-Fecha: 2026-09-26 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
-**A2 Reverb de placa** (2026-09-27, selftest 110/110). El eje C está COMPLETO. Este documento
+**A2 Reverb de placa** (`0b77967`); selftest 110/110. El eje C está COMPLETO y del eje A solo
+quedan las tardes sueltas (A3, A4). Fuera del plan: notas colgadas + Pánico (`4e2b47e`), cuatro
+escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
 complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
@@ -26,7 +28,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
 | 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
-| 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
+| 11 | **Runner headless en el repo** | selftest, capturas, golden y sondas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ (eje C completo) → ~~A2~~; queda B2 como
@@ -53,9 +55,28 @@ visual, capturas CDP; commit por hito; README y este plan al día.
    abajo). Aceptar o revertir (una línea en `css/style.css`).
 3. **Escucha de A1:** preset «Dub de cinta» y pares DLY 1/2 (damp) y DLY 3/4 (wow) del banco de
    demos. Si el recorrido de Damp (LP hasta 1,2 kHz, HP hasta 200 Hz) o el wow (±2,5 ms) te
-   parecen cortos o largos, son constantes al principio de `AudioEngine.js`.
+   parecen cortos o largos, son constantes al principio de `Sala.js` (vivían en
+   `AudioEngine.js` hasta C1).
 4. ✔ Resuelta en C1: 4 ranuras genéricas (constante `N_PARTS` en `engine/parts.js`) y casilla
    «Capa» en el mezclador para que el teclado toque todas las partes.
+
+## Hecho fuera del plan (2026-09-26/27)
+
+- **Notas colgadas al parar el director** (`4e2b47e`). En partes con Arp/Seq el note-on del
+  jugador va por temporizador y, al parar dentro de la ventana de anticipación, el note-off
+  llegaba antes: el Arp se quedaba sosteniendo. Ahora los note-on pendientes se cancelan, los
+  note-off «ya» son síncronos y parar limpia el latch del Seq. Botón **⏹ Pánico** en la cabecera
+  y tecla Escape: paran el director y cortan todo en todas las partes.
+- **Cuatro escenas en `escenas/`** (`c718c63`): ambient nocturno, amanecer dórico, techno
+  hipnótico y coro robótico. Niveles equilibrados con una sonda offline que renderiza cada parte
+  en solo; la quinta del dron se cuantiza a la escala (bug cazado: nota fuera de escala en
+  hirajoshi). Las dos ambientales usan la placa (`29f172d`). El selftest las renderiza todas.
+- **Herramientas de verificación**, hoy en `%TEMP%\subsdj-tools` (efímeras: de ahí el punto 11):
+  `run-selftest.mjs` (selftest headless + pings), `shot.mjs` (captura de un módulo por su título),
+  `golden.mjs` (render determinista con `Math.random` sembrado antes y después de un refactor,
+  comparación muestra a muestra a 16 bit), `probe-*.mjs` (sondas de la página real: partes,
+  jugadores, escenas, notas colgadas, niveles por parte, energía de las reverbs) y `patch2.mjs`
+  (reemplazos exactos multi-archivo, todo o nada).
 
 ## Detalle por bloque
 
