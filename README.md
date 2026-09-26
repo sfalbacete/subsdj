@@ -126,7 +126,7 @@ js/engine/
   Arrangement.js               arreglo: energía en ciclos de compases, umbral de entrada, sorpresa, macro de apertura
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
-  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
+  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
@@ -401,10 +401,25 @@ oscilador o tras una etapa no lineal — por eso las ondas extra del TX81Z.
   −4,7 dB, sin NaN. Presets «Campana DX (env→FM)», «E-piano DX (vel→FM)»,
   «Brass FM (feedback)» y «Hat FM (feedback)»; pares FM 1-4 en el banco de
   demos (diffs 1,37 y 1,38). Selftest 105/105. El worklet sube a `?v=4`.
-- **B2 Oscilador «FM4»** — tipo de onda nuevo, como lo fue «Tabla»: 4
-  operadores, ~8 algoritmos dibujados como grafos (las hojas modulan, las
-  raíces suenan), ratio/nivel/feedback y decay por operador. Aguas abajo todo
-  sigue valiendo: filtro, vocal, wave sequencing, SFZ.
+- **B2 Oscilador «FM4»** ✔ *(hecho 2026-09-27)* — onda «FM4» en Osc A/B
+  (worklet): 4 operadores con ratio, nivel y DECAY propios (nivel·e^(−t/decay);
+  a tope, constante) y 8 algoritmos en una tabla de quién modula a quién
+  (`FM4_ALGS`: pila 4→3→2→1, dos pares, tres en paralelo, Y, un modulador
+  para tres portadoras, pila de tres + seno, par + dos senos, aditivo) — un
+  algoritmo es solo un grafo dirigido: las hojas modulan, las raíces suenan.
+  Modulación de fase en ciclos (nivel 1 ≈ 7,5 rad de índice); los operadores
+  se calculan del 4 al 1; el Feedback del módulo FM va al op. 4 (en el
+  aditivo lo vuelve sierra). La receta del DX7 en un knob: un modulador con
+  decay corto = ataque brillante que se apaga. Módulo **FM4** (2U): selector
+  de algoritmo + Ratio/Nivel/Decay × 4; se apaga si ningún osc usa la onda.
+  Aguas abajo todo sigue valiendo (filtro, vocal, matriz, wave sequencing,
+  SFZ). 13 params `fm4*` planos (presets, MIDI learn y snapshot sin casos
+  especiales); el worklet sube a `?v=6`. Presets «FM4 · Brass pila», «FM4 ·
+  E-piano pares», «FM4 · Campana densa», «FM4 · Bombo», «FM4 · Hat»; pares
+  F4 1-4 en el banco de demos (diffs 1,16 y 1,43). Evidencia: check en el
+  selftest (los 8 algoritmos suenan y cada uno difiere del anterior, diffs
+  1,2-2,0; decay del op 2: tilt arranque/sostenido 1095 frente a 1,03 con
+  decays planos; FM4 ≠ seno 2-op), 116/116.
 
 **Eje C · partes y música generativa** (el giro de cabeza; no es un multipista):
 

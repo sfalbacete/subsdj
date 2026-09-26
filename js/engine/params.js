@@ -19,6 +19,7 @@
 import { VOC_ORDEN } from './vocal.js';
 
 const msFmt = v => (v * 1000).toFixed(0) + ' ms';
+const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s');   // decay por operador (FM4): tope = plano
 const twoDec = v => v.toFixed(2);
 // knob Vocal: enseña la vocal (u, o, a…) o el tramo entre dos (u·o)
 const vowelFmt = v => {
@@ -47,6 +48,12 @@ export const PARAMS = {
   fmRatio:  { def: 1, min: 0.25, max: 12 },
   fmIndex:  { def: 0, min: 0, max: 12, act: true },
   fmFb:     { def: 0, min: 0, max: 1, act: true },   // realimentación del modulador (op. 6 del DX7): su seno se acerca a una sierra; a tope, ruido
+  // FM4 (onda 'fm4'): algoritmo + ratio / nivel / decay de cada operador (el 1 es la portadora básica)
+  fm4Alg: { def: '0' },                             // índice en FM4_ALGS del worklet (seg de 8 botones)
+  fm4R1: { def: 1, min: 0.25, max: 12 }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R4: { def: 3, min: 0.25, max: 12 }, fm4L4: { def: 0.2, min: 0, max: 1 }, fm4D4: { def: 0.15, min: 0.005, max: 4, log: true, fmt: decFmt },
   wtSet:    { def: 'analógica' },                   // tabla de ondas (oscs en modo 'Tabla'; global A+B)
   wtPos:    { def: 0, min: 0, max: 1 },             // morph: posición entre los frames de la tabla
   wtUser:   { def: '' },                            // receta de la tabla 'usuario' DENTRO del preset ('' = respeta la dibujada)
@@ -154,6 +161,8 @@ export const PARAMS = {
    El cutoff se modula por el DETUNE del filtro (cents ⇒ exponencial, octavas
    simétricas): matemáticamente incapaz de cruzar 0 Hz — la lección del
    cutLFO (presets que se apagaban) garantizada por construcción. */
+export const FM4_KEYS = ['fm4Alg', 'fm4R1', 'fm4L1', 'fm4D1', 'fm4R2', 'fm4L2', 'fm4D2', 'fm4R3', 'fm4L3', 'fm4D3', 'fm4R4', 'fm4L4', 'fm4D4'];
+
 export const MX_SLOTS = 6;
 export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su knob Level no interviene) y env de filtro (0..1·vel)
   { id: 'off',     label: '—' },            // valores por nota ("CV"): velocity, altura de la nota, S&H aleatorio

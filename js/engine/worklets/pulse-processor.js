@@ -1,7 +1,15 @@
 /* =====================================================================
    SubSDJ · pulse-processor (AudioWorklet)
    Oscilador band-limited (PolyBLEP). Tipos (processorOptions.type):
-     sawtooth | square | sine | triangle | supersaw | tabla
+     sawtooth | square | sine | triangle | supersaw | tabla | fm4
+   FM4: síntesis FM de 4 operadores a la DX7/TX81Z. Un ALGORITMO es solo un
+   grafo dirigido de quién modula a quién (FM4_ALGS): las hojas modulan, las
+   raíces (portadoras) suenan. Cada operador tiene ratio (múltiplo de la
+   nota), nivel y DECAY propio (nivel·e^(−t/decay); plano si decay ≥ FM4_DEC_FLAT):
+   un modulador que decae = ataque brillante que se apaga, lo que hace
+   pluck, campana, e-piano y bombo. El operador 4 lleva la realimentación
+   (fmFb, como en el 2-op). Modulación de fase en ciclos: nivel 1 ⇒
+   FM4_MOD ciclos ≈ 7,5 rad de índice. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4.
    TABLA (wavetable): processorOptions.wt = { lens, frames } (mips generados
    en el hilo principal, engine/wavetable.js). Lookup con interpolación
    lineal de fase + morph lineal entre frames adyacentes (param wtPos);
@@ -41,6 +49,21 @@ const SS_DETUNE = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01952356, 0.06288
 // ruido metálico (los hats FM del TX81Z, sin generador de ruido).
 const FM_FB_MAX = 3;
 
+// FM4: algoritmos = para cada operador (0..3), sus MODULADORES (índices mayores:
+// se calculan de 3 a 0) y qué operadores son PORTADORAS (suman a la salida).
+const FM4_ALGS = [
+  { mods: [[1], [2], [3], []], car: [0] },            // 0 pila 4→3→2→1 (brass; feedback en 4)
+  { mods: [[1], [], [3], []], car: [0, 2] },          // 1 dos pares 2→1 · 4→3 (e-piano)
+  { mods: [[1, 2, 3], [], [], []], car: [0] },        // 2 tres moduladores en paralelo → 1 (campana densa)
+  { mods: [[1, 2], [], [3], []], car: [0] },          // 3 Y: 2 y 3 → 1, 4 → 3
+  { mods: [[3], [3], [3], []], car: [0, 1, 2] },      // 4 un modulador para tres portadoras (órgano, coro)
+  { mods: [[1], [2], [], []], car: [0, 3] },          // 5 pila de tres + portadora 4 sola (cama de seno)
+  { mods: [[1], [], [], []], car: [0, 2, 3] },        // 6 par 2→1 + dos portadoras puras
+  { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 aditivo: las cuatro suenan (feedback en 4 = sierra)
+];
+const FM4_MOD = 1.2;          // ciclos de fase por unidad de nivel del modulador (≈ 7,5 rad de índice a nivel 1)
+const FM4_DEC_FLAT = 3.99;    // decay ≥ esto = sin envolvente (nivel constante)
+
 class PulseProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -55,6 +78,12 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'uniVoices', defaultValue: 1,   minValue: 1,     maxValue: 7,     automationRate: 'k-rate' },
       { name: 'uniDetune', defaultValue: 0,   minValue: 0,     maxValue: 50,    automationRate: 'k-rate' },
       { name: 'wtPos',     defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
+      { name: 'fm4Alg',    defaultValue: 0,   minValue: 0,     maxValue: 7,     automationRate: 'k-rate' },
+      ...[1, 2, 3, 4].flatMap(n => [
+        { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 12,  automationRate: 'k-rate' },
+        { name: 'fm4L' + n, defaultValue: 0.5, minValue: 0,     maxValue: 1,   automationRate: 'k-rate' },
+        { name: 'fm4D' + n, defaultValue: 4,   minValue: 0.005, maxValue: 4,   automationRate: 'k-rate' },
+      ]),
     ];
   }
 
@@ -76,12 +105,17 @@ class PulseProcessor extends AudioWorkletProcessor {
       this.modPhases = new Float32Array(this.octaves * 7);
       this.fb1 = new Float32Array(this.octaves * 7);   // últimas dos salidas del modulador (feedback)
       this.fb2 = new Float32Array(this.octaves * 7);
+      this.fm4Ph = new Float32Array(this.octaves * 7 * 4);   // FM4: 4 fases por copia (la copia 0 arranca en la fase configurada)
+      this.fm4Fb = new Float32Array(this.octaves * 7 * 2);   // FM4: memoria de realimentación del op 4
+      for (let i = 0; i < this.octaves * 7; i++) for (let op = 0; op < 4; op++) this.fm4Ph[i * 4 + op] = (i % 7 === 0) ? ph : Math.random();
+      this.fm4Out = new Float32Array(4);
       for (let i = 0; i < this.phases.length; i++) {
         this.phases[i] = (i % 7 === 0) ? ph : Math.random();
         this.modPhases[i] = Math.random();
       }
     }
     this.stopped = false;
+    this.t = 0;         // segundos desde el arranque (envolventes por operador del FM4)
     this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
     this.wt = (this.type === 'tabla' && o.wt && o.wt.frames) ? o.wt : null;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
@@ -209,6 +243,42 @@ class PulseProcessor extends AudioWorkletProcessor {
           this.phases[idx] = p;
         }
       }
+    } else if (type === 'fm4') {
+      const alg = FM4_ALGS[Math.max(0, Math.min(FM4_ALGS.length - 1, params.fm4Alg[0] | 0))];
+      const R = [params.fm4R1[0], params.fm4R2[0], params.fm4R3[0], params.fm4R4[0]];
+      const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX / TWO_PI;   // realimentación del op 4, en ciclos
+      // envolvente por operador, k-rate (un valor por bloque de 2,9 ms: el
+      // escalón es inaudible; con decay ≥ FM4_DEC_FLAT el nivel es constante)
+      const env = this.fm4Out, t = this.t;
+      const Lv = [params.fm4L1[0], params.fm4L2[0], params.fm4L3[0], params.fm4L4[0]];
+      const D = [params.fm4D1[0], params.fm4D2[0], params.fm4D3[0], params.fm4D4[0]];
+      for (let op = 0; op < 4; op++) env[op] = Lv[op] * (D[op] >= FM4_DEC_FLAT ? 1 : Math.exp(-t / Math.max(0.005, D[op])));
+      const carG = lvl / Math.sqrt(alg.car.length), out = [0, 0, 0, 0], ph = this.fm4Ph, fbm = this.fm4Fb;
+      for (let k = 0; k < oct; k++) {
+        const base = f0 * (1 << k);
+        if (base >= nyq) continue;
+        for (let j = 0; j < uv; j++) {
+          const f = base * uniMul(j), idx = k * 7 + j, o = idx * 4, fo = idx * 2;
+          const dt0 = f * R[0] / sr, dt1 = f * R[1] / sr, dt2 = f * R[2] / sr, dt3 = f * R[3] / sr;
+          for (let i = 0; i < N; i++) {
+            // de 3 a 0: los moduladores siempre tienen índice mayor que lo que modulan
+            for (let op = 3; op >= 0; op--) {
+              let m = 0; const ms = alg.mods[op]; for (let q = 0; q < ms.length; q++) m += out[ms[q]];
+              let phase = ph[o + op] + m * FM4_MOD;
+              if (op === 3 && beta > 0) phase += beta * (fbm[fo] + fbm[fo + 1]) * 0.5;
+              const y = Math.sin(TWO_PI * phase) * env[op];
+              out[op] = y;
+              if (op === 3) { fbm[fo + 1] = fbm[fo]; fbm[fo] = y; }
+            }
+            let s = 0; const cs = alg.car; for (let q = 0; q < cs.length; q++) s += out[cs[q]];
+            ch[i] += s * carG;
+            ph[o] += dt0; if (ph[o] >= 1) ph[o] -= 1;
+            ph[o + 1] += dt1; if (ph[o + 1] >= 1) ph[o + 1] -= Math.floor(ph[o + 1]);
+            ph[o + 2] += dt2; if (ph[o + 2] >= 1) ph[o + 2] -= Math.floor(ph[o + 2]);
+            ph[o + 3] += dt3; if (ph[o + 3] >= 1) ph[o + 3] -= Math.floor(ph[o + 3]);
+          }
+        }
+      }
     } else if (type === 'triangle') {
       for (let k = 0; k < oct; k++) {
         const base = f0 * (1 << k);
@@ -258,6 +328,7 @@ class PulseProcessor extends AudioWorkletProcessor {
       }
     }
 
+    this.t += N / sr;
     for (let c = 1; c < out.length; c++) out[c].set(ch);
     return !this.stopped;
   }

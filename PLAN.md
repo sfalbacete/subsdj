@@ -3,8 +3,9 @@
 Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
-**A2 Reverb de placa** (`0b77967`); selftest 110/110. El eje C está COMPLETO y del eje A solo
-quedan las tardes sueltas (A3, A4). Fuera del plan: notas colgadas + Pánico (`4e2b47e`), cuatro
+**A2 Reverb de placa** (`0b77967`) y **B2 Oscilador FM4** (2026-09-27); selftest 116/116. Los
+ejes B y C están COMPLETOS y del eje A solo quedan las tardes sueltas (A3, A4). Fuera del plan:
+notas colgadas + Pánico (`4e2b47e`), cuatro
 escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
 complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
@@ -23,7 +24,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 3 | **C3 Arreglo + escenas** ✔ | ambient de verdad: evolución lenta, sesiones reproducibles — HECHO | medio | — |
 | 4 | **A2 Reverb de placa** ✔ | el «suena fino» más grande; la sala donde vive el ambient — HECHO | alto (DSP) | — |
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
-| 6 | **B2 Oscilador FM4** | la FM completa: 4 operadores y algoritmos | alto | B1 (conviene) |
+| 6 | **B2 Oscilador FM4** ✔ | la FM completa: 4 operadores y algoritmos — HECHO | alto | — |
 | 7 | **A3 Curva de envolvente** | ataques y decays que suenan naturales | bajo | — |
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
@@ -31,9 +32,8 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | selftest, capturas, golden y sondas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ (eje C completo) → ~~A2~~; queda B2 como
-bloque grande y
-A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
+**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
+quedan A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -232,6 +232,8 @@ mayor que el del tramo sostenido; con feedback el espectro gana armónicos (tilt
 
 ### 6 · B2 Oscilador «FM4»
 
+**✔ HECHO 2026-09-27** — selftest 116/116; detalle, medidas y evidencia en el README.
+
 **Propósito.** La FM completa como FUENTE que luego pasa por nuestro filtro, vocal, matriz y
 wave sequencing — lo que el DX7 nunca tuvo. Y entender de una vez los «algoritmos»: un grafo
 dirigido de quién modula a quién; las hojas modulan, las raíces suenan.
@@ -247,8 +249,8 @@ e-pianos). Módulo «FM4» de 2U con 4 columnas. El modo actual (seno + FM 2-op)
 el decay de un modulador se ve como caída del tilt. Presets por familia (bajo, e-piano,
 campana, kick FM, hat FM: los cuatro instrumentos del compañero, como demostración).
 
-**Coste.** Alto: worklet + UI. Conviene después de B1 (comparte el feedback y el destino de
-matriz, que puede apuntar al índice global del FM4).
+**Coste.** Hecho en una sesión: ~90 líneas en el worklet (tabla de algoritmos + bucle de 4
+operadores), 13 params planos y el módulo FM4.
 
 ### 7 · A3 Curva de envolvente
 

@@ -27,7 +27,7 @@ const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés d
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=5';
+const WK_V = '?v=6';
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -332,6 +332,7 @@ export class AudioEngine {
     // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
     if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
+    if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: params del worklet por nombre
     // Claves de la SALA (bpm, tiempo/damp/wow del eco, size/damp/pre de la
     // reverb): las aplica la Sala, que en modo Partes es compartida — y
     // propaga el valor al S de todas las partes (un solo reloj).

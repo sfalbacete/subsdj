@@ -308,7 +308,7 @@ export async function runSelfTest() {
     applyCC(33, 1);
     const okBind = Math.abs(CONTROLS.reso.get() - 24) < 0.11;   // tope del rango (step 0.1)
     armLearn('waveA'); learnCapture(34);
-    applyCC(34, 0.45);                            // zona 3 de 6 → 'sine' (6 ondas desde 'tabla')
+    applyCC(34, 0.36);                            // zona 3 de 7 → 'sine' (7 ondas desde FM4: 0,36·7 = 2,5 → índice 2)
     const okZone = CONTROLS.waveA.get() === 'sine';
     const okFree = applyCC(99, 1) === false;      // CC sin ligar no se consume
     setDevice('selftest');                        // relee de localStorage: el binding sobrevive
@@ -1010,6 +1010,51 @@ export async function runSelfTest() {
       r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // FM4 (Roadmap 4.0 · B2): (1) los 8 algoritmos suenan sin NaN ni clipping
+    // y cada uno difiere del anterior (mismos operadores, otro grafo ⇒ otro
+    // espectro); (2) el decay por operador funciona: con el modulador 2 en
+    // decay corto el tilt del arranque supera con claridad al del sostenido,
+    // y con decay plano no; (3) FM4 ≠ el seno con FM de 2 operadores.
+    body.appendChild(el('st-cat', 'FM4'));
+    let r;
+    try {
+      const probs = [];
+      const base = { waveA: 'fm4', mix: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.3, s: 0.8, r: 0.1, width: 0,
+                     fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 2, fm4L2: 0.6, fm4D2: 4, fm4R3: 1, fm4L3: 0.5, fm4D3: 4, fm4R4: 3, fm4L4: 0.4, fm4D4: 4 };
+      const opt = { secs: 1.0, offAt: 0.9 };
+      const diffW = (x, y, t0, t1) => { const cX = x.getChannelData(0), cY = y.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(cX.length, Math.floor(t1 * SR));
+        let d = 0, en = 0; for (let i = i0; i < i1; i += 4) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; } return Math.sqrt(d / Math.max(1e-12, en)); };
+      const bufs = [];
+      for (let alg = 0; alg < 8; alg++) {
+        loadState({ ...base, fm4Alg: String(alg) });
+        const b = await renderOne(structuredClone(engine.S), opt), a = analyze(b);
+        if (a.bad) probs.push('alg ' + alg + ': NaN/Inf');
+        if (a.peak > 1) probs.push('alg ' + alg + ': clipping');
+        if (a.peak <= SILENCE) probs.push('alg ' + alg + ' en silencio');
+        bufs.push(b);
+      }
+      const dAlg = bufs.map((b, i) => i ? diffW(bufs[i - 1], b, 0.3, 0.85) : 1);
+      dAlg.forEach((d, i) => { if (i && !(d > 0.15)) probs.push('alg ' + (i - 1) + ' y ' + i + ' apenas difieren (' + d.toFixed(3) + ')'); });
+      loadState({ ...base, fm4Alg: '0', fm4D2: 0.06 });
+      const bDec = await renderOne(structuredClone(engine.S), opt);
+      const rDec = tiltW(bDec, 0.005, 0.05) / Math.max(1e-12, tiltW(bDec, 0.5, 0.85));
+      const rFlat = tiltW(bufs[0], 0.005, 0.05) / Math.max(1e-12, tiltW(bufs[0], 0.5, 0.85));
+      if (!(rDec > 2)) probs.push('decay del op 2: el arranque no es más brillante (' + rDec.toFixed(2) + ')');
+      if (!(rFlat < 1.4)) probs.push('control: con decays planos el arranque ya difiere (' + rFlat.toFixed(2) + ')');
+      loadState({ ...base, waveA: 'sine', fmRatio: 2, fmIndex: 2 });
+      const b2op = await renderOne(structuredClone(engine.S), opt);
+      const d2 = diffW(bufs[0], b2op, 0.3, 0.85);
+      if (!(d2 > 0.2)) probs.push('FM4 pila ≈ seno 2-op (' + d2.toFixed(3) + ')');
+      console.log('fm4: diffs entre algoritmos', dAlg.slice(1).map(d => d.toFixed(2)).join(' '), '· decay op2 arranque/sostenido', rDec.toFixed(2), 'control', rFlat.toFixed(2), '· vs 2-op', d2.toFixed(2));
+      r = { name: 'FM4 (8 algoritmos distintos · decay por operador · ≠ 2-op)', peak: analyze(bufs[0]).peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'FM4 (8 algoritmos distintos · decay por operador · ≠ 2-op)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

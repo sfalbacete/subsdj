@@ -28,6 +28,7 @@ const LFOS = {
 const PANELES = {
   'Mezcla':                S => S.ring > 0 || S.noise > 0 || S.drift > 0,
   'FM':                    S => S.fmIndex > 0 || dstUsed(S, 'fm'),
+  'FM4':                   S => S.oscA.wave === 'fm4' || S.oscB.wave === 'fm4',
   'Unison':                S => +S.uniVoices > 1,
   'Tabla de ondas':        S => S.oscA.wave === 'tabla' || S.oscB.wave === 'tabla',
   'Vocal':                 S => S.vocAmt > 0,
@@ -54,6 +55,7 @@ const PANELES = {
 // no se cumple: FM solo muerde sobre osciladores en «Seno», el PWM sobre «Cuad.»
 const APAGA = {
   'FM':      S => S.oscA.wave === 'sine' || S.oscB.wave === 'sine',
+  'FM4':     S => S.oscA.wave === 'fm4' || S.oscB.wave === 'fm4',
   'LFO PWM': S => S.oscA.wave === 'square' || S.oscB.wave === 'square',
 };
 

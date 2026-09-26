@@ -267,6 +267,30 @@ export const FACTORY = {
       a: 0.06, d: 0.3, s: 0.7, r: 0.25, width: 0.35, reverbMix: 0.2 },
   },
 
+  'FM4': {
+    /* pila 4→3→2→1: los moduladores altos decaen rápido (ataque con mordiente),
+       el 2 se queda (cuerpo brass); feedback en el 4 */
+    'FM4 · Brass pila': { waveA: 'fm4', mix: 0, fm4Alg: '0', fmFb: 0.3,
+      fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.55, fm4D2: 4, fm4R3: 1, fm4L3: 0.35, fm4D3: 0.4, fm4R4: 1, fm4L4: 0.3, fm4D4: 0.18,
+      cutoff: 9000, a: 0.05, d: 0.3, s: 0.8, r: 0.3, width: 0.3, reverbMix: 0.18 },
+    /* dos pares: 2→1 es el cuerpo (ratio 1 con modulador 14 = el «tine»), 4→3 el golpe */
+    'FM4 · E-piano pares': { waveA: 'fm4', mix: 0, fm4Alg: '1',
+      fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 14, fm4L2: 0.12, fm4D2: 0.1, fm4R3: 1, fm4L3: 0.7, fm4D3: 4, fm4R4: 1, fm4L4: 0.35, fm4D4: 0.6,
+      cutoff: 9000, a: 0.002, d: 1.0, s: 0.2, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.35, reverbMix: 0.22 },
+    /* tres moduladores en paralelo con ratios no enteros: espectro inarmónico denso */
+    'FM4 · Campana densa': { waveA: 'fm4', mix: 0, fm4Alg: '2',
+      fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 3.5, fm4L2: 0.45, fm4D2: 1.2, fm4R3: 5.19, fm4L3: 0.3, fm4D3: 0.8, fm4R4: 7.3, fm4L4: 0.2, fm4D4: 0.5,
+      cutoff: 12000, a: 0.002, d: 2.2, s: 0, r: 1.6, dlyAmt: 0.2, dlySync: '1/4.', width: 0.5, reverbMix: 0.35, reverbSize: 2.8, master: 0.6 },
+    /* bombo FM: modulador 2 con decay de 30 ms = el «clic», pitch env = el cuerpo */
+    'FM4 · Bombo': { waveA: 'fm4', mix: 0, fm4Alg: '0',
+      fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+      pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 800, a: 0.001, d: 0.35, s: 0, r: 0.2, dist: 0.2, master: 0.85 },
+    /* aditivo con feedback a tope en el 4: ruido metálico; ratios altos no enteros + paso-alto = hat */
+    'FM4 · Hat': { waveA: 'fm4', mix: 0, fm4Alg: '7', fmFb: 1,
+      fm4R1: 5.7, fm4L1: 0.5, fm4D1: 0.06, fm4R2: 8.3, fm4L2: 0.5, fm4D2: 0.05, fm4R3: 11.1, fm4L3: 0.4, fm4D3: 0.08, fm4R4: 6.9, fm4L4: 0.6, fm4D4: 0.07,
+      cutoff: 7000, morph: 1, a: 0.001, d: 0.09, s: 0, r: 0.06, width: 0.25, master: 0.8 },
+  },
+
   'Órgano': {
     'Órgano trémolo': { waveA: 'square', waveB: 'square', octavesB: 2, mix: 0.5, ampLfoLvl: 0.35, ampLfoSpd: 6,
       cutoff: 2520, reso: 1, a: 0.01, d: 0.1, s: 0.9, r: 0.2, width: 0.25 },

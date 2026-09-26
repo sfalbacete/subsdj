@@ -54,6 +54,7 @@
       <button data-w="triangle" title="Triángulo"><svg viewBox="0 0 16 12"><polyline points="1,6 4.5,2 11.5,10 15,6"/></svg></button>
       <button data-w="supersaw" title="Supersaw (7 sierras detunadas)"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/><polyline points="3,10 10,3.5 10,10 15,6" opacity=".45"/></svg></button>
       <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
+      <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
     </div>
     <div class="row" style="margin-top:10px">
       <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
@@ -72,6 +73,7 @@
       <button data-w="triangle" title="Triángulo"><svg viewBox="0 0 16 12"><polyline points="1,6 4.5,2 11.5,10 15,6"/></svg></button>
       <button data-w="supersaw" title="Supersaw (7 sierras detunadas)"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/><polyline points="3,10 10,3.5 10,10 15,6" opacity=".45"/></svg></button>
       <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
+      <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
     </div>
     <div class="row" style="margin-top:10px">
       <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
@@ -101,7 +103,40 @@
       <div class="ctl"><div class="knob" data-knob="fmIndex"><div class="ind"></div></div><div class="lab">Index</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fmFb"><div class="ind"></div></div><div class="lab">Feedback</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>FM 2 operadores (seno).</b> Solo muerde sobre osciladores en modo «Seno» — el módulo se apaga si no hay ninguno. Ratio entero = armónico (brass, e-piano); no entero = campana. Index = cantidad de modulación; en la matriz es el destino «FM índice» (env→FM = pluck y campana DX, velocity→FM = el tacto del DX7). Feedback = el modulador se realimenta (op. 6 del DX7): su seno se vuelve sierra y, a tope, ruido (hats FM).</div>
+    <div class="help"><b>FM 2 operadores (seno).</b> Solo muerde sobre osciladores en modo «Seno» — el módulo se apaga si no hay ninguno. Ratio entero = armónico (brass, e-piano); no entero = campana. Index = cantidad de modulación; en la matriz es el destino «FM índice» (env→FM = pluck y campana DX, velocity→FM = el tacto del DX7). Feedback = el modulador se realimenta (op. 6 del DX7): su seno se vuelve sierra y, a tope, ruido (hats FM). El Feedback vale también para el op. 4 del módulo FM4.</div>
+  </div>
+
+  <div class="panel osc u2" id="fm4Panel">
+    <h2>FM4</h2>
+    <div class="seg" id="fm4AlgSel" style="margin-top:8px">
+      <button data-alg="0" title="Pila: 4→3→2→1 (brass; el feedback va en el 4)">4→3→2→1</button>
+      <button data-alg="1" title="Dos pares independientes: 2→1 y 4→3 (e-piano)">2→1 · 4→3</button>
+      <button data-alg="2" title="Tres moduladores en paralelo sobre la portadora (campanas densas)">2·3·4→1</button>
+      <button data-alg="3" title="Y: 2 y 3 modulan 1; 4 modula 3">2·3→1 4→3</button>
+      <button data-alg="4" title="Un modulador para tres portadoras (órgano, coro)">4→1·2·3</button>
+      <button data-alg="5" title="Pila de tres + portadora 4 sola (cama de seno)">3→2→1 + 4</button>
+      <button data-alg="6" title="Par 2→1 + dos portadoras puras">2→1 + 3 + 4</button>
+      <button data-alg="7" title="Aditivo: las cuatro suenan; con feedback el 4 se vuelve sierra">1+2+3+4</button>
+    </div>
+    <div class="fm4ops">
+      <div class="row tight"><span class="oplab">Op 1</span>
+        <div class="ctl"><div class="knob" data-knob="fm4R1"><div class="ind"></div></div><div class="lab">Ratio</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4L1"><div class="ind"></div></div><div class="lab">Nivel</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4D1"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div></div>
+      <div class="row tight"><span class="oplab">Op 2</span>
+        <div class="ctl"><div class="knob" data-knob="fm4R2"><div class="ind"></div></div><div class="lab">Ratio</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4L2"><div class="ind"></div></div><div class="lab">Nivel</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4D2"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div></div>
+      <div class="row tight"><span class="oplab">Op 3</span>
+        <div class="ctl"><div class="knob" data-knob="fm4R3"><div class="ind"></div></div><div class="lab">Ratio</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4L3"><div class="ind"></div></div><div class="lab">Nivel</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4D3"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div></div>
+      <div class="row tight"><span class="oplab">Op 4</span>
+        <div class="ctl"><div class="knob" data-knob="fm4R4"><div class="ind"></div></div><div class="lab">Ratio</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4L4"><div class="ind"></div></div><div class="lab">Nivel</div><div class="val"></div></div>
+        <div class="ctl"><div class="knob" data-knob="fm4D4"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div></div>
+    </div>
+    <div class="help"><b>FM de 4 operadores</b> (onda «FM4» en Osc A/B; el módulo se apaga si ninguno la usa). Un algoritmo es un grafo de quién modula a quién: las flechas van del modulador a la portadora, y lo que no modula a nadie suena. Cada operador: Ratio = múltiplo de la nota (entero = armónico, no entero = campana), Nivel = cuánto modula (o cuánto suena, si es portadora), Decay = su nivel cae con e^(−t/decay); a tope (∞) es constante. La receta del DX7: modulador con decay corto = ataque brillante que se apaga. El Feedback del módulo FM realimenta el op. 4.</div>
   </div>
 
   <div class="panel osc">

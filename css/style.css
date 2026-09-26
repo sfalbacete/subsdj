@@ -78,6 +78,11 @@ header{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
 #playerArr select{background:#0f141a;border:1px solid var(--edge);color:var(--ink);border-radius:6px;padding:4px 6px;font-size:11px;
   height:44px;box-sizing:border-box;max-width:92px;}
+/* FM4: 8 algoritmos en dos filas; 4 operadores en filas con etiqueta */
+#fm4AlgSel{flex-wrap:wrap;}
+#fm4AlgSel button{flex:1 1 25%;font-size:9px;padding:5px 1px;letter-spacing:0;white-space:nowrap;}
+.fm4ops .row{align-items:center;margin-top:4px;flex-wrap:nowrap;}
+.fm4ops .oplab{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;width:30px;flex:none;}
 
 #presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
   background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
