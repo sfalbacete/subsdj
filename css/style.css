@@ -41,9 +41,6 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 #hdrRight{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 #hdrViz{display:flex;gap:6px;}
 .hviz{display:block;width:170px;height:36px;background:#05080b;border:1px solid var(--edge);border-radius:6px;}
-#cpuInfo{font-size:10px;color:var(--dim);}
-#cpuInfo.warn{color:#ffd166;}
-#cpuInfo.hot{color:var(--hot);}
 .badge{font-size:11px;color:var(--dim);}
 #hdrInfo{display:flex;align-items:center;gap:14px;}
 #powerInfo{font-size:11px;color:var(--hot);}
@@ -120,7 +117,13 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 @media (max-width:520px){.panel.wide,#mixer{grid-column:auto;}}
 .rack-group{margin-bottom:16px;}
 .rack-group[hidden]{display:none;}
-.rack-title{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin:0 0 6px 4px;}
+.rack-title{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin:0 0 6px 4px;
+  cursor:pointer;display:flex;align-items:center;gap:8px;}
+.rack-title:hover{color:var(--accent);}
+.rack-title::after{content:'▾';font-size:10px;transition:transform .15s;}   /* plegable: clic; doble clic = solo esta (ui/groups.js) */
+.rack-group.collapsed .rack-title::after{transform:rotate(-90deg);}
+.rack-group.collapsed .rack{display:none;}
+.rack-group.collapsed{margin-bottom:8px;}
 .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--edge);
   border-radius:10px;padding:10px 12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
 .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);

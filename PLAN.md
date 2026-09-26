@@ -76,14 +76,17 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 ## Hecho fuera del plan (2026-09-26/27)
 
 - **Revisión tras el bloque 13** (sugerencias del usuario, 2026-09-27): cabecera como módulo fijo con
-  osciloscopio, espectro (globales, como el teclado) y **CPU audio** (worklet `load-processor` que
-  cronometra los huecos entre quanta: Chrome no expone la carga); Diseño en grupos por función con
-  título (Osciladores / Filtro / Amplitud y modulación / Efectos), cada grupo con su rejilla; **▶/⏹**
-  en las escenas de la biblioteca (carga + enciende Partes + arranca; una sola; ⏹ no apaga las Partes);
-  el gráfico ADSR dibuja el release exponencial del motor; fuera el plegado de módulos (en una rejilla
-  de unidades no liberaba sitio) y el aviso «Escena»; sin alturas fijas de 2U. Respuestas dadas:
-  los presets viven en localStorage (por navegador y origen) con la fábrica/repo como semilla;
-  Delay/Reverb son el mismo módulo en Diseño y Secuenciación (sala compartida en Partes).
+  osciloscopio y espectro (globales, como el teclado); Diseño en grupos por función con título
+  (Osciladores / Filtro / Amplitud y modulación / Efectos), cada grupo con su rejilla, plegables
+  (clic; doble clic = solo esa); **▶/⏹** en las escenas de la biblioteca (carga + enciende Partes +
+  arranca; una sola; ⏹ no apaga las Partes); el **release sigue al knob Curva** (recta a 0, RC a 1;
+  antes exponencial fijo τ = r/4 y el gráfico lo dibujaba recto → los presets con Curva 0 sueltan
+  ahora en recta); fuera el plegado de módulos (en una rejilla de unidades no liberaba sitio) y el
+  aviso «Escena»; sin alturas fijas de 2U. Un medidor «CPU audio» (worklet cronometrando huecos
+  entre quanta: Chrome no expone la carga ni performance.now() en el worklet) se probó y se quitó
+  a petición del usuario: no medía bien. Respuestas dadas: los presets viven en localStorage (por
+  navegador y origen) con la fábrica/repo como semilla; Delay/Reverb son el mismo módulo en Diseño
+  y Secuenciación (sala compartida en Partes).
 - **Notas colgadas al parar el director** (`4e2b47e`). En partes con Arp/Seq el note-on del
   jugador va por temporizador y, al parar dentro de la ventana de anticipación, el note-off
   llegaba antes: el Arp se quedaba sosteniendo. Ahora los note-on pendientes se cancelan, los
@@ -414,6 +417,8 @@ entera o solo una sección «activa»?
 
 ### 12 · Recámara antigua (ya en el README)
 
+- **Visualizadores en grande**: el osciloscopio y el espectro de la cabecera (170×36) ampliables
+  cuando haga falta verlos bien (pedido por el usuario «eventualmente», 2026-09-27).
 - **Arpegiador**: más divisiones y swing.
 - **Exportador SFZ**: loop points automáticos (hoy nota sostenible ~3 s + release).
 - **Wavetable W3**: expresiones `f(x, t)` que generan una familia de frames coherentes, y/o

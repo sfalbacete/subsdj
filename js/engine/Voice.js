@@ -28,8 +28,9 @@ const DRIVE_CURVE = (() => {
 // se carga hacia el objetivo): el ataque sube deprisa y frena al llegar, el
 // decay cae deprisa y se posa despacio. k = curvatura = ENV_K·envCurve. Por qué
 // suena mejor: la sonoridad es logarítmica — un decay lineal en amplitud «se
-// queda colgado y luego cae de golpe»; el exponencial se oye parejo (por eso el
-// release ya era exponencial). Cada tramo va como CADENA de ENV_SEG rampas
+// queda colgado y luego cae de golpe»; el exponencial se oye parejo. El release
+// sigue al MISMO knob (lineal a 0, RC a 1; hasta la revisión tras el bloque 13
+// era exponencial fijo con τ = r/4). Cada tramo va como CADENA de ENV_SEG rampas
 // lineales que siguen la exponencial — NO como setValueCurveAtTime: en Chrome
 // una curva en curso no se puede cancelar ni anclar (setValueAtTime dentro de
 // su tramo lanza NotSupportedError), así que soltar la nota durante el ataque
@@ -175,6 +176,7 @@ export class Voice {
     const g = vca.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(0, t);
     this._envSegs(g, 0, peak, sus, t, S.a, S.d);
+    this._envAmp = { t, peak, sus, a: S.a, d: S.d };      // para estimar el valor en un release programado en el futuro
 
     // Env del filtro: enlazada al ADSR de amplitud (link) o con tiempos propios.
     // El pico escala con velocity (MIDI): pegar más fuerte abre más el filtro.
@@ -183,6 +185,7 @@ export class Voice {
     const fo = fenv.offset;
     fo.cancelScheduledValues(t); fo.setValueAtTime(0, t);
     this._envSegs(fo, 0, vel, FS * vel, t, FA, FD);
+    this._envFil = { t, peak: vel, sus: FS * vel, a: FA, d: FD };
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
@@ -264,6 +267,29 @@ export class Voice {
       for (let i = 1; i <= ENV_SEG; i++) { const x = i / ENV_SEG; p.linearRampToValueAtTime(v0 + (v1 - v0) * (1 - Math.exp(-k * x)) / den, t0 + dur * x); }
     };
     tramo(from, peak, t, a); tramo(peak, sus, t + a, d);
+  }
+  // Valor que tendrá la envolvente en el instante t (release programado en el
+  // futuro por los jugadores: el AudioParam aún no lo sabe). Misma curva que _envSegs.
+  _envValueAt(e, t) {
+    if (!e) return 0;
+    const k = ENV_K * (this.S.envCurve || 0), den = 1 - Math.exp(-k);
+    const rc = x => (k > 0 ? (1 - Math.exp(-k * x)) / den : x);
+    const x = t - e.t;
+    if (x <= 0) return 0;
+    if (x < e.a) return e.peak * rc(x / e.a);
+    if (x < e.a + e.d) return e.peak + (e.sus - e.peak) * rc((x - e.a) / e.d);
+    return e.sus;
+  }
+  // Release desde cur hasta 0 en rel segundos con la curva del knob: lineal (k = 0) o RC
+  // como cadena de ENV_SEG rampas (cae deprisa y se posa). Llega a 0 EXACTO en t + rel.
+  _relChain(p, t, cur, rel) {
+    const k = ENV_K * (this.S.envCurve || 0);
+    if (!(k > 0) || !(cur > 0)) { p.linearRampToValueAtTime(0, t + rel); return; }
+    const den = 1 - Math.exp(-k);
+    for (let i = 1; i <= ENV_SEG; i++) {
+      const x = i / ENV_SEG;
+      p.linearRampToValueAtTime(i === ENV_SEG ? 0 : cur * (1 - (1 - Math.exp(-k * x)) / den), t + rel * x);
+    }
   }
 
   // Color del ruido -> cutoffs de LP/HP (barridos exponenciales) + makeup de
@@ -530,34 +556,33 @@ export class Voice {
   // ---------- release ----------
   release(rel, at = null) {
     rel = Math.max(0.006, rel);
-    const now = this.ctx.currentTime, tau = rel / 4;
+    const now = this.ctx.currentTime;
     const t = at !== null && at > now ? at : now;   // los jugadores programan el note-off en el reloj de audio
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
-    // Release EXPONENCIAL anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
+    // Release con la curva del knob, anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
     // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
     // rampa-destino y el parámetro se queda clavado en el ÚLTIMO evento (el pico del attack)
     // -> la ganancia saltaría de golpe a peak = re-disparo audible al soltar. Anclar primero
     // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
-    const rp = t > now ? this._releaseParamAt : this._releaseParam;
-    rp.call(this, this.vca.gain, t, tau);
-    rp.call(this, this.fenv.offset, t, fRel / 4);
-    return t + rel * 2;     // a ~8·tau la cola está sobre -70 dB: liberar los nodos ahí es inaudible
+    if (t > now) { this._releaseParamAt(this.vca.gain, t, rel, this._envAmp); this._releaseParamAt(this.fenv.offset, t, fRel, this._envFil); }
+    else { this._releaseParam(this.vca.gain, t, rel); this._releaseParam(this.fenv.offset, t, fRel); }
+    return t + rel + 0.03;  // la cadena llega a 0 exacto en t + rel: liberar los nodos ahí es inaudible
                             // (manda el release de amplitud: con el VCA cerrado el filtro no suena)
   }
-  _releaseParam(param, t, tau) {
+  _releaseParam(param, t, rel) {
     const cur = param.value;            // refleja el valor de la rampa en curso
     param.cancelScheduledValues(t);
     param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
-    param.setTargetAtTime(0, t, tau);
+    this._relChain(param, t, cur, rel);
   }
   // Release programado en el FUTURO (jugadores): el valor que tendrá la rampa
   // en t aún no se puede leer — cancelAndHoldAtTime congela la automatización
   // en t con ese valor y desde ahí cae el release. (cancelScheduledValues(t)
   // borraría una rampa de ataque que termine después de t: la nota callaría.)
-  _releaseParamAt(param, t, tau) {
+  _releaseParamAt(param, t, rel, env) {
     if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
     else { const cur = param.value; param.cancelScheduledValues(t); param.setValueAtTime(cur, t); }
-    param.setTargetAtTime(0, t, tau);
+    this._relChain(param, t, this._envValueAt(env, t), rel);   // el valor en t se calcula: el param aún no lo sabe
   }
 
   // Corte rápido sin click (robo de voz / recorte de colas): re-rampa el VCA a cero.

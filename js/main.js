@@ -17,13 +17,13 @@ import { initPresetBank } from './ui/presetBank.js';
 import { initRecorder } from './ui/recorder.js';
 import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
-import { initCpuMeter } from './ui/cpuMeter.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
+import { initGroups } from './ui/groups.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
@@ -41,7 +41,8 @@ initLibraryScreen(); // pantalla Presets: la biblioteca (secciones, ★, buscar,
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
-initScreens();       // pestanas Diseno / Secuenciacion / Presets (filtran el rack; recuerdan la eleccion)
+initScreens();       // pestañas Diseño / Secuenciación / Presets (filtran el rack; recuerdan la elección)
+initGroups();        // secciones plegables (clic) y «solo esta» (doble clic); estado en localStorage
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
@@ -56,7 +57,6 @@ document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.
 engine.init()
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
-    initCpuMeter(engine.ctx);   // «CPU audio» en la cabecera (worklet que cronometra los huecos entre quanta)
     const info = document.getElementById('powerInfo');
     if (info && !info.classList.contains('on')) info.textContent = '⏻ pulsa una tecla o nota para sonar';
   })

@@ -133,7 +133,7 @@ dejaban una fila casi vacía debajo de FM4 o de la matriz).
 La **cabecera** es un módulo fijo, pegado arriba: título, pestañas, botones,
 el **osciloscopio y el espectro** del máster (globales como el teclado: lo
 que suena, en todas las pantallas, a resolución física del monitor) y el
-estado (audio, **CPU audio**, HUD de voces). El **teclado** está en las tres,
+estado (audio y HUD de voces). El **teclado** está en las tres,
 pegado al borde inferior (`position: sticky`): si el rack hace scroll sigue
 a mano; si la página es corta se queda en su sitio. La pestaña elegida se
 recuerda (`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se
@@ -141,21 +141,10 @@ dispara un `resize` porque los canvas de un módulo oculto medían 0. El
 plegado de módulos (clic en el título) se quitó: en una rejilla de unidades
 no liberaba sitio.
 
-**CPU audio** es la carga del hilo de audio: tiempo renderizando por segundo
-de reloj. Chrome no la expone (`AudioContext.renderCapacity` no está en la
-152) ni deja `performance.now()` en el worklet, así que la mide un worklet
-propio (`engine/worklets/load-processor.js`) con `Date.now()` (1 ms) y la
-estructura del render: el hilo trabaja a RÁFAGAS de 3-4 quanta de 128
-muestras por callback de la tarjeta (`baseLatency`, 10 ms) y duerme el
-resto; el hueco entre dos llamadas seguidas del medidor dentro de una ráfaga
-ES el tiempo de render de un quantum del grafo entero (nodos nativos
-incluidos) y los N huecos mayores por segundo (N = 1 s / `baseLatency`) son
-los sueños; ocupado = ventana − sueños, corregido por Q/(Q−1) porque de una
-ráfaga de Q quanta solo se ven Q−1 huecos. Con reloj de 1 ms cada hueco
-vale 0 o 1, pero la suma cuenta cruces de milisegundo: estimador sin sesgo,
-ruidoso, suavizado en la UI (< 50 % normal, ámbar, rojo desde 80 %).
-Orientativo: no ve el hilo principal y supone que el callback es
-`baseLatency`.
+Las **secciones** se pliegan con un clic en su título (la sección entera
+desaparece y deja su sitio: para centrarse en una) y un doble clic deja SOLO
+esa abierta; el estado se recuerda (`subsdj.groups.v1`). Pendiente para
+cuando haga falta: ver el osciloscopio y el espectro en grande.
 
 Evidencia: check «pantallas» del selftest (ningún módulo huérfano y ninguna
 pantalla vacía; cada pestaña muestra EXACTAMENTE sus módulos, por estilo
@@ -227,7 +216,6 @@ js/engine/
   library.js                   la BIBLIOTECA: secciones e ítems (preset/escena), semilla, ★, búsqueda, export/import (sin DOM)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
-  worklets/load-processor.js   medidor de carga del hilo de audio («CPU audio»): huecos entre quanta
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
@@ -236,7 +224,7 @@ js/ui/
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
   screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack; grupos
-  cpuMeter.js                  indicador «CPU audio» de la cabecera (lee el worklet load-processor)
+  groups.js                    secciones plegables del rack (clic: plegar; doble clic: solo esta); estado en localStorage
   libraryScreen.js             pantalla Presets: la biblioteca (secciones, ★, renombrar, arrastrar, buscar, escenas)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
@@ -489,7 +477,8 @@ son JUGADORES) y duplicar el rack por parte.
   exige que muera); vale para la envolvente de amplitud y la del filtro
   (`Voice._envSegs`); el gráfico del ADSR dibuja la curva real. Por qué: la
   sonoridad es logarítmica, un decay lineal en amplitud «se queda colgado y
-  luego cae de golpe»; el release ya era exponencial. Evidencia: check en el
+  luego cae de golpe»; el release era exponencial fijo (desde la revisión tras
+  el bloque 13 sigue al mismo knob). Evidencia: check en el
   selftest (a mitad del ataque la curva va ×1,92 más alta que la rampa, a
   mitad del decay ×0,51, el sostenido ×1,000), 118/118; preset «Bajo RC
   (curva)» y pares ENV 1-4 en el banco de demos (diffs 0,51 y 0,59).
@@ -696,13 +685,19 @@ pantalla con favorito y filtro. Las escenas guardadas antes de la biblioteca
 resuelven por nombre.
 
 **Revisión tras 13** *(2026-09-27, sugerencias del usuario)* — cabecera
-como módulo fijo con osciloscopio, espectro y **CPU audio** (worklet que
-cronometra los huecos entre quanta; sección «Pantallas y cabecera»); Diseño
-en grupos por función con título, cada grupo con su rejilla; **▶/⏹** en las
-escenas de la biblioteca (carga, enciende Partes y arranca; una sola a la
-vez; ⏹ para sin apagar las Partes); el gráfico ADSR dibuja el release
-exponencial que el motor siempre tuvo (setTargetAtTime, τ = r/4); fuera el
-plegado de módulos y el aviso «Escena»; sin alturas fijas de 2U. 120/120.
+como módulo fijo con osciloscopio y espectro (sección «Pantallas y
+cabecera»); Diseño en grupos por función con título, cada grupo con su
+rejilla, plegables (clic) y «solo esta» (doble clic); **▶/⏹** en las escenas
+de la biblioteca (carga, enciende Partes y arranca; una sola a la vez; ⏹
+para sin apagar las Partes); el **release sigue al knob Curva** como ataque
+y decay (recta a 0 con Curva 0, RC con Curva 1; antes era exponencial fijo,
+τ = r/4, y el gráfico lo dibujaba recto: OJO, los presets con Curva 0
+sueltan ahora en línea recta), también en los note-off programados de los
+jugadores (el valor en t se calcula con la misma curva); fuera el plegado de
+módulos y el aviso «Escena»; sin alturas fijas de 2U. Se probó un medidor
+«CPU audio» (worklet cronometrando los huecos entre quanta) y se quitó: no
+medía bien. Check «curva de envolvente» ampliado (release recto a la mitad
+a mitad de camino; RC se posa; ambos a 0 en r), 120/120.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

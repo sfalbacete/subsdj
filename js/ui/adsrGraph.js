@@ -28,10 +28,9 @@ export function initADSRGraph(canvas) {
     const seg = (t0, t1, v0, v1) => { const n = k > 0 ? 14 : 1, out = [];
       for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, v0 + (v1 - v0) * (k > 0 ? (1 - Math.exp(-k * x)) / den : x)]); }
       return out; };
-    // release: el motor hace setTargetAtTime(0, t, r/4) (Voice.release), exponencial SIEMPRE
-    // (no depende del knob Curva): v = s·e^(−4x); a x = 1 queda s·e⁻⁴ ≈ 2 %, se cierra a 0.
-    const rel = (t0, t1, v0) => { const n = 14, out = [];
-      for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, i === n ? 0 : v0 * Math.exp(-4 * x)]); }
+    // release con la misma curva (Voice._relChain): recta a 0 con Curva 0, RC con Curva 1
+    const rel = (t0, t1, v0) => { const n = k > 0 ? 14 : 1, out = [];
+      for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, i === n ? 0 : v0 * (1 - (k > 0 ? (1 - Math.exp(-k * x)) / den : x))]); }
       return out; };
     const pts = [[0, 0], ...seg(0, a, 0, 1), ...seg(a, a + d, 1, s), [a + d + susT, s], ...rel(a + d + susT, a + d + susT + r, s)];
 

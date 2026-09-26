@@ -29,7 +29,6 @@
     <span id="hdrViz" title="Osciloscopio y espectro de la salida (máster): lo que suena, en todas las pantallas"><canvas id="scope" class="hviz"></canvas><canvas id="spectrum" class="hviz"></canvas></span>
     <span id="hdrInfo">
       <span id="powerInfo">⏻ cargando audio…</span>
-      <span id="cpuInfo" hidden title="Carga del hilo de audio: tiempo renderizando por segundo de reloj, medido por un worklet que cronometra los huecos entre quanta (Chrome no expone la carga; orientativo, resolución de 1 ms promediada)"></span>
       <span id="dbgInfo" title="voces pulsadas · colas de release · osciladores worklet vivos"></span>
     </span>
   </span>
@@ -59,7 +58,7 @@
      módulos visibles se oculta entero (ui/screens.js). Son filtros sobre el
      mismo rack, no copias: un módulo puede estar en varias. -->
 <section class="rack-group">
-<h3 class="rack-title" title="osciladores: qué suena antes del filtro">Osciladores</h3>
+<h3 class="rack-title" title="osciladores: qué suena antes del filtro · clic: plegar o desplegar la sección · doble clic: solo esta">Osciladores</h3>
 <div class="rack">
   <div class="panel osc" data-screens="diseno">
     <h2>Osc A</h2>
@@ -216,7 +215,7 @@
 </section>
 
 <section class="rack-group">
-<h3 class="rack-title" title="el filtro y lo que lo mueve">Filtro</h3>
+<h3 class="rack-title" title="el filtro y lo que lo mueve · clic: plegar o desplegar la sección · doble clic: solo esta">Filtro</h3>
 <div class="rack">
   <div class="panel" data-screens="diseno">
     <h2>Filtro</h2>
@@ -275,7 +274,7 @@
 </section>
 
 <section class="rack-group">
-<h3 class="rack-title" title="envolvente, voz y modulación">Amplitud y modulación</h3>
+<h3 class="rack-title" title="envolvente, voz y modulación · clic: plegar o desplegar la sección · doble clic: solo esta">Amplitud y modulación</h3>
 <div class="rack">
   <div class="panel" data-screens="diseno">
     <h2>ADSR</h2>
@@ -342,7 +341,7 @@
 </section>
 
 <section class="rack-group">
-<h3 class="rack-title" title="arpegiador, secuenciadores y, con Partes, la escena">Secuencia y escena</h3>
+<h3 class="rack-title" title="arpegiador, secuenciadores y, con Partes, la escena · clic: plegar o desplegar la sección · doble clic: solo esta">Secuencia y escena</h3>
 <div class="rack">
   <div class="panel wide" id="mixer" hidden data-screens="secuenciacion">
     <h2>Mezclador</h2>
@@ -467,7 +466,7 @@
 </section>
 
 <section class="rack-group">
-<h3 class="rack-title" title="inserciones y sala (la sala es compartida en Partes)">Efectos</h3>
+<h3 class="rack-title" title="inserciones y sala (la sala es compartida en Partes) · clic: plegar o desplegar la sección · doble clic: solo esta">Efectos</h3>
 <div class="rack">
   <div class="panel" data-screens="diseno">
     <h2>Distorsión · Flanger</h2>

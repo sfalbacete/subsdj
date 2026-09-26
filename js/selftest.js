@@ -1202,6 +1202,19 @@ export async function runSelfTest() {
       if (!(atk > 1.5)) probs.push('la curva no acelera el ataque (' + atk.toFixed(2) + ')');
       if (!(dec < 0.6)) probs.push('la curva no posa el decay (' + dec.toFixed(2) + ')');
       if (!(Math.abs(sus - 1) < 0.1)) probs.push('el sostenido cambia con la curva (' + sus.toFixed(3) + ')');
+      // release con la curva del knob: r = 0,5 s soltando en el sostenido (1,0 s). Curva 0 → recta
+      // (a mitad del release, la mitad de amplitud); Curva 1 → RC (se posa: mucho menos); ambos a 0 en r
+      const baseR = { ...base, r: 0.5 }, optR = { secs: 1.6, offAt: 1.0 };
+      loadState({ ...baseR, envCurve: 0 });
+      const r0 = await renderOne(structuredClone(engine.S), optR);
+      loadState({ ...baseR, envCurve: 1 });
+      const r1 = await renderOne(structuredClone(engine.S), optR);
+      const lin = rmsW(r0, 1.23, 1.27) / Math.max(1e-9, rmsW(r0, 0.9, 1.0));
+      const relRC = rmsW(r1, 1.23, 1.27) / Math.max(1e-9, rmsW(r0, 1.23, 1.27));
+      const relEnd = Math.max(rmsW(r0, 1.55, 1.6), rmsW(r1, 1.55, 1.6));
+      if (!(Math.abs(lin - 0.5) < 0.12)) probs.push('el release recto no va por la mitad a mitad de camino (' + lin.toFixed(2) + ')');
+      if (!(relRC < 0.6)) probs.push('la curva no posa el release (' + relRC.toFixed(2) + ')');
+      if (!(relEnd < 1e-4)) probs.push('el release no llega a 0 en r (' + dB(relEnd) + ')');
       // soltar DURANTE el ataque (bug cazado por el usuario: con setValueCurveAtTime
       // el release lanzaba excepción y la voz se quedaba colgada) → la nota debe morir
       loadState({ ...base, envCurve: 1 });
@@ -1209,8 +1222,8 @@ export async function runSelfTest() {
       const tail = rmsW(bCut, 0.9, 1.2), aCut = analyze(bCut);
       if (aCut.bad) probs.push('soltar en el ataque: NaN/Inf');
       if (!(tail < 1e-4)) probs.push('soltar durante el ataque no apaga la nota (' + dB(tail) + ' a 0,9-1,2 s)');
-      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3), '· cola tras soltar en el ataque', dB(tail));
-      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: a1.peak, ok: !probs.length, problems: probs };
+      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3), '· release recto a mitad', lin.toFixed(2), '· release RC ×', relRC.toFixed(2), '· cola tras soltar en el ataque', dB(tail));
+      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual · release sigue al knob)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
