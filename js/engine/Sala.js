@@ -19,7 +19,23 @@
 import { makeIR, mkLFO } from './nodes.js';
 
 export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
-                                  'reverbSize', 'reverbDamp', 'reverbPre']);
+                                  'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType']);
+
+// Placa (worklets/plate-processor.js, Dattorro): el Size del knob es un RT60 en
+// segundos. Tabla MEDIDA (impulso en Node, pendiente de la cola entre 0,5 y
+// 1,5 s, damp 0): RT60 1,17 s ↔ decay 0,3 · 1,84 ↔ 0,5 (el del artículo) ·
+// 2,38 ↔ 0,6 · 3,22 ↔ 0,7 · 4,72 ↔ 0,8 · 8,25 ↔ 0,9. Interpolación lineal
+// entre puntos; por debajo del primero, la fórmula 10^(−0,61/RT).
+const PLATE_RT = [[1.17, 0.3], [1.84, 0.5], [2.38, 0.6], [3.22, 0.7], [4.72, 0.8], [8.25, 0.9]];
+function plateDecay(size) {
+  if (size <= PLATE_RT[0][0]) return Math.pow(10, -0.611 / Math.max(0.2, size));
+  for (let i = 1; i < PLATE_RT.length; i++) {
+    const [s0, d0] = PLATE_RT[i - 1], [s1, d1] = PLATE_RT[i];
+    if (size <= s1) return d0 + (d1 - d0) * (size - s0) / (s1 - s0);
+  }
+  return 0.9;
+}
+const PLATE_MOD = 0.5;   // excursión de los allpass modulados (0..1): descorrela los modos sin marear
 
 // Delay «de cinta»: filtros DENTRO del bucle del ping-pong y wow del tiempo.
 // Damp recorre en log el LP de Nyquist a DLY_DAMP_LP_MIN y el HP de 0 Hz a
@@ -79,7 +95,13 @@ export class Sala {
     this.convB = ctx.createConvolver();
     this.revXA = ctx.createGain(); this.revXA.gain.value = 1;
     this.revXB = ctx.createGain(); this.revXB.gain.value = 0;
-    this._revFront = 'A';
+    this._revFront = 'A'; this._irStale = false;
+    // Dos reverbs a elegir (reverbType): «sala» = convolución con la IR de
+    // ruido; «placa» = algorítmica (worklet Dattorro, se crea al elegirla).
+    // Crossfade entre ambas; solo la activa recibe entrada (la otra no gasta).
+    this.irMix = ctx.createGain(); this.irMix.gain.value = S.reverbType === 'placa' ? 0 : 1;
+    this.plateMix = ctx.createGain(); this.plateMix.gain.value = S.reverbType === 'placa' ? 1 : 0;
+    this.plate = null;
     this.revRet = ctx.createGain();                  // retorno a 1 (idem: el nivel lo pone el envío)
     this.dlyToRev = ctx.createGain(); this.dlyToRev.gain.value = dlyToRev;   // eco → reverb (los ecos viven en la sala)
 
@@ -100,9 +122,12 @@ export class Sala {
     this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dampL.lp);         // realimentación cruzada R->L
     this.ppMerge.connect(this.dlRet); this.dlRet.connect(this.sum);
     this.dlRet.connect(this.dlyToRev); this.dlyToRev.connect(this.revIn);     // los ecos también reverberan
-    this.revIn.connect(this.revPre); this.revPre.connect(this.convA);         // (convB no recibe entrada hasta el primer cambio de Size/Damp)
-    this.convA.connect(this.revXA); this.revXA.connect(this.revRet);
-    this.convB.connect(this.revXB); this.revXB.connect(this.revRet);
+    this.revIn.connect(this.revPre);
+    this.convA.connect(this.revXA); this.revXA.connect(this.irMix);          // (convB no recibe entrada hasta el primer cambio de Size/Damp)
+    this.convB.connect(this.revXB); this.revXB.connect(this.irMix);
+    this.irMix.connect(this.revRet); this.plateMix.connect(this.revRet);
+    if (S.reverbType === 'placa') { this._ensurePlate(); this.revPre.connect(this.plate); }
+    else this.revPre.connect(this.convA);
     this.revRet.connect(this.sum);
     this.sum.connect(this.comp); this.comp.connect(this.master);
     this.master.connect(this.analyser); this.analyser.connect(dest);
@@ -124,10 +149,44 @@ export class Sala {
       case 'reverbPre': smooth(this.revPre.delayTime, value); break;
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
       case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
+        this._plateParams();                               // la placa cambia al instante (son dos params)
+        if (this.S.reverbType === 'placa') { this._irStale = true; break; }   // la IR se rehará al volver a «sala»
         clearTimeout(this._revTimer);
         this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
         break;
+      case 'reverbType': this._setType(value); break;
     }
+  }
+
+  // ---------- placa ----------
+  _ensurePlate() {
+    if (this.plate) return this.plate;
+    this.plate = new AudioWorkletNode(this.ctx, 'plate-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+    this.plate.connect(this.plateMix);
+    this._plateParams(true);
+    return this.plate;
+  }
+  _plateParams(now = false) {
+    if (!this.plate) return;
+    const t = this.ctx.currentTime, p = this.plate.parameters;
+    const put = (name, v) => { const ap = p.get(name); if (!ap) return; if (now) ap.value = v; else ap.setTargetAtTime(v, t, 0.05); };
+    put('decay', plateDecay(this.S.reverbSize)); put('damp', this.S.reverbDamp); put('mod', PLATE_MOD);
+  }
+  _front() { return this._revFront === 'A' ? this.convA : this.convB; }
+  // Cambio de reverb con fundido de 50 ms; la entrada de la que se apaga se
+  // desconecta al acabar (un convolver o un worklet con entrada gastan CPU).
+  _setType(type) {
+    const placa = type === 'placa', t = this.ctx.currentTime;
+    if (placa) { this._ensurePlate(); this.revPre.connect(this.plate); }
+    else if (this._irStale) { this._irStale = false; clearTimeout(this._revTimer); this._swapIR(this.S.reverbSize); }
+    else this.revPre.connect(this._front());
+    this.irMix.gain.setTargetAtTime(placa ? 0 : 1, t, 0.05);
+    this.plateMix.gain.setTargetAtTime(placa ? 1 : 0, t, 0.05);
+    clearTimeout(this._typeTimer);
+    this._typeTimer = setTimeout(() => {
+      const off = placa ? [this.convA, this.convB] : [this.plate];
+      for (const n of off) { try { if (n) this.revPre.disconnect(n); } catch (e) {} }
+    }, 400);
   }
   setFeedback(fb) { const t = this.ctx.currentTime; this.ppFbL.gain.setTargetAtTime(fb, t, 0.02); this.ppFbR.gain.setTargetAtTime(fb, t, 0.02); }
   setDlyToRev(v)  { this.dlyToRev.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
@@ -168,10 +227,11 @@ export class Sala {
   // Desmontaje (al apagar la escena): para los LFOs del wow y rompe el bucle
   // de realimentación; sin fuentes vivas, el grafo se libera solo.
   dispose() {
-    clearTimeout(this._revTimer); clearTimeout(this._revOffTimer);
+    clearTimeout(this._revTimer); clearTimeout(this._revOffTimer); clearTimeout(this._typeTimer);
     for (const l of [this.wowL, this.wowR]) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
+    if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,
-                     this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.revRet,
-                     this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }
+                     this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.irMix, this.plateMix,
+                     this.revRet, this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }
   }
 }

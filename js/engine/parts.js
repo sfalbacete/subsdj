@@ -12,7 +12,7 @@
    toca todas. El director (engine/Conductor.js) lleva armonía y jugadores.
    Sin persistencia todavía (Roadmap 4.0 · C3 «escenas»).
    ===================================================================== */
-import { AudioEngine, engine as single } from './AudioEngine.js';
+import { AudioEngine, engine as single, loadWorklets } from './AudioEngine.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 import { makeDefaultState, applyPreset, toControls } from './state.js';
 import { Conductor } from './Conductor.js';
@@ -50,6 +50,7 @@ export function playOff(id) {
 export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, dlyToRev = 0.5, master = 0.7, dest = null } = {}) {
   const S = makeDefaultState();
   if (salaS) for (const k of SALA_KEYS) if (k in salaS) S[k] = salaS[k];
+  await loadWorklets(ctx);                                   // la Sala puede necesitar el worklet de la placa
   const sala = new Sala(ctx, S, { fb, dlyToRev, master, dest: dest || ctx.destination });
   const parts = [];
   for (let i = 0; i < N_PARTS; i++) {

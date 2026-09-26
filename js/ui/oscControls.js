@@ -61,6 +61,7 @@ export function bindOscControls() {
   bindSeg('filterSlopeSel', 'slope', 'filterSlope', 'filterSlope');  // 12 / 24 dB por octava
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
   bindSeg('chModeSel', 'chm', 'chMode', 'chMode');         // chorus 2 líneas / ensemble 3 fases
+  bindSeg('reverbTypeSel', 'rt', 'reverbType', 'reverbType');   // reverb: sala (IR) / placa (Dattorro)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
   bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador
   bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');

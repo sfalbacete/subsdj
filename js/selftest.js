@@ -15,7 +15,8 @@
    control->motor (logCut, rangos), no sólo el DSP.
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
-import { AudioEngine, engine } from './engine/AudioEngine.js';
+import { AudioEngine, engine, loadWorklets } from './engine/AudioEngine.js';
+import { Sala } from './engine/Sala.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
@@ -947,6 +948,68 @@ export async function runSelfTest() {
       r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: aA.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Reverb de placa (Roadmap 4.0 · A2): respuesta al impulso de una Sala en
+    // modo «placa»: (1) sin NaN, pico acotado; (2) la cola DECAE de forma
+    // monótona (RMS por ventanas de 250 ms) y sigue viva a 1,5 s con Size 3;
+    // (3) Size 0,5 deja mucha menos cola que Size 3 (el RT60 sigue al knob);
+    // (4) L y R descorrelados (|corr| < 0,6 entre 0,2 y 1,2 s: dos juegos de
+    // grifos de un mismo tanque); (5) la DENSIDAD crece — entre 100 y 120 ms
+    // hay más muestras «vivas» que en los primeros 20 ms (los allpass
+    // multiplican las reflexiones: lo que una IR de ruido no hace); (6) un
+    // preset en «placa» suena distinto que en «sala» (la conmutación existe).
+    body.appendChild(el('st-cat', 'Reverb de placa'));
+    let r;
+    try {
+      const probs = [];
+      const ir = async (size, damp = 0.3) => {
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.5), SR);
+        await loadWorklets(ctx);
+        const S = makeDefaultState(); Object.assign(S, { reverbType: 'placa', reverbSize: size, reverbDamp: damp, reverbPre: 0 });
+        const sala = new Sala(ctx, S, { master: 1 });
+        const b = ctx.createBuffer(1, 8, SR); b.getChannelData(0)[0] = 1;
+        const src = ctx.createBufferSource(); src.buffer = b; src.connect(sala.revIn); src.start(0);
+        return ctx.startRendering();
+      };
+      const big = await ir(3), small = await ir(0.5);
+      const a = analyze(big);
+      if (a.bad) probs.push('NaN/Inf');
+      if (a.peak > 1.5) probs.push('pico excesivo (' + dB(a.peak) + ')');
+      if (a.peak <= SILENCE) probs.push('la placa no responde al impulso');
+      const rmsW = (buf, ch, t0, t1) => { const d = buf.getChannelData(ch), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const env = [...Array(9)].map((_, i) => rmsW(big, 0, 0.25 * i + 0.25, 0.25 * i + 0.5));   // 0,25 … 2,5 s
+      for (let i = 1; i < env.length; i++) if (env[i] > env[i - 1] * 1.1) { probs.push('la cola no decae (ventana ' + i + ': ' + dB(env[i]) + ' tras ' + dB(env[i - 1]) + ')'); break; }
+      if (!(env[3] > 1e-4)) probs.push('Size 3: cola muerta a 1 s (' + dB(env[3]) + ')');
+      const tailS = rmsW(small, 0, 1.0, 1.25);
+      if (!(env[3] > 5 * tailS)) probs.push('el Size no gobierna el RT (' + dB(env[3]) + ' vs ' + dB(tailS) + ')');
+      let corr = 0;
+      { const L = big.getChannelData(0), R = big.getChannelData(1), i0 = Math.floor(0.2 * SR), i1 = Math.floor(1.2 * SR);
+        let sl = 0, sr = 0, sx = 0; for (let i = i0; i < i1; i++) { sl += L[i] * L[i]; sr += R[i] * R[i]; sx += L[i] * R[i]; }
+        corr = sx / Math.max(1e-12, Math.sqrt(sl * sr));
+        if (!(Math.abs(corr) < 0.6)) probs.push('L/R demasiado parecidos (corr ' + corr.toFixed(2) + ')'); }
+      let early = 0, late = 0;
+      { const d = big.getChannelData(0), thr = a.peak * 0.01;
+        const alive = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) if (Math.abs(d[i]) > thr) n++; return n; };
+        early = alive(0.001, 0.021); late = alive(0.1, 0.12);
+        if (!(late > early)) probs.push('la densidad no crece (' + early + ' → ' + late + ' muestras vivas)'); }
+      loadState({ ...FACTORY['Pads']['Pad de placa'], reverbType: 'sala' });
+      const bS = await renderBuf(structuredClone(engine.S));
+      loadState(FACTORY['Pads']['Pad de placa']);
+      const bP = await renderBuf(structuredClone(engine.S));
+      const diff = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0); let d = 0, en = 0;
+        for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; } return Math.sqrt(d / Math.max(1e-12, en)); };
+      const dd = diff(bS, bP);
+      if (!(dd > 0.2)) probs.push('sala vs placa apenas difieren (' + dd.toFixed(3) + ')');
+      console.log('placa: cola', env.map(v => dB(v)).join(' '), '· size 0,5 @1 s', dB(tailS), '· corr L/R', corr.toFixed(2), '· densidad', early + '→' + late, '· diff sala/placa', dd.toFixed(3), '· pico', dB(a.peak));
+      r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: a.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

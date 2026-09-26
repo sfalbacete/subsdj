@@ -2,8 +2,9 @@
 
 Fecha: 2026-09-26 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
-(`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`) y **C3 Arreglo + escenas** (2026-09-26,
-selftest 108/108). El eje C está COMPLETO. Este documento complementa al README: allí
+(`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
+**A2 Reverb de placa** (2026-09-27, selftest 110/110). El eje C está COMPLETO. Este documento
+complementa al README: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
 y en el README.
@@ -18,7 +19,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 1 | **C1 Partes + mezclador** ✔ | la puerta a todo lo generativo: 4 presets sonando a la vez — HECHO | alto (arquitectura) | — |
 | 2 | **C2 Armonía + jugadores** ✔ | la musiquita: sonido que se hace solo y suena musical — HECHO | alto | — |
 | 3 | **C3 Arreglo + escenas** ✔ | ambient de verdad: evolución lenta, sesiones reproducibles — HECHO | medio | — |
-| 4 | **A2 Reverb de placa** | el «suena fino» más grande; la sala donde vive el ambient | alto (DSP) | — |
+| 4 | **A2 Reverb de placa** ✔ | el «suena fino» más grande; la sala donde vive el ambient — HECHO | alto (DSP) | — |
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
 | 6 | **B2 Oscilador FM4** | la FM completa: 4 operadores y algoritmos | alto | B1 (conviene) |
 | 7 | **A3 Curva de envolvente** | ataques y decays que suenan naturales | bajo | — |
@@ -28,8 +29,8 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** | verificar selftest y capturas sin depender de la sesión | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
-**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ (eje C completo); quedan A2 y B2 como
-bloques grandes y
+**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ (eje C completo) → ~~A2~~; queda B2 como
+bloque grande y
 A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -164,6 +165,8 @@ semilla distinta difieren. Escena de demo en el repo.
 
 ### 4 · A2 Reverb de placa algorítmica
 
+**✔ HECHO 2026-09-27** — selftest 110/110; detalle, medidas y evidencia en el README.
+
 **Propósito.** El «suena fino» más grande. Nuestra reverb es convolución con una IR de ruido
 generada por código: la cola es estática y granulada. Una reverb algorítmica tiene densidad de
 ecos que CRECE con el tiempo y modulación interna que mata los modos metálicos. Es la sala en
@@ -180,7 +183,8 @@ junto a «Placa» (selector en el módulo Reverb).
 RT60 crece con Size, L y R descorrelados (correlación < 0,5), sin NaN ni realimentación
 inestable a Decay máximo. Pares A/B: mismo pad con IR vs placa. Y oído, mucho oído.
 
-**Coste.** Alto: ~250 líneas de DSP y afinado de tiempos de delay (primos entre sí) y ganancias.
+**Coste.** Hecho en una sesión: ~150 líneas de worklet + la integración en la Sala; las
+longitudes son las del artículo y la calibración (RT60 y nivel) salió de medir, no de oído.
 
 ### 5 · B1 fmIndex como destino de la matriz + feedback del operador
 

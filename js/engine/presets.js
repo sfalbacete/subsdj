@@ -68,6 +68,11 @@ export const FACTORY = {
   },
 
   'Pads': {
+    /* placa algorítmica (Dattorro): densidad que crece y tanque modulado —
+       pásalo a «Sala (IR)» para oír la diferencia: la cola de la placa respira */
+    'Pad de placa': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -8, detuneB: 10, octavesB: 2, mix: 0.5,
+      cutoff: 1400, reso: 1.5, a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
+      reverbType: 'placa', reverbMix: 0.4, reverbSize: 3.2, reverbDamp: 0.35, reverbPre: 0.02, master: 0.58 },
     'Pad cálido': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -10, detuneB: 14, octavesB: 2, mix: 0.5,
       cutoff: 1180, reso: 2, cutLfoLvl: 800, cutLfoSpd: 0.2, a: 0.8, d: 0.5, s: 0.8, r: 2.0,
       dlyAmt: 0.3, dlyTime: 0.5, width: 0.6, reverbMix: 0.32, reverbSize: 2.6, master: 0.6 },

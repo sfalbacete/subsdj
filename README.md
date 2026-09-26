@@ -127,6 +127,7 @@ js/engine/
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de fábrica + presets de usuario (localStorage)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla, FM 2-op + feedback)
+  worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
@@ -339,11 +340,35 @@ son JUGADORES) y duplicar el rack por parte.
   el MISMO tilt espectral que la nota directa; Damp 1 lo baja a menos de la
   mitad sin apagarlos; el wow cambia los ecos), preset «Dub de cinta» y pares
   DLY 1-4 en el banco de demos.
-- **A2 Reverb de placa algorítmica** (modelo Dattorro, linaje Lexicon 224)
-  como AudioWorklet: difusores allpass + tanque en figura de ocho con
-  modulación. La densidad de ecos CRECE con el tiempo y la modulación mata los
-  modos metálicos; la IR de ruido es estática y granulada. La convolución se
-  queda como opción «Sala (IR)» junto a «Placa».
+- **A2 Reverb de placa algorítmica** ✔ *(hecho 2026-09-27)* —
+  `worklets/plate-processor.js`, la topología de Dattorro (JAES 1997, el
+  linaje del Lexicon 224) tal cual el artículo: entrada mono → paso-bajo de
+  ancho de banda → 4 allpass de difusión en serie (142/107/379/277, g 0,75 y
+  0,625) → TANQUE en figura de ocho: dos ramas cruzadas, cada una allpass
+  MODULADO (672 / 908 ± 16, g 0,7, LFOs de 1 y 0,95 Hz) → delay (4453 / 4217)
+  → paso-bajo de damping → ×decay → allpass (1800 / 2656, g 0,5) → delay
+  (3720 / 3163) → ×decay a la otra rama; salida L/R = 7 grifos distintos de
+  las líneas del tanque (tabla 2). Longitudes a 29 761 Hz escaladas al
+  contexto. Por qué suena mejor que la IR de ruido: la densidad de ecos
+  CRECE con el tiempo (cada allpass multiplica reflexiones) y la modulación
+  descorrela los modos y mata el metal. Selector **Sala (IR) / Placa** en el
+  módulo Reverb (`reverbType`, clave de la sala: compartido en Partes) con
+  fundido de 50 ms; solo la reverb activa recibe entrada. Size = RT60 en
+  segundos con una tabla MEDIDA (impulso en Node: 1,17 s ↔ decay 0,3 … 8,25 s
+  ↔ 0,9); Damp = paso-bajo del tanque; salida a 0,18 (−10,5 dB frente al 0,6
+  del artículo) para igualar la energía de la IR de ruido — medido en la
+  misma Sala: IR −12,7 / −7,2 dB, placa −11,5 / −8,5 dB a Size 1 / 3, así
+  cambiar de reverb no cambia el volumen (el ConvolverNode NORMALIZA su IR:
+  la de ruido no es tan caliente como parece). Los worklets se cargan UNA vez
+  por contexto (`loadWorklets`, `?v=5`). Bug cazado por el check: el reposo
+  del worklet (no calcular en silencio) se activaba antes de que la señal
+  llegara a ningún grifo (líneas de 6000 muestras): ahora solo tras más de
+  un recorrido completo del tanque sin señal. Evidencia: check «reverb de
+  placa» del selftest (impulso: cola monótona −54 → −95 dB en 2,5 s, viva a
+  1 s con Size 3 y muerta con Size 0,5; correlación L/R −0,01; densidad
+  3 → 732 muestras vivas entre los primeros 20 ms y 100-120 ms; sala ≠ placa
+  diff 0,28), 110/110; preset «Pad de placa» y pares PL 1-4 en el banco de
+  demos (diffs 0,24 y 1,39).
 - **A3 Curva de envolvente** — knob lineal↔exponencial en ataque y decay (el
   release ya es exponencial: la sonoridad es logarítmica, un decay lineal en
   amplitud «se queda colgado y luego cae de golpe»).

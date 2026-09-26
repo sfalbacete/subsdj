@@ -376,7 +376,11 @@
       <div class="ctl"><div class="knob" data-knob="reverbDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="reverbPre"><div class="ind"></div></div><div class="lab">Predelay</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Reverb</b> por convolución (IR generada por código). Damp = la cola pierde agudos antes, como una sala real · Predelay separa el ataque de la cola. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; Size/Damp/Predelay son de la sala compartida.</div>
+    <div class="seg" id="reverbTypeSel" style="margin-top:8px">
+      <button data-rt="sala" title="Convolución con una IR de ruido generada por código">Sala (IR)</button>
+      <button data-rt="placa" title="Placa algorítmica (Dattorro, el linaje del Lexicon 224): la densidad crece con el tiempo y el tanque va modulado">Placa</button>
+    </div>
+    <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto es de la sala compartida.</div>
   </div>
 
   <!-- ===== SECUENCIACIÓN ===== -->

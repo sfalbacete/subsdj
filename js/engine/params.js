@@ -118,6 +118,7 @@ export const PARAMS = {
   reverbSize: { def: 1.8, min: 0.2, max: 4, unit: ' s' },
   reverbDamp: { def: 0, min: 0, max: 1 },           // los agudos de la cola mueren antes (vive en la IR)
   reverbPre:  { def: 0, min: 0, max: 0.1, unit: ' s' },  // predelay: separa el ataque de la cola
+  reverbType: { def: 'sala' },                      // 'sala' = convolución (IR de ruido) | 'placa' = algorítmica (Dattorro)
 
   // --- Envolvente / voz / master ---
   a: { def: 0.01, min: 0.001, max: 2, step: 0.001, fmt: msFmt },

@@ -22,6 +22,20 @@ import { Sala, SALA_KEYS } from './Sala.js';
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
 const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés de la más vieja
 
+// Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
+// parts.createScene, que construye la Sala compartida antes de ningún motor).
+// El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
+// de worklet (si no, el navegador puede casar módulos nuevos con un processor
+// viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
+const WK_V = '?v=5';
+const workletsLoaded = new WeakSet();
+export async function loadWorklets(ctx) {
+  if (workletsLoaded.has(ctx)) return;
+  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor']
+    .map(n => ctx.audioWorklet.addModule(new URL('./worklets/' + n + '.js' + WK_V, import.meta.url))));
+  workletsLoaded.add(ctx);
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -51,15 +65,7 @@ export class AudioEngine {
     this.noiseBuffer = makeNoise(ctx);
     this.wanderBuffer = makeWander(ctx);   // deriva lenta compartida (Vocal · Vida)
 
-    // Carga de los worklets (relativo a este módulo, robusto). El ?v=N rompe
-    // la caché heurística del navegador: SUBIRLO al cambiar código de worklet
-    // (si no, el navegador puede casar módulos nuevos con un processor viejo
-    // y los parámetros nuevos llegan undefined -> crash al crear voces).
-    const WK_V = '?v=4';
-    await Promise.all([
-      ctx.audioWorklet.addModule(new URL('./worklets/pulse-processor.js' + WK_V, import.meta.url)),
-      ctx.audioWorklet.addModule(new URL('./worklets/recorder-processor.js' + WK_V, import.meta.url)),
-    ]);
+    await loadWorklets(ctx);               // pulse, recorder y plate (una vez por contexto)
 
     const S = this.S;
 
