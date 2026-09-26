@@ -2,7 +2,7 @@
   "formato": "subsdj-escena-v1",
   "nombre": "Ambient nocturno (demo)",
   "nota": "Escena de demo del modo Partes (Roadmap 4.0 · C3). Cárgala con ⇧ Escena en el módulo Arreglo (enciende Partes sola) y pulsa ▶ Tocar en Armonía. Re menor, i-VI-III-VII a 72 bpm; cuatro jugadores que entran según la energía del ciclo de 32 compases: el pad siempre, el sub a partir de 0,3, la campana a 0,55 y el hat a 0,75. Las partes van por nombre de preset de fábrica + ajustes (una escena exportada lleva el estado completo).",
-  "sala": { "bpm": 72, "dlySync": "1/4.", "dlyDamp": 0.6, "dlyWow": 0.3, "reverbSize": 3.4, "reverbDamp": 0.6, "reverbPre": 0.03, "fb": 0.5, "dlyToRev": 0.6, "master": 0.7 },
+  "sala": { "bpm": 72, "dlySync": "1/4.", "dlyDamp": 0.6, "dlyWow": 0.3, "reverbSize": 3.4, "reverbType": "placa", "reverbDamp": 0.45, "reverbPre": 0.03, "fb": 0.5, "dlyToRev": 0.6, "master": 0.7 },
   "director": {
     "seed": 7,
     "armonia": { "root": 2, "scale": "menor", "prog": [1, 6, 3, 7], "bars": 4, "modo": "lista" },
