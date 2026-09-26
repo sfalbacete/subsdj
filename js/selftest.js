@@ -1060,6 +1060,41 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // Curva de envolvente (Roadmap 4.0 · A3): con Curva 1 el ataque sube deprisa
+    // (RMS a mitad del ataque ≫ que con rampas lineales) y el decay se posa
+    // pronto (RMS a mitad del decay ≪); el sostenido es el mismo. Con Curva 0 el
+    // camino es el de siempre (rampas lineales: lo cubre el golden).
+    body.appendChild(el('st-cat', 'Curva de envolvente'));
+    let r;
+    try {
+      const probs = [];
+      const base = { waveA: 'sawtooth', mix: 0, cutoff: 20000, reso: 0.7, a: 0.3, d: 0.5, s: 0.3, r: 0.1, width: 0 };
+      const opt = { secs: 1.4, offAt: 1.3 };
+      loadState({ ...base, envCurve: 0 });
+      const b0 = await renderOne(structuredClone(engine.S), opt);
+      loadState({ ...base, envCurve: 1 });
+      const b1 = await renderOne(structuredClone(engine.S), opt);
+      const a0 = analyze(b0), a1 = analyze(b1);
+      if (a0.bad || a1.bad) probs.push('NaN/Inf');
+      if (a0.peak > 1 || a1.peak > 1) probs.push('clipping');
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const atk = rmsW(b1, 0.14, 0.18) / Math.max(1e-9, rmsW(b0, 0.14, 0.18));     // mitad del ataque (0,3 s)
+      const dec = rmsW(b1, 0.53, 0.58) / Math.max(1e-9, rmsW(b0, 0.53, 0.58));     // mitad del decay (0,3 + 0,5/2)
+      const sus = rmsW(b1, 1.0, 1.25) / Math.max(1e-9, rmsW(b0, 1.0, 1.25));       // sostenido: igual
+      if (!(atk > 1.5)) probs.push('la curva no acelera el ataque (' + atk.toFixed(2) + ')');
+      if (!(dec < 0.6)) probs.push('la curva no posa el decay (' + dec.toFixed(2) + ')');
+      if (!(Math.abs(sus - 1) < 0.1)) probs.push('el sostenido cambia con la curva (' + sus.toFixed(3) + ')');
+      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3));
+      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: a1.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

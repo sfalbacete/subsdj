@@ -18,6 +18,10 @@ export const FACTORY = {
   },
 
   'Bajos': {
+    /* curva RC: el mismo bajo pluck con ataque y decay exponenciales — compáralo
+       con «Bajo pluck» (lineal): el golpe llega antes y el cuerpo se posa sin escalón */
+    'Bajo RC (curva)': { waveA: 'sawtooth', waveB: 'square', mix: 0.35, cutoff: 448, reso: 6,
+      filterEnvAmt: 2600, envCurve: 0.85, a: 0.004, d: 0.35, s: 0.15, r: 0.15, master: 0.78 },
     'Sub redondo': { waveA: 'sine', waveB: 'triangle', mix: 0.35, cutoff: 448, reso: 1,
       a: 0.005, d: 0.2, s: 0.6, r: 0.15, master: 0.82 },
     'Bajo grueso': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -8, detuneB: 12, mix: 0.5,

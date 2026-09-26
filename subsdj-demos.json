@@ -1,8 +1,20 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v15 (+ FM4: cuatro operadores y algoritmos, 2026-09)",
+  "banco": "SubSDJ · demos de mejoras — v16 (+ curva de envolvente lineal↔RC, 2026-09)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "ENV 1 · pluck, rampas lineales": { "waveA": "sawtooth", "waveB": "square", "mix": 0.35, "cutoff": 900, "reso": 4,
+      "filterEnvAmt": 2200, "envCurve": 0, "a": 0.004, "d": 0.4, "s": 0.15, "r": 0.15, "master": 0.7 },
+
+    "ENV 2 · mismo pluck, curva RC": { "waveA": "sawtooth", "waveB": "square", "mix": 0.35, "cutoff": 900, "reso": 4,
+      "filterEnvAmt": 2200, "envCurve": 0.85, "a": 0.004, "d": 0.4, "s": 0.15, "r": 0.15, "master": 0.7 },
+
+    "ENV 3 · pad, ataque lineal": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 8, "mix": 0.5, "cutoff": 1600,
+      "envCurve": 0, "a": 0.6, "d": 0.6, "s": 0.7, "r": 1.2, "width": 0.4, "reverbMix": 0.25, "master": 0.6 },
+
+    "ENV 4 · mismo pad, curva RC": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 8, "mix": 0.5, "cutoff": 1600,
+      "envCurve": 1, "a": 0.6, "d": 0.6, "s": 0.7, "r": 1.2, "width": 0.4, "reverbMix": 0.25, "master": 0.6 },
 
     "F4 1 · pila 4→3→2→1": { "waveA": "fm4", "mix": 0, "fm4Alg": "0",
       "fm4R1": 1, "fm4L1": 1, "fm4D1": 4, "fm4R2": 2, "fm4L2": 0.5, "fm4D2": 4, "fm4R3": 1, "fm4L3": 0.4, "fm4D3": 4, "fm4R4": 3, "fm4L4": 0.3, "fm4D4": 4,

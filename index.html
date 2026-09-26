@@ -283,7 +283,11 @@
       <input type="range" id="s_s"></div>
     <div class="slider" style="margin-top:6px"><div class="head"><span class="lab">Release</span><span class="val" id="v_r"></span></div>
       <input type="range" id="s_r"></div>
-    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «= Amp»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira.</div>
+    <div class="row" style="margin-top:8px;justify-content:flex-end;align-items:center;gap:10px">
+      <span class="fieldlab" style="margin:0">Lineal ↔ RC</span>
+      <div class="ctl"><div class="knob" data-knob="envCurve"><div class="ind"></div></div><div class="lab">Curva</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «= Amp»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira. <b>Curva</b>: a 0 las rampas son lineales (como siempre); al subirla, ataque y decay se vuelven exponenciales tipo RC, como en un ADSR analógico — el ataque sube deprisa y frena al llegar, el decay cae deprisa y se posa despacio. Como la sonoridad es logarítmica, el decay exponencial se oye parejo y el lineal «se queda colgado y cae de golpe». El release ya era exponencial.</div>
   </div>
 
   <div class="panel">

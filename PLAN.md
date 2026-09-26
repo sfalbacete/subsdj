@@ -3,8 +3,8 @@
 Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
-**A2 Reverb de placa** (`0b77967`) y **B2 Oscilador FM4** (2026-09-27); selftest 116/116. Los
-ejes B y C están COMPLETOS y del eje A solo quedan las tardes sueltas (A3, A4). Fuera del plan:
+**A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
+(2026-09-27); selftest 118/118. Los ejes B y C están COMPLETOS y del eje A solo queda A4. Fuera del plan:
 notas colgadas + Pánico (`4e2b47e`), cuatro
 escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
 complementa al README: allí
@@ -25,7 +25,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 4 | **A2 Reverb de placa** ✔ | el «suena fino» más grande; la sala donde vive el ambient — HECHO | alto (DSP) | — |
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
 | 6 | **B2 Oscilador FM4** ✔ | la FM completa: 4 operadores y algoritmos — HECHO | alto | — |
-| 7 | **A3 Curva de envolvente** | ataques y decays que suenan naturales | bajo | — |
+| 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
 | 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
@@ -33,7 +33,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
-quedan A3, A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
+→ ~~A3~~; quedan A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida; 11 con cualquier commit.
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -254,6 +254,8 @@ operadores), 13 params planos y el módulo FM4.
 
 ### 7 · A3 Curva de envolvente
 
+**✔ HECHO 2026-09-27** — selftest 118/118; detalle y medidas en el README.
+
 **Propósito.** Ataque y decay son rampas LINEALES en amplitud; la sonoridad es logarítmica, así
 que un decay lineal «se queda colgado y luego cae de golpe». Las envolventes analógicas son
 curvas RC (exponenciales) y por eso suenan naturales. El release ya lo hicimos exponencial por
@@ -267,7 +269,7 @@ envolvente dibuja la curva real.
 **Evidencia.** Selftest: la envolvente medida sobre el VCA (RMS por ventanas) sigue la curva
 pedida; los presets antiguos (curva 0) no cambian.
 
-**Coste.** Bajo.
+**Coste.** Bajo. Hecho en una tarde.
 
 ### 8 · A4 Filtro BP y notch explícitos
 

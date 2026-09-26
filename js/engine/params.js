@@ -132,6 +132,7 @@ export const PARAMS = {
   d: { def: 0.2,  min: 0.001, max: 2, step: 0.001, fmt: msFmt },
   s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
   r: { def: 0.3,  min: 0.001, max: 3, step: 0.001, fmt: msFmt },
+  envCurve: { def: 0, min: 0, max: 1, act: true },   // 0 = rampas lineales (como siempre) · 1 = tramos RC (analógico): ataque y decay exponenciales
   glide:  { def: 0, min: 0, max: 1, unit: ' s', act: true },
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
   pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },

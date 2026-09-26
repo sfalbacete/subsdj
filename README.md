@@ -369,9 +369,20 @@ son JUGADORES) y duplicar el rack por parte.
   3 → 732 muestras vivas entre los primeros 20 ms y 100-120 ms; sala ≠ placa
   diff 0,28), 110/110; preset «Pad de placa» y pares PL 1-4 en el banco de
   demos (diffs 0,24 y 1,39).
-- **A3 Curva de envolvente** — knob lineal↔exponencial en ataque y decay (el
-  release ya es exponencial: la sonoridad es logarítmica, un decay lineal en
-  amplitud «se queda colgado y luego cae de golpe»).
+- **A3 Curva de envolvente** ✔ *(hecho 2026-09-27)* — knob **Curva**
+  (`envCurve`, 0..1) en el módulo ADSR: a 0 las rampas de ataque y decay son
+  lineales, como siempre (bit-idéntico: el golden no cambia); al subirla se
+  vuelven tramos exponenciales tipo RC, como en un ADSR analógico (el
+  condensador se carga hacia el objetivo): el ataque sube deprisa y frena al
+  llegar, el decay cae deprisa y se posa despacio. Curvatura k = 6·Curva,
+  muestreada en 48 puntos con `setValueCurveAtTime` (el decay arranca justo
+  donde acaba el ataque); vale para la envolvente de amplitud y la del filtro
+  (`Voice._envSegs`); el gráfico del ADSR dibuja la curva real. Por qué: la
+  sonoridad es logarítmica, un decay lineal en amplitud «se queda colgado y
+  luego cae de golpe»; el release ya era exponencial. Evidencia: check en el
+  selftest (a mitad del ataque la curva va ×1,92 más alta que la rampa, a
+  mitad del decay ×0,51, el sostenido ×1,000), 118/118; preset «Bajo RC
+  (curva)» y pares ENV 1-4 en el banco de demos (diffs 0,51 y 0,59).
 - **A4 Filtro BP y notch explícitos** — BP = LP y HP en serie. Notch: la suma
   de los numeradores RBJ de LP y HP con el mismo corte da 1 − 2cos·z⁻¹ + z⁻²,
   el notch del cookbook: el morph al 50 % YA es un notch a −6 dB. Prioridad

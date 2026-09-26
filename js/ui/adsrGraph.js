@@ -23,7 +23,12 @@ export function initADSRGraph(canvas) {
     ctx.strokeStyle = 'rgba(125,138,153,.18)'; ctx.lineWidth = 1;
     ctx.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
 
-    const pts = [[0, 0], [a, 1], [a + d, s], [a + d + susT, s], [a + d + susT + r, 0]];
+    // tramos A y D con la misma curva RC que el motor (envCurve 0 = rectas)
+    const k = 6 * (S.envCurve || 0), den = 1 - Math.exp(-k);
+    const seg = (t0, t1, v0, v1) => { const n = k > 0 ? 14 : 1, out = [];
+      for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, v0 + (v1 - v0) * (k > 0 ? (1 - Math.exp(-k * x)) / den : x)]); }
+      return out; };
+    const pts = [[0, 0], ...seg(0, a, 0, 1), ...seg(a, a + d, 1, s), [a + d + susT, s], [a + d + susT + r, 0]];
 
     // relleno bajo la curva de amplitud
     ctx.beginPath(); ctx.moveTo(X(0), Y(0));
@@ -43,7 +48,7 @@ export function initADSRGraph(canvas) {
     // overlay de la envolvente de filtro (tiempos propios si own; invertida si amount < 0)
     if (S.filterEnvAmt) {
       const up = S.filterEnvAmt > 0;
-      const fp = [[0, 0], [fa, 1], [fa + fd, fs], [fa + fd + susT, fs], [fa + fd + susT + fr, 0]]
+      const fp = [[0, 0], ...seg(0, fa, 0, 1), ...seg(fa, fa + fd, 1, fs), [fa + fd + susT, fs], [fa + fd + susT + fr, 0]]
         .map(([t, v]) => [t, up ? v : 1 - v]);
       ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = '#34c0ff';
       ctx.beginPath();
@@ -59,7 +64,7 @@ export function initADSRGraph(canvas) {
     ctx.fillText('R', X(a + d + susT + r / 2), h - 2);
   }
 
-  const WATCH = new Set(['a', 'd', 's', 'r', 'filterEnvAmt', 'fenvMode', 'fa', 'fd', 'fs', 'fr']);
+  const WATCH = new Set(['a', 'd', 's', 'r', 'filterEnvAmt', 'fenvMode', 'fa', 'fd', 'fs', 'fr', 'envCurve']);
   document.addEventListener('param-change', e => { if (WATCH.has(e.detail.target)) draw(); });
   window.addEventListener('resize', draw);
   draw();

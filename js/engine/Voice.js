@@ -23,6 +23,21 @@ const DRIVE_CURVE = (() => {
   return c;
 })();
 
+// Curva de la envolvente (envCurve 0..1): 0 = rampas LINEALES (como siempre);
+// > 0 = tramos exponenciales tipo RC, como en un ADSR analógico (el condensador
+// se carga hacia el objetivo): el ataque sube deprisa y frena al llegar, el
+// decay cae deprisa y se posa despacio. k = curvatura = ENV_K·envCurve. Por qué
+// suena mejor: la sonoridad es logarítmica — un decay lineal en amplitud «se
+// queda colgado y luego cae de golpe»; el exponencial se oye parejo (por eso el
+// release ya era exponencial). Muestreada en ENV_PTS puntos (setValueCurveAtTime
+// interpola entre ellos).
+const ENV_K = 6, ENV_PTS = 48;
+function envCurve(from, to, k, n = ENV_PTS) {
+  const c = new Float32Array(n), den = 1 - Math.exp(-k);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1); c[i] = from + (to - from) * (1 - Math.exp(-k * x)) / den; }
+  return c;
+}
+
 export class Voice {
   constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
     this.ctx = ctx;
@@ -161,8 +176,7 @@ export class Voice {
     const peak = vel, sus = S.s * vel;
     const g = vca.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(0, t);
-    g.linearRampToValueAtTime(peak, t + S.a);
-    g.linearRampToValueAtTime(sus,  t + S.a + S.d);
+    this._envSegs(g, 0, peak, sus, t, S.a, S.d);
 
     // Env del filtro: enlazada al ADSR de amplitud (link) o con tiempos propios.
     // El pico escala con velocity (MIDI): pegar más fuerte abre más el filtro.
@@ -170,8 +184,7 @@ export class Voice {
     const FA = own ? S.fa : S.a, FD = own ? S.fd : S.d, FS = own ? S.fs : S.s;
     const fo = fenv.offset;
     fo.cancelScheduledValues(t); fo.setValueAtTime(0, t);
-    fo.linearRampToValueAtTime(vel,      t + FA);
-    fo.linearRampToValueAtTime(FS * vel, t + FA + FD);
+    this._envSegs(fo, 0, vel, FS * vel, t, FA, FD);
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
@@ -242,6 +255,17 @@ export class Voice {
       isWt: cfg.wave === 'tabla', ratio: 1 });   // isWt: la secuencia de tabla solo automatiza estos
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
+
+  // Ataque y decay de una envolvente: lineales (envCurve 0: bit-idéntico a
+  // siempre) o con curva RC (envCurve > 0). El decay arranca justo donde acaba
+  // el ataque: setValueCurveAtTime exige que el siguiente evento no empiece antes.
+  _envSegs(p, from, peak, sus, t, a, d) {
+    const k = ENV_K * (this.S.envCurve || 0);
+    if (!(k > 0)) { p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
+    a = Math.max(0.001, a); d = Math.max(0.001, d);
+    p.setValueCurveAtTime(envCurve(from, peak, k), t, a);
+    p.setValueCurveAtTime(envCurve(peak, sus, k), t + a, d);
+  }
 
   // Color del ruido -> cutoffs de LP/HP (barridos exponenciales) + makeup de
   // ganancia (el LP cerrado quita mucha más energía que el HP: compensa más).
