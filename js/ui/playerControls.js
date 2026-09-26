@@ -90,7 +90,7 @@ function refreshInfo() {
 
 // ---------- escena: exportar / importar / última ----------
 function saveLast() { const sc = getScene(); if (!sc) return; try { localStorage.setItem(LS_ESCENA, JSON.stringify(sceneToJSON(sc))); } catch (e) {} }
-async function loadScene(json) {
+export async function loadScene(json) {   // también desde la biblioteca (pantalla Presets)
   if (!sceneOn()) { await enableScene(); document.dispatchEvent(new CustomEvent('scene-loaded')); }   // enciende (y la UI se monta)
   applySceneJSON(getScene(), json);
   document.dispatchEvent(new CustomEvent('scene-loaded'));   // partsControls: tiras + rack + scene-changed → aquí syncAll

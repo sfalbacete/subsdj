@@ -36,7 +36,8 @@ import { CONTROLS, loadState } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
-import { loadPresetIndex } from './ui/presetBank.js';
+import { loadPresetIndex, navOptions, presetBankReady } from './ui/presetBank.js';
+import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 
 const SR = 44100;
@@ -155,6 +156,7 @@ export async function runSelfTest() {
   const panel = makePanel();
   const body = panel.querySelector('#stBody');
   const summary = panel.querySelector('#stSummary');
+  await presetBankReady();   // la siembra de los bancos del repo es asíncrona: el selector, completo antes de contar
 
   // nombres duplicados en el banco (el lookup de presets es plano, por nombre)
   const seen = new Set(), dups = [];
@@ -335,16 +337,18 @@ export async function runSelfTest() {
     localStorage.removeItem(K);
     setDevice('selftest2');
     const sel = document.getElementById('presetSelect');
-    const n = sel.options.length, i0 = sel.selectedIndex;
+    const nav = navOptions(), n = nav.length;     // ‹ › y program change recorren la biblioteca sin el grupo ★ (duplica)
+    const i0 = Math.max(0, nav.findIndex(o => o.value === sel.value));
+    const at = i => nav[((i % n) + n) % n].value;
     armLearn('presetNext'); learnCapture(36);
     applyCC(36, 1);                               // pulsar (127) → siguiente preset
-    const okStep = sel.selectedIndex === (i0 + 1) % n;
+    const okStep = sel.value === at(i0 + 1);
     applyCC(36, 1);                               // mantenido: NO repite
-    const okOnce = sel.selectedIndex === (i0 + 1) % n;
+    const okOnce = sel.value === at(i0 + 1);
     applyCC(36, 0); applyCC(36, 1);               // soltar y pulsar → avanza otra vez
-    const okEdge = sel.selectedIndex === (i0 + 2) % n;
-    loadPresetIndex(i0 + 130);                    // program change: módulo del banco
-    const okPC = sel.selectedIndex === (i0 + 130) % n;
+    const okEdge = sel.value === at(i0 + 2);
+    loadPresetIndex(i0 + 130);                    // program change: módulo del tamaño de la biblioteca
+    const okPC = sel.value === at(i0 + 130);
     localStorage.removeItem(K);
     setDevice(prevDev);
     const okA = okStep && okOnce && okEdge && okPC;
@@ -386,15 +390,77 @@ export async function runSelfTest() {
     if (getComputedStyle(bar).display === 'none') probs.push('la barra de presets falta en Presets');
     const sel = document.getElementById('presetSelect');
     const items = [...document.querySelectorAll('#presetList .pl-item')];
-    if (!items.length || items.length !== sel.options.length) probs.push('lista: ' + items.length + ' ítems vs ' + sel.options.length + ' opciones');
-    const target = items.find(b => b.dataset.v !== sel.value);
+    if (!items.length || items.length !== library.items().length) probs.push('lista: ' + items.length + ' ítems vs ' + library.items().length + ' en la biblioteca');
+    const target = items.find(b => !b.classList.contains('esc') && b.dataset.id !== sel.value);   // un preset (las escenas cargan otra cosa)
     if (target) {
       target.click();
       const curs = document.querySelectorAll('#presetList .pl-item.cur');
-      if (sel.value !== target.dataset.v || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + sel.value + ')');
+      if (sel.value !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + sel.value + ')');
     }
     showScreen(before);
     push({ name: 'pantallas (huérfanos · filtro · memoria · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
+  }
+
+  {
+    // biblioteca (13b), con un almacenamiento falso (la del usuario no se toca):
+    // siembra de fábrica + usuario v1 migrado; resembrar no duplica; borrar de
+    // fábrica y «traer» lo repone en SU sección; renombrado/retocado no vuelve
+    // a entrar; secciones (crear, renombrar, mover con orden, reordenar,
+    // borrar); favoritos; búsqueda sin acentos; exportar → importar en otra
+    // biblioteca (ida y vuelta exacta, repetir no duplica); banco v2 y escena
+    // sueltos; persistencia; y los ficheros del repo por fetch (dos veces).
+    body.appendChild(el('st-cat', 'Biblioteca'));
+    const probs = [];
+    const mkStore = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
+    const store = mkStore();
+    const L = new Library({ key: 'subsdj.biblioteca.selftest', storage: store });
+    const nueva = L.load({ usuario: { 'Mío 1': { cutoff: 0.5, reso: 3 } } });
+    const nFab = Object.values(FACTORY).reduce((a, c) => a + Object.keys(c).length, 0);
+    if (!nueva) probs.push('load no la vio nueva');
+    if (L.presets().length !== nFab + 1) probs.push('siembra: ' + L.presets().length + ' ≠ ' + (nFab + 1));
+    if (L.secciones().map(s => s.nombre).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('secciones: ' + L.secciones().map(s => s.nombre).join('|'));
+    const mio = L.presets().find(p => p.nombre === 'Mío 1');
+    if (!mio || !(mio.datos.cutoff > 1) || mio.datos.reso !== 3) probs.push('usuario v1 no migrado');
+    if (L.sembrarFabrica() !== 0) probs.push('resembrar fábrica duplica');
+    const acid = L.presets().find(p => p.nombre === 'Ácido 303'), secAcid = acid && acid.seccion;
+    L.borrar(acid.id);
+    if (L.presets().some(p => p.nombre === 'Ácido 303')) probs.push('borrar no borra');
+    if (L.sembrarFabrica() !== 1) probs.push('traer de fábrica no repone exactamente 1');
+    const acid2 = L.presets().find(p => p.nombre === 'Ácido 303');
+    if (!acid2 || acid2.seccion !== secAcid) probs.push('repuesto fuera de su sección');
+    L.renombrar(acid2.id, 'Ácido mío'); L.actualizar(mio.id, { cutoff: 999 });
+    if (L.sembrarFabrica() !== 0) probs.push('renombrado o retocado se duplica al traer');
+    const sT = L.crearSeccion('Prueba'); L.renombrarSeccion(sT, 'Prueba 2');
+    if (!L.seccion(sT) || L.seccion(sT).nombre !== 'Prueba 2') probs.push('renombrar sección');
+    const [a, b, c] = L.presets().slice(0, 3);
+    L.mover(a.id, sT); L.mover(b.id, sT); L.mover(c.id, sT, a.id);          // c antes de a → c, a, b
+    if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('mover/orden: ' + L.items(sT).map(i => i.nombre).join(','));
+    L.moverSeccion(sT, -1);
+    const secs = L.secciones(); if (secs[secs.length - 2].id !== sT) probs.push('reordenar sección');
+    L.fav(a.id); if (L.favoritos().length !== 1 || !L.item(a.id).fav) probs.push('favorito');
+    L.fav(a.id); if (L.favoritos().length !== 0) probs.push('quitar favorito');
+    if (!L.buscar('acido').some(i => i.id === acid2.id) || L.buscar('ACIDO MIO').length !== 1) probs.push('búsqueda sin acentos');
+    const huella = X => X.secciones().map(s => s.nombre + ':' + X.items(s.id).map(i => i.nombre + (i.fav ? '*' : '') + '/' + i.tipo).join(',')).join('|');
+    const json = JSON.parse(JSON.stringify(L.exportar()));
+    const M = new Library({ key: 'x', storage: mkStore() }); M.load({ semilla: false });
+    const r1 = M.importar(json), r2 = M.importar(json);
+    if (r1.tipo !== 'biblioteca' || r1.n !== L.items().length || r2.n !== 0) probs.push('import ida y vuelta: ' + r1.n + '/' + L.items().length + ', repetido ' + r2.n);
+    if (huella(M) !== huella(L)) probs.push('contenido tras importar');
+    const rb = M.importar({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» ya está igual
+    if (rb.tipo !== 'banco' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('importar banco v2: ' + rb.n);
+    const re = M.importar({ formato: 'subsdj-escena-v1', nombre: 'Esc', partes: [] });
+    const secE = M.seccionPorNombre(SEC_ESCENAS);
+    if (re.tipo !== 'escena' || re.n !== 1 || !secE || M.items(secE.id)[0].tipo !== 'escena') probs.push('importar escena');
+    const sP = M.seccionPorNombre('Prueba 2');
+    if (M.borrarSeccion(sP.id) !== 3 || M.seccionPorNombre('Prueba 2')) probs.push('borrar sección con contenido');
+    const L2 = new Library({ key: 'subsdj.biblioteca.selftest', storage: store }); L2.load();
+    if (huella(L2) !== huella(L)) probs.push('no persiste');
+    const f1 = await L.sembrarFicheros(), f2 = await L.sembrarFicheros();
+    const sEsc = L.seccionPorNombre(SEC_ESCENAS), esc = sEsc ? L.items(sEsc.id) : [];
+    if (!(f1.n > 100) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.tipo !== 'escena'))
+      probs.push('ficheros: ' + f1.n + '/' + f2.n + ' errores ' + f1.errores.join(',') + ' escenas ' + esc.length);
+    console.log('biblioteca: fábrica ' + nFab + ' · repo ' + f1.n + ' · secciones ' + L.secciones().length + ' · ítems ' + L.items().length);
+    push({ name: 'biblioteca (siembra · borrar/traer · secciones · mover · ★ · buscar · export/import · ficheros)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {

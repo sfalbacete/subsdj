@@ -24,7 +24,7 @@ import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
-import { initPresetScreen } from './ui/presetScreen.js';
+import { initLibraryScreen } from './ui/libraryScreen.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
@@ -37,7 +37,7 @@ initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
 initPresetBank();
-initPresetScreen();  // pantalla Presets: la lista del banco (refleja el <select> del banco)
+initLibraryScreen(); // pantalla Presets: la biblioteca (secciones, ★, buscar, arrastrar, escenas)
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));

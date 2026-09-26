@@ -103,6 +103,9 @@ function choose(i) {
   syncControls(part().S);                     // el rack enseña la parte (sin cortarle las notas)
   const sel = $('presetSelect'), p = sc.parts[i];
   if (sel && p.presetVal) sel.value = p.presetVal;
+  if (sel && sel.selectedIndex < 0 && p.presetName) {   // escenas de antes de la biblioteca ('f:Nombre'): por nombre
+    const o = [...sel.options].find(o => o.textContent === p.presetName); if (o) sel.value = o.value;
+  }
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Parte ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
   refreshNames();
   document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte

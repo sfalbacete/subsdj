@@ -37,10 +37,10 @@
   <select id="presetSelect"></select>
   <button class="btn nav" id="nextBtn" title="Preset siguiente">›</button>
   <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
-  <button class="btn" id="saveBtn">💾 Guardar</button>
-  <button class="btn" id="delBtn">🗑 Borrar</button>
-  <button class="btn" id="expBtn" title="Descargar tus presets como JSON">⇩ Exportar</button>
-  <button class="btn" id="impBtn" title="Importar presets desde un JSON">⇧ Importar</button>
+  <button class="btn" id="saveBtn" title="Guardar el sonido actual con ese nombre: en «★ Míos», o encima del preset cargado si el nombre es el suyo">💾 Guardar</button>
+  <button class="btn" id="delBtn" title="Borrar el preset elegido de la biblioteca (lo de fábrica vuelve con ⟲ Traer de fábrica)">🗑 Borrar</button>
+  <button class="btn" id="expBtn" title="Descargar la biblioteca entera (secciones, presets, escenas, favoritos) como JSON">⇩ Exportar</button>
+  <button class="btn" id="impBtn" title="Importar un JSON: una biblioteca, un banco de presets v2 o una escena; se funde con la tuya, nunca la sustituye">⇧ Importar</button>
   <input type="file" id="impFile" accept="application/json,.json" style="display:none">
   <button class="btn" id="sfzBtn" title="Congelar el preset actual como instrumento multisample: zip con samples WAV + .sfz (Sforzando, Renoise…)">🎹 SFZ</button>
   <span id="presetMsg"></span>
@@ -554,7 +554,14 @@
   <!-- ===== PANTALLA PRESETS ===== -->
   <div class="panel" id="library" data-screens="presets">
     <h2>Biblioteca</h2>
-    <div class="help"><b>Todo el banco a la vista</b>, por secciones (las mismas del selector rápido): un clic carga el preset en la parte que edita el rack y el teclado de abajo sirve para probarlo. Guardar, borrar, exportar e importar siguen en la barra de arriba. Esta lista se alimenta del selector; la biblioteca con secciones propias, favoritos y búsqueda es el bloque 13b.</div>
+    <div class="help"><b>Tu biblioteca de presets y escenas.</b> Un clic carga (un preset, en la parte que edita el rack; una escena enciende las Partes) y el teclado de abajo sirve para probar · ★ favorito: sale el primero en el selector rápido · ✎ renombra en línea · 🗑 borra (lo de fábrica vuelve con ⟲ Traer de fábrica) · arrastra un preset a otra sección o a otra posición · las secciones se crean, renombran, reordenan (‹ ›) y borran · buscar ignora acentos y mayúsculas. Guardar (en «★ Míos», o encima si el nombre es el del preset cargado), Exportar (la biblioteca entera) e Importar (biblioteca, banco v2 o escena; se funde, nunca sustituye) están en la barra de arriba. Todo vive en este navegador (localStorage): exporta de vez en cuando.</div>
+    <div class="lib-bar">
+      <input id="libSearch" type="text" placeholder="buscar…" maxlength="48" title="Filtra por nombre (sin acentos ni mayúsculas)">
+      <label class="chk" title="Solo los marcados con ★"><input type="checkbox" id="libFavOnly"> ★ solo favoritos</label>
+      <button class="btn" id="libNewSec" title="Crea una sección vacía y la deja lista para ponerle nombre">+ Sección</button>
+      <button class="btn" id="libSeed" title="Vuelve a traer los presets de fábrica, los bancos del repo y las escenas que falten: lo borrado vuelve a su sección; lo tuyo, lo renombrado y lo movido no se tocan">⟲ Traer de fábrica</button>
+      <span id="libMsg" class="note"></span>
+    </div>
     <div id="presetList"></div>
   </div>
 

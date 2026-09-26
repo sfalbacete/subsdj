@@ -45,9 +45,26 @@ variable `CHROME` si no es la habitual).
 
 - **⏺ Grabar** (cabecera): graba la salida (lo mismo que suena) y al parar
   descarga un **WAV** 16-bit estéreo con fecha y hora en el nombre.
-- **⇩ Exportar / ⇧ Importar** (barra de presets): el banco de usuario viaja como
-  JSON. Al importar se validan las claves, se migran bancos v1 antiguos y no se
-  machacan nombres existentes (se renombra con sufijo).
+- **Biblioteca de presets** (pantalla Presets; `engine/library.js`): UNA fuente
+  de verdad para presets y escenas, en secciones que creas, renombras,
+  reordenas y borras; los ítems se cargan con un clic, se mueven arrastrando
+  (a otra sección o a otra posición), se renombran en línea, se marcan ★
+  (salen los primeros en el selector rápido) y se borran; buscar ignora
+  acentos y mayúsculas. Vive entera en localStorage (`subsdj.biblioteca.v1`).
+  La fábrica (código), los bancos del repo (`subsdj-demos.json`,
+  `subsdj-presets-2.0.json`), las escenas de `escenas/` y los presets de
+  usuario antiguos son SEMILLA: entran la primera vez y desde entonces mandas
+  tú. **⟲ Traer de fábrica** repone solo lo que falte: lo borrado vuelve a su
+  sección; lo renombrado, movido o retocado no se duplica (cada ítem sembrado
+  guarda su clave `origen:nombre`, y un mismo nombre con el mismo contenido
+  nunca entra dos veces, venga de donde venga).
+- **💾 Guardar**: en «★ Míos», o encima del preset cargado si el nombre es el
+  suyo. **⇩ Exportar / ⇧ Importar** (barra de presets): la biblioteca entera
+  como JSON; al importar se funde (secciones por nombre, sin duplicados,
+  nunca sustituye), y también entran bancos v2 sueltos (a «Importados», con
+  las claves validadas y los v1 migrados) y escenas (a «Escenas»). ‹ › y el
+  Program Change MIDI recorren la biblioteca en orden, sin el grupo ★ (que
+  repetiría).
 - **🎹 SFZ** (barra de presets): congela el preset actual como **instrumento
   multisample** reutilizable en un DAW o tracker. Renderiza offline C1–C7 cada
   4 semitonos (y 2 capas de velocidad si la envolvente de filtro escala con
@@ -55,7 +72,9 @@ variable `CHROME` si no es la habitual).
   `samples/*.wav` + `.sfz` listo para Sforzando, Renoise, TAL-Sampler…
   Reverb y delay **no** se hornean (añádelos en el DAW); sin loop points en
   esta versión (nota sostenible ~3 s + release completo).
-- **`subsdj-demos.json`** (raíz del proyecto): banco-evidencia importable. Cada
+- **`subsdj-demos.json`** (raíz del proyecto): banco-evidencia, sembrado en la
+  sección «Demos A/B» de la biblioteca (`subsdj-presets-2.0.json`, en «Presets
+  2.0»). Cada
   mejora del motor entra con un par A/B — presets idénticos salvo el parámetro
   nuevo — para oír exactamente qué aporta. Crece con cada bloque de mejoras.
 - **Arpegiador** (panel propio): mantén notas pulsadas y las secuencia al BPM del
@@ -63,7 +82,8 @@ variable `CHROME` si no es la habitual).
   Los pasos entran con precisión de reloj de audio (look-ahead de 120 ms).
 - **Escenas** (`escenas/*.json`, modo Partes): la escena completa — sala,
   armonía, arreglo, los 4 jugadores y los 4 presets con su mezcla — como JSON.
-  ⇧ Escena en el módulo Arreglo la carga (enciende Partes si hace falta); ▶
+  ⇧ Escena en el módulo Arreglo, o un clic en la sección «Escenas» de la
+  biblioteca, la carga (enciende Partes si hace falta); ▶
   Tocar en Armonía la arranca. Cuatro en el repo: **Ambient nocturno** (Re
   menor, 72 bpm: pad, sub, campana DX y hat entrando por energía), **Amanecer
   dórico** (Fa dórico, 84 bpm: coro de vocales de tabla con el morph derivando,
@@ -93,12 +113,11 @@ un módulo puede estar en varias.
   Delay y Reverb están también aquí en su papel de sala compartida (etiqueta
   «sala»). Con las Partes apagadas, un aviso «Escena» explica qué falta y las
   enciende.
-- **Presets** — todo el banco a la vista, por secciones (las mismas del
-  selector rápido): un clic carga en la parte que edita el rack y el teclado
-  sirve para probarlo. Es una lista v0 que se alimenta del `<select>` del
-  banco (`ui/presetScreen.js`, MutationObserver: guardar, borrar e importar
-  la repueblan); la biblioteca con secciones propias, favoritos y búsqueda es
-  el bloque 13b del plan.
+- **Presets** — la biblioteca entera a la vista y en la mano
+  (`ui/libraryScreen.js`): secciones en columnas, un clic carga (un preset en
+  la parte que edita el rack; una escena enciende las Partes) y el teclado
+  sirve para probar; ★, renombrar en línea, arrastrar, borrar, buscar sin
+  acentos y «solo ★». Detalle en «Grabación, presets y arpegiador».
 
 El **teclado** está en las tres, pegado al borde inferior (`position:
 sticky`): si el rack hace scroll sigue a mano; si la página es corta se queda
@@ -170,7 +189,8 @@ js/engine/
   Conductor.js                 reloj maestro en beats: ticker + look-ahead; scheduleAll() para el render offline; toJSON/fromJSON
   Arrangement.js               arreglo: energía en ciclos de compases, umbral de entrada, sorpresa, macro de apertura
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
-  presets.js                   banco de fábrica + presets de usuario (localStorage)
+  presets.js                   banco de FÁBRICA (semilla de la biblioteca) + migración v1→v2 del localStorage antiguo
+  library.js                   la BIBLIOTECA: secciones e ítems (preset/escena), semilla, ★, búsqueda, export/import (sin DOM)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
 js/ui/
@@ -181,7 +201,7 @@ js/ui/
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
   screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack
-  presetScreen.js              pantalla Presets: el banco entero por secciones, un clic carga (refleja el <select>)
+  libraryScreen.js             pantalla Presets: la biblioteca (secciones, ★, renombrar, arrastrar, buscar, escenas)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
   midimap.js                   MIDI learn: mapa CC→control, pickup, export/import, por-aparato
@@ -191,8 +211,9 @@ tools/shot.mjs                 captura PNG de un módulo o de una pantalla: node
 ```
 
 Los presets (formato **v2**) guardan valores en **espacio-motor** (`cutoff` en Hz,
-tiempos en segundos…). Los presets de usuario v1 del localStorage se migran
-automáticamente al cargar; la copia v1 se conserva como respaldo.
+tiempos en segundos…). Los presets de usuario del localStorage antiguo (v1 o v2)
+entran en la biblioteca («★ Míos») la primera vez, migrados; las copias antiguas
+se conservan como respaldo.
 
 ## Roadmap (acordado 2026-07)
 
@@ -617,6 +638,26 @@ pegajoso, pantalla Presets con el banco entero por secciones
 apagadas. Check «pantallas» en el selftest, 119/119; sección «Pantallas»
 arriba. De paso, el runner headless y la captura viven ya en `tools/`
 (punto 11 del plan): `node tools/run-selftest.mjs` sale con 1 si algo falla.
+
+**13b Biblioteca de presets** ✔ *(hecho 2026-09-27)* — `engine/library.js`
+(modelo sin DOM: secciones e ítems preset/escena, semilla con clave
+`origen:nombre` más huella canónica del contenido, favoritos, búsqueda sin
+acentos, exportar/importar que funde), `ui/presetBank.js` encima (★ Favoritos
+primero; ‹ › y Program Change saltan el grupo ★) y `ui/libraryScreen.js`
+(columnas, clic carga, ★, renombrar en línea, arrastrar entre secciones y
+posiciones, borrar, buscar, «solo ★», ⟲ Traer de fábrica, escenas por el
+camino de ⇧ Escena). Decisiones del usuario: lo de fábrica se puede borrar
+(con la red de ⟲), las escenas son una sección, la barra rápida recorre toda
+la biblioteca. Evidencia: check «biblioteca» del selftest sobre un
+almacenamiento falso (siembra fábrica + usuario v1 migrado; resembrar no
+duplica; borrar de fábrica y traer lo repone en SU sección; renombrado o
+retocado no vuelve; secciones crear/renombrar/mover con orden/reordenar/
+borrar; ★; buscar sin acentos; exportar → importar ida y vuelta exacta y
+repetir no duplica; banco v2 y escena sueltos; persistencia; ficheros del
+repo por fetch: 114 la primera vez, 0 la segunda), 120/120; capturas de la
+pantalla con favorito y filtro. Las escenas guardadas antes de la biblioteca
+(`presetVal` de la forma `f:Nombre`) siguen etiquetando la parte: se
+resuelven por nombre.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

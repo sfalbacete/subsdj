@@ -4,7 +4,7 @@ Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
-(2026-09-27), **13a Pantallas** y **11 runner en `tools/`** (2026-09-27); selftest 119/119. Los ejes B y C están
+(2026-09-27), **13a Pantallas**, **11 runner en `tools/`** y **13b Biblioteca de presets** (2026-09-27); selftest 120/120. Los ejes B y C están
 COMPLETOS y del eje A solo queda A4. Fuera del plan:
 notas colgadas + Pánico (`4e2b47e`), cuatro
 escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
@@ -32,12 +32,12 @@ y va aparte, porque conviene meter primero los baratos.
 | 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
-| 13 | **Pantallas** ✔ **+ biblioteca de presets** | que el synth vuelva a ser disfrutable: ver solo lo que toca (13a HECHA); presets que se pueden ordenar, podar y querer (13b) | 13a bajo · 13b alto | — |
+| 13 | **Pantallas + biblioteca de presets** ✔ | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer — HECHO (13a y 13b) | 13a bajo · 13b alto | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
-→ ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso). **Siguiente: 13b
-(biblioteca de presets)**, que el usuario pone por delante de todo; antes, sus tres decisiones
-(punto 5 de abajo). Después A4 y 9 como tardes sueltas; 10 cuando el cuerpo lo pida.
+→ ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
+2026-09-27; el bloque 13 completo). **Siguiente: A4 y 9 como tardes sueltas; 10 (piel) cuando el
+cuerpo lo pida.** Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -63,7 +63,8 @@ visual, capturas CDP; commit por hito; README y este plan al día.
    `AudioEngine.js` hasta C1).
 4. ✔ Resuelta en C1: 4 ranuras genéricas (constante `N_PARTS` en `engine/parts.js`) y casilla
    «Capa» en el mezclador para que el teclado toque todas las partes.
-5. **13b · biblioteca de presets** (antes de empezarla). (a) ¿Los de fábrica se BORRAN de la
+5. ✔ **13b · biblioteca de presets** — DECIDIDAS el 2026-09-27 (el usuario aceptó las tres
+   recomendaciones) y hechas ese mismo día. (a) ¿Los de fábrica se BORRAN de la
    biblioteca, con «volver a traer de fábrica» como red, o solo se ocultan? **Recomendada: borrar
    con la red** — es lo que pide «quedarse con lo que le gusta»; ocultar es un borrado que no
    libera la lista. (b) ¿Las escenas (`escenas/*.json`) entran como sección propia? **Recomendada:
@@ -376,7 +377,13 @@ improvisar; la barra de presets rápida se queda en Diseño. La pestaña se recu
 localStorage; LEDs, plegado y el motor no se tocan. Evidencia: capturas de las tres pantallas y
 sonda que comprueba que ningún módulo queda huérfano (todos en al menos una pantalla).
 
-**13b · Biblioteca de presets** (una o dos sesiones). Hoy la gestión es un selector apretado y
+**13b · Biblioteca de presets** ✔ **HECHO 2026-09-27** — selftest 120/120 (check «biblioteca», modelo
+sobre almacenamiento falso); detalle en el README («Grabación, presets y arpegiador» y Roadmap
+4.0); capturas de la pantalla con favorito y filtro. Distinto del plan: el arrastre también reordena
+dentro de la sección; las escenas son ítems de tipo «escena» en una sección normal («Escenas»);
+importar FUNDE (nunca sustituye) y acepta biblioteca, banco v2 o escena; la barra rápida lista toda
+la biblioteca con ★ Favoritos primero (‹ › y Program Change saltan ese grupo). El plan era (una o
+dos sesiones): hoy la gestión es un selector apretado y
 los presets viven en tres sitios: fábrica (código), `subsdj-demos.json` / `subsdj-presets-2.0.json`
 (ficheros) y los del usuario (localStorage). Una BIBLIOTECA única (`subsdj.biblioteca.v1` en
 localStorage, exportable/importable entera como JSON) con SECCIONES que se crean, renombran y
@@ -389,7 +396,9 @@ Program Change MIDI recorren la biblioteca. Evidencia: selftest del modelo (crea
 secciones y presets, importar/exportar ida y vuelta, migración de los tres orígenes sin
 duplicados) y sonda de la pantalla.
 
-**Decisiones a tomar antes:** ¿los presets de fábrica se pueden BORRAR de la biblioteca (con
+**Decisiones, tomadas el 2026-09-27 (punto 5 de «Decisiones abiertas»): borrar con la red de ⟲,
+escenas como sección, barra rápida entera con ★ primero.** Eran: ¿los presets de fábrica se pueden
+BORRAR de la biblioteca (con
 «volver a traer de fábrica» como red) o solo ocultar? ¿Las escenas (`escenas/*.json`) entran
 también en la biblioteca, como sección propia? ¿La barra rápida de Diseño muestra la biblioteca
 entera o solo una sección «activa»?

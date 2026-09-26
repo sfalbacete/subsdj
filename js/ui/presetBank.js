@@ -1,59 +1,69 @@
-/* SubSDJ · banco de presets (fábrica + usuario en localStorage) + botón Reset
-   + export/import del banco de usuario a JSON. La navegación se exporta
-   (stepPreset/loadPresetIndex) para el MIDI: botones físicos y program change. */
-import { FACTORY, factoryPreset, loadUser, saveUser, migrateV1 } from '../engine/presets.js';
+/* SubSDJ · banco de presets sobre la BIBLIOTECA (engine/library.js). El
+   selector rápido lista ★ Favoritos y luego cada sección (solo presets; las
+   escenas viven en la pantalla Presets). ‹ › y el program change MIDI
+   recorren la biblioteca en orden SIN el grupo ★ (repite ítems). Guardar,
+   borrar, exportar e importar actúan sobre la biblioteca entera; la vista
+   grande es ui/libraryScreen.js. Cada cambio del modelo repuebla el
+   selector y emite library-changed. */
+import { library, SEC_MIOS } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
+import { download } from './recorder.js';
 
-let selEl, msgEl;
+let selEl, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
+export const limpiar = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // descarta claves desconocidas
+export function presetBankReady() { return ready; }   // la siembra de los bancos del repo es asíncrona
 
-function addGroup(label, entries) {   // entries: [[value, text], ...]
+function addGroup(label, items, fav) {
   const og = document.createElement('optgroup'); og.label = label;
-  entries.forEach(([value, text]) => {
-    const o = document.createElement('option'); o.value = value; o.textContent = text; og.appendChild(o);
-  });
+  for (const it of items) {
+    const o = document.createElement('option'); o.value = it.id; o.textContent = it.nombre;
+    if (fav) o.dataset.fav = '1';
+    og.appendChild(o);
+  }
   selEl.appendChild(og);
 }
-
 function refresh(selectValue) {
   selEl.innerHTML = '';
-  for (const cat in FACTORY) {                          // un grupo por categoría de fábrica
-    addGroup(cat, Object.keys(FACTORY[cat]).map(name => ['f:' + name, name]));
+  const favs = library.presets().filter(it => it.fav);
+  if (favs.length) addGroup('★ Favoritos', favs, true);
+  for (const s of library.secciones()) {
+    const ps = library.items(s.id).filter(it => it.tipo === 'preset');
+    if (ps.length) addGroup(s.nombre, ps, false);
   }
-  const names = Object.keys(loadUser()).sort();
-  if (names.length) addGroup('★ Míos', names.map(name => ['u:' + name, name]));
-  if (selectValue) selEl.value = selectValue;
+  if (selectValue) selEl.value = selectValue;   // si ya no existe queda sin selección (el rack conserva el sonido)
 }
-function dataFor(v) {
-  if (!v) return null;
-  const kind = v.slice(0, 1), name = v.slice(2);
-  return kind === 'f' ? factoryPreset(name) : loadUser()[name];
-}
+export function navOptions() { return [...selEl.options].filter(o => !o.dataset.fav); }   // la biblioteca en orden, sin duplicados
 
 function loadCurrent() {
-  const data = dataFor(selEl.value);
-  if (data) {
-    const name = selEl.selectedOptions[0].textContent;
-    loadState(data); msg('Cargado: ' + name);
-    document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name, value: selEl.value } }));   // el mezclador etiqueta la parte
-  }
+  const it = library.item(selEl.value);
+  if (!it || it.tipo !== 'preset') return;
+  loadState(it.datos); msg('Cargado: ' + it.nombre);
+  document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.nombre, value: it.id } }));   // el mezclador etiqueta la parte
 }
+export function loadPresetId(id) { if (!library.item(id)) return false; selEl.value = id; loadCurrent(); return true; }
 export function stepPreset(dir) {
-  const n = selEl ? selEl.options.length : 0;  // incluye opciones de ambos optgroups
-  if (!n) return;
-  selEl.selectedIndex = (selEl.selectedIndex + dir + n) % n;   // recorre con wrap-around
+  const nav = navOptions(), n = nav.length; if (!n) return;
+  const i = nav.findIndex(o => o.value === selEl.value);
+  selEl.value = nav[(((i + dir) % n) + n) % n].value;   // recorre con wrap-around
   loadCurrent();
 }
-export function loadPresetIndex(i) {           // program change n → preset n del banco
-  const n = selEl ? selEl.options.length : 0;
-  if (!n) return;
-  selEl.selectedIndex = ((i % n) + n) % n;
+export function loadPresetIndex(i) {           // program change n → preset n de la biblioteca (módulo su tamaño)
+  const nav = navOptions(), n = nav.length; if (!n) return;
+  selEl.value = nav[((i % n) + n) % n].value;
   loadCurrent();
 }
 
 export function initPresetBank() {
   selEl = document.getElementById('presetSelect');
   msgEl = document.getElementById('presetMsg');
+
+  library.load();                                // primera vez: siembra la fábrica y los presets de usuario antiguos
+  library.onChange = () => { refresh(selEl.value); document.dispatchEvent(new CustomEvent('library-changed')); };
+  const init = library.presets().find(it => it.nombre === 'Init (default)');
+  refresh(init ? init.id : null);
+  if (!library.data.ficheros)                    // bancos del repo y escenas: por fetch, una vez
+    ready = library.sembrarFicheros().then(r => { if (r.n) msg('Biblioteca: traídos ' + r.n + ' presets y escenas del repo.'); });
 
   selEl.addEventListener('change', () => {
     loadCurrent();
@@ -65,30 +75,29 @@ export function initPresetBank() {
     const inp = document.getElementById('presetName');
     const name = (inp.value || '').trim();
     if (!name) { inp.focus(); msg('Escribe un nombre para guardar.'); return; }
-    const user = loadUser(); user[name] = snapshot(); saveUser(user);
-    refresh('u:' + name); inp.value = '';
-    msg('Guardado «' + name + '» en este navegador.');
+    // Mismo nombre que el preset cargado → se actualiza donde esté; si no, en
+    // «★ Míos» (encima del que tenga ese nombre allí, o nuevo).
+    const cur = library.item(selEl.value);
+    let target = cur && cur.tipo === 'preset' && cur.nombre === name ? cur : null;
+    if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.nombre === name) || null; }
+    let id;
+    if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Actualizado «' + name + '».'); }
+    else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Guardado «' + name + '» en ' + SEC_MIOS + ' (este navegador).'); }
+    selEl.value = id; inp.value = '';
   });
   document.getElementById('delBtn').addEventListener('click', () => {
-    const v = selEl.value;
-    if (v.slice(0, 1) !== 'u') { msg('Solo puedes borrar presets tuyos.'); return; }
-    const name = v.slice(2), user = loadUser();
-    delete user[name]; saveUser(user); refresh();
-    msg('Borrado «' + name + '».');
+    const it = library.item(selEl.value);
+    if (!it) { msg('Elige antes un preset.'); return; }
+    if (!confirm('¿Borrar «' + it.nombre + '» de la biblioteca?' + (it.origen === 'fabrica' ? ' (⟲ Traer de fábrica lo devuelve)' : ''))) return;
+    library.borrar(it.id); msg('Borrado «' + it.nombre + '».');
   });
   document.getElementById('resetBtn').addEventListener('click', () => { loadState({}); msg('Valores por defecto.'); });
 
-  // ---- export/import del banco de usuario (JSON) ----
+  // ---- exportar / importar la biblioteca entera (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {
-    const user = loadUser(), n = Object.keys(user).length;
-    if (!n) { msg('No hay presets tuyos que exportar (guarda alguno antes).'); return; }
-    const blob = new Blob([JSON.stringify({ formato: 'subsdj-presets-v2', presets: user }, null, 2)],
-      { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'subsdj-presets.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    msg('Exportados ' + n + ' presets.');
+    const j = library.exportar();
+    download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-biblioteca.json');
+    msg('Exportada la biblioteca: ' + j.items.length + ' elementos en ' + j.secciones.length + ' secciones.');
   });
   const impFile = document.getElementById('impFile');
   document.getElementById('impBtn').addEventListener('click', () => impFile.click());
@@ -96,23 +105,13 @@ export function initPresetBank() {
     const f = impFile.files[0]; if (!f) return;
     f.text().then(txt => {
       let data; try { data = JSON.parse(txt); } catch (e) { msg('Ese archivo no es JSON válido.'); return; }
-      const src = data && data.presets && typeof data.presets === 'object' ? data.presets : data;
-      const user = loadUser(); let added = 0;
-      for (const name in src) {
-        if (!src[name] || typeof src[name] !== 'object') continue;
-        const clean = {};
-        for (const k in src[name]) if (k in CONTROLS) clean[k] = src[name][k];   // descarta claves desconocidas
-        const base = String(name).slice(0, 32) || 'preset';
-        let final = base, i = 2;
-        while (final in user) final = base + ' (' + (i++) + ')';                 // sin machacar existentes
-        user[final] = migrateV1(clean);                                          // acepta bancos v1 antiguos
-        added++;
-      }
-      saveUser(user); refresh();
-      msg(added ? 'Importados ' + added + ' presets (en «★ Míos»).' : 'El archivo no contenía presets.');
+      try {
+        const r = library.importar(data, { limpiar });
+        msg(r.tipo === 'biblioteca' ? 'Biblioteca fundida: ' + r.n + ' elementos nuevos.'
+          : r.tipo === 'escena' ? (r.n ? 'Escena añadida a «Escenas».' : 'Esa escena ya estaba.')
+          : (r.n ? 'Importados ' + r.n + ' presets (en «Importados»).' : 'El archivo no contenía presets nuevos.'));
+      } catch (err) { msg('No se pudo importar: ' + (err.message || err)); }
       impFile.value = '';
     });
   });
-
-  refresh('f:Init (default)');
 }
