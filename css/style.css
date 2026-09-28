@@ -25,16 +25,20 @@
   --ink-on-accent:#06212b; --ink-on-accent2:#1a0b33;   /* texto sobre acento */
   /* acentos: cian = rack, violeta = osciladores, rojo = alarma, ámbar = ★ */
   --accent:#3fc6f2; --accent2:#a78bfa; --hot:#ff6b7a; --star:#ffd166;
-  /* knob: disco mate con punto y arco de valor (knobs.js solo publica --pos 0..1) */
-  --knob:#282c35; --knobhi:#3b404b;
-  --knob-face:radial-gradient(circle at 50% 38%,var(--knobhi),var(--knob) 72%);
-  --knob-edge:var(--line);                                   /* borde del disco */
-  --knob-ring:color-mix(in srgb,white 5%,transparent);       /* anillo interior (muesca) */
-  --knob-shadow:0 4px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
-  --knob-line:0px; --knob-line-top:5px;    /* rayita: largo (0px = sin rayita) y arranque desde el borde */
-  --knob-dot:5px; --knob-dot-top:6px;      /* punto: diámetro (0px = sin punto) */
-  --knob-arc:2px; --knob-arc-gap:-2px;     /* arco de valor: grosor (0px = sin arco) y aire; NEGATIVO = entra en el disco
-                                              (aquí ocupa el borde): en una fila de 5 knobs no hay sitio fuera y se solaparían */
+  /* knob (knobs.js solo publica --pos 0..1). La CAJA mide siempre 44 px (es la
+     huella en la rejilla y la zona de arrastre); dentro, el disco físico se
+     encoge --knob-disc-inset para que el arco de valor quede separado de él
+     sin salirse de la caja (en una fila de 5 knobs no hay sitio fuera). */
+  --knob:#262a33; --knobhi:#474d5a;
+  --knob-face:radial-gradient(circle at 50% 26%,var(--knobhi),var(--knob) 66%);   /* la luz cae desde arriba */
+  --knob-disc-inset:4px;                   /* aire entre la caja y el disco (0px = el disco es la caja) */
+  --knob-edge-w:2px;                       /* grosor del bisel */
+  --knob-bevel:linear-gradient(180deg,color-mix(in srgb,white 28%,var(--knob)),color-mix(in srgb,black 55%,var(--knob)));   /* bisel: brillo arriba, sombra abajo */
+  --knob-ring:color-mix(in srgb,white 5%,transparent); --knob-ring-r:11px;   /* muesca: anillo de 1px a ese radio */
+  --knob-shadow:0 5px 10px rgba(0,0,0,.5);
+  --knob-line:0px; --knob-line-top:5px;    /* rayita: largo (0px = sin rayita) y arranque desde la caja */
+  --knob-dot:5px; --knob-dot-top:9px;      /* punto: diámetro (0px = sin punto) y arranque desde la caja */
+  --knob-arc:2px; --knob-arc-gap:2px;      /* arco de valor: grosor (0px = sin arco) y aire hasta el disco (4 = 2 + 2: justo en el borde de la caja) */
   --knob-arc-track:rgba(0,0,0,.35);        /* carril del arco (los 270° aún por recorrer) */
   /* slider (ADSR): carril plano que se rellena hasta el pulgar (sliders.js publica --pos) */
   --track-face:var(--well); --track-fill:var(--accent);
@@ -73,7 +77,8 @@
   --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73; --star:#ffd166;
   --knob:#222b36; --knobhi:#3a4a5c;
   --knob-face:radial-gradient(circle at 38% 32%,var(--knobhi),var(--knob) 70%);
-  --knob-edge:var(--line); --knob-ring:var(--line);
+  --knob-disc-inset:0px; --knob-edge-w:1px; --knob-bevel:linear-gradient(var(--line),var(--line));
+  --knob-ring:var(--line); --knob-ring-r:15px;
   --knob-shadow:inset 0 2px 4px rgba(255,255,255,.06),0 3px 6px rgba(0,0,0,.5);
   --knob-line:14px; --knob-line-top:5px; --knob-dot:0px; --knob-dot-top:7px;
   --knob-arc:0px; --knob-arc-gap:2px; --knob-arc-track:transparent;
@@ -238,16 +243,23 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
    conic-gradient recortado a anillo con mask (en una mask el color da igual,
    solo cuenta el alfa). Los tokens --knob-line / --knob-dot / --knob-arc a
    0px apagan cada pieza: un tema elige rayita, punto, arco o mezcla sin JS. */
-.knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;--knob-ind:var(--accent);--knob-glow:var(--knob-ind);
-  background:var(--knob-face);border:1px solid var(--knob-edge);box-shadow:var(--knob-shadow);}
-.knob::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid var(--knob-ring);}
+.knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;--knob-ind:var(--accent);--knob-glow:var(--knob-ind);}
+/* El disco físico: encogido --knob-disc-inset dentro de la caja. Tres capas de
+   fondo: la muesca (anillo radial de 1px a --knob-ring-r), la cara (--knob-face,
+   que debe ser una IMAGEN: un color plano se escribe linear-gradient(c,c)) y el
+   bisel, que es la capa border-box asomando bajo un borde transparente (truco
+   del borde-degradado: luz arriba, sombra abajo, sin nodos de más). */
+.knob::before{content:"";position:absolute;inset:var(--knob-disc-inset);border-radius:50%;border:var(--knob-edge-w) solid transparent;
+  background:radial-gradient(circle,transparent calc(var(--knob-ring-r) - 1.5px),var(--knob-ring) calc(var(--knob-ring-r) - 1px) var(--knob-ring-r),transparent calc(var(--knob-ring-r) + .5px)) padding-box,   /* medio píxel de transición: anillo suave, no dentado */
+    var(--knob-face) padding-box,var(--knob-bevel) border-box;
+  box-shadow:var(--knob-shadow);}
 .knob .ind{position:absolute;inset:0;transform:rotate(calc(-135deg + var(--pos,0) * 270deg));pointer-events:none;
   filter:drop-shadow(0 0 2px var(--knob-glow));}
 .knob .ind::before{content:"";position:absolute;left:50%;top:var(--knob-line-top);width:2px;height:var(--knob-line);margin-left:-1px;
   background:var(--knob-ind);border-radius:1px;}
 .knob .ind::after{content:"";position:absolute;left:50%;top:var(--knob-dot-top);width:var(--knob-dot);height:var(--knob-dot);
   margin-left:calc(var(--knob-dot) / -2);border-radius:50%;background:var(--knob-ind);}
-.knob::after{content:"";position:absolute;inset:calc(-1 * (var(--knob-arc) + var(--knob-arc-gap)));border-radius:50%;
+.knob::after{content:"";position:absolute;inset:calc(var(--knob-disc-inset) - var(--knob-arc-gap) - var(--knob-arc));border-radius:50%;
   background:conic-gradient(from 225deg,var(--knob-ind) calc(var(--pos,0) * 270deg),var(--knob-arc-track) 0 270deg,transparent 0);
   mask:radial-gradient(farthest-side,transparent calc(100% - var(--knob-arc)),black calc(100% - var(--knob-arc) + 1px));}
 .panel.osc .knob{--knob-ind:var(--accent2);}

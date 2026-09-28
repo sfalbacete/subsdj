@@ -169,10 +169,11 @@ recuerda en localStorage; `?theme=id` lo aplica sin recordarlo (capturas:
 `THEME=id node tools/shot.mjs …`; runner: `"selftest=1&theme=id"`).
 
 - **Cinescapes** (por defecto) — carbón plano, cian para el rack y violeta
-  para los osciladores, knobs con punto y arco de valor (el arco va en el
-  borde del disco, con `--knob-arc-gap` negativo: fuera no cabe en las filas
-  de cinco knobs y se solapaban), sliders con carril relleno, botones
-  píldora, etiquetas en minúsculas. Inspirado en la UI de Cinescapes Pro.
+  para los osciladores, knobs con punto, bisel con la luz arriba y arco de
+  valor separado del disco (la caja del knob mide siempre 44 px; el disco se
+  encoge `--knob-disc-inset` para que el arco quepa dentro: fuera no hay sitio
+  en las filas de cinco knobs), sliders con carril relleno, botones píldora,
+  etiquetas en minúsculas. Inspirado en la UI de Cinescapes Pro.
 - **Clásico** — el look original: verde y cian, degradados y relieve, rayita
   en el knob, MAYÚSCULAS espaciadas. Es también la prueba de que los tokens
   cubren todo: se reproduce solo con tokens (capturas antes/después a
