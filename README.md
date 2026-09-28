@@ -357,8 +357,23 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    activos, teclas pulsadas) en vez de estar escritos a mano. Selftest
    121/121. Un tema = un bloque `:root[data-theme="…"]` (en html, no en
    body: las caras compuestas resuelven sus `var()` donde se declaran).
-   Siguen: knob con estado publicado y arco de valor, selector de tema y
-   los temas «Clásico» y «Cinescapes».
+   **Tercer paso ✔ — el knob publica, el CSS dibuja** *(2026-09-28)*: knobs.js
+   ya no gira nada; escribe la posición 0..1 en la variable `--pos` del
+   `.knob` (y `.off` cuando un knob de cantidad está a 0). En el CSS, `.ind`
+   es un portador transparente que gira con `rotate(calc(-135deg + var(--pos)
+   * 270deg))`; su `::before` es la rayita, su `::after` el punto, y el
+   `::after` del knob es el arco de valor: un `conic-gradient` desde 225°
+   recortado a anillo con una `mask` radial (en una mask solo cuenta el alfa).
+   El halo es un `drop-shadow` del portador: de lo que no se dibuja no hay
+   halo. Tokens `--knob-line`, `--knob-dot`, `--knob-arc` (con `-top`, `-gap`,
+   `-track`): a 0px apagan cada pieza, así un tema elige rayita, punto, arco
+   o mezcla sin tocar JS. Check «knob publica --pos» en el selftest (mín/máx
+   → 0/1 y −135°/135° medidos en la matriz del transform, def de un knob log
+   = valToPos, act a 0 → .off e indicador a `--edge-hi`), 122/122. La pantalla
+   Diseño solo cambia en las rayitas (pivote ahora en el centro exacto). De
+   paso, `tools/shot.mjs` captura módulos con el viewport a la altura de la
+   página: cabecera y teclado pegajosos ya no tapan módulos bajos. Siguen:
+   selector de tema y los temas «Clásico» y «Cinescapes».
 
 4. **Módulo VOCAL (formantes)** ✔ *(hecho 2026-08-17)* — la voz humana como
    lo que es físicamente: un FILTRO (modelo fuente-filtro del habla; los

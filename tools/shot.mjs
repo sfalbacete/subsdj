@@ -46,6 +46,9 @@ if (screen) {
   await sleep(300);
   clip = { x: 0, y: 0, width: W, height: h, scale: 1 };
 } else {
+  const h = await ev('document.documentElement.scrollHeight');   // viewport = página entera: cabecera y teclado pegajosos se quedan en su sitio natural y no tapan módulos bajos
+  await send('Emulation.setDeviceMetricsOverride', { width: W, height: h, deviceScaleFactor: 1, mobile: false });
+  await sleep(300);
   const rect = await ev('(() => { const h = [...document.querySelectorAll(".panel h2")].find(h => h.textContent.trim().includes(' + JSON.stringify(target) + ')); if (!h) return null; const r = h.closest(".panel").getBoundingClientRect(); return { x: r.x, y: r.y + window.scrollY, width: r.width, height: r.height }; })()');
   if (!rect) console.error('panel no encontrado:', target);
   else clip = { x: rect.x - 4, y: rect.y - 4, width: rect.width + 8, height: rect.height + 8, scale: 2 };

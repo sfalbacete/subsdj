@@ -3,7 +3,10 @@
    exponencial, como hacían los sliders) y `fmt` (presentación específica).
    attachKnob() es el knob a secas — arrastre, doble clic = default, formato,
    atenuado a 0 si `act` — sin saber de PARAMS ni del registro: lo reutiliza
-   el mezclador de partes (nivel / pan / envíos por parte). */
+   el mezclador de partes (nivel / pan / envíos por parte).
+   CONTRATO CON LA PIEL: el knob no dibuja nada; publica su posición 0..1 en
+   la variable CSS --pos del .knob (y .off cuando un `act` está a 0) y el CSS
+   decide qué hace con ella: girar la rayita, el punto, pintar el arco… */
 import { part } from '../engine/parts.js';
 import { PARAMS, posToVal, valToPos } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
@@ -17,12 +20,11 @@ function fmt(v, unit) {
 // cfg: {min, max, def, log?, fmt?, unit?, act?} · onChange(value) al girar (y al arrancar).
 export function attachKnob(el, cfg, onChange) {
   const unit = cfg.unit || '';
-  const ind = el.querySelector('.ind');
   const valEl = el.parentElement.querySelector('.val');
   let value = cfg.def;
   const render = () => {
     const pos = cfg.log ? valToPos(cfg, value) : (value - cfg.min) / (cfg.max - cfg.min);
-    ind.style.transform = `rotate(${-135 + pos * 270}deg)`;
+    el.style.setProperty('--pos', pos.toFixed(4));           // estado publicado: el CSS gira / pinta con esto
     if (valEl) valEl.textContent = cfg.fmt ? cfg.fmt(value) : fmt(value, unit);
     if (cfg.act) el.classList.toggle('off', value === 0);   // 0 = apagado: rayita atenuada
   };

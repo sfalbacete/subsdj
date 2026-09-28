@@ -24,7 +24,7 @@ import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
-import { PARAMS } from './engine/params.js';
+import { PARAMS, valToPos } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON } from './engine/parts.js';
 import { mulberry32 } from './engine/Harmony.js';
@@ -438,6 +438,39 @@ export async function runSelfTest() {
       found('index.html', html, html, 0);
     } catch (e) { probs.push('lectura: ' + e.message); }
     push({ name: 'piel: tokens (color solo en :root/[data-theme]; canvas por theme.js)', peak: 0, ok: !probs.length, problems: probs.slice(0, 12) });
+  }
+  {
+    // piel (10): el knob no dibuja, PUBLICA. knobs.js pone --pos (0..1) en el
+    // .knob y el CSS gira el portador .ind con él (−135° + pos·270°); los knobs
+    // log publican la posición, no el valor; los de cantidad (act) a 0 llevan
+    // .off y su indicador pasa a --edge-hi. Sobre knobs reales visibles; se restauran.
+    const probs = [];
+    const byCfg = f => [...document.querySelectorAll('.knob[data-knob]')].find(k => k.offsetParent && PARAMS[k.dataset.knob] && CONTROLS[k.dataset.knob] && f(PARAMS[k.dataset.knob]));
+    const lin = byCfg(c => !c.log && !c.act), lg = byCfg(c => c.log), act = byCfg(c => c.act);
+    const pos = k => +k.style.getPropertyValue('--pos');
+    const angle = k => { const m = getComputedStyle(k.querySelector('.ind')).transform.match(/matrix\(([^)]+)\)/); if (!m) return NaN;
+      const [a, b] = m[1].split(',').map(Number); return Math.atan2(b, a) * 180 / Math.PI; };
+    const near = (x, y, tol) => Math.abs(x - y) <= tol;
+    if (!lin || !lg || !act) probs.push('faltan knobs de muestra (lineal/log/act visibles)');
+    else {
+      const test = (k, label, v, want) => { CONTROLS[k.dataset.knob].set(v); if (!near(pos(k), want, 1e-3)) probs.push(label + ': --pos ' + pos(k) + ' ≠ ' + want.toFixed(3)); return angle(k); };
+      for (const [k, label] of [[lin, 'lineal ' + lin.dataset.knob], [lg, 'log ' + lg.dataset.knob]]) {
+        const cfg = PARAMS[k.dataset.knob], keep = CONTROLS[k.dataset.knob].get();
+        const a0 = test(k, label + ' min', cfg.min, 0), a1 = test(k, label + ' max', cfg.max, 1);
+        if (!near(a0, -135, 0.5) || !near(a1, 135, 0.5)) probs.push(label + ': giro ' + a0.toFixed(1) + '° / ' + a1.toFixed(1) + '° (esperado −135 / 135)');
+        test(k, label + ' def', cfg.def, cfg.log ? valToPos(cfg, cfg.def) : (cfg.def - cfg.min) / (cfg.max - cfg.min));
+        CONTROLS[k.dataset.knob].set(keep);
+      }
+      const name = act.dataset.knob, keep = CONTROLS[name].get(), edgeHi = getComputedStyle(document.documentElement).getPropertyValue('--edge-hi').trim();
+      CONTROLS[name].set(0);
+      const ind0 = getComputedStyle(act).getPropertyValue('--knob-ind').trim();
+      if (!act.classList.contains('off')) probs.push('act ' + name + ' a 0 sin .off');
+      if (ind0 !== edgeHi) probs.push('act ' + name + ' a 0: indicador ' + ind0 + ' ≠ ' + edgeHi);
+      CONTROLS[name].set(PARAMS[name].max);
+      if (act.classList.contains('off')) probs.push('act ' + name + ' al máximo sigue .off');
+      CONTROLS[name].set(keep);
+    }
+    push({ name: 'piel: knob publica --pos; el CSS gira y apaga el indicador', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {

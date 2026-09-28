@@ -24,8 +24,12 @@
   --ink-on-accent:#04140e; --ink-on-accent2:#04121a;   /* texto sobre acento */
   /* acentos: verde = rack, cian = osciladores, rojo = alarma, ámbar = ★ */
   --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73; --star:#ffd166;
-  /* knob torneado */
+  /* knob torneado; qué dibuja el indicador (knobs.js solo publica --pos 0..1) */
   --knob:#222b36; --knobhi:#3a4a5c;
+  --knob-line:14px; --knob-line-top:5px;   /* rayita: largo (0px = sin rayita) y arranque desde el borde */
+  --knob-dot:0px; --knob-dot-top:7px;      /* punto: diámetro (0px = sin punto) */
+  --knob-arc:0px; --knob-arc-gap:2px;      /* arco de valor alrededor del disco: grosor (0px = sin arco) y aire */
+  --knob-arc-track:transparent;            /* carril del arco (los 270° aún por recorrer) */
   /* teclado: marfil, ébano y fieltro */
   --key-w:#fdfefe; --key-w-edge:#98a1ab; --key-w-ink:#6b7683;
   --key-b:#11151a; --key-b-edge:#05070a; --key-b-ink:#8f9aa7;
@@ -182,13 +186,27 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
 
-.knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;
+/* Knob: el JS solo publica el estado (--pos 0..1, knobs.js) y el CSS decide qué
+   dibuja con él. .ind es un portador transparente que gira; su ::before es la
+   rayita y su ::after el punto (el halo, un drop-shadow del portador: de lo
+   que no se dibuja no hay halo). El ::after del knob es el arco de valor: un
+   conic-gradient recortado a anillo con mask (en una mask el color da igual,
+   solo cuenta el alfa). Los tokens --knob-line / --knob-dot / --knob-arc a
+   0px apagan cada pieza: un tema elige rayita, punto, arco o mezcla sin JS. */
+.knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;--knob-ind:var(--accent);--knob-glow:var(--knob-ind);
   background:radial-gradient(circle at 38% 32%,var(--knobhi),var(--knob) 70%);
   border:1px solid var(--line);box-shadow:inset 0 2px 4px rgba(255,255,255,.06),0 3px 6px rgba(0,0,0,.5);}
 .knob::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid var(--line);}
-.knob .ind{position:absolute;left:50%;top:5px;width:2px;height:14px;background:var(--accent);
-  transform-origin:50% 17px;border-radius:1px;box-shadow:0 0 4px var(--accent);}
-.panel.osc .knob .ind{background:var(--accent2);box-shadow:0 0 4px var(--accent2);}
+.knob .ind{position:absolute;inset:0;transform:rotate(calc(-135deg + var(--pos,0) * 270deg));pointer-events:none;
+  filter:drop-shadow(0 0 2px var(--knob-glow));}
+.knob .ind::before{content:"";position:absolute;left:50%;top:var(--knob-line-top);width:2px;height:var(--knob-line);margin-left:-1px;
+  background:var(--knob-ind);border-radius:1px;}
+.knob .ind::after{content:"";position:absolute;left:50%;top:var(--knob-dot-top);width:var(--knob-dot);height:var(--knob-dot);
+  margin-left:calc(var(--knob-dot) / -2);border-radius:50%;background:var(--knob-ind);}
+.knob::after{content:"";position:absolute;inset:calc(-1 * (var(--knob-arc) + var(--knob-arc-gap)));border-radius:50%;
+  background:conic-gradient(from 225deg,var(--knob-ind) calc(var(--pos,0) * 270deg),var(--knob-arc-track) 0 270deg,transparent 0);
+  mask:radial-gradient(farthest-side,transparent calc(100% - var(--knob-arc)),black calc(100% - var(--knob-arc) + 1px));}
+.panel.osc .knob{--knob-ind:var(--accent2);}
 
 .slider{display:flex;flex-direction:column;gap:4px;width:100%;}
 .slider .head{display:flex;justify-content:space-between;font-size:10px;}
@@ -365,8 +383,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .led.on{background:var(--accent);box-shadow:0 0 6px var(--accent),inset 0 1px 1px rgba(255,255,255,.25);}
 .panel.osc .led.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2),inset 0 1px 1px rgba(255,255,255,.25);}
 .lfo-grp .tag .led{width:5px;height:5px;margin-right:4px;vertical-align:1px;}
-/* Knobs de "cantidad" (act en PARAMS) en su valor inerte: rayita apagada */
-.knob.off .ind,.panel.osc .knob.off .ind{background:var(--edge-hi);box-shadow:none;}
+/* Knobs de "cantidad" (act en PARAMS) en su valor inerte: indicador apagado, sin halo */
+.knob.off,.panel.osc .knob.off{--knob-ind:var(--edge-hi);--knob-glow:transparent;}
 
 /* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
 .mx-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
