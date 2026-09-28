@@ -39,6 +39,7 @@ import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice,
 import { loadPresetIndex, navOptions, presetBankReady } from './ui/presetBank.js';
 import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
+import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -471,6 +472,51 @@ export async function runSelfTest() {
       CONTROLS[name].set(keep);
     }
     push({ name: 'piel: knob publica --pos; el CSS gira y apaga el indicador', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // piel (10): selector de tema. Un tema es un bloque `:root[data-theme="id"]`
+    // con --theme-name; el :root base es el tema por defecto (--theme-id).
+    // theme.js lee las hojas para llenar el <select>: añadir un tema es añadir
+    // CSS. Se inyecta un tema de prueba, se elige (por API y por el <select>),
+    // se mira que cambie el token computado y el que theme.js sirve a los
+    // canvas, que se recuerde y que avise (theme-changed); se restaura todo.
+    const probs = [];
+    const html = document.documentElement, before = currentTheme(), sel = document.getElementById('themeSel');
+    let savedLS = null; try { savedLS = localStorage.getItem('subsdj.theme.v1'); } catch { /* sin persistencia */ }
+    const st = document.createElement('style');
+    st.textContent = ':root[data-theme="st-prueba"]{--theme-name:"Prueba";--accent:rgb(18 52 86);}';
+    document.head.appendChild(st);
+    try {
+      const themes = listThemes(), base = themes.find(t => t.base), test = themes.find(t => t.id === 'st-prueba');
+      if (!base || !base.name) probs.push('sin tema base (:root con --theme-id / --theme-name)');
+      if (!test || test.name !== 'Prueba') probs.push('el tema inyectado no aparece en listThemes()');
+      if (!sel) probs.push('sin <select id="themeSel">');
+      else if (sel.options.length < themes.length - 1) probs.push('el <select> tiene ' + sel.options.length + ' opciones para ' + (themes.length - 1) + ' temas');
+      let fired = 0; const onT = e => { if (e.detail.theme === 'st-prueba') fired++; };
+      document.addEventListener('theme-changed', onT);
+      const accent0 = getComputedStyle(html).getPropertyValue('--accent').trim();
+      setTheme('st-prueba');
+      const accent1 = getComputedStyle(html).getPropertyValue('--accent').trim();
+      if (html.dataset.theme !== 'st-prueba') probs.push('data-theme no puesto');
+      if (accent1 === accent0 || !/18/.test(accent1)) probs.push('--accent computado no cambió: ' + accent1);
+      if (token('--accent') !== '#123456') probs.push('theme.js sirve ' + token('--accent') + ' ≠ #123456 (caché sin vaciar)');
+      if (!fired) probs.push('sin evento theme-changed');
+      if (localStorage.getItem('subsdj.theme.v1') !== 'st-prueba') probs.push('no se recuerda');
+      document.removeEventListener('theme-changed', onT);
+      if (sel && base) {                                  // por el camino del usuario: elegir en el <select>
+        if (sel.value !== 'st-prueba') probs.push('el <select> no refleja el tema (' + sel.value + ')');
+        sel.value = base.id; sel.dispatchEvent(new Event('change'));
+        if (html.dataset.theme) probs.push('elegir el base en el <select> deja data-theme=' + html.dataset.theme);
+        if (getComputedStyle(html).getPropertyValue('--accent').trim() !== accent0) probs.push('el base no devuelve --accent');
+        if (localStorage.getItem('subsdj.theme.v1') !== base.id) probs.push('el <select> no recuerda el base');
+      }
+      setTheme('no-existe');
+      if (html.dataset.theme) probs.push('un id desconocido no cae al base');
+    } catch (e) { probs.push('error: ' + e.message); }
+    st.remove();
+    setTheme(before, { remember: false });
+    try { if (savedLS === null) localStorage.removeItem('subsdj.theme.v1'); else localStorage.setItem('subsdj.theme.v1', savedLS); } catch { /* sin persistencia */ }
+    push({ name: 'piel: selector de tema (hojas → <select>, token computado y servido, memoria, evento)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {

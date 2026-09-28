@@ -29,15 +29,15 @@ y va aparte, porque conviene meter primero los baratos.
 | 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
-| 10 | **Piel del rack** ⏳ | temas por tokens — pasos 1 (tokens + check «piel») y 2 (knob publica `--pos`; rayita/punto/arco por tokens) HECHOS 2026-09-28; quedan selector y temas Clásico/Cinescapes | medio | — |
+| 10 | **Piel del rack** ⏳ | temas por tokens — pasos 1 (tokens + check «piel»), 2 (knob publica `--pos`; rayita/punto/arco por tokens) y 3 (selector de tema leído de las hojas) HECHOS 2026-09-28; quedan los temas Cinescapes/Clásico | medio | — |
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 | 13 | **Pantallas + biblioteca de presets** ✔ | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer — HECHO (13a y 13b) | 13a bajo · 13b alto | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
 → ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
-2026-09-27; el bloque 13 completo). **En curso: 10 (piel) por pasos — 1 tokens ✔ → 2 knob con arco ✔ (2026-09-28) → 3 selector de
-tema → 4 temas «Clásico» y «Cinescapes».** Después A4 y 9 como
+2026-09-27; el bloque 13 completo). **En curso: 10 (piel) por pasos — 1 tokens ✔ → 2 knob con arco ✔ → 3 selector de tema ✔
+(2026-09-28) → 4 temas «Cinescapes» (por defecto) y «Clásico».** Después A4 y 9 como
 tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -352,8 +352,9 @@ con significado, botones píldora, tipografía en minúsculas). Pasos:
 2. ✔ **Knob con estado publicado** *(2026-09-28)*: knobs.js escribe `--pos` 0..1 en el `.knob`; el CSS gira el
    portador `.ind` (rayita `::before`, punto `::after`) y pinta el arco (`.knob::after`, conic-gradient + mask);
    tokens `--knob-line/-dot/-arc` a 0px apagan cada pieza. Check «knob publica --pos». 122/122.
-3. **Selector de tema** en la cabecera: `data-theme` en html + localStorage; `?theme=` para shot.mjs;
-   evento `theme-changed` (vacía la caché de theme.js).
+3. ✔ **Selector de tema** *(2026-09-28)*: `<select>` en la cabecera llenado desde las hojas (un tema = bloque
+   `:root[data-theme="id"]` con `--theme-name`; el `:root` base es el tema por defecto); `data-theme` en html,
+   localStorage, `?theme=` (shot.mjs: `THEME=id`), evento `theme-changed` + `resize`. Check con tema inyectado. 123/123.
 4. **Temas «Cinescapes»** (por defecto) **y «Clásico»** (el look actual: la prueba de que los tokens
    cubren todo). Después, si apetece: tornillos, placa con logo, LFOs animados.
 

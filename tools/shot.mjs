@@ -3,11 +3,13 @@
 //       node tools/shot.mjs "pantalla:secuenciacion" salida.png [ancho] ["<JS previo>"]   → la página entera en esa pestaña
 // El JS previo se evalúa (con await si devuelve promesa) antes de capturar: p. ej. encender
 // las Partes o cargar un preset. Sirve en 8002 para no chocar con el runner ni con el 8000.
+// Variable de entorno THEME=id → captura con ese tema (?theme=, que no se recuerda).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 import os from 'node:os'; import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PORT = 8002;
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const [target, out, widthArg, pre] = process.argv.slice(2); const W = +widthArg || 1500;
+const THEME = process.env.THEME || '';
 if (!target || !out) { console.error('uso: node tools/shot.mjs "<h2 | pantalla:NOMBRE>" salida.png [ancho] ["<JS previo>"]'); process.exit(2); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json' };
@@ -31,7 +33,7 @@ const send = (method, params = {}) => new Promise(r => { const i = ++id; pend.se
 const ev = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value;
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: 1000, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' });
+await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' + (THEME ? '?theme=' + encodeURIComponent(THEME) : '') });
 for (let i = 0; i < 50; i++) { await sleep(200); if (await ev('document.readyState') === 'complete') break; }
 await sleep(800);
 const preSrc = pre && pre.startsWith('@') ? fs.readFileSync(pre.slice(1), 'utf8') : pre;   // "@fichero.js": sondas largas

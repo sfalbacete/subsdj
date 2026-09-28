@@ -10,6 +10,7 @@
    pulgar, teclas) resuelven sus var(--accent) donde se declaran.
    ===================================================================== */
 :root{
+  --theme-id:"clasico"; --theme-name:"Clásico";   /* el bloque base ES el tema por defecto (theme.js lo lista) */
   /* superficies, de fuera adentro */
   --bg:#0d1014;          /* página */
   --bg-glow:#1a2230;     /* halo radial en lo alto del fondo */
@@ -102,6 +103,8 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 .btn:active{transform:translateY(1px);}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;line-height:1;}
+#themeSel{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);padding:4px 6px;font-size:11px;cursor:pointer;}
+#themeSel:hover{border-color:var(--accent);color:var(--accent);}
 
 /* Partes: botón + selector 1-4 en la cabecera; mezclador; etiqueta «sala» */
 #partsBar{display:flex;align-items:center;gap:8px;}

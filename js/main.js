@@ -23,10 +23,12 @@ import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
+import { initTheme } from './ui/theme.js';
 import { initGroups } from './ui/groups.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
+initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
 bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
 bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira

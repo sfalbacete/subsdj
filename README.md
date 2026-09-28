@@ -218,7 +218,7 @@ js/engine/
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
-  theme.js                     tokens de piel para los canvas: token()/tint()/hue() leen las variables CSS (única fuente de color)
+  theme.js                     piel: token()/tint()/hue() sirven los tokens CSS a los canvas; selector de tema (lee los temas de las hojas)
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
   playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
@@ -372,8 +372,20 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    = valToPos, act a 0 → .off e indicador a `--edge-hi`), 122/122. La pantalla
    Diseño solo cambia en las rayitas (pivote ahora en el centro exacto). De
    paso, `tools/shot.mjs` captura módulos con el viewport a la altura de la
-   página: cabecera y teclado pegajosos ya no tapan módulos bajos. Siguen:
-   selector de tema y los temas «Clásico» y «Cinescapes».
+   página: cabecera y teclado pegajosos ya no tapan módulos bajos.
+   **Cuarto paso ✔ — selector de tema** *(2026-09-28)*: un tema es un bloque
+   `:root[data-theme="id"]` de la hoja que redefine tokens y se presenta con
+   `--theme-name:"Nombre"`; el `:root` base ES el tema por defecto (declara
+   `--theme-id` y `--theme-name`). `ui/theme.js` lee las hojas
+   (`document.styleSheets`) para llenar el `<select>` de la cabecera: añadir
+   un tema es añadir CSS, sin tocar JS. Al elegir: `data-theme` en html, se
+   vacía la caché de tokens, evento `theme-changed`, `resize` para que los
+   canvas se redibujen, y se recuerda (`subsdj.theme.v1`). `?theme=id` en la
+   URL lo aplica sin recordarlo (capturas: `THEME=id node tools/shot.mjs …`;
+   runner: `"selftest=1&theme=id"`). Check en el selftest con un tema
+   inyectado (aparece en la lista, cambia el token computado y el que se
+   sirve a los canvas, se recuerda, avisa, vuelve al base), 123/123. Sigue:
+   los temas «Cinescapes» (por defecto) y «Clásico».
 
 4. **Módulo VOCAL (formantes)** ✔ *(hecho 2026-08-17)* — la voz humana como
    lo que es físicamente: un FILTRO (modelo fuente-filtro del habla; los
