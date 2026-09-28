@@ -1,6 +1,8 @@
 /* SubSDJ · sliders (range). Config en PARAMS (tabla única); el HTML no lleva
    min/max/step/value: se fijan aquí. Los params `log` (cutoff) usan el slider
-   como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en espacio-motor. */
+   como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en espacio-motor.
+   Como el knob, el slider publica su posición 0..1 en --pos (el CSS rellena
+   el carril hasta el pulgar si el tema lo pide). */
 import { part } from '../engine/parts.js';
 import { PARAMS, posToVal, valToPos } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
@@ -27,6 +29,7 @@ export function bindSliders() {
     else { el.min = p.min; el.max = p.max; el.step = p.step != null ? p.step : 0.01; }
     const update = () => {
       const val = posToVal(p, parseFloat(el.value));
+      el.style.setProperty('--pos', ((parseFloat(el.value) - el.min) / (el.max - el.min)).toFixed(4));
       applyTarget(p.t || name, val);
       if (vEl) vEl.textContent = p.fmt ? p.fmt(val) : String(val);
     };

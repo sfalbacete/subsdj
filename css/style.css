@@ -10,32 +10,76 @@
    pulgar, teclas) resuelven sus var(--accent) donde se declaran.
    ===================================================================== */
 :root{
-  --theme-id:"clasico"; --theme-name:"Clásico";   /* el bloque base ES el tema por defecto (theme.js lo lista) */
-  /* superficies, de fuera adentro */
-  --bg:#0d1014;          /* página */
-  --bg-glow:#1a2230;     /* halo radial en lo alto del fondo */
-  --panel:#161b22; --panel2:#1b222c;   /* cara de módulo (degradado panel→panel2) */
-  --well:#0f141a;        /* hueco: inputs, selects, botones planos, kbd, tooltip */
-  --screen:#05080b;      /* cristal de los visualizadores y cama del teclado */
-  --edge:#2a3340;        /* bordes */
-  --edge-hi:#3d4a5c;     /* relieve más claro: scroll al pasar, ★ apagada, rayita inerte */
-  --line:#0a0e12;        /* separadores oscuros: borde de knob, entre botones, LED */
+  --theme-id:"cinescapes"; --theme-name:"Cinescapes";   /* el bloque base ES el tema por defecto (theme.js lo lista) */
+  /* superficies, de fuera adentro: carbón plano, sin halo */
+  --bg:#15171c;          /* página */
+  --bg-glow:var(--bg);   /* halo radial en lo alto del fondo (aquí ninguno: plano) */
+  --panel:#22252d; --panel2:var(--panel);   /* cara de módulo (plana) */
+  --well:#1a1d23;        /* hueco: inputs, selects, botones planos, kbd, tooltip */
+  --screen:#0f1114;      /* cristal de los visualizadores y cama del teclado */
+  --edge:#2f333c;        /* bordes */
+  --edge-hi:#454a56;     /* relieve más claro: scroll al pasar, ★ apagada, indicador inerte */
+  --line:#121418;        /* separadores oscuros: borde de knob, entre botones, LED */
   /* tinta */
-  --ink:#c9d4e0; --dim:#7d8a99;
-  --ink-on-accent:#04140e; --ink-on-accent2:#04121a;   /* texto sobre acento */
-  /* acentos: verde = rack, cian = osciladores, rojo = alarma, ámbar = ★ */
-  --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73; --star:#ffd166;
-  /* knob torneado; qué dibuja el indicador (knobs.js solo publica --pos 0..1) */
-  --knob:#222b36; --knobhi:#3a4a5c;
-  --knob-line:14px; --knob-line-top:5px;   /* rayita: largo (0px = sin rayita) y arranque desde el borde */
-  --knob-dot:0px; --knob-dot-top:7px;      /* punto: diámetro (0px = sin punto) */
-  --knob-arc:0px; --knob-arc-gap:2px;      /* arco de valor alrededor del disco: grosor (0px = sin arco) y aire */
-  --knob-arc-track:transparent;            /* carril del arco (los 270° aún por recorrer) */
+  --ink:#dfe3ea; --dim:#8b919d;
+  --ink-on-accent:#06212b; --ink-on-accent2:#1a0b33;   /* texto sobre acento */
+  /* acentos: cian = rack, violeta = osciladores, rojo = alarma, ámbar = ★ */
+  --accent:#3fc6f2; --accent2:#a78bfa; --hot:#ff6b7a; --star:#ffd166;
+  /* knob: disco mate con punto y arco de valor (knobs.js solo publica --pos 0..1) */
+  --knob:#282c35; --knobhi:#3b404b;
+  --knob-face:radial-gradient(circle at 50% 38%,var(--knobhi),var(--knob) 72%);
+  --knob-edge:var(--line);                                   /* borde del disco */
+  --knob-ring:color-mix(in srgb,white 5%,transparent);       /* anillo interior (muesca) */
+  --knob-shadow:0 4px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
+  --knob-line:0px; --knob-line-top:5px;    /* rayita: largo (0px = sin rayita) y arranque desde el borde */
+  --knob-dot:5px; --knob-dot-top:6px;      /* punto: diámetro (0px = sin punto) */
+  --knob-arc:2px; --knob-arc-gap:3px;      /* arco de valor alrededor del disco: grosor (0px = sin arco) y aire */
+  --knob-arc-track:rgba(0,0,0,.35);        /* carril del arco (los 270° aún por recorrer) */
+  /* slider (ADSR): carril plano que se rellena hasta el pulgar (sliders.js publica --pos) */
+  --track-face:var(--well); --track-fill:var(--accent);
   /* teclado: marfil, ébano y fieltro */
+  --key-w:#e9ebef; --key-w-edge:#b4b9c2; --key-w-ink:#6b7280;
+  --key-b:#1b1e24; --key-b-edge:#0b0d10; --key-b-ink:#8b919d;
+  --felt:#27505e;
+  /* caras compuestas (aquí planas; el Clásico las hace degradado) */
+  --panel-face:var(--panel);
+  --btn-face:var(--well);
+  --btn-face-hi:color-mix(in srgb,var(--well) 84%,white);
+  --seg-on:var(--accent); --seg-on2:var(--accent2);
+  --thumb-face:radial-gradient(circle at 40% 35%,color-mix(in srgb,var(--accent) 55%,white),var(--accent) 65%);
+  --key-w-face:var(--key-w);
+  --key-w-on:color-mix(in srgb,var(--accent) 45%,var(--key-w));
+  --key-b-face:var(--key-b);
+  --key-b-on:color-mix(in srgb,var(--accent2) 55%,var(--key-b));
+  --shadow-panel:none;
+  --shadow-pop:0 10px 30px rgba(0,0,0,.6);
+  /* forma y letra: píldoras, esquinas suaves, etiquetas en minúsculas */
+  --r-panel:14px; --r-ctl:8px; --r-btn:999px;
+  --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
+  --lab-case:none; --lab-space:0;            /* etiquetas de control */
+  --title-case:none; --title-space:.3px;     /* h2 de módulo, pestañas, barra de presets */
+  color-scheme:dark;   /* widgets nativos (popups, scrollbars sin estilar) en oscuro */
+}
+
+/* TEMA «Clásico»: el look original del SubSDJ (verde y cian, degradados,
+   relieve, MAYÚSCULAS espaciadas). Es también la prueba de que los tokens
+   cubren todo: si algo no se puede recuperar desde aquí, está a fuego. */
+:root[data-theme="clasico"]{
+  --theme-name:"Clásico";
+  --bg:#0d1014; --bg-glow:#1a2230; --panel:#161b22; --panel2:#1b222c; --well:#0f141a; --screen:#05080b;
+  --edge:#2a3340; --edge-hi:#3d4a5c; --line:#0a0e12;
+  --ink:#c9d4e0; --dim:#7d8a99; --ink-on-accent:#04140e; --ink-on-accent2:#04121a;
+  --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73; --star:#ffd166;
+  --knob:#222b36; --knobhi:#3a4a5c;
+  --knob-face:radial-gradient(circle at 38% 32%,var(--knobhi),var(--knob) 70%);
+  --knob-edge:var(--line); --knob-ring:var(--line);
+  --knob-shadow:inset 0 2px 4px rgba(255,255,255,.06),0 3px 6px rgba(0,0,0,.5);
+  --knob-line:14px; --knob-line-top:5px; --knob-dot:0px; --knob-dot-top:7px;
+  --knob-arc:0px; --knob-arc-gap:2px; --knob-arc-track:transparent;
+  --track-face:linear-gradient(180deg,var(--screen),var(--well)); --track-fill:transparent;
   --key-w:#fdfefe; --key-w-edge:#98a1ab; --key-w-ink:#6b7683;
   --key-b:#11151a; --key-b-edge:#05070a; --key-b-ink:#8f9aa7;
   --felt:#8e2740;
-  /* caras compuestas (un tema plano las deja en un color o en none) */
   --panel-face:linear-gradient(180deg,var(--panel),var(--panel2));
   --btn-face:linear-gradient(180deg,var(--panel2),var(--well) 85%);
   --btn-face-hi:linear-gradient(180deg,color-mix(in srgb,var(--panel2) 90%,white),color-mix(in srgb,var(--well) 92%,white) 85%);
@@ -46,14 +90,10 @@
   --key-w-on:linear-gradient(180deg,color-mix(in srgb,var(--accent) 25%,var(--key-w-edge)) 0%,color-mix(in srgb,var(--accent) 45%,var(--key-w)) 28%,color-mix(in srgb,var(--accent) 75%,var(--key-w)) 72%,var(--accent) 100%);
   --key-b-face:linear-gradient(180deg,color-mix(in srgb,var(--key-b) 78%,white) 0%,color-mix(in srgb,var(--key-b) 93%,white) 10%,var(--key-b) 70%,color-mix(in srgb,var(--key-b) 86%,white) 78%,color-mix(in srgb,var(--key-b) 97%,white) 96%);
   --key-b-on:linear-gradient(180deg,color-mix(in srgb,var(--accent2) 20%,var(--key-b)) 0%,color-mix(in srgb,var(--accent2) 15%,var(--key-b)) 55%,color-mix(in srgb,var(--accent2) 75%,var(--key-b)) 76%,var(--accent2) 100%);
-  --shadow-panel:0 6px 18px rgba(0,0,0,.35);
-  --shadow-pop:0 10px 30px rgba(0,0,0,.6);
-  /* forma y letra */
+  --shadow-panel:0 6px 18px rgba(0,0,0,.35); --shadow-pop:0 10px 30px rgba(0,0,0,.6);
   --r-panel:10px; --r-ctl:6px; --r-btn:6px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
-  --lab-case:uppercase; --lab-space:.5px;        /* etiquetas de control */
-  --title-case:uppercase; --title-space:1.5px;   /* h2 de módulo */
-  color-scheme:dark;   /* widgets nativos (popups, scrollbars sin estilar) en oscuro */
+  --lab-case:uppercase; --lab-space:.5px; --title-case:uppercase; --title-space:1.5px;
 }
 
 /* Barras de scroll finas a juego (ventana, paneles y desplegables) */
@@ -122,7 +162,7 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
   font-size:11px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .strip .pname:hover{border-color:var(--accent);color:var(--accent);}
 .strip.cur .pname{color:var(--accent);}
-.strip .pname.static{cursor:default;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;text-align:center;}
+.strip .pname.static{cursor:default;color:var(--accent);text-transform:var(--title-case);letter-spacing:var(--title-space);text-align:center;}
 .strip.sala{flex:0 1 200px;}
 .strip .mute{align-self:flex-start;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
@@ -141,6 +181,7 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
   height:44px;box-sizing:border-box;max-width:92px;}
 /* FM4: 8 algoritmos en dos filas; 4 operadores en filas con etiqueta */
 #fm4AlgSel{flex-wrap:wrap;}
+#wsModeSel button{padding-left:6px;padding-right:6px;}   /* «Loop» y «1shot» iban pegados (los botones de un seg no llevan aire lateral) */
 #fm4AlgSel button{flex:1 1 25%;font-size:9px;padding:5px 1px;letter-spacing:0;white-space:nowrap;}
 .fm4ops .row{align-items:center;margin-top:4px;flex-wrap:nowrap;}
 .fm4ops .oplab{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);width:30px;flex:none;}
@@ -197,9 +238,8 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
    solo cuenta el alfa). Los tokens --knob-line / --knob-dot / --knob-arc a
    0px apagan cada pieza: un tema elige rayita, punto, arco o mezcla sin JS. */
 .knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;--knob-ind:var(--accent);--knob-glow:var(--knob-ind);
-  background:radial-gradient(circle at 38% 32%,var(--knobhi),var(--knob) 70%);
-  border:1px solid var(--line);box-shadow:inset 0 2px 4px rgba(255,255,255,.06),0 3px 6px rgba(0,0,0,.5);}
-.knob::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid var(--line);}
+  background:var(--knob-face);border:1px solid var(--knob-edge);box-shadow:var(--knob-shadow);}
+.knob::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid var(--knob-ring);}
 .knob .ind{position:absolute;inset:0;transform:rotate(calc(-135deg + var(--pos,0) * 270deg));pointer-events:none;
   filter:drop-shadow(0 0 2px var(--knob-glow));}
 .knob .ind::before{content:"";position:absolute;left:50%;top:var(--knob-line-top);width:2px;height:var(--knob-line);margin-left:-1px;
@@ -215,8 +255,9 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 .slider .head{display:flex;justify-content:space-between;font-size:10px;}
 .slider .head .lab{color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .slider .head .val{color:var(--ink);}
+/* Carril del slider: relleno hasta el pulgar (sliders.js publica --pos; el pulgar mide 16px) sobre la cara del carril */
 input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
-  background:linear-gradient(180deg,var(--screen),var(--well));outline:none;width:100%;
+  background:linear-gradient(var(--track-fill),var(--track-fill)) 0 0 / calc(var(--pos,0) * (100% - 16px) + 8px) 100% no-repeat,var(--track-face);outline:none;width:100%;
   box-shadow:inset 0 1px 2px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.04);}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
   background:var(--thumb-face);
@@ -229,7 +270,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
   background:var(--thumb-face);cursor:pointer;
   box-shadow:0 2px 5px rgba(0,0,0,.55), 0 0 9px color-mix(in srgb,var(--accent) 40%,transparent), inset 0 1px 1px rgba(255,255,255,.45);}
 
-.seg{display:flex;border:1px solid var(--edge);border-radius:var(--r-btn);overflow:hidden;
+.seg{display:flex;border:1px solid var(--edge);border-radius:var(--r-ctl);overflow:hidden;   /* radio de control, no píldora: sus botones son estrechos (flex:1, sin aire) y una píldora se comería el texto */
   background:var(--well);box-shadow:0 2px 4px rgba(0,0,0,.35);}
 .seg button{flex:1;background:var(--btn-face);border:none;color:var(--dim);
   padding:5px 0;font-size:11px;cursor:pointer;
@@ -401,8 +442,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
    declara en que pestanas vive (data-screens="diseno secuenciacion presets")
    y aqui se oculta lo que no toca: filtros, no copias. body[data-screen] lo
    pone ui/screens.js. !important: #presetBar{display:flex} (un id) ganaria. */
-#screenTabs{margin-left:4px;}
-#screenTabs button{flex:none;padding:6px 16px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;}
+#screenTabs{margin-left:4px;border-radius:var(--r-btn);}   /* las pestañas sí son píldora: tienen aire */
+#screenTabs button{flex:none;padding:6px 16px;font-size:11px;letter-spacing:var(--title-space);text-transform:var(--title-case);}
 body[data-screen="diseno"] [data-screens]:not([data-screens~="diseno"]),
 body[data-screen="secuenciacion"] [data-screens]:not([data-screens~="secuenciacion"]),
 body[data-screen="presets"] [data-screens]:not([data-screens~="presets"]){display:none !important;}

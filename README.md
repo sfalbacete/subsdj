@@ -154,6 +154,33 @@ lista de Presets refleja la biblioteca y un clic carga y queda marcado) y
 capturas con `node tools/shot.mjs "pantalla:secuenciacion" out.png` (el
 cuarto argumento, `"@fichero.js"`, evalúa una sonda antes de capturar).
 
+## Piel: temas
+
+La piel es un sistema de TEMAS por tokens, no un motor de skins. Toda decisión
+visual (color, cara, sombra, radio, letra, qué dibuja el indicador del knob)
+vive en el bloque de tokens al principio de `css/style.css`; el resto de la
+hoja solo usa `var(--…)`, y los canvas leen los mismos tokens por
+`ui/theme.js`. El JS publica el estado (`--pos` 0..1 en knobs y sliders) y el
+CSS decide cómo dibujarlo: rayita, punto o arco de valor, carril relleno,
+según tokens. Un tema es un bloque `:root[data-theme="id"]` con
+`--theme-name`; el `:root` base es el tema por defecto. El desplegable de la
+cabecera se llena leyendo las hojas: añadir un tema es añadir CSS. Se
+recuerda en localStorage; `?theme=id` lo aplica sin recordarlo (capturas:
+`THEME=id node tools/shot.mjs …`; runner: `"selftest=1&theme=id"`).
+
+- **Cinescapes** (por defecto) — carbón plano, cian para el rack y violeta
+  para los osciladores, knobs con punto y arco de valor, sliders con carril
+  relleno, botones píldora, etiquetas en minúsculas. Inspirado en la UI de
+  Cinescapes Pro.
+- **Clásico** — el look original: verde y cian, degradados y relieve, rayita
+  en el knob, MAYÚSCULAS espaciadas. Es también la prueba de que los tokens
+  cubren todo: se reproduce solo con tokens (capturas antes/después a
+  ≤ 5 niveles de 255).
+
+El tamaño no es cosa del tema: knob y unidad de rack van acoplados, y la
+escala es el zoom del navegador. El selftest vigila que no haya colores a
+fuego fuera de los bloques de tokens (check «piel»).
+
 ## Teclado
 
 - Layout estilo **tracker** (FastTracker), 2 filas:
@@ -384,8 +411,19 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    URL lo aplica sin recordarlo (capturas: `THEME=id node tools/shot.mjs …`;
    runner: `"selftest=1&theme=id"`). Check en el selftest con un tema
    inyectado (aparece en la lista, cambia el token computado y el que se
-   sirve a los canvas, se recuerda, avisa, vuelve al base), 123/123. Sigue:
-   los temas «Cinescapes» (por defecto) y «Clásico».
+   sirve a los canvas, se recuerda, avisa, vuelve al base), 123/123.
+   **Quinto paso ✔ — los temas** *(2026-09-28)*: el bloque base pasa a ser
+   «Cinescapes» (carbón plano, cian/violeta, punto + arco en el knob, carril
+   del slider relleno hasta el pulgar — sliders.js publica `--pos` como el
+   knob —, píldoras, minúsculas) y «Clásico» es un bloque
+   `:root[data-theme="clasico"]` con los tokens de siempre. Tokens nuevos
+   para que el knob y el carril pudieran cambiar de carácter: `--knob-face`,
+   `--knob-edge`, `--knob-ring`, `--knob-shadow`, `--track-face`,
+   `--track-fill`. Verificación: capturas `THEME=clasico` frente a la
+   pantalla previa (0,1 % de píxeles cambiados, ≤ 5 niveles: el Clásico se
+   reproduce solo con tokens) y capturas de Cinescapes en Diseño,
+   Secuenciación y tres módulos a ×2. Selftest 123/123. FASE 3 COMPLETA;
+   tornillos, placa con logo y LFOs animados quedan como capricho opcional.
 
 4. **Módulo VOCAL (formantes)** ✔ *(hecho 2026-08-17)* — la voz humana como
    lo que es físicamente: un FILTRO (modelo fuente-filtro del habla; los

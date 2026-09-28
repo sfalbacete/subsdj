@@ -471,7 +471,15 @@ export async function runSelfTest() {
       if (act.classList.contains('off')) probs.push('act ' + name + ' al máximo sigue .off');
       CONTROLS[name].set(keep);
     }
-    push({ name: 'piel: knob publica --pos; el CSS gira y apaga el indicador', peak: 0, ok: !probs.length, problems: probs });
+    const sl = document.getElementById('s_a');                        // el slider publica igual (sliders.js)
+    if (!sl || !CONTROLS.a) probs.push('sin slider de muestra (s_a)');
+    else {
+      const keep = CONTROLS.a.get(), sp = () => +sl.style.getPropertyValue('--pos');
+      CONTROLS.a.set(PARAMS.a.min); if (!near(sp(), 0, 1e-3)) probs.push('slider a min: --pos ' + sp());
+      CONTROLS.a.set(PARAMS.a.max); if (!near(sp(), 1, 1e-3)) probs.push('slider a max: --pos ' + sp());
+      CONTROLS.a.set(keep);
+    }
+    push({ name: 'piel: knob y slider publican --pos; el CSS gira y apaga el indicador', peak: 0, ok: !probs.length, problems: probs });
   }
   {
     // piel (10): selector de tema. Un tema es un bloque `:root[data-theme="id"]`
