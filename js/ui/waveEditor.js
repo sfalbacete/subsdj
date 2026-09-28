@@ -8,6 +8,7 @@ import { part } from '../engine/parts.js';
 import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
          espectroDe, puntosDeEspectro, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
+import { token, tint } from './theme.js';
 
 const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff por pulsación de «Suavizar»
 
@@ -18,11 +19,10 @@ export function initWaveEditor() {
   const frames = loadUserFrames() || defaultUserFrames();
   let cur = 0, dragging = false, last = null;
 
-  const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '#39d4a3';
   function draw() {
     const w = cv.width = cv.clientWidth || 300, h = cv.height = 96;
     g.clearRect(0, 0, w, h);
-    g.strokeStyle = 'rgba(120,140,160,.25)'; g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    g.strokeStyle = tint('--dim', .25); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     const path = (pts, color, width) => {
       g.strokeStyle = color; g.lineWidth = width; g.beginPath();
       for (let i = 0; i < WE_P; i++) {
@@ -31,8 +31,8 @@ export function initWaveEditor() {
       }
       g.stroke(); g.lineWidth = 1;
     };
-    path(frames[1 - cur], 'rgba(120,140,160,.35)', 1);        // el otro frame, de fantasma
-    path(frames[cur], css(cur ? '--accent2' : '--accent'), 2);
+    path(frames[1 - cur], tint('--dim', .35), 1);        // el otro frame, de fantasma
+    path(frames[cur], token(cur ? '--accent2' : '--accent'), 2);
   }
 
   function commit() {

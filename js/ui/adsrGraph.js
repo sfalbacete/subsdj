@@ -1,5 +1,6 @@
 /* SubSDJ · gráfico de la envolvente ADSR (amp + filtro comparten A/D/S/R) */
 import { part } from '../engine/parts.js';
+import { token, tint } from './theme.js';
 
 export function initADSRGraph(canvas) {
   const ctx = canvas.getContext('2d');
@@ -20,7 +21,7 @@ export function initADSRGraph(canvas) {
     const Y = v => (h - pad) - v * (h - 2 * pad);
 
     // rejilla
-    ctx.strokeStyle = 'rgba(125,138,153,.18)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = tint('--dim', .18); ctx.lineWidth = 1;
     ctx.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
 
     // tramos A y D con la misma curva RC que el motor (envCurve 0 = rectas)
@@ -39,13 +40,13 @@ export function initADSRGraph(canvas) {
     pts.forEach(([t, v]) => ctx.lineTo(X(t), Y(v)));
     ctx.lineTo(X(a + d + susT + r), Y(0)); ctx.closePath();
     const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
-    grad.addColorStop(0, 'rgba(57,212,163,.40)');
-    grad.addColorStop(0.55, 'rgba(57,212,163,.14)');
-    grad.addColorStop(1, 'rgba(57,212,163,.02)');
+    grad.addColorStop(0, tint('--accent', .40));
+    grad.addColorStop(0.55, tint('--accent', .14));
+    grad.addColorStop(1, tint('--accent', .02));
     ctx.fillStyle = grad; ctx.fill();
 
     // curva de amplitud
-    ctx.lineWidth = 2; ctx.strokeStyle = '#39d4a3'; ctx.beginPath();
+    ctx.lineWidth = 2; ctx.strokeStyle = token('--accent'); ctx.beginPath();
     pts.forEach(([t, v], i) => (i ? ctx.lineTo(X(t), Y(v)) : ctx.moveTo(X(t), Y(v))));
     ctx.stroke();
 
@@ -54,14 +55,14 @@ export function initADSRGraph(canvas) {
       const up = S.filterEnvAmt > 0;
       const fp = [[0, 0], ...seg(0, fa, 0, 1), ...seg(fa, fa + fd, 1, fs), [fa + fd + susT, fs], ...rel(fa + fd + susT, fa + fd + susT + fr, fs)]
         .map(([t, v]) => [t, up ? v : 1 - v]);
-      ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = '#34c0ff';
+      ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = token('--accent2');
       ctx.beginPath();
       fp.forEach(([t, v], i) => (i ? ctx.lineTo(X(t), Y(v)) : ctx.moveTo(X(t), Y(v))));
       ctx.stroke(); ctx.setLineDash([]);
     }
 
     // etiquetas de fase (sobre la envolvente de amplitud)
-    ctx.fillStyle = 'rgba(125,138,153,.8)'; ctx.font = '9px system-ui';
+    ctx.fillStyle = tint('--dim', .8); ctx.font = '9px system-ui';
     ctx.fillText('A', X(a / 2), h - 2);
     ctx.fillText('D', X(a + d / 2), h - 2);
     ctx.fillText('S', X(a + d + susT / 2), h - 2);

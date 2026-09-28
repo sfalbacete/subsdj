@@ -9,6 +9,7 @@ import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { WS_MAX_STEPS, WS_TOP, parseWsPattern } from '../engine/WaveSeq.js';
+import { token, tint } from './theme.js';
 
 const tokensOf = () => part().S.wsPat.trim().split(/\s+/).filter(Boolean).slice(0, WS_MAX_STEPS);
 
@@ -45,11 +46,11 @@ function initWsEditor(canvas) {
     const play = part().ready ? part().wseq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
-    g.strokeStyle = 'rgba(125,138,153,.18)';
+    g.strokeStyle = tint('--dim', .18);
     g.strokeRect(PAD, PAD, w - 2 * PAD, h - 2 * PAD);
     for (let f = 1; f < WS_TOP; f++) {                 // rejilla: una línea por frame
       const y = yOf(f);
-      g.strokeStyle = 'rgba(125,138,153,.10)';
+      g.strokeStyle = tint('--dim', .10);
       g.beginPath(); g.moveTo(PAD, y); g.lineTo(w - PAD, y); g.stroke();
     }
     if (!steps.length) return;
@@ -58,24 +59,24 @@ function initWsEditor(canvas) {
     let held = Math.round(part().S.wtPos * WS_TOP);    // '.' inicial hereda del knob Morph
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
-      if (i) { g.strokeStyle = 'rgba(125,138,153,.10)'; g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
+      if (i) { g.strokeStyle = tint('--dim', .10); g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
       if (i === play) {                                // marcador: columna que suena ahora
-        g.fillStyle = 'rgba(52,192,255,.12)';
+        g.fillStyle = tint('--accent2', .12);
         g.fillRect(x0 + 1, PAD + 1, cw - 2, h - 2 * PAD - 2);
-        g.fillStyle = '#34c0ff';
+        g.fillStyle = token('--accent2');
         g.fillRect(x0 + 1, PAD + 1, cw - 2, 2);
       }
-      if (i % 4 === 0) { g.fillStyle = 'rgba(125,138,153,.6)'; g.fillText(String(i + 1), x0 + 2, PAD + 8); }
+      if (i % 4 === 0) { g.fillStyle = tint('--dim', .6); g.fillText(String(i + 1), x0 + 2, PAD + 8); }
       const xa = x0 + cw * 0.18, xb = x0 + cw * 0.82;
       if (st !== null) {
         held = st;
         const y = yOf(st), y0 = yOf(0);
-        g.fillStyle = 'rgba(52,192,255,.22)';
+        g.fillStyle = tint('--accent2', .22);
         g.fillRect(xa, Math.min(y, y0), xb - xa, Math.max(2, Math.abs(y - y0)));  // tallo hasta el frame 0
-        g.fillStyle = '#34c0ff';
+        g.fillStyle = token('--accent2');
         g.fillRect(xa, y - 1.5, xb - xa, 3);                                      // remate: frame del paso
       } else {
-        g.fillStyle = 'rgba(125,138,153,.4)';
+        g.fillStyle = tint('--dim', .4);
         g.fillRect(xa, yOf(held) - 1, xb - xa, 2);                                // mantener: guion a la altura heredada
       }
     });

@@ -406,6 +406,41 @@ export async function runSelfTest() {
   }
 
   {
+    // piel (10): la ÚNICA fuente de color es el bloque de tokens de style.css
+    // (:root y [data-theme]). Fuera de él, en los canvas de js/ui (que leen
+    // los tokens por theme.js) y en index.html no puede haber hex/rgb/hsl
+    // literales, salvo negro/blanco con alfa (sombra y brillo: relieve, no
+    // color). Así un tema nuevo se hace redefiniendo tokens y nada queda a
+    // fuego. Los ficheros se leen por HTTP tal como los sirve el runner; los
+    // js son los que importa main.js de ui/ (menos theme.js, que los sirve).
+    body.appendChild(el('st-cat', 'Piel'));
+    const probs = [];
+    const LIT = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(\s*\d[^)]*\)/gi;   // literal: hex, o rgb()/hsl() que empieza por dígito
+    const shade = s => /^rgba?\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*[,/]/.test(s);   // negro/blanco con alfa
+    const lineOf = (txt, i) => txt.slice(0, i).split('\n').length;
+    const blank = m => m.replace(/[^\n]/g, ' ');                       // borra texto sin mover las líneas
+    const tokenBlock = sel => sel.split(',').every(s => /^\s*(:root|html)?(\[data-theme[^\]]*\])?\s*$/.test(s) && s.trim());
+    const found = (label, txt, from, off) => { let h; LIT.lastIndex = 0;
+      while ((h = LIT.exec(from))) if (!shade(h[0])) probs.push(label + ':' + lineOf(txt, off + h.index) + ' ' + h[0]); };
+    try {
+      const get = async f => (await fetch(f + '?t=' + Date.now())).text();
+      const css = (await get('css/style.css')).replace(/\/\*[\s\S]*?\*\//g, blank);
+      const re = /([^{}]+)\{([^{}]*)\}/g; let m;                        // bloque = selector { declaraciones }
+      while ((m = re.exec(css))) if (!tokenBlock(m[1].trim())) found('style.css', css, m[2], m.index + m[1].length + 1);
+      const main = await get('js/main.js');
+      const files = [...main.matchAll(/from '\.\/ui\/(\w+)\.js'/g)].map(x => x[1]).filter(n => n !== 'theme');
+      if (!files.length) probs.push('main.js sin imports de ui/');
+      for (const n of files) {
+        const js = (await get('js/ui/' + n + '.js')).replace(/\/\*[\s\S]*?\*\//g, blank).replace(/\/\/[^\n]*/g, blank);
+        found(n + '.js', js, js, 0);
+      }
+      const html = (await get('index.html')).replace(/<!--[\s\S]*?-->/g, blank);
+      found('index.html', html, html, 0);
+    } catch (e) { probs.push('lectura: ' + e.message); }
+    push({ name: 'piel: tokens (color solo en :root/[data-theme]; canvas por theme.js)', peak: 0, ok: !probs.length, problems: probs.slice(0, 12) });
+  }
+
+  {
     // biblioteca (13b), con un almacenamiento falso (la del usuario no se toca):
     // siembra de fábrica + usuario v1 migrado; resembrar no duplica; borrar de
     // fábrica y «traer» lo repone en SU sección; renombrado/retocado no vuelve

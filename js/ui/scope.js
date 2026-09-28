@@ -2,6 +2,7 @@
    máster, en la cabecera (globales, como el teclado). Canvas a resolución
    física (devicePixelRatio) porque son pequeños. */
 import { part } from '../engine/parts.js';
+import { token, tint, hue } from './theme.js';
 
 const dpr = () => window.devicePixelRatio || 1;
 function fit(c) { c.width = Math.round((c.clientWidth || 170) * dpr()); c.height = Math.round((c.clientHeight || 36) * dpr()); }
@@ -17,9 +18,9 @@ export function initScope(scopeCanvas, specCanvas) {
   function drawScope(data) {
     const w = scopeCanvas.width, h = scopeCanvas.height;
     sctx.clearRect(0, 0, w, h);
-    sctx.strokeStyle = 'rgba(125,138,153,.25)';
+    sctx.strokeStyle = tint('--dim', .25);
     sctx.beginPath(); sctx.moveTo(0, h / 2); sctx.lineTo(w, h / 2); sctx.stroke();
-    sctx.lineWidth = 1.4 * dpr(); sctx.strokeStyle = '#39d4a3'; sctx.beginPath();
+    sctx.lineWidth = 1.4 * dpr(); sctx.strokeStyle = token('--accent'); sctx.beginPath();
     const n = data.length;
     for (let i = 0; i < n; i++) {
       const x = i / (n - 1) * w, y = (1 - data[i] / 255) * h;
@@ -31,11 +32,11 @@ export function initScope(scopeCanvas, specCanvas) {
   function drawSpectrum(data) {
     const w = specCanvas.width, h = specCanvas.height, bins = data.length;
     fctx.clearRect(0, 0, w, h);
-    const bars = Math.min(64, bins), bw = w / bars;
+    const bars = Math.min(64, bins), bw = w / bars, h0 = hue('--accent');   // vira alrededor del tono del acento
     for (let i = 0; i < bars; i++) {
       const idx = Math.min(bins - 1, Math.floor(Math.pow(i / bars, 2) * bins)); // énfasis en graves
       const v = data[idx] / 255, bh = v * h;
-      fctx.fillStyle = `hsl(${165 - v * 45}, 80%, ${28 + v * 32}%)`;
+      fctx.fillStyle = `hsl(${h0 - v * 45}, 80%, ${28 + v * 32}%)`;
       fctx.fillRect(i * bw, h - bh, Math.max(1, bw - dpr()), bh);
     }
   }

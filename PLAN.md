@@ -29,15 +29,16 @@ y va aparte, porque conviene meter primero los baratos.
 | 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
 | 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
-| 10 | **Piel del rack** | identidad visual (fase 3 del Roadmap 3.0) | medio | — |
+| 10 | **Piel del rack** ⏳ | temas por tokens — paso 1 (tokens + check «piel») HECHO 2026-09-28; quedan knob con arco, selector y temas Clásico/Cinescapes | medio | — |
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 | 13 | **Pantallas + biblioteca de presets** ✔ | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer — HECHO (13a y 13b) | 13a bajo · 13b alto | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
 → ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
-2026-09-27; el bloque 13 completo). **Siguiente: A4 y 9 como tardes sueltas; 10 (piel) cuando el
-cuerpo lo pida.** Queda también la recámara (12).
+2026-09-27; el bloque 13 completo). **En curso: 10 (piel) por pasos — 1 tokens ✔ (2026-09-28) → 2 knob con
+arco de valor → 3 selector de tema → 4 temas «Clásico» y «Cinescapes».** Después A4 y 9 como
+tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
@@ -339,9 +340,21 @@ conmutable con las formas actuales sin tocar las rutas.
 **Propósito.** Identidad propia: que el SubSDJ se reconozca a primera vista, como el primigenio
 con sus tornillos.
 
-**Qué haremos.** Tema claro/oscuro (variables CSS + `data-theme` en localStorage), fondo de rack,
-tornillos en las esquinas de los paneles, knobs torneados con muesca, sliders con guía fresada,
-placa con logo, LFOs animados (el indicador gira a la velocidad real).
+**Decidido (2026-09-28).** Nada de motor de skins (CSS libre por selector: impuesto de mantenimiento
+× N skins); TEMAS POR TOKENS: el JS publica el estado del control y el CSS decide cómo dibujarlo.
+El tamaño no es cosa del tema (knob y `--rackU` van acoplados; la escala es el zoom del navegador).
+Referencia visual: Cinescapes Pro (superficies planas carbón, arco de valor en el knob, dos acentos
+con significado, botones píldora, tipografía en minúsculas). Pasos:
+
+1. ✔ **Tokens** *(2026-09-28)*: bloque `:root` en style.css (superficies, tinta, acentos, knob, teclado,
+   caras con `color-mix()`, sombras, radios, letra); canvas por `ui/theme.js`; check «piel» en el
+   selftest (ningún literal fuera de `:root`/`[data-theme]`, salvo negro/blanco con alfa). 121/121.
+2. **Knob con estado publicado** (`--pos` 0..1) y arco de valor por `conic-gradient`; rayita, arco o
+   punto a elección del tema, sin tocar JS.
+3. **Selector de tema** en la cabecera: `data-theme` en html + localStorage; `?theme=` para shot.mjs;
+   evento `theme-changed` (vacía la caché de theme.js).
+4. **Temas «Cinescapes»** (por defecto) **y «Clásico»** (el look actual: la prueba de que los tokens
+   cubren todo). Después, si apetece: tornillos, placa con logo, LFOs animados.
 
 **Evidencia.** Capturas CDP en ambos temas y a varios anchos; ninguna regresión de ids ni de
 `PARAMS↔CONTROLS`.

@@ -197,7 +197,7 @@ formas de LFO, octavas): el recorrido del mando se parte en N zonas.
 
 ```
 index.html                     maqueta y paneles (knobs/sliders declarados en HTML)
-css/style.css
+css/style.css                  hoja única; ARRANCA con el bloque de TOKENS de piel (color, caras, sombra, forma, letra)
 js/main.js                     entrada: enlaza la UI y arranca el motor
 js/selftest.js                 autotest offline (?selftest=1)
 js/engine/
@@ -218,6 +218,7 @@ js/engine/
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
+  theme.js                     tokens de piel para los canvas: token()/tint()/hue() leen las variables CSS (única fuente de color)
   partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
   playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
@@ -337,6 +338,27 @@ sin prisa, una fase cada vez, cada cosa llevada a donde queremos llevarla.
    normalización por sonoridad (RMS), morph sin cancelaciones (alineado de
    fase + compensación por correlación) y `wtUser` (la onda dibujada viaja
    dentro del preset).
+   **Segundo paso ✔ — tokens de piel** *(2026-09-28)*: decidido que NO habrá
+   motor de skins (CSS libre por selector: cada control nuevo tendría que
+   funcionar bajo N skins) sino TEMAS POR TOKENS, y que el tamaño no es cosa
+   del tema (knob y unidad de rack van acoplados; la escala es el zoom del
+   navegador). La hoja arranca con un bloque de tokens en `:root`
+   (superficies, tinta, acentos, knob, teclado, caras compuestas con
+   `color-mix()`, sombras, radios, letra) y el resto solo usa `var(--…)`;
+   los cinco canvas (ADSR, scope y espectro, Seq, WaveSeq, editor de ondas)
+   leen los mismos tokens por `ui/theme.js` (`token()`, `tint()`, `hue()`:
+   el truco es asignar el valor a un `fillStyle` y leerlo ya normalizado).
+   Fuera del bloque solo se admiten `rgba(0,0,0,·)` y `rgba(255,255,255,·)`
+   (sombra y brillo, no color); el check «piel» del selftest escanea
+   style.css, js/ui e index.html y falla con cualquier literal (probado
+   inyectando un hex en CSS y otro en JS). El look no cambia: capturas
+   antes/después a 1500 px, el 99 % de los píxeles a ≤ 8 niveles y el resto
+   son los tintes que ahora se DERIVAN del acento (pulgares, botones
+   activos, teclas pulsadas) en vez de estar escritos a mano. Selftest
+   121/121. Un tema = un bloque `:root[data-theme="…"]` (en html, no en
+   body: las caras compuestas resuelven sus `var()` donde se declaran).
+   Siguen: knob con estado publicado y arco de valor, selector de tema y
+   los temas «Clásico» y «Cinescapes».
 
 4. **Módulo VOCAL (formantes)** ✔ *(hecho 2026-08-17)* — la voz humana como
    lo que es físicamente: un FILTRO (modelo fuente-filtro del habla; los

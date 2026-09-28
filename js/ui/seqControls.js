@@ -6,6 +6,7 @@ import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq } from '../engine/Seq.js';
+import { token, tint } from './theme.js';
 
 const tokensOf = () => part().S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
@@ -107,33 +108,33 @@ function initSeqEditor(canvas) {
     const play = part().ready && part().seq.timer ? part().seq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
-    g.strokeStyle = 'rgba(125,138,153,.18)';
+    g.strokeStyle = tint('--dim', .18);
     g.strokeRect(PAD, PAD, w - 2 * PAD, h - 2 * PAD);
     const hline = y => { g.beginPath(); g.moveTo(PAD, y); g.lineTo(w - PAD, y); g.stroke(); };
-    g.strokeStyle = 'rgba(125,138,153,.35)'; hline(yOf(0));                       // raíz
-    g.setLineDash([3, 4]); g.strokeStyle = 'rgba(125,138,153,.22)'; hline(yOf(12)); g.setLineDash([]);
+    g.strokeStyle = tint('--dim', .35); hline(yOf(0));                       // raíz
+    g.setLineDash([3, 4]); g.strokeStyle = tint('--dim', .22); hline(yOf(12)); g.setLineDash([]);
     if (!steps.length) return;
     const cw = (w - 2 * PAD) / steps.length;
     g.font = '8px system-ui';
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
-      if (i) { g.strokeStyle = 'rgba(125,138,153,.10)'; g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
+      if (i) { g.strokeStyle = tint('--dim', .10); g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
       if (i === play) {                                // marcador: columna que suena ahora
-        g.fillStyle = 'rgba(57,212,163,.12)';
+        g.fillStyle = tint('--accent', .12);
         g.fillRect(x0 + 1, PAD + 1, cw - 2, h - 2 * PAD - 2);
-        g.fillStyle = '#39d4a3';
+        g.fillStyle = token('--accent');
         g.fillRect(x0 + 1, PAD + 1, cw - 2, 2);
       }
-      if (i % 4 === 0) { g.fillStyle = 'rgba(125,138,153,.6)'; g.fillText(String(i + 1), x0 + 2, PAD + 8); }
+      if (i % 4 === 0) { g.fillStyle = tint('--dim', .6); g.fillText(String(i + 1), x0 + 2, PAD + 8); }
       const xa = x0 + cw * 0.18, xb = x0 + cw * 0.82;
       if (st) {
         const y = yOf(st.off), y0 = yOf(0);
-        g.fillStyle = 'rgba(57,212,163,.22)';
+        g.fillStyle = tint('--accent', .22);
         g.fillRect(xa, Math.min(y, y0), xb - xa, Math.max(2, Math.abs(y - y0)));  // tallo hasta la raíz
-        g.fillStyle = '#39d4a3';
+        g.fillStyle = token('--accent');
         g.fillRect(xa, y - 1.5, xb - xa, 3);                                      // remate: altura del paso
       } else {
-        g.fillStyle = 'rgba(125,138,153,.35)';
+        g.fillStyle = tint('--dim', .35);
         g.fillRect(xa, h - PAD - 3, xb - xa, 2);                                  // silencio: marca en la base
       }
     });
