@@ -48,6 +48,11 @@ export const FACTORY = {
   },
 
   'Leads': {
+    /* LFO S&H: el filtro salta a un valor aleatorio en cada paso del LFO (6 Hz) —
+       el «random» rítmico del techno; el eco a corcheas engancha los escalones */
+    'Lead S&H (filtro random)': { waveA: 'sawtooth', waveB: 'square', mix: 0.3, cutoff: 900, reso: 8,
+      cutLfoShape: 'sh', cutLfoLvl: 700, cutLfoSpd: 6, filterEnvAmt: 800, a: 0.005, d: 0.2, s: 0.7, r: 0.15,
+      dlyAmt: 0.25, dlySync: '1/8', bpm: 120, master: 0.7 },
     'Lead brillante': { waveA: 'sawtooth', waveB: 'square', detuneB: 10, mix: 0.45, cutoff: 4080, reso: 3,
       freqLfoLvl: 12, freqLfoSpd: 5.5, dlyAmt: 0.25, dlyTime: 0.28, a: 0.01, d: 0.2, s: 0.8, r: 0.25, width: 0.25 },
     'Lead cuadrado': { waveA: 'square', waveB: 'square', pulseWidth: 0.35, detuneB: 6, mix: 0.5,
@@ -75,6 +80,11 @@ export const FACTORY = {
     /* A4 · notch: LP + HP en paralelo (cero exacto en el corte) barrido por el
        LFO — un phaser de una sola muesca; compáralo con Low↔Hi al 50 %, que es
        el mismo notch a −6 dB */
+    /* LFO deriva: el cutoff y la afinación vagan despacio sin repetirse (random
+       suavizado): el pad respira en vez de oscilar */
+    'Pad que respira (deriva)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octavesB: 2, mix: 0.5,
+      cutoff: 1400, reso: 1.5, cutLfoShape: 'drift', cutLfoLvl: 600, cutLfoSpd: 0.3, freqLfoShape: 'drift', freqLfoLvl: 6, freqLfoSpd: 0.4,
+      a: 0.7, d: 0.5, s: 0.85, r: 1.8, width: 0.5, chMode: 'ensemble', chAmt: 0.4, chSpd: 0.4, reverbMix: 0.35, master: 0.6 },
     'Pad phaser (notch)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, mix: 0.5, cutoff: 1100, reso: 4,
       filterType: 'notch', cutLfoLvl: 700, cutLfoSpd: 0.25, a: 0.5, d: 0.5, s: 0.8, r: 1.2, width: 0.45, reverbMix: 0.25, master: 0.6 },
     /* placa algorítmica (Dattorro): densidad que crece y tanque modulado —
@@ -340,6 +350,12 @@ export const FACTORY = {
   },
 
   'FX & Atmósferas': {
+    /* S&H por la MATRIZ al pitch (±720 ct, 5 saltos/s): una nota mantenida se
+       vuelve una melodía aleatoria — el ordenador de la nave; el Level del LFO
+       queda a 0: solo la matriz lo lee */
+    'Bleeps S&H (pitch random)': { waveA: 'square', waveB: 'sine', mix: 0.4, cutoff: 3000, reso: 2,
+      freqLfoShape: 'sh', freqLfoSpd: 5, mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.6,
+      a: 0.003, d: 0.1, s: 0.8, r: 0.2, dlyAmt: 0.35, dlySync: '1/8.', bpm: 120, reverbMix: 0.2, master: 0.6 },
     'Drone sci-fi': { noise: 0.4, waveA: 'sine', waveB: 'sawtooth', ring: 0.4, detuneB: 25, mix: 0.5,
       cutoff: 800, reso: 8, cutLfoLvl: 650, cutLfoSpd: 0.15, resLfoLvl: 6, resLfoSpd: 0.1,
       a: 1.2, d: 0.5, s: 0.9, r: 2.5, dlyAmt: 0.4, dlyTime: 0.7, width: 0.5, reverbMix: 0.4, master: 0.6 },

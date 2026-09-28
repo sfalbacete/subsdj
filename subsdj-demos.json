@@ -1,8 +1,32 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v17 (+ filtro BP y notch, 2026-09)",
+  "banco": "SubSDJ · demos de mejoras — v18 (+ LFO S&H y deriva, 2026-09)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "LFO 1 · lead, filtro con LFO seno": { "waveA": "sawtooth", "waveB": "square", "mix": 0.3, "cutoff": 900, "reso": 8,
+      "cutLfoShape": "sine", "cutLfoLvl": 700, "cutLfoSpd": 6, "filterEnvAmt": 800, "a": 0.005, "d": 0.2, "s": 0.7, "r": 0.15,
+      "dlyAmt": 0.25, "dlySync": "1/8", "bpm": 120, "master": 0.7 },
+
+    "LFO 2 · mismo lead, S&H (escalones aleatorios)": { "waveA": "sawtooth", "waveB": "square", "mix": 0.3, "cutoff": 900, "reso": 8,
+      "cutLfoShape": "sh", "cutLfoLvl": 700, "cutLfoSpd": 6, "filterEnvAmt": 800, "a": 0.005, "d": 0.2, "s": 0.7, "r": 0.15,
+      "dlyAmt": 0.25, "dlySync": "1/8", "bpm": 120, "master": 0.7 },
+
+    "LFO 3 · pad, filtro y afinación con LFO seno": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octavesB": 2, "mix": 0.5,
+      "cutoff": 1400, "reso": 1.5, "cutLfoShape": "sine", "cutLfoLvl": 600, "cutLfoSpd": 0.3, "freqLfoShape": "sine", "freqLfoLvl": 6, "freqLfoSpd": 0.4,
+      "a": 0.7, "d": 0.5, "s": 0.85, "r": 1.8, "width": 0.5, "reverbMix": 0.35, "master": 0.6 },
+
+    "LFO 4 · mismo pad, deriva (respira)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octavesB": 2, "mix": 0.5,
+      "cutoff": 1400, "reso": 1.5, "cutLfoShape": "drift", "cutLfoLvl": 600, "cutLfoSpd": 0.3, "freqLfoShape": "drift", "freqLfoLvl": 6, "freqLfoSpd": 0.4,
+      "a": 0.7, "d": 0.5, "s": 0.85, "r": 1.8, "width": 0.5, "reverbMix": 0.35, "master": 0.6 },
+
+    "LFO 5 · bleeps, pitch por la matriz con LFO cuadrado": { "waveA": "square", "waveB": "sine", "mix": 0.4, "cutoff": 3000, "reso": 2,
+      "freqLfoShape": "square", "freqLfoSpd": 5, "mx1src": "lfoFreq", "mx1dst": "pitch", "mx1amt": 0.6,
+      "a": 0.003, "d": 0.1, "s": 0.8, "r": 0.2, "dlyAmt": 0.35, "dlySync": "1/8.", "bpm": 120, "reverbMix": 0.2, "master": 0.6 },
+
+    "LFO 6 · mismos bleeps, S&H (melodía aleatoria)": { "waveA": "square", "waveB": "sine", "mix": 0.4, "cutoff": 3000, "reso": 2,
+      "freqLfoShape": "sh", "freqLfoSpd": 5, "mx1src": "lfoFreq", "mx1dst": "pitch", "mx1amt": 0.6,
+      "a": 0.003, "d": 0.1, "s": 0.8, "r": 0.2, "dlyAmt": 0.35, "dlySync": "1/8.", "bpm": 120, "reverbMix": 0.2, "master": 0.6 },
 
     "FLT 1 · pad, Low↔Hi al 50 % (ya es un notch, a −6 dB)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 9, "mix": 0.5, "cutoff": 1100, "reso": 4,
       "morph": 0.5, "cutLfoLvl": 700, "cutLfoSpd": 0.25, "a": 0.4, "d": 0.5, "s": 0.8, "r": 1.0, "width": 0.4, "reverbMix": 0.2, "master": 0.6 },

@@ -2,6 +2,7 @@
    SubSDJ · nodos auxiliares del grafo: buffers de ruido y deriva, IR de la
    reverb, curva de distorsión y LFOs (los usan AudioEngine.js y Sala.js).
    ===================================================================== */
+import { mulberry32 } from './Harmony.js';
 export function makeNoise(ctx) {
   const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = b.getChannelData(0);
@@ -63,11 +64,64 @@ export function makeDistCurve() {
   for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
   return c;
 }
+// --- Formas de LFO que un OscillatorNode no tiene: S&H y deriva ('sh', 'drift') ---
+// Son BUFFERS en loop leídos por un AudioBufferSourceNode; la velocidad del knob
+// es su playbackRate. Unidad de tiempo del buffer: 0,1 s a 8 kHz (señal de
+// control: sobra), así que rate = hz / 10 → un escalón (S&H) o ~un vaivén
+// (deriva) por periodo del LFO. S&H: 128 escalones aleatorios (a 2 Hz el patrón
+// tarda 64 s en repetirse). Deriva: suma de 5 senos con CICLOS ENTEROS en el
+// loop (24, 40, 56, 88, 104 ciclos sobre 64 unidades = 0,375…1,625 × f), fases
+// al azar, amplitud 1/f, normalizada a ±1: continua y sin costura al dar la
+// vuelta (un paseo aleatorio a secas saltaría). Semilla fija (mulberry32):
+// renders reproducibles. Un juego de buffers por contexto, compartido por todos
+// los LFO; cada uno arranca en un offset distinto (descorrelados).
+export const LFO_ALT = ['sh', 'drift'];
+const LFO_SR = 8000, LFO_UNIT = 0.1, SH_STEPS = 128, DRIFT_UNITS = 64;
+const lfoBufCache = new WeakMap();
+export function lfoBuffers(ctx) {
+  let b = lfoBufCache.get(ctx);
+  if (b) return b;
+  const rnd = mulberry32(0x5eed1f0), uLen = Math.round(LFO_SR * LFO_UNIT);
+  const sh = ctx.createBuffer(1, uLen * SH_STEPS, LFO_SR), ds = sh.getChannelData(0);
+  for (let k = 0; k < SH_STEPS; k++) ds.fill(rnd() * 2 - 1, k * uLen, (k + 1) * uLen);
+  const dLen = uLen * DRIFT_UNITS, drift = ctx.createBuffer(1, dLen, LFO_SR), dd = drift.getChannelData(0);
+  const comps = [24, 40, 56, 88, 104].map(c => ({ w: 2 * Math.PI * c / dLen, ph: rnd() * 2 * Math.PI, a: 24 / c }));
+  let pk = 0;
+  for (let i = 0; i < dLen; i++) { let v = 0; for (const c of comps) v += c.a * Math.sin(c.w * i + c.ph); dd[i] = v; if (Math.abs(v) > pk) pk = Math.abs(v); }
+  for (let i = 0; i < dLen; i++) dd[i] /= pk;
+  b = { sh, drift, rnd, unit: LFO_UNIT }; lfoBufCache.set(ctx, b);
+  return b;
+}
+// LFO: oscilador nativo (sin/tri/saw/sqr) o fuente alternativa (S&H / deriva),
+// ambos vertidos en `out` (±1, crudo): quien consume el LFO (depth, la matriz)
+// cuelga de `out` y no se entera de qué fuente hay detrás.
 export function mkLFO(ctx, freq, depth) {
   const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
+  const out = ctx.createGain();
   const gain = ctx.createGain(); gain.gain.value = depth;
-  osc.connect(gain); osc.start();
-  return { osc, depth: gain };
+  osc.connect(out); out.connect(gain); osc.start();
+  return { osc, out, depth: gain, alt: null, shape: 'sine', hz: freq };
+}
+export function setLfoRate(lfo, hz, t) {          // knob Speed: al oscilador y, si la hay, a la fuente alternativa
+  lfo.hz = hz;
+  lfo.osc.frequency.setTargetAtTime(hz, t, 0.02);
+  if (lfo.alt) lfo.alt.playbackRate.setTargetAtTime(hz / (1 / lfoBuffers(lfo.alt.context).unit), t, 0.02);
+}
+export function setLfoShape(ctx, lfo, shape) {
+  if (lfo.shape === shape) return;
+  if (lfo.alt) { try { lfo.alt.stop(); lfo.alt.disconnect(); } catch (e) {} lfo.alt = null; }
+  if (LFO_ALT.includes(shape)) {
+    const b = lfoBuffers(ctx), src = ctx.createBufferSource();
+    src.buffer = shape === 'sh' ? b.sh : b.drift; src.loop = true;
+    src.playbackRate.value = lfo.hz * b.unit;
+    src.connect(lfo.out); src.start(ctx.currentTime, b.rnd() * src.buffer.duration);
+    lfo.alt = src;
+    if (!LFO_ALT.includes(lfo.shape)) { try { lfo.osc.disconnect(lfo.out); } catch (e) {} }   // el oscilador calla (sigue vivo: volver es reconectar)
+  } else {
+    lfo.osc.type = shape;
+    if (LFO_ALT.includes(lfo.shape)) lfo.osc.connect(lfo.out);
+  }
+  lfo.shape = shape;
 }
 // LFO seno con fase inicial (los OscillatorNode no la tienen): un PeriodicWave
 // con sin(wt+phi) = sin(phi)·cos(wt) + cos(phi)·sin(wt). Para el ensemble a 3 fases.

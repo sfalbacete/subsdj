@@ -27,9 +27,10 @@ export function bindSeg(segId, key, name, target) {
   CONTROLS[name].set(PARAMS[name].def);
 }
 
-// Botón de forma de onda de LFO: cicla sin→tri→saw→sqr con cada clic.
-const SHAPES = ['sine', 'triangle', 'sawtooth', 'square'];
-const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr' };
+// Botón de forma de onda de LFO: cicla sin→tri→saw→sqr→S&H→deriva con cada clic
+// (S&H = escalones aleatorios a la velocidad del LFO; deriva = random suave y lento).
+const SHAPES = ['sine', 'triangle', 'sawtooth', 'square', 'sh', 'drift'];
+const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr', sh: 'S&H', drift: 'deriva' };
 function bindLfoShapes() {
   document.querySelectorAll('.lfoShape').forEach(btn => {
     const name = btn.dataset.shape;

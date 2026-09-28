@@ -28,6 +28,7 @@ import { PARAMS, valToPos } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON } from './engine/parts.js';
 import { mulberry32 } from './engine/Harmony.js';
+import { lfoBuffers } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
 import { euclid } from './engine/Player.js';
@@ -1391,6 +1392,55 @@ export async function runSelfTest() {
       r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: analyze(bN).peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // 9 · LFO S&H y deriva. (1) Los buffers: S&H = escalones (constante dentro
+    // de cada unidad, salta entre unidades), deriva = continua (salto por
+    // muestra ínfimo), pico 1 y loop sin costura. (2) En el motor: cutoff con
+    // 'sh' y 'drift' suena, difiere del seno y entre sí; el tilt espectral por
+    // ventanas de 4 periodos es una ESCALERA con S&H (la mayoría de ventanas no
+    // cambian) y no da saltos grandes con la deriva. (3) La matriz lee la
+    // fuente nueva (lfoCut→cutoff con Level del LFO a 0: S&H ≠ seno).
+    body.appendChild(el('st-cat', 'LFO S&H / deriva'));
+    let r;
+    try {
+      const probs = [];
+      const bufs = lfoBuffers(new OfflineAudioContext(1, 8, SR));
+      const sh = bufs.sh.getChannelData(0), dr = bufs.drift.getChannelData(0), uLen = Math.round(8000 * bufs.unit), steps = sh.length / uLen;
+      let flat = true, jumps = 0;
+      for (let k = 0; k < steps; k++) { const v = sh[k * uLen]; for (let i = 1; i < uLen; i += 97) if (sh[k * uLen + i] !== v) flat = false; if (k && Math.abs(v - sh[(k - 1) * uLen]) > 0.05) jumps++; }
+      if (!flat) probs.push('S&H: no es constante dentro del escalón');
+      if (jumps < steps * 0.8) probs.push('S&H: solo ' + jumps + ' saltos de ' + (steps - 1));
+      let maxD = 0, pk = 0; for (let i = 1; i < dr.length; i++) { maxD = Math.max(maxD, Math.abs(dr[i] - dr[i - 1])); pk = Math.max(pk, Math.abs(dr[i])); }
+      if (!(maxD < 0.01)) probs.push('deriva: salto por muestra ' + maxD.toFixed(4));
+      if (!(pk > 0.99 && pk <= 1.0001)) probs.push('deriva: pico ' + pk.toFixed(3) + ' ≠ 1');
+      if (!(Math.abs(dr[0] - dr[dr.length - 1]) < 0.01)) probs.push('deriva: costura en el loop ' + Math.abs(dr[0] - dr[dr.length - 1]).toFixed(3));
+      const base = { waveA: 'sawtooth', mix: 0, cutoff: 2500, reso: 3, cutLfoLvl: 1800, cutLfoSpd: 6, a: 0.005, d: 0.05, s: 1, r: 0.05, master: 0.7 };
+      const rend = async extra => { loadState({ ...base, ...extra }); return renderOne(structuredClone(engine.S), { secs: 1.3, offAt: 1.1 }); };
+      const diffB = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0), len = Math.min(cX.length, cY.length); let d = 0, en = 0;
+        for (let k = 0; k < len; k += 4) { const e = cX[k] - cY[k]; d += e * e; en += cX[k] * cX[k]; } return Math.sqrt(d / Math.max(1e-12, en)); };
+      const bSin = await rend({ cutLfoShape: 'sine' }), bSH = await rend({ cutLfoShape: 'sh' }), bDr = await rend({ cutLfoShape: 'drift', cutLfoSpd: 1.5 });
+      for (const [n, b] of [['seno', bSin], ['S&H', bSH], ['deriva', bDr]]) { const a = analyze(b); if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silencio'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak)); }
+      const dSH = diffB(bSin, bSH), dDr = diffB(bSin, bDr), dX = diffB(bSH, bDr);
+      if (!(dSH > 0.1 && dDr > 0.1 && dX > 0.1)) probs.push('las formas no se distinguen (diffs ' + dSH.toFixed(2) + ' / ' + dDr.toFixed(2) + ' / ' + dX.toFixed(2) + ')');
+      const W = 4 / NOTE1;   // ventanas de 4 periodos exactos de C3 (30,6 ms): dentro de un escalón la señal es periódica y el tilt no oscila
+      const tilts = b => { const out = []; for (let t = 0.2; t < 1.0; t += W) out.push(tiltW(b, t, t + W)); return out; };
+      const stair = ts => { const d = ts.slice(1).map((v, i) => Math.abs(v - ts[i])), range = Math.max(...ts) - Math.min(...ts);
+        return { still: d.filter(x => x < range * 0.03).length / d.length, maxJump: Math.max(...d) / range }; };
+      const sSH = stair(tilts(bSH)), sDr = stair(tilts(bDr));
+      if (!(sSH.still > 0.6)) probs.push('S&H no es escalera (solo ' + (sSH.still * 100).toFixed(0) + ' % de ventanas quietas)');
+      if (!(sDr.maxJump < 0.35)) probs.push('la deriva da saltos (máximo ' + (sDr.maxJump * 100).toFixed(0) + ' % del rango por ventana)');
+      const bMx1 = await rend({ cutLfoLvl: 0, cutLfoShape: 'sine', mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.8 });
+      const bMx2 = await rend({ cutLfoLvl: 0, cutLfoShape: 'sh', mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.8 });
+      const dMx = diffB(bMx1, bMx2);
+      if (!(dMx > 0.1)) probs.push('la matriz no ve la forma S&H (diff ' + dMx.toFixed(2) + ')');
+      console.log('lfo sh deriva: diffs vs seno', dSH.toFixed(2), dDr.toFixed(2), '· S&H ventanas quietas', (sSH.still * 100).toFixed(0) + '%', '· deriva salto máx', (sDr.maxJump * 100).toFixed(0) + '%', '· matriz', dMx.toFixed(2));
+      r = { name: 'LFO S&H / deriva (buffers · formas distintas · escalera vs continuo · matriz)', peak: analyze(bSH).peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'LFO S&H / deriva (buffers · formas distintas · escalera vs continuo · matriz)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }

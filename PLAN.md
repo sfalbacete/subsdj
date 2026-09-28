@@ -28,7 +28,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 6 | **B2 Oscilador FM4** ✔ | la FM completa: 4 operadores y algoritmos — HECHO | alto | — |
 | 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
 | 8 | **A4 Filtro BP + notch** ✔ | selector Tipo LP↔HP / BP / Notch; Goertzel: notch −39 dB, BP +23,7 dB; morph 50 % = notch a −6 dB (RMS ×0,500) — HECHO 2026-09-28 | bajo | — |
-| 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
+| 9 | **LFO con S&H y deriva** ✔ | formas S&H y deriva en el botón de cada LFO (buffers en loop, playbackRate = Speed; salida fija `out`); 3 presets + pares LFO 1-6 — HECHO 2026-09-28 | bajo-medio | — |
 | 10 | **Piel del rack** ✔ | temas por tokens: tokens + check «piel», knob y slider publican `--pos`, selector leído de las hojas, temas «Cinescapes» (base) y «Clásico» — HECHO 2026-09-28 (4 commits) | medio | — |
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
@@ -37,7 +37,7 @@ y va aparte, porque conviene meter primero los baratos.
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
 → ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
 2026-09-27; el bloque 13 completo). **10 (piel) COMPLETO el 2026-09-28** (1 tokens → 2 knob con arco → 3 selector → 4 temas) → **A4 ✔ (2026-09-28)**.
-**Siguiente: 9 (LFO S&H y deriva) como tarde suelta; luego la recámara (12).** Después A4 y 9 como
+**9 ✔ (2026-09-28). Siguiente: la recámara (12) — visualizadores en grande, swing del arp, loop points SFZ, W3.** Después A4 y 9 como
 tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -339,6 +339,13 @@ conmutable con las formas actuales sin tocar las rutas.
 
 **Evidencia.** Selftest: S&H→cutoff produce escalones (derivada del cutoff medido casi siempre
 0 con saltos); deriva no tiene saltos.
+
+**HECHO 2026-09-28.** Buffers compartidos por contexto (nodes.js `lfoBuffers`): S&H 128 escalones, deriva
+5 senos con ciclos enteros (0,375…1,625 × f) normalizada; `AudioBufferSourceNode` en loop con
+`playbackRate = Hz/10`; cada LFO vierte en `out` (±1) y de ahí cuelgan Level y matriz (cambiar de fuente
+no recablea). Medido: S&H 73 % de ventanas de 4 periodos quietas; deriva salto máximo 14 % del rango;
+matriz lee la forma (diff 0,51). Presets «Lead S&H (filtro random)», «Pad que respira (deriva)», «Bleeps
+S&H (pitch random)»; pares LFO 1-6 (diffs 0,40 / 1,23 / 1,38). Selftest 129/129.
 
 **Coste.** Bajo-medio.
 

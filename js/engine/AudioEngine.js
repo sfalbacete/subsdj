@@ -16,7 +16,7 @@ import { Seq } from './Seq.js';
 import { WaveSeq } from './WaveSeq.js';
 import { getWtSet } from './wavetable.js';
 
-import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO } from './nodes.js';
+import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape } from './nodes.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
@@ -171,10 +171,11 @@ export class AudioEngine {
     this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
     this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
     this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
-    // formas de onda de los LFOs (el estado puede traerlas de un preset)
-    this.ampLFO.osc.type = S.ampLfoShape;   this.freqLFO.osc.type = S.freqLfoShape;
-    this.pwmLFO.osc.type = S.pwmLfoShape;   this.cutLFO.osc.type = S.cutLfoShape;
-    this.resLFO.osc.type = S.resLfoShape;
+    // formas de onda de los LFOs (el estado puede traerlas de un preset); sin/tri/saw/sqr
+    // son el oscilador nativo, S&H y deriva una fuente alternativa (nodes.js)
+    setLfoShape(ctx, this.ampLFO, S.ampLfoShape);   setLfoShape(ctx, this.freqLFO, S.freqLfoShape);
+    setLfoShape(ctx, this.pwmLFO, S.pwmLfoShape);   setLfoShape(ctx, this.cutLFO, S.cutLfoShape);
+    setLfoShape(ctx, this.resLFO, S.resLfoShape);
 
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
     // Macro de apertura (arreglo de la escena): cents que se SUMAN al detune
@@ -190,10 +191,11 @@ export class AudioEngine {
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
-      // matriz de modulación: los LFO entran CRUDOS (el oscilador, ±1) — el
-      // knob Level de cada LFO gobierna su ruta dedicada, no la matriz
-      mxLfo: { lfoAmp: this.ampLFO.osc, lfoFreq: this.freqLFO.osc, lfoPwm: this.pwmLFO.osc,
-               lfoCut: this.cutLFO.osc, lfoRes: this.resLFO.osc },
+      // matriz de modulación: los LFO entran CRUDOS (su salida `out`, ±1, sea
+      // oscilador o S&H/deriva) — el knob Level de cada LFO gobierna su ruta
+      // dedicada, no la matriz
+      mxLfo: { lfoAmp: this.ampLFO.out, lfoFreq: this.freqLFO.out, lfoPwm: this.pwmLFO.out,
+               lfoCut: this.cutLFO.out, lfoRes: this.resLFO.out },
       stats: this.modStats,
     };
 
@@ -369,26 +371,26 @@ export class AudioEngine {
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
-      case 'ampLfoSpd': smooth(this.ampLFO.osc.frequency, value); break;
+      case 'ampLfoSpd': setLfoRate(this.ampLFO, value, now); break;
       // pitch/vibrato/PWM se conectan a los worklets bajo demanda (ver Voice.ensure*)
       case 'freqCents': smooth(this.pitchOffset.offset, value + (this._bend || 0)); if (value) this._forVoices(v => v.ensurePitch()); break;
       case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureVib()); break;
-      case 'freqLfoSpd': smooth(this.freqLFO.osc.frequency, value); break;
+      case 'freqLfoSpd': setLfoRate(this.freqLFO, value, now); break;
       case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
-      case 'pwmLfoSpd': smooth(this.pwmLFO.osc.frequency, value); break;
+      case 'pwmLfoSpd': setLfoRate(this.pwmLFO, value, now); break;
       case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); break;
-      case 'cutLfoSpd': smooth(this.cutLFO.osc.frequency, value); break;
+      case 'cutLfoSpd': setLfoRate(this.cutLFO, value, now); break;
       case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); break;
-      case 'resLfoSpd': smooth(this.resLFO.osc.frequency, value); break;
+      case 'resLfoSpd': setLfoRate(this.resLFO, value, now); break;
       case 'panLfoLvl': smooth(this.panLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePan()); break;
       case 'panLfoSpd': smooth(this.panLFO.osc.frequency, value); break;
 
-      // formas de onda de los LFOs (osciladores nativos: cambio instantáneo)
-      case 'ampLfoShape':  this.ampLFO.osc.type = value; break;
-      case 'freqLfoShape': this.freqLFO.osc.type = value; break;
-      case 'pwmLfoShape':  this.pwmLFO.osc.type = value; break;
-      case 'cutLfoShape':  this.cutLFO.osc.type = value; break;
-      case 'resLfoShape':  this.resLFO.osc.type = value; break;
+      // formas de onda de los LFOs (nativas: cambio instantáneo; S&H/deriva: fuente alternativa)
+      case 'ampLfoShape':  setLfoShape(this.ctx, this.ampLFO, value); break;
+      case 'freqLfoShape': setLfoShape(this.ctx, this.freqLFO, value); break;
+      case 'pwmLfoShape':  setLfoShape(this.ctx, this.pwmLFO, value); break;
+      case 'cutLfoShape':  setLfoShape(this.ctx, this.cutLFO, value); break;
+      case 'resLfoShape':  setLfoShape(this.ctx, this.resLFO, value); break;
 
       case 'dist':
         smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
@@ -451,7 +453,7 @@ export class AudioEngine {
     clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
     const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
                   this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast];
-    for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
+    for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } }
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }

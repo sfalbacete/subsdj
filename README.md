@@ -284,7 +284,7 @@ se conservan como respaldo.
    propios (toggle «= Amp / Propia», compatible con los presets antiguos);
    pitch envelope por nota (Amount/Decay) + categoría de presets «Percusión».
 4. **Sonido** ✔ *(hecha 2026-07-03)* — chorus/ensemble estéreo; forma de onda por LFO
-   (botón sin/tri/saw/sqr en cada grupo); delay sincable a BPM (Libre/⅛/⅛·/¼/¼·/½);
+   (botón sin/tri/saw/sqr en cada grupo; desde 2026-09-28 también S&H y deriva); delay sincable a BPM (Libre/⅛/⅛·/¼/¼·/½);
    keytrack→cutoff; autopan (LFO→pan). En lugar de una matriz genérica se añadieron
    las rutas que faltaban — una matriz fuente→destino queda como opción futura.
 5. **Utilidad** ✔ *(hecha 2026-07-04)* — grabador WAV (worklet + encoder propio);
@@ -587,6 +587,25 @@ son JUGADORES) y duplicar el rack por parte.
   −6 dB). Preset «Pad phaser (notch)» y pares FLT 1-6 en el banco de demos
   (diffs 0,92 / 1,12 / 0,61; el par 1-2 dobla el pico: 0,26 → 0,50).
   Selftest 125/125.
+- **LFO con S&H y deriva** ✔ *(2026-09-28, punto 9 del PLAN)* — dos formas
+  más en el botón de cada LFO (sin→tri→saw→sqr→**S&H**→**deriva**). Un
+  OscillatorNode no las tiene, así que son BUFFERS en loop leídos por un
+  AudioBufferSourceNode cuyo `playbackRate` es el knob Speed (unidad del
+  buffer 0,1 s a 8 kHz: rate = Hz/10 → un escalón o ~un vaivén por periodo).
+  S&H: 128 escalones aleatorios (a 2 Hz tarda 64 s en repetirse). Deriva:
+  suma de 5 senos con ciclos ENTEROS en el loop (0,375…1,625 × f), fases al
+  azar, normalizada a ±1: continua y sin costura. Semilla fija: renders
+  reproducibles. Cada LFO vierte ahora en una salida fija `out` (±1) de la
+  que cuelgan su Level y la matriz, así que cambiar de fuente no recablea
+  nada. Selftest: buffers (escalones constantes y 127 saltos; deriva con
+  salto por muestra < 0,01, pico 1, sin costura), renders distintos (diffs
+  0,30 / 0,33 frente al seno), escalera vs continuo por tilt espectral en
+  ventanas de 4 periodos (S&H: 73 % de ventanas quietas; deriva: salto
+  máximo 14 % del rango), y la matriz lee la forma nueva (diff 0,51).
+  Presets «Lead S&H (filtro random)», «Pad que respira (deriva)» y «Bleeps
+  S&H (pitch random)» (S&H por la matriz al pitch, ±720 ct: una nota
+  mantenida se vuelve melodía aleatoria) y pares LFO 1-6 en el banco de
+  demos (diffs 0,40 / 1,23 / 1,38). Selftest 129/129.
 
 **Eje B · FM de verdad** — la FM como FUENTE que luego pasa por nuestro
 filtro, vocal y matriz: lo que el DX7 nunca tuvo. Nota: una sierra invertida
