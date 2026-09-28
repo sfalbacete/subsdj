@@ -59,6 +59,7 @@ export function bindOscControls() {
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
   bindSeg('filterSlopeSel', 'slope', 'filterSlope', 'filterSlope');  // 12 / 24 dB por octava
+  bindSeg('filterTypeSel', 'ftype', 'filterType', 'filterType');     // LP↔HP / BP / Notch (estructura: por nota)
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
   bindSeg('chModeSel', 'chm', 'chMode', 'chMode');         // chorus 2 líneas / ensemble 3 fases
   bindSeg('reverbTypeSel', 'rt', 'reverbType', 'reverbType');   // reverb: sala (IR) / placa (Dattorro)

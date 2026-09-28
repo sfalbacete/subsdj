@@ -3,7 +3,7 @@
    Cadena por voz:
      osc A/B (worklet) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
         --> VOCAL (banco de formantes, dry/wet; el ruido ya sumado = aliento)
-        --> filtro LP/HP morph 12|24 dB (cutoff = base + envFiltro + LFO)
+        --> filtro LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + envFiltro + LFO)
         --> VCA(ADSR) --> ampMod(matriz, base 1) --> pan --> bus
    Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
    Matriz de modulación: slots fuente→GainNode(amt·span)→AudioParams del
@@ -125,12 +125,22 @@ export class Voice {
     this.noteFreq = freq;
     this.ktMul = S.keytrack ? Math.pow(freq / 261.63, S.keytrack) : 1;
     const cutHz = Math.min(20000, S.cutoff * this.ktMul);
+    // Tipo (filterType, por nota): 'morph' = LP + HP en PARALELO con crossfade
+    // (Low↔Hi); 'bp' = LP y HP en SERIE con el mismo corte (paso-banda: cada
+    // flanco 12 dB; con pendiente 24 cada uno lleva su 2ª etapa); 'notch' = LP
+    // + HP en paralelo a ganancia 1 cada uno. Los numeradores RBJ de LP y HP
+    // con el mismo corte suman 1 − 2cos·z⁻¹ + z⁻²: el notch del cookbook, cero
+    // exacto en el corte sea cual sea la Q (la Q solo lo estrecha). Es el
+    // morph al 50 % (0,5 + 0,5 = −6 dB) con +6 dB. Sin 2ª etapa en el notch:
+    // en cascada los dos flancos llegarían EN FASE al corte y el cero se
+    // llenaría (la pendiente no aplica).
+    const ft = S.filterType || 'morph';
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
     lp.frequency.value = hp.frequency.value = cutHz;
-    lp.Q.value = hp.Q.value = S.reso;
+    lp.Q.value = hp.Q.value = ft === 'bp' ? S.reso / 2 : S.reso;   // BP: la resonancia se reparte entre los dos flancos (el knob sigue siendo dB en el corte)
     let lp2 = null, hp2 = null, lpIn = lp, hpIn = hp;
-    if (S.filterSlope === '24') {
+    if (S.filterSlope === '24' && ft !== 'notch') {
       lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';
       hp2 = ctx.createBiquadFilter(); hp2.type = 'highpass';
       lp2.frequency.value = hp2.frequency.value = cutHz;
@@ -138,11 +148,14 @@ export class Voice {
       lp2.connect(lp); hp2.connect(hp);
       lpIn = lp2; hpIn = hp2;
     }
-    const lpMix = ctx.createGain(); lpMix.gain.value = 1 - S.morph;
-    const hpMix = ctx.createGain(); hpMix.gain.value = S.morph;
+    const lpMix = ctx.createGain(); lpMix.gain.value = ft === 'morph' ? 1 - S.morph : 1;
+    const hpMix = ctx.createGain(); hpMix.gain.value = ft === 'morph' ? S.morph : 1;
     const filterOut = ctx.createGain();
-    vocOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
-    vocOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
+    if (ft === 'bp') { vocOut.connect(lpIn); lp.connect(hpIn); hp.connect(filterOut); }   // serie
+    else {                                                                                  // paralelo (morph / notch)
+      vocOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
+      vocOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
+    }
 
     // LFOs globales -> cutoff (todas las etapas) / Q (solo la etapa con resonancia)
     mod.cutLFOGain.connect(lp.frequency); mod.cutLFOGain.connect(hp.frequency);
@@ -189,7 +202,7 @@ export class Voice {
 
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
-      lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
+      filterType: ft, lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
       dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut, vocDry, vocOut });
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
     if (S.vocAmt > 0) this.ensureVocal();       // banco de formantes (también lo crea la matriz vía 'vow')
@@ -489,8 +502,8 @@ export class Voice {
   setCutoff(hz){ const tc = this.ctx.currentTime, v = Math.min(20000, hz * this.ktMul);
     [this.lp, this.hp, this.lp2, this.hp2].forEach(f => f && f.frequency.setTargetAtTime(v, tc, 0.02)); }
   setKeytrack(kt, cutoffHz) { this.ktMul = kt ? Math.pow(this.noteFreq / 261.63, kt) : 1; this.setCutoff(cutoffHz); }
-  setReso(q)   { const tc = this.ctx.currentTime; this.lp.Q.setTargetAtTime(q, tc, 0.02); this.hp.Q.setTargetAtTime(q, tc, 0.02); }
-  setMorph(m)  { const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
+  setReso(q)   { const tc = this.ctx.currentTime, v = this.filterType === 'bp' ? q / 2 : q; this.lp.Q.setTargetAtTime(v, tc, 0.02); this.hp.Q.setTargetAtTime(v, tc, 0.02); }
+  setMorph(m)  { if (this.filterType !== 'morph') return; const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
   setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
   setFilterDrive(v) {
     const tc = this.ctx.currentTime;

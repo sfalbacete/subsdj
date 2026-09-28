@@ -87,6 +87,7 @@ export const PARAMS = {
   filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz', act: true },
   keytrack:     { def: 0, min: 0, max: 1, act: true },  // el cutoff sigue la altura de la nota (1 = 1:1)
   filterSlope:  { def: '12' },                    // '12' | '24' dB/oct (2ª etapa en cascada; por nota)
+  filterType:   { def: 'morph' },                 // 'morph' (LP↔HP paralelo) | 'bp' (LP y HP en serie) | 'notch' (LP + HP a 1); estructura: por nota
   filterDrive:  { def: 0, min: 0, max: 1, act: true },  // saturación tanh PRE-filtro por voz (0 = transparente)
   fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
   fa: { def: 0.01, min: 0.001, max: 2, unit: ' s' },

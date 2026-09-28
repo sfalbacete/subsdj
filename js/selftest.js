@@ -1353,6 +1353,48 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // A4 · tipo de filtro. Sierra en C3 con el corte en su 4º armónico (C5,
+    // 523,25 Hz): Goertzel mide la energía de ese armónico frente a la del
+    // fundamental (2 octavas por debajo). Notch: el armónico del corte
+    // desaparece (> 20 dB menos que en LP). BP: el fundamental cae y el del
+    // corte pasa (> 10 dB más que en LP); a 24 dB, más aún. Y la demostración
+    // del cookbook: el morph al 50 % ES el notch a −6 dB → RMS exactamente la mitad.
+    body.appendChild(el('st-cat', 'Filtro BP / notch'));
+    let r;
+    try {
+      const base = { waveA: 'sawtooth', mix: 0, cutoff: 523.25, reso: 2, a: 0.001, d: 0.01, s: 1, r: 0.05, master: 0.7 };
+      const rend = async extra => { loadState({ ...base, ...extra }); return renderOne(structuredClone(engine.S), { secs: 0.8, offAt: 0.6 }); };
+      const bLP = await rend({ morph: 0 }), bM50 = await rend({ morph: 0.5 }), bN = await rend({ filterType: 'notch' });
+      const bBP = await rend({ filterType: 'bp' }), bBP24 = await rend({ filterType: 'bp', filterSlope: '24' });
+      const goe = (buf, f, t0, t1) => {         // energía de Goertzel de un tono en una ventana
+        const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        const cw = 2 * Math.cos(2 * Math.PI * f / SR);
+        let s1 = 0, s2 = 0;
+        for (let i = i0; i < i1; i++) { const s0 = d[i] + cw * s1 - s2; s2 = s1; s1 = s0; }
+        return s1 * s1 + s2 * s2 - cw * s1 * s2;
+      };
+      const ratio = b => goe(b, 523.25, 0.15, 0.55) / Math.max(1e-12, goe(b, 130.81, 0.15, 0.55));   // armónico del corte / fundamental
+      const rms = b => { const d = b.getChannelData(0), i0 = Math.floor(0.15 * SR), i1 = Math.floor(0.55 * SR); let e = 0; for (let i = i0; i < i1; i++) e += d[i] * d[i]; return Math.sqrt(e / (i1 - i0)); };
+      const probs = [];
+      for (const [n, b] of [['LP', bLP], ['morph 50', bM50], ['notch', bN], ['BP', bBP], ['BP 24', bBP24]]) {
+        const a = analyze(b);
+        if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silencio'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak));
+      }
+      const rLP = ratio(bLP), rN = ratio(bN), rBP = ratio(bBP), rBP24 = ratio(bBP24), half = rms(bM50) / Math.max(1e-12, rms(bN));
+      const dBr = (x, y) => (10 * Math.log10(x / Math.max(1e-30, y))).toFixed(1);
+      if (!(rN < rLP * 0.01)) probs.push('notch: el armónico del corte no cae 20 dB (' + dBr(rN, rLP) + ' dB frente a LP)');
+      if (!(rBP > rLP * 10)) probs.push('BP: el corte no domina al fundamental (' + dBr(rBP, rLP) + ' dB frente a LP)');
+      if (!(rBP24 > rBP * 3)) probs.push('BP 24 dB no estrecha más que 12 (' + dBr(rBP24, rBP) + ' dB)');
+      if (!(Math.abs(half - 0.5) < 0.03)) probs.push('morph 50 % ≠ notch a −6 dB (RMS ×' + half.toFixed(3) + ')');
+      console.log('filtro BP notch: notch', dBr(rN, rLP), 'dB · BP', dBr(rBP, rLP), 'dB · BP24 vs BP', dBr(rBP24, rBP), 'dB · morph 50 / notch RMS ×', half.toFixed(3));
+      r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: analyze(bN).peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

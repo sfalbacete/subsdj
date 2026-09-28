@@ -233,12 +233,24 @@
       <div class="ctl"><div class="knob" data-knob="keytrack"><div class="ind"></div></div><div class="lab">Keytrack</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterDrive"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
     </div>
-    <div class="fieldlab" style="margin-top:10px">Pendiente</div>
-    <div class="seg" id="filterSlopeSel">
-      <button data-slope="12">12 dB</button>
-      <button data-slope="24">24 dB</button>
+    <div class="row" style="margin-top:10px;gap:10px">
+      <div style="flex:3 1 0;min-width:0">
+        <div class="fieldlab">Tipo</div>
+        <div class="seg" id="filterTypeSel">
+          <button data-ftype="morph" title="LP↔HP: paso-bajo y paso-alto en paralelo; el knob Low↔Hi los funde">LP↔HP</button>
+          <button data-ftype="bp" title="Paso-banda: LP y HP en serie con el mismo corte (la resonancia se reparte entre los dos flancos)">BP</button>
+          <button data-ftype="notch" title="Notch: LP + HP en paralelo a ganancia 1 — cero exacto en el corte; la pendiente no aplica">Notch</button>
+        </div>
+      </div>
+      <div style="flex:2 1 0;min-width:0">
+        <div class="fieldlab">Pendiente</div>
+        <div class="seg" id="filterSlopeSel">
+          <button data-slope="12">12 dB</button>
+          <button data-slope="24">24 dB</button>
+        </div>
+      </div>
     </div>
-    <div class="help"><b>Carácter del filtro.</b> Low↔Hi = morph LP↔HP · Keytrack: el cutoff sigue la altura de la nota (1 = 1:1) · Drive satura ANTES del filtro (tanh por voz) · 24 dB = doble etapa en cascada, más cremoso (aplica en la siguiente nota).</div>
+    <div class="help"><b>Carácter del filtro.</b> Tipo: LP↔HP (Low↔Hi funde paso-bajo y paso-alto en paralelo), BP (LP y HP en serie: paso-banda) o Notch (LP + HP en paralelo a ganancia 1: cero exacto en el corte; el morph al 50 % ya es ese notch, a −6 dB). Keytrack: el cutoff sigue la altura de la nota (1 = 1:1) · Drive satura ANTES del filtro (tanh por voz) · 24 dB = doble etapa en cascada, más cremoso (no aplica al Notch). Tipo y pendiente son estructura: aplican en la siguiente nota.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Env filtro</h2>

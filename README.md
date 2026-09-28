@@ -569,10 +569,22 @@ son JUGADORES) y duplicar el rack por parte.
   selftest (a mitad del ataque la curva va ×1,92 más alta que la rampa, a
   mitad del decay ×0,51, el sostenido ×1,000), 118/118; preset «Bajo RC
   (curva)» y pares ENV 1-4 en el banco de demos (diffs 0,51 y 0,59).
-- **A4 Filtro BP y notch explícitos** — BP = LP y HP en serie. Notch: la suma
-  de los numeradores RBJ de LP y HP con el mismo corte da 1 − 2cos·z⁻¹ + z⁻²,
-  el notch del cookbook: el morph al 50 % YA es un notch a −6 dB. Prioridad
-  baja; demostración bonita para el selftest (sonda Goertzel en el corte).
+- **A4 Filtro BP y notch explícitos** ✔ *(2026-09-28)* — selector «Tipo» en
+  Filtro · carácter (`filterType`, estructura por nota como la pendiente):
+  **LP↔HP** (el morph de siempre: LP y HP en paralelo con crossfade), **BP**
+  (LP y HP en SERIE con el mismo corte; la resonancia se reparte, la mitad
+  en cada flanco, para que el knob siga siendo dB en el corte; a 24 dB cada
+  flanco lleva su 2ª etapa) y **Notch** (LP + HP en PARALELO a ganancia 1:
+  los numeradores RBJ de LP y HP con el mismo corte suman 1 − 2cos·z⁻¹ + z⁻²,
+  el notch del cookbook, cero exacto en el corte sea cual sea la Q; la
+  pendiente no aplica porque en cascada los flancos llegarían en fase al
+  corte y el cero se llenaría). Selftest con Goertzel (sierra en C3, corte
+  en su 4º armónico): notch −39 dB en el corte frente a LP, BP +23,7 dB de
+  corte sobre fundamental, BP 24 dB +18,6 dB más, y la demostración: el
+  morph al 50 % da un RMS exactamente 0,500 × el del notch (ES el notch a
+  −6 dB). Preset «Pad phaser (notch)» y pares FLT 1-6 en el banco de demos
+  (diffs 0,92 / 1,12 / 0,61; el par 1-2 dobla el pico: 0,26 → 0,50).
+  Selftest 125/125.
 
 **Eje B · FM de verdad** — la FM como FUENTE que luego pasa por nuestro
 filtro, vocal y matriz: lo que el DX7 nunca tuvo. Nota: una sierra invertida

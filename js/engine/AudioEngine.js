@@ -419,7 +419,7 @@ export class AudioEngine {
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
-      // a, d, s, r, glide, lfoFade, filterSlope: se leen al crear cada voz (sin nodo en vivo)
+      // a, d, s, r, glide, lfoFade, filterSlope, filterType: se leen al crear cada voz (sin nodo en vivo)
     }
   }
 

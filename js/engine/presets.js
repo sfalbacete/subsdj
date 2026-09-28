@@ -72,6 +72,11 @@ export const FACTORY = {
   },
 
   'Pads': {
+    /* A4 · notch: LP + HP en paralelo (cero exacto en el corte) barrido por el
+       LFO — un phaser de una sola muesca; compáralo con Low↔Hi al 50 %, que es
+       el mismo notch a −6 dB */
+    'Pad phaser (notch)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, mix: 0.5, cutoff: 1100, reso: 4,
+      filterType: 'notch', cutLfoLvl: 700, cutLfoSpd: 0.25, a: 0.5, d: 0.5, s: 0.8, r: 1.2, width: 0.45, reverbMix: 0.25, master: 0.6 },
     /* placa algorítmica (Dattorro): densidad que crece y tanque modulado —
        pásalo a «Sala (IR)» para oír la diferencia: la cola de la placa respira */
     'Pad de placa': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -8, detuneB: 10, octavesB: 2, mix: 0.5,

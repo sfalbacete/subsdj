@@ -27,7 +27,7 @@ y va aparte, porque conviene meter primero los baratos.
 | 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
 | 6 | **B2 Oscilador FM4** ✔ | la FM completa: 4 operadores y algoritmos — HECHO | alto | — |
 | 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
-| 8 | **A4 Filtro BP + notch** | dos tipos de filtro más y una demostración bonita | bajo | — |
+| 8 | **A4 Filtro BP + notch** ✔ | selector Tipo LP↔HP / BP / Notch; Goertzel: notch −39 dB, BP +23,7 dB; morph 50 % = notch a −6 dB (RMS ×0,500) — HECHO 2026-09-28 | bajo | — |
 | 9 | **LFO con S&H y deriva** | el random rítmico y la deriva lenta como formas de LFO | bajo-medio | — |
 | 10 | **Piel del rack** ✔ | temas por tokens: tokens + check «piel», knob y slider publican `--pos`, selector leído de las hojas, temas «Cinescapes» (base) y «Clásico» — HECHO 2026-09-28 (4 commits) | medio | — |
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
@@ -36,8 +36,8 @@ y va aparte, porque conviene meter primero los baratos.
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
 → ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
-2026-09-27; el bloque 13 completo). **10 (piel) COMPLETO el 2026-09-28** (1 tokens → 2 knob con arco → 3 selector → 4 temas). **Siguiente: A4 y 9
-como tardes sueltas.** Después A4 y 9 como
+2026-09-27; el bloque 13 completo). **10 (piel) COMPLETO el 2026-09-28** (1 tokens → 2 knob con arco → 3 selector → 4 temas) → **A4 ✔ (2026-09-28)**.
+**Siguiente: 9 (LFO S&H y deriva) como tarde suelta; luego la recámara (12).** Después A4 y 9 como
 tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -316,6 +316,13 @@ partes iguales, con +6 dB de compensación). Cambio estructural por nota, como l
 
 **Evidencia.** Selftest con Goertzel: en Notch la energía en la frecuencia de corte cae más de
 20 dB frente a la de un tono lejano; en BP, lo contrario.
+
+**HECHO 2026-09-28.** `filterType` (morph | bp | notch, por nota). Medido (sierra en C3, corte en su 4º
+armónico, ventana 0,15-0,55 s): notch −39,0 dB en el corte frente a LP; BP +23,7 dB de corte sobre
+fundamental; BP 24 dB +18,6 dB más que 12; morph 50 % / notch = RMS ×0,500 (la demostración del
+cookbook, exacta). En BP la resonancia se reparte (mitad por flanco); el notch ignora la pendiente (en
+cascada los flancos llegan en fase al corte). Preset «Pad phaser (notch)»; pares FLT 1-6 (diffs
+0,92 / 1,12 / 0,61). Selftest 125/125.
 
 **Coste.** Bajo. Prioridad baja.
 
