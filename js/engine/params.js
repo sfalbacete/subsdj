@@ -129,11 +129,14 @@ export const PARAMS = {
   reverbType: { def: 'sala' },                      // 'sala' = convolución (IR de ruido) | 'placa' = algorítmica (Dattorro)
 
   // --- Envolvente / voz / master ---
-  a: { def: 0.01, min: 0.001, max: 2, step: 0.001, fmt: msFmt },
+  a: { def: 0.01, min: 0, max: 2, step: 0.001, fmt: msFmt },      // 0 = escalón (percusión: el golpe es el escalón)
   d: { def: 0.2,  min: 0.001, max: 2, step: 0.001, fmt: msFmt },
   s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
   r: { def: 0.3,  min: 0.001, max: 3, step: 0.001, fmt: msFmt },
   envCurve: { def: 0, min: 0, max: 1, act: true },   // 0 = rampas lineales (como siempre) · 1 = tramos RC (analógico): ataque y decay exponenciales
+  // Flam (clap 808): hits−1 ráfagas cortas separadas hitGap ANTES del ADSR (Voice._flam); 1 = sin flam (camino de siempre)
+  hits:   { def: 1, min: 1, max: 4, step: 1, fmt: v => Math.round(v) + (Math.round(v) > 1 ? ' golpes' : ' golpe') },
+  hitGap: { def: 0.012, min: 0.005, max: 0.04, unit: ' s', fmt: v => (v * 1000).toFixed(0) + ' ms' },
   glide:  { def: 0, min: 0, max: 1, unit: ' s', act: true },
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
   pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },

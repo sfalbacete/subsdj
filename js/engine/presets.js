@@ -303,11 +303,11 @@ export const FACTORY = {
     /* bombo FM: modulador 2 con decay de 30 ms = el «clic», pitch env = el cuerpo */
     'FM4 · Bombo': { waveA: 'fm4', mix: 0, fm4Alg: '0',
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
-      pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 800, a: 0.001, d: 0.35, s: 0, r: 0.2, dist: 0.2, master: 0.85 },
+      pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 800, envCurve: 1, a: 0, d: 0.5, s: 0, r: 0.3, dist: 0.2, master: 0.85 },
     /* aditivo con feedback a tope en el 4: ruido metálico; ratios altos no enteros + paso-alto = hat */
     'FM4 · Hat': { waveA: 'fm4', mix: 0, fm4Alg: '7', fmFb: 1,
       fm4R1: 5.7, fm4L1: 0.5, fm4D1: 0.06, fm4R2: 8.3, fm4L2: 0.5, fm4D2: 0.05, fm4R3: 11.1, fm4L3: 0.4, fm4D3: 0.08, fm4R4: 6.9, fm4L4: 0.6, fm4D4: 0.07,
-      cutoff: 7000, morph: 1, a: 0.001, d: 0.09, s: 0, r: 0.06, width: 0.25, master: 0.8 },
+      cutoff: 7000, morph: 1, a: 0, d: 0.09, s: 0, r: 0.06, width: 0.25, master: 0.8 },
   },
 
   'Órgano': {
@@ -323,20 +323,96 @@ export const FACTORY = {
       width: 0.3, reverbMix: 0.2, master: 0.65 },
   },
 
+  /* Percusión: un kit 808/909 sintético a propósito — así sonaban las cajas de
+     ritmos: bombo = seno con caída de pitch; caja = cuerpo tonal corto + ruido;
+     platos = FM caótica + ruido por paso-alto. Casi todos llevan Curva 1: un
+     parche real es un resonador amortiguado y decae exponencialmente desde el
+     primer instante; con rampas rectas el sonido se queda en meseta y se corta
+     (sonaba a nota con puerta, no a golpe). Pensados para tocarse en la octava
+     de C3 (la del selftest); el teclado transpone. */
   'Percusión': {
-    'Bombo 808': { waveA: 'sine', mix: 0, pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 700,
-      a: 0.001, d: 0.35, s: 0.0, r: 0.2, dist: 0.25, master: 0.85 },
+    /* lo que hace «golpe» es una ENVOLVENTE DE BRILLO: los primeros 30 ms ricos en
+       armónicos (el parche excitado) y enseguida solo el seno (el cuerpo). Aquí la
+       pone el operador 2 del FM4: ratio 1 con decay de 30 ms = armónicos de sierra
+       que se apagan; el 3 (ratio 0,5, 20 ms) es el sub-clic. Blip de pitch corto
+       (700 ct en 40 ms, el de la 808 es pequeño) y caída exponencial. Hasta
+       2026-10-01 era un seno con barrido de 1800 ct y caída lineal: a cualquier
+       octava sonaba a bajo con puerta, no a bombo (elegido a oído entre siete
+       candidatos renderizados) */
+    'Bombo 808': { waveA: 'fm4', mix: 0, fm4Alg: '0',
+      fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+      pitchEnvAmt: 700, pitchEnvDec: 0.04, cutoff: 2500, envCurve: 1,
+      a: 0, d: 0.55, s: 0.0, r: 0.3, dist: 0.3, master: 0.85 },
+    /* 909: el clic es el triángulo B + un soplo de ruido con aire; el drive por voz
+       (tanh antes del filtro) aprieta el cuerpo; barrido de pitch más largo que el 808 */
+    'Bombo 909': { waveA: 'sine', waveB: 'triangle', mix: 0.2, noise: 0.12, noiseColor: 0.5,
+      pitchEnvAmt: 1000, pitchEnvDec: 0.07, cutoff: 2200, filterDrive: 0.3, dist: 0.4,
+      envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.3, amplitude: 1, master: 1 },
     'Tom sintético': { waveA: 'sine', waveB: 'triangle', mix: 0.25, pitchEnvAmt: 900, pitchEnvDec: 0.12,
-      cutoff: 1260, a: 0.001, d: 0.3, s: 0.0, r: 0.25, reverbMix: 0.15, master: 0.8 },
+      cutoff: 1260, envCurve: 1, a: 0, d: 0.45, s: 0.0, r: 0.25, reverbMix: 0.15, amplitude: 1, master: 1 },
     'Caja zap': { waveA: 'triangle', mix: 0, noise: 0.7, pitchEnvAmt: 1200, pitchEnvDec: 0.04,
       cutoff: 2890, morph: 0.35, filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.1, fs: 0.0,
-      a: 0.001, d: 0.18, s: 0.0, r: 0.12, master: 0.8 },
-    'Láser zap': { waveA: 'sawtooth', mix: 0, pitchEnvAmt: -2400, pitchEnvDec: 0.25, cutoff: 5020,
-      reso: 8, a: 0.001, d: 0.4, s: 0.0, r: 0.2, dlyAmt: 0.25, dlyTime: 0.25, width: 0.3 },
+      envCurve: 1, a: 0, d: 0.25, s: 0.0, r: 0.12, amplitude: 1, master: 1 },
+    /* la 808: dos senos a 180 y 330 Hz (relación 1,83 — no es una octava, por eso
+       van como portadoras del FM4 aditivo: ratios 1,38 y 2,52 sobre C3) que mueren
+       en ~100 ms por su decay de operador, + ruido con mucho aire que dura más y cae
+       exponencialmente (el ADSR con Curva 1: con rampas rectas el ruido aguantaba
+       150 ms plano y sonaba a «shhh» con puerta; elegido a oído, 2026-10-01) */
+    'Caja 808': { waveA: 'fm4', mix: 0, fm4Alg: '7',
+      fm4R1: 1.38, fm4L1: 1, fm4D1: 0.11, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 2.52, fm4L3: 0.6, fm4D3: 0.07, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+      noise: 1, noiseColor: 0.7, pitchEnvAmt: 400, pitchEnvDec: 0.03, cutoff: 12000, reso: 1,
+      envCurve: 1, a: 0, d: 0.3, s: 0.0, r: 0.15, dist: 0.1, reverbMix: 0.1, reverbSize: 0.8, master: 0.85 },
+    /* clap 808: no es un golpe de ruido — son tres ráfagas a ~11 ms (Flam) y luego
+       la cola, todo por un paso-banda a ~1,3 kHz (que se come casi toda la energía
+       del ruido: de ahí amplitude y master a tope y algo de distorsión, que además
+       le da el grano de la 808); al seno de A lo quita el propio BP (130 Hz queda
+       tres octavas por debajo del corte) */
+    'Palmada 808': { waveA: 'sine', mix: 0, noise: 1, noiseColor: 0.1, filterType: 'bp', cutoff: 1300, reso: 2.5,
+      hits: 3, hitGap: 0.011, a: 0, d: 0.28, s: 0.0, r: 0.12, envCurve: 0.6, dist: 0.35,
+      reverbMix: 0.15, reverbSize: 0.9, width: 0.3, amplitude: 1, master: 1 },
+    /* rimshot 909: un «ping» — paso-banda resonante que la envolvente del filtro
+       barre en 30 ms, sobre un triángulo con caída de pitch brusca y ruido; la
+       distorsión pone el chasquido */
+    'Rimshot 909': { waveA: 'triangle', mix: 0, noise: 0.8, noiseColor: 0.5, pitchEnvAmt: 1200, pitchEnvDec: 0.012,
+      filterType: 'bp', cutoff: 1700, reso: 5, filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.03, fs: 0.0, fr: 0.05,
+      envCurve: 1, a: 0, d: 0.1, s: 0.0, r: 0.06, filterDrive: 0.2, dist: 0.6, amplitude: 1, master: 1 },
+    /* cencerro 808: dos osciladores a 587 y 845 Hz (relación 1,44: ratios 4,49 y 6,46
+       sobre C3, portadoras aditivas); la 808 usa cuadradas por un paso-banda: aquí los
+       senos pasan por el drive (tanh), que les crea armónicos e intermodulación, y un
+       BP ancho a 1,2 kHz deja el cuerpo y se queda con el «clank» */
+    'Cencerro 808': { waveA: 'fm4', mix: 0, fm4Alg: '7',
+      fm4R1: 4.49, fm4L1: 1, fm4D1: 0.45, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 6.46, fm4L3: 1, fm4D3: 0.3, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+      filterDrive: 0.5, dist: 0.45, filterType: 'bp', cutoff: 1200, reso: 1.2,
+      envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.2, width: 0.2, amplitude: 1, master: 1 },
+    /* hat abierto: el mismo hat FM (feedback a tope = ruido metálico) con el decay
+       largo y un poco de ruido con aire; el cerrado es «Hat FM (feedback)» */
+    'Hat abierto': { waveA: 'sine', mix: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1, noise: 0.3, noiseColor: 0.8,
+      cutoff: 7000, morph: 1, a: 0, d: 0.45, s: 0.0, r: 0.3, width: 0.25, master: 0.55 },
     /* FM con feedback a tope: el modulador entra en caos = ruido metálico; ratio
        no entero + paso-alto (morph 1) = hi-hat sin tocar el generador de ruido */
     'Hat FM (feedback)': { waveA: 'sine', mix: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1,
-      cutoff: 6500, morph: 1, a: 0.001, d: 0.09, s: 0.0, r: 0.06, width: 0.2, master: 0.8 },
+      cutoff: 6500, morph: 1, a: 0, d: 0.09, s: 0.0, r: 0.06, width: 0.2, master: 0.8 },
+    /* crash 909: cuatro portadoras aditivas con ratios no enteros y feedback a tope
+       en la 4 (caos = ruido metálico) que decaen en ~1 s, + ruido blanco con aire,
+       todo por paso-alto; un platillo real tiene miles de modos: esto suena a 909 */
+    'Crash 909': { waveA: 'fm4', mix: 0, fm4Alg: '7', fmFb: 1,
+      fm4R1: 3.7, fm4L1: 0.5, fm4D1: 1.3, fm4R2: 5.3, fm4L2: 0.5, fm4D2: 1.0, fm4R3: 7.9, fm4L3: 0.4, fm4D3: 0.8, fm4R4: 4.1, fm4L4: 0.7, fm4D4: 1.1,
+      noise: 0.55, noiseColor: 0.6, cutoff: 3500, morph: 1, envCurve: 1, a: 0, d: 2.0, s: 0.0, r: 1.2,
+      reverbMix: 0.2, reverbSize: 2.0, width: 0.4, master: 0.55 },
+    /* ride 909: como el crash pero con un «ping» (portadora 1 a ratio 9, decay largo)
+       que sobrevive al chapoteo corto de las otras tres */
+    'Ride 909': { waveA: 'fm4', mix: 0, fm4Alg: '7', fmFb: 0.7,
+      fm4R1: 9.0, fm4L1: 0.55, fm4D1: 1.4, fm4R2: 5.3, fm4L2: 0.3, fm4D2: 0.45, fm4R3: 7.9, fm4L3: 0.3, fm4D3: 0.35, fm4R4: 11.3, fm4L4: 0.5, fm4D4: 0.3,
+      noise: 0.25, noiseColor: 0.7, cutoff: 4000, morph: 1, envCurve: 1, a: 0, d: 1.4, s: 0.0, r: 0.8,
+      reverbMix: 0.12, reverbSize: 1.5, width: 0.3, amplitude: 1, master: 1 },
+    /* hit rave (el «orchestra hit» de los 90): sierra + cuadrada en unison ×3 con
+       pizca de ruido, envolvente de filtro propia que cierra en 250 ms, distorsión,
+       caída de pitch corta y sala pequeña */
+    'Hit rave': { waveA: 'sawtooth', waveB: 'square', octavesB: 2, uniVoices: '3', uniDetune: 18, mix: 0.5, noise: 0.12,
+      pitchEnvAmt: 200, pitchEnvDec: 0.08, cutoff: 1500, reso: 2, filterEnvAmt: 4500, fenvMode: 'own', fa: 0.001, fd: 0.25, fs: 0.0, fr: 0.2,
+      envCurve: 1, a: 0, d: 0.6, s: 0.0, r: 0.3, dist: 0.3, reverbMix: 0.25, reverbSize: 1.2, width: 0.6, amplitude: 1, master: 0.9 },
+    'Láser zap': { waveA: 'sawtooth', mix: 0, pitchEnvAmt: -2400, pitchEnvDec: 0.25, cutoff: 5020,
+      reso: 8, a: 0, d: 0.4, s: 0.0, r: 0.2, dlyAmt: 0.25, dlyTime: 0.25, width: 0.3 },
   },
 
   'Stabs': {

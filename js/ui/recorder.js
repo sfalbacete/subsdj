@@ -48,14 +48,14 @@ function startRec(btn) {
   chunksL = []; chunksR = [];
   recording = true; t0 = performance.now();
   node.port.postMessage('start');
-  btn.classList.add('rec'); btn.textContent = '⏹ 0 s';
-  timer = setInterval(() => { btn.textContent = '⏹ ' + Math.round((performance.now() - t0) / 1000) + ' s'; }, 500);
+  btn.classList.add('rec'); btn.textContent = 'Parar · 0 s';
+  timer = setInterval(() => { btn.textContent = 'Parar · ' + Math.round((performance.now() - t0) / 1000) + ' s'; }, 500);
 }
 
 function stopRec(btn) {
   node.port.postMessage('stop');
   recording = false; clearInterval(timer);
-  btn.classList.remove('rec'); btn.textContent = '⏺ Grabar';
+  btn.classList.remove('rec'); btn.textContent = 'Grabar';
   const blob = encodeWav(chunksL, chunksR, part().ctx.sampleRate);
   const d = new Date(), p = x => String(x).padStart(2, '0');
   download(blob, `subsdj-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`);

@@ -129,8 +129,19 @@ body{
   color:var(--ink); font:var(--font);
   -webkit-user-select:none; user-select:none; padding:0 14px 0;   /* la cabecera-módulo va pegada arriba */
 }
-h1{font-size:18px;margin:0;letter-spacing:2px;}
-h1 small{color:var(--dim);font-weight:400;letter-spacing:0;}
+/* Logo: degradado acento→acento2 recortado al texto (background-clip:text)
+   que fluye despacio (el fondo mide el doble y se desplaza una vuelta, ida y
+   vuelta) y un halo por drop-shadow: un text-shadow se pintaría POR ENCIMA
+   del degradado recortado, el filtro actúa sobre el resultado. Todo sale de
+   los tokens: el logo cambia con el tema. A propósito SIN
+   prefers-reduced-motion: Windows con «Efectos de animación» apagados lo
+   activa y el navegador dejaría el logo quieto; es un vaivén de 10 s. */
+h1{font-size:18px;margin:0;letter-spacing:2px;
+  background:linear-gradient(100deg,var(--accent),var(--accent2),var(--accent)) 0 0 / 200% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent) 40%,transparent));
+  animation:logoFlow 10s ease-in-out infinite;}
+@keyframes logoFlow{50%{background-position:100% 0;filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent2) 55%,transparent));}}
 /* Cabecera = módulo fijo (sticky arriba): título, pestañas, botones, visualizadores y estado */
 header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:14px;
   margin:0 -14px 12px;padding:9px 14px;background:var(--panel-face);
@@ -140,17 +151,36 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 .hviz{display:block;width:170px;height:36px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
 .badge{font-size:11px;color:var(--dim);}
 #hdrInfo{display:flex;align-items:center;gap:14px;}
-#powerInfo{font-size:11px;color:var(--hot);}
-#powerInfo.on{color:var(--accent);}
-#dbgInfo{font-size:10px;color:var(--dim);min-width:150px;text-align:right;}
+/* Estado (audio · MIDI): dos iconos SVG con currentColor; la clase pone el color (ui/status.js) */
+#status{display:inline-flex;align-items:center;gap:10px;}
+#status .st{display:inline-flex;color:var(--dim);cursor:help;transition:color .2s;}
+#status .st svg{display:block;width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+#status .st svg .pin{fill:currentColor;stroke:none;}
+#status .st.wait{color:var(--accent);animation:stWait 2.4s ease-in-out infinite;}   /* «te toca»: late despacio */
+#status .st.on{color:var(--accent);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--accent) 60%,transparent));}
+#status .st.err{color:var(--hot);}
+@keyframes stWait{50%{opacity:.3;}}
+/* Botones, selects e inputs de una línea: misma letra (la del tema; los
+   controles no la heredan solos) y line-height FIJO, así todos miden lo
+   mismo (16 + 2·5 + 2 = 28 px). Con line-height «normal» cada uno salía de
+   su fuente: el botón 26 px, el select 29 px. */
 .btn{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);
-  padding:5px 12px;font-size:12px;cursor:pointer;letter-spacing:.5px;}
+  padding:5px 12px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;letter-spacing:.5px;}
 .btn:hover{border-color:var(--accent);color:var(--accent);}
 .btn:active{transform:translateY(1px);}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
-.btn.nav{padding:5px 10px;font-size:15px;font-weight:700;line-height:1;}
-#themeSel{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);padding:4px 6px;font-size:11px;cursor:pointer;}
-#themeSel:hover{border-color:var(--accent);color:var(--accent);}
+.btn.nav{padding:5px 10px;font-size:15px;font-weight:700;}
+.btn.ico{padding:7px 11px;line-height:0;}   /* botón-icono (editor de ondas): el SVG mide lo que una línea de texto de 12 px */
+.btn.ico svg{display:block;width:17px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+/* Selects: un solo hueco para todos, a la altura de un .btn (mismo padding y
+   cuerpo de letra). Antes cada select llevaba el suyo (3-4 px, 11 px) y salía
+   más bajo que los botones de al lado; y con appearance:base-select el
+   navegador no añade marco propio: el hueco que se ve es EXACTAMENTE este.
+   Los de la matriz (tres por fila) se aprietan un poco, más abajo. */
+select{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
+  padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;cursor:pointer;}
+select:hover{border-color:var(--accent);color:var(--accent);}
+#themeSel{border-radius:var(--r-btn);padding:5px 12px;letter-spacing:.5px;}   /* en la cabecera va entre .btn: misma píldora */
 
 /* Partes: botón + selector 1-4 en la cabecera; mezclador; etiqueta «sala» */
 #partsBar{display:flex;align-items:center;gap:8px;}
@@ -177,14 +207,13 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
 .tag-sala{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-on-accent);background:var(--accent);
   border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;}
 /* Armonía / Jugador */
-#harmony select,#harmony input{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
-  padding:4px 6px;font-size:12px;min-width:0;}
+#harmony input{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
+  padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;}
 #harmony select{flex:1;}
 #harmProg{width:110px;}
 #harmSeed{width:76px;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
-#playerArr select{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);padding:4px 6px;font-size:11px;
-  height:44px;box-sizing:border-box;max-width:92px;}
+#playerArr select{font-size:11px;height:44px;max-width:92px;}   /* a la altura del knob de al lado */
 /* FM4: 8 algoritmos en dos filas; 4 operadores en filas con etiqueta */
 #fm4AlgSel{flex-wrap:wrap;}
 #wsModeSel button{padding-left:6px;padding-right:6px;}   /* «Loop» y «1shot» iban pegados (los botones de un seg no llevan aire lateral) */
@@ -196,8 +225,8 @@ header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:c
   background:var(--panel-face);border:1px solid var(--edge);
   border-radius:var(--r-panel);padding:9px 12px;box-shadow:var(--shadow-panel);}
 #presetBar label{font-size:11px;color:var(--accent);text-transform:var(--title-case);letter-spacing:var(--title-space);}
-#presetBar select,#presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);
-  border-radius:var(--r-ctl);padding:6px 8px;font-size:12px;}
+#presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);
+  border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 #presetBar select{min-width:220px;}
 #presetBar input{width:160px;}
 #presetMsg{font-size:11px;color:var(--dim);margin-left:auto;}
@@ -317,8 +346,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #seqCanvas,#wsCanvas{display:block;width:100%;height:110px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
   margin:10px 0;touch-action:none;cursor:crosshair;}
 #wsCanvas{height:96px;}   /* 8 frames necesitan menos alto que 37 semitonos */
-#seqPatSel{width:100%;margin-top:2px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
-  border-radius:var(--r-ctl);padding:5px 6px;font-size:12px;}
+#seqPatSel{width:100%;margin-top:2px;}
 
 /* Teclado, pegado abajo: siempre a mano aunque el rack haga scroll (sticky:
    cuando la pagina es corta se queda en su sitio natural, sin tapar nada) */
@@ -359,8 +387,10 @@ body.midi-learn #kbWrap{padding-bottom:70px;}   /* deja sitio a la barra de MIDI
 .bkey.on .klab{color:var(--ink-on-accent2);background:rgba(255,255,255,.3);border-color:color-mix(in srgb,var(--ink-on-accent2) 35%,transparent);}
 .kname{pointer-events:none;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--dim);}
 .wkey.on .kname{color:var(--ink-on-accent);}
-.hint{font-size:11px;color:var(--dim);margin-top:8px;}
-.hint kbd{background:var(--well);border:1px solid var(--edge);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--ink);}
+/* Bajo el teclado: la octava con ratón (− / + y el rango visible); lo demás vive en el tooltip */
+#kbBar{display:flex;align-items:center;gap:8px;margin-top:8px;}
+#kbBar .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+#kbBar .num{min-width:52px;}
 
 /* MIDI learn */
 #midiBar[hidden]{display:none;}  /* el display:flex de abajo ganaría al atributo hidden */
@@ -428,10 +458,6 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .panel.mod-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
 .panel.mod-off h2{opacity:.6;}
 
-/* Selector de tabla de ondas (mismo look que los selects de la matriz) */
-#wtSetSel{min-width:0;background:var(--well);border:1px solid var(--edge);color:var(--ink);
-  border-radius:var(--r-ctl);padding:3px 4px;font-size:11px;}
-
 /* LEDs de actividad (ui/activity.js): la sección está HACIENDO algo.
    En el h2 sobreviven al plegado del panel; versión mini en los tags de LFO. */
 .led{width:7px;height:7px;border-radius:50%;background:var(--knob);border:1px solid var(--line);
@@ -445,8 +471,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 
 /* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
 .mx-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
-.mx-row select{flex:1;min-width:0;background:var(--well);border:1px solid var(--edge);color:var(--ink);
-  border-radius:var(--r-ctl);padding:3px 4px;font-size:11px;}
+.mx-row select{flex:1;padding:4px 5px;font-size:11px;}   /* tres por fila en una columna de 250 px: más apretados que el resto */
 .mx-arrow{color:var(--dim);font-size:11px;flex:none;}
 .mx-row .ctl{width:auto;flex:none;gap:1px;}
 .mx-row .val{font-size:9px;min-height:10px;}

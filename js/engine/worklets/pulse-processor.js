@@ -115,7 +115,19 @@ class PulseProcessor extends AudioWorkletProcessor {
       }
     }
     this.stopped = false;
-    this.t = 0;         // segundos desde el arranque (envolventes por operador del FM4)
+    this.t = 0;         // segundos desde que nació el nodo (reserva: si la Voice no manda t0)
+    // t0: instante (reloj de audio) en que ARRANCA la nota — el VCA abre ahí. Las
+    // envolventes por operador del FM4 se miden desde t0, no desde que nace el
+    // nodo: entre crear el worklet y que suene pasan el look-ahead (5 ms), el
+    // nacimiento del processor y el jitter del hilo principal (en directo, de 5 a
+    // 30 ms y variable; con notas programadas por el arp o los jugadores, hasta
+    // 120 ms). Con el reloj propio, un modulador de 30 ms (el «clic» de un bombo)
+    // ya se había gastado cuando abría el VCA — unas veces sí y otras no.
+    // Y si el processor nace DESPUÉS de t0 (en directo el nodo tarda 6-12 ms en
+    // producir), el sonido empieza al nacer: la envolvente cuenta desde ese
+    // primer bloque (tBirth), no desde un t0 que ya pasó — el clic llega entero.
+    this.t0 = (typeof o.t0 === 'number') ? o.t0 : null;
+    this.tBirth = null;
     this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
     this.wt = (this.type === 'tabla' && o.wt && o.wt.frames) ? o.wt : null;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
@@ -126,6 +138,13 @@ class PulseProcessor extends AudioWorkletProcessor {
     if (!out || out.length === 0) return !this.stopped;
     const ch = out[0], N = ch.length;             // el buffer llega a cero: acumulamos con +=
     const sr = sampleRate, TWO_PI = Math.PI * 2;
+    // Puerta de arranque: hasta t0 (el arranque de la nota, que la Voice cuantiza a
+    // frontera de bloque) el oscilador CALLA y sus fases no avanzan, así la nota
+    // empieza exactamente en la fase configurada, igual en cada golpe. Antes corría
+    // libre desde que nacía el nodo y la fase en t0 era azar: con ataque 0
+    // (percusión) el escalón del VCA pillaba la onda en cualquier punto y el golpe
+    // cambiaba de una nota a otra. El bloque que EMPIEZA en t0 ya se procesa.
+    if (this.t0 !== null && currentTime + N / sr <= this.t0 + 1e-6) return !this.stopped;
     const type = this.type, oct = this.octaves, nyq = sr * 0.45;
     // Drift analógico: paseo aleatorio con retorno al centro (OU discreto, un paso
     // por bloque). Con a=0.998 la constante de tiempo es ~500 bloques (~1.3 s) y la
@@ -249,7 +268,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX / TWO_PI;   // realimentación del op 4, en ciclos
       // envolvente por operador, k-rate (un valor por bloque de 2,9 ms: el
       // escalón es inaudible; con decay ≥ FM4_DEC_FLAT el nivel es constante)
-      const env = this.fm4Out, t = this.t;
+      if (this.tBirth === null) this.tBirth = currentTime;   // primer bloque procesado (currentTime: reloj del AudioWorkletGlobalScope)
+      const env = this.fm4Out, t = this.t0 !== null ? Math.max(0, currentTime - Math.max(this.t0, this.tBirth)) : this.t;
       const Lv = [params.fm4L1[0], params.fm4L2[0], params.fm4L3[0], params.fm4L4[0]];
       const D = [params.fm4D1[0], params.fm4D2[0], params.fm4D3[0], params.fm4D4[0]];
       for (let op = 0; op < 4; op++) env[op] = Lv[op] * (D[op] >= FM4_DEC_FLAT ? 1 : Math.exp(-t / Math.max(0.005, D[op])));

@@ -15,8 +15,11 @@ export function initADSRGraph(canvas) {
     // env de filtro: tiempos propios (own) o los de amplitud (link)
     const own = S.fenvMode === 'own';
     const fa = own ? S.fa : a, fd = own ? S.fd : d, fs = own ? S.fs : s, fr = own ? S.fr : r;
-    const susT = Math.max(0.15, Math.max(a + d + r, fa + fd + fr) * 0.4);   // ancho visual del sustain
-    const total = Math.max(a + d + susT + r, fa + fd + susT + fr) || 1;
+    // flam (hits > 1): hits−1 ráfagas de hitGap antes del ADSR de amplitud (Voice._flam);
+    // la envolvente del filtro no se desplaza (arranca con la nota, como en el motor)
+    const nH = Math.round(S.hits || 1), gap = Math.max(0.005, S.hitGap || 0.012), flam = nH > 1 ? (nH - 1) * gap : 0;
+    const susT = Math.max(0.15, Math.max(flam + a + d + r, fa + fd + fr) * 0.4);   // ancho visual del sustain
+    const total = Math.max(flam + a + d + susT + r, fa + fd + susT + fr) || 1;
     const X = t => pad + (t / total) * (w - 2 * pad);
     const Y = v => (h - pad) - v * (h - 2 * pad);
 
@@ -33,12 +36,15 @@ export function initADSRGraph(canvas) {
     const rel = (t0, t1, v0) => { const n = k > 0 ? 14 : 1, out = [];
       for (let i = 1; i <= n; i++) { const x = i / n; out.push([t0 + (t1 - t0) * x, i === n ? 0 : v0 * (1 - (k > 0 ? (1 - Math.exp(-k * x)) / den : x))]); }
       return out; };
-    const pts = [[0, 0], ...seg(0, a, 0, 1), ...seg(a, a + d, 1, s), [a + d + susT, s], ...rel(a + d + susT, a + d + susT + r, s)];
+    const atkB = Math.min(a, gap / 3), bursts = [];
+    for (let i = 0; i < nH - 1; i++) { const t0 = i * gap; bursts.push([t0, 0], [t0 + atkB, 1], ...rel(t0 + atkB, t0 + gap, 1)); }
+    const A0 = flam;   // el ADSR arranca tras el flam
+    const pts = [[0, 0], ...bursts, [A0, 0], ...seg(A0, A0 + a, 0, 1), ...seg(A0 + a, A0 + a + d, 1, s), [A0 + a + d + susT, s], ...rel(A0 + a + d + susT, A0 + a + d + susT + r, s)];
 
     // relleno bajo la curva de amplitud
     ctx.beginPath(); ctx.moveTo(X(0), Y(0));
     pts.forEach(([t, v]) => ctx.lineTo(X(t), Y(v)));
-    ctx.lineTo(X(a + d + susT + r), Y(0)); ctx.closePath();
+    ctx.lineTo(X(A0 + a + d + susT + r), Y(0)); ctx.closePath();
     const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
     grad.addColorStop(0, tint('--accent', .40));
     grad.addColorStop(0.55, tint('--accent', .14));
@@ -63,13 +69,13 @@ export function initADSRGraph(canvas) {
 
     // etiquetas de fase (sobre la envolvente de amplitud)
     ctx.fillStyle = tint('--dim', .8); ctx.font = '9px system-ui';
-    ctx.fillText('A', X(a / 2), h - 2);
-    ctx.fillText('D', X(a + d / 2), h - 2);
-    ctx.fillText('S', X(a + d + susT / 2), h - 2);
-    ctx.fillText('R', X(a + d + susT + r / 2), h - 2);
+    ctx.fillText('A', X(A0 + a / 2), h - 2);
+    ctx.fillText('D', X(A0 + a + d / 2), h - 2);
+    ctx.fillText('S', X(A0 + a + d + susT / 2), h - 2);
+    ctx.fillText('R', X(A0 + a + d + susT + r / 2), h - 2);
   }
 
-  const WATCH = new Set(['a', 'd', 's', 'r', 'filterEnvAmt', 'fenvMode', 'fa', 'fd', 'fs', 'fr', 'envCurve']);
+  const WATCH = new Set(['a', 'd', 's', 'r', 'filterEnvAmt', 'fenvMode', 'fa', 'fd', 'fs', 'fr', 'envCurve', 'hits', 'hitGap']);
   document.addEventListener('param-change', e => { if (WATCH.has(e.detail.target)) draw(); });
   window.addEventListener('resize', draw);
   draw();

@@ -47,8 +47,16 @@ export class Voice {
     // desde 0 limpio. Sin esto, si construir la voz tarda más que el attack (p.ej. un
     // supersaw con 14 nodos), la rampa caería "en el pasado" y la ganancia saltaría de
     // golpe, exponiendo el oscilador a media onda -> click. Por eso clicaba "a veces".
+    // El margen lo pone el motor (mod.lookahead): 5 ms offline; en directo depende del
+    // dispositivo (5 ms + 2·baseLatency), porque el reloj del hilo principal va por
+    // detrás del de audio y 5 ms fijos no bastaban en algunas tarjetas (el blip de
+    // pitch y el VCA del bombo caían en el pasado: golpeaba solo a veces).
     // startAt (opcional): inicio programado en el reloj de audio (lo usa el arpegiador).
-    const t = (startAt || ctx.currentTime) + 0.005;
+    // Cuantizado a frontera de bloque de render (128 muestras): el worklet abre su
+    // puerta de arranque por bloques, así la onda empieza en su fase configurada
+    // EXACTAMENTE cuando abre el VCA (golpe idéntico en cada nota).
+    const Q = 128 / ctx.sampleRate;
+    const t = Math.ceil(((startAt || ctx.currentTime) + (mod.lookahead || 0.005)) / Q - 1e-6) * Q;
     this.t0 = t;                          // referencia para el fade-in de LFOs (lfoFade)
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
@@ -188,8 +196,13 @@ export class Voice {
     const peak = vel, sus = S.s * vel;
     const g = vca.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(0, t);
-    this._envSegs(g, 0, peak, sus, t, S.a, S.d);
-    this._envAmp = { t, peak, sus, a: S.a, d: S.d };      // para estimar el valor en un release programado en el futuro
+    // Flam (hits > 1): antes del ADSR, hits−1 ráfagas cortas separadas hitGap —
+    // el tren de pulsos del clap de la 808 (tres o cuatro golpes a ~10 ms sobre
+    // el VCA del ruido, y luego la cola). El ADSR completo es el ÚLTIMO golpe;
+    // con hits = 1 el camino es el de siempre (bit-idéntico).
+    const tEnv = this._flam(g, t, peak);
+    this._envSegs(g, 0, peak, sus, tEnv, S.a, S.d);
+    this._envAmp = { t: tEnv, peak, sus, a: S.a, d: S.d };   // para estimar el valor en un release programado en el futuro
 
     // Env del filtro: enlazada al ADSR de amplitud (link) o con tiempos propios.
     // El pico escala con velocity (MIDI): pegar más fuerte abre más el filtro.
@@ -223,6 +236,7 @@ export class Voice {
       numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
       processorOptions: {
         type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves,
+        t0: t,                                 // arranque de la nota: las envolventes por operador (FM4) cuentan desde aquí
         // tablas mip (clonadas por el postMessage de opciones, ~170 KB por nodo)
         ...(cfg.wave === 'tabla' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
@@ -274,12 +288,39 @@ export class Voice {
   // siempre) o con curva RC (envCurve > 0) aproximada por ENV_SEG rampas por tramo.
   _envSegs(p, from, peak, sus, t, a, d) {
     const k = ENV_K * (this.S.envCurve || 0);
-    if (!(k > 0)) { p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
+    // Ataque 0 = ESCALÓN (percusión): el «golpe» de un parche es ese escalón — una
+    // rampa, aunque sea de 1 ms, se come el primer milisegundo del transitorio, que
+    // es donde vive el crack (lo cazó el usuario: el bombo solo golpeaba cuando, por
+    // azar, el VCA ya estaba abierto al nacer el oscilador).
+    if (!(a > 0)) { p.setValueAtTime(peak, t); a = 0; }
+    if (!(k > 0)) { if (a > 0) p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
     const den = 1 - Math.exp(-k);
     const tramo = (v0, v1, t0, dur) => {
       for (let i = 1; i <= ENV_SEG; i++) { const x = i / ENV_SEG; p.linearRampToValueAtTime(v0 + (v1 - v0) * (1 - Math.exp(-k * x)) / den, t0 + dur * x); }
     };
-    tramo(from, peak, t, a); tramo(peak, sus, t + a, d);
+    if (a > 0) tramo(from, peak, t, a);
+    tramo(peak, sus, t + a, d);
+  }
+  // Flam: hits−1 ráfagas sobre el param p desde t; devuelve el instante en que
+  // arranca el ADSR (t si no hay flam). Cada ráfaga sube 0 → peak en el ataque
+  // (acotado a un tercio del hueco: una ráfaga tiene que ser un golpe) y cae a 0
+  // en el resto del hueco con la curva del knob (lineal o RC, como el release),
+  // así la siguiente arranca de 0 limpio y entre golpe y golpe hay un valle.
+  // Soltar la nota durante el flam funciona como siempre: release() ancla el
+  // valor en curso y cancela las ráfagas que quedaban.
+  _flam(p, t, peak) {
+    const n = Math.round(this.S.hits || 1);
+    if (!(n > 1)) return t;
+    const gap = Math.max(0.005, this.S.hitGap || 0.012), atk = Math.min(this.S.a, gap / 3);
+    for (let i = 0; i < n - 1; i++) {
+      const ti = t + i * gap;
+      if (atk > 0) { p.setValueAtTime(0, ti); p.linearRampToValueAtTime(peak, ti + atk); }
+      else p.setValueAtTime(peak, ti);          // ataque 0: pulsos de verdad (el clap de la 808)
+      this._relChain(p, ti + atk, peak, gap - atk);
+    }
+    const tEnv = t + (n - 1) * gap;
+    p.setValueAtTime(0, tEnv);
+    return tEnv;
   }
   // Valor que tendrá la envolvente en el instante t (release programado en el
   // futuro por los jugadores: el AudioParam aún no lo sabe). Misma curva que _envSegs.

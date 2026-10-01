@@ -3,50 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SubSDJ · Substractive Synthesizer (WebAudio)</title>
+<title>SubSDJ</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header>
-  <h1>SubSDJ <small>· Substractive Synthesizer</small></h1>
+  <h1>SubSDJ</h1>
   <nav class="seg" id="screenTabs" title="Pantallas: cada una enseña solo los módulos de su tarea (el rack es el mismo)">
     <button data-screen="diseno" title="Diseño de sonido: osciladores, filtro, envolventes, modulación y efectos">Diseño</button>
     <button data-screen="secuenciacion" title="Secuenciación: arpegiador, secuenciadores, partes, armonía, jugadores y arreglo">Secuenciación</button>
     <button data-screen="presets" title="Presets: todo el banco a la vista">Presets</button>
   </nav>
-  <span class="badge">WebAudio · AudioWorklet</span>
-  <span class="badge" id="midiInfo"></span>
-  <button id="midiLearnBtn" class="btn" title="MIDI learn: liga los mandos físicos (CC) a los controles de la UI">🎛 MIDI map</button>
-  <button id="resetBtn" class="btn" title="Restaurar valores por defecto">⟲ Reset</button>
-  <button id="panicBtn" class="btn" title="Pánico: corta todas las notas de todas las partes y para el director (también Escape en el teclado)">⏹ Pánico</button>
-  <button id="recBtn" class="btn" title="Grabar la salida a un archivo WAV">⏺ Grabar</button>
+  <button id="midiLearnBtn" class="btn" title="MIDI learn: liga los mandos físicos (CC) a los controles de la UI">MIDI map</button>
+  <button id="resetBtn" class="btn" title="Restaurar valores por defecto">Reset</button>
+  <button id="panicBtn" class="btn" title="Pánico: corta todas las notas de todas las partes y para el director (también Escape en el teclado)">Pánico</button>
+  <button id="recBtn" class="btn" title="Grabar la salida a un archivo WAV">Grabar</button>
   <span id="partsBar">
-    <button id="partsBtn" class="btn" title="Modo Partes: 4 instrumentos a la vez sobre una sala compartida (el rack edita la parte elegida)">▦ Partes</button>
+    <button id="partsBtn" class="btn" title="Modo Partes: 4 instrumentos a la vez sobre una sala compartida (el rack edita la parte elegida)">Partes</button>
     <span class="seg" id="partSel" hidden><button data-p="0" title="Editar la parte 1">1</button><button data-p="1" title="Editar la parte 2">2</button><button data-p="2" title="Editar la parte 3">3</button><button data-p="3" title="Editar la parte 4">4</button></span>
   </span>
   <span id="hdrRight">
     <span id="hdrViz" title="Osciloscopio y espectro de la salida (máster): lo que suena, en todas las pantallas"><canvas id="scope" class="hviz"></canvas><canvas id="spectrum" class="hviz"></canvas></span>
     <span id="hdrInfo">
       <select id="themeSel" title="Tema: la piel del rack (colores y formas; el tamaño lo pone el zoom del navegador). Se recuerda."></select>
-      <span id="powerInfo">⏻ cargando audio…</span>
-      <span id="dbgInfo" title="voces pulsadas · colas de release · osciladores worklet vivos"></span>
+      <!-- Estado en dos símbolos (ui/status.js pone la clase y el tooltip): audio
+           (apagado · esperando el primer gesto · activo · error) y MIDI (sin
+           aparato · conectado). Sin texto: el color cuenta el estado y el
+           tooltip lo explica. SVG con currentColor: toman el color del tema. -->
+      <span id="status">
+        <span id="powerInfo" class="st" title="cargando audio…"><svg viewBox="0 0 16 16"><path d="M8 2.4v5.4"/><path d="M5.2 4.8a4.6 4.6 0 1 0 5.6 0"/></svg></span>
+        <span id="midiInfo" class="st" title="sin dispositivo MIDI"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3"/><circle class="pin" cx="11.5" cy="8" r="1.3"/><circle class="pin" cx="10.47" cy="10.47" r="1.3"/><circle class="pin" cx="8" cy="11.5" r="1.3"/><circle class="pin" cx="5.53" cy="10.47" r="1.3"/><circle class="pin" cx="4.5" cy="8" r="1.3"/></svg></span>
+      </span>
     </span>
   </span>
 </header>
 
 <div id="presetBar" data-screens="diseno presets">
-  <label>Presets</label>
   <button class="btn nav" id="prevBtn" title="Preset anterior">‹</button>
   <select id="presetSelect"></select>
   <button class="btn nav" id="nextBtn" title="Preset siguiente">›</button>
   <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
-  <button class="btn" id="saveBtn" title="Guardar el sonido actual con ese nombre: en «★ Míos», o encima del preset cargado si el nombre es el suyo">💾 Guardar</button>
-  <button class="btn" id="delBtn" title="Borrar el preset elegido de la biblioteca (lo de fábrica vuelve con ⟲ Traer de fábrica)">🗑 Borrar</button>
-  <button class="btn" id="expBtn" title="Descargar la biblioteca entera (secciones, presets, escenas, favoritos) como JSON">⇩ Exportar</button>
-  <button class="btn" id="impBtn" title="Importar un JSON: una biblioteca, un banco de presets v2 o una escena; se funde con la tuya, nunca la sustituye">⇧ Importar</button>
+  <button class="btn" id="saveBtn" title="Guardar el sonido actual con ese nombre: en «★ Míos», o encima del preset cargado si el nombre es el suyo">Guardar</button>
+  <button class="btn" id="delBtn" title="Borrar el preset elegido de la biblioteca (lo de fábrica vuelve con ⟲ Traer de fábrica)">Borrar</button>
+  <button class="btn" id="expBtn" title="Descargar la biblioteca entera (secciones, presets, escenas, favoritos) como JSON">Exportar</button>
+  <button class="btn" id="impBtn" title="Importar un JSON: una biblioteca, un banco de presets v2 o una escena; se funde con la tuya, nunca la sustituye">Importar</button>
   <input type="file" id="impFile" accept="application/json,.json" style="display:none">
-  <button class="btn" id="sfzBtn" title="Congelar el preset actual como instrumento multisample: zip con samples WAV + .sfz (Sforzando, Renoise…)">🎹 SFZ</button>
+  <button class="btn" id="sfzBtn" title="Congelar el preset actual como instrumento multisample: zip con samples WAV + .sfz (Sforzando, Renoise…)">SFZ</button>
   <span id="presetMsg"></span>
 </div>
 
@@ -192,12 +195,12 @@
         <button data-wf="0">A</button>
         <button data-wf="1">B</button>
       </div>
-      <button class="btn" id="weSmooth" title="Atenúa los armónicos altos en el espectro y resintetiza">Suavizar</button>
-      <button class="btn" id="weSine">Seno</button>
-      <button class="btn" id="weSaw">Sierra</button>
+      <button class="btn ico" id="weSmooth" title="Suavizar: atenúa los armónicos altos en el espectro y resintetiza (suaviza el timbre, no solo el trazo)"><svg viewBox="0 0 16 12"><polyline points="1,6.5 2.2,2.5 3.4,9.5 4.6,3 5.8,9 7,5.5" opacity=".5"/><path d="M7,5.5 Q9.5,1 12,6 T15,6"/></svg></button>
+      <button class="btn ico" id="weSine" title="Seno: rellena este frame con un ciclo de seno"><svg viewBox="0 0 16 12"><path d="M1,6 Q4.5,-2 8,6 T15,6"/></svg></button>
+      <button class="btn ico" id="weSaw" title="Sierra: rellena este frame con una rampa"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/></svg></button>
     </div>
     <canvas id="weCanvas"></canvas>
-    <div class="help"><b>Editor de ondas.</b> Dibuja un ciclo a mano alzada (el trazo gris es el otro frame). Se guarda como tabla <b>«usuario»</b>: elígela en «Tabla de ondas» y el Morph recorre A→B. «Suavizar» recorta armónicos altos EN EL ESPECTRO (suaviza el timbre, no solo el trazo). Los presets guardados con tabla «usuario» llevan la onda DENTRO (autocontenidos); al cargar uno, su onda reemplaza este dibujo.</div>
+    <div class="help"><b>Editor de ondas.</b> Dibuja un ciclo a mano alzada (el trazo gris es el otro frame). Se guarda como tabla <b>«usuario»</b>: elígela en «Tabla de ondas» y el Morph recorre A→B. El botón «zigzag → onda» (Suavizar) recorta armónicos altos EN EL ESPECTRO (suaviza el timbre, no solo el trazo). Los presets guardados con tabla «usuario» llevan la onda DENTRO (autocontenidos); al cargar uno, su onda reemplaza este dibujo.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Vocal</h2>
@@ -255,8 +258,8 @@
   <div class="panel" data-screens="diseno">
     <h2>Env filtro</h2>
     <div class="seg" id="fenvModeSel">
-      <button data-fenv="link">= Amp</button>
-      <button data-fenv="own">Propia</button>
+      <button data-fenv="link" title="Sigue al ADSR de amplitud: mismos tiempos A/D/S/R que el módulo ADSR">Sigue ADSR</button>
+      <button data-fenv="own" title="Tiempos A/D/S/R propios: los knobs de aquí">Propia</button>
     </div>
     <div class="row tight" style="margin-top:8px;justify-content:space-around">
       <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
@@ -265,7 +268,7 @@
       <div class="ctl"><div class="knob" data-knob="fs"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="fr"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Envolvente del filtro.</b> Amount en Hz sobre el cutoff (± = abre o cierra). «= Amp» sigue al ADSR de amplitud; «Propia» usa los tiempos A/D/S/R de aquí. El pico escala con velocity (MIDI).</div>
+    <div class="help"><b>Envolvente del filtro.</b> Amount en Hz sobre el cutoff (± = abre o cierra). «Sigue ADSR» toma los tiempos del ADSR de amplitud (módulo ADSR); «Propia» usa los A/D/S/R de aquí. El pico escala con velocity (MIDI).</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>LFO cutoff</h2>
@@ -304,7 +307,12 @@
       <span class="fieldlab" style="margin:0">Lineal ↔ RC</span>
       <div class="ctl"><div class="knob" data-knob="envCurve"><div class="ind"></div></div><div class="lab">Curva</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «= Amp»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira. <b>Curva</b>: a 0 las rampas son lineales (como siempre); al subirla, ataque y decay se vuelven exponenciales tipo RC, como en un ADSR analógico — el ataque sube deprisa y frena al llegar, el decay cae deprisa y se posa despacio. Como la sonoridad es logarítmica, el decay exponencial se oye parejo y el lineal «se queda colgado y cae de golpe». El release ya era exponencial.</div>
+    <div class="row" style="margin-top:4px;justify-content:flex-end;align-items:center;gap:10px">
+      <span class="fieldlab" style="margin:0">Flam</span>
+      <div class="ctl"><div class="knob" data-knob="hits"><div class="ind"></div></div><div class="lab">Golpes</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="hitGap"><div class="ind"></div></div><div class="lab">Hueco</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «Sigue ADSR»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira. <b>Curva</b>: a 0 las rampas son lineales (como siempre); al subirla, ataque y decay se vuelven exponenciales tipo RC, como en un ADSR analógico — el ataque sube deprisa y frena al llegar, el decay cae deprisa y se posa despacio. Como la sonoridad es logarítmica, el decay exponencial se oye parejo y el lineal «se queda colgado y cae de golpe». El release ya era exponencial. <b>Flam</b> (Golpes · Hueco): con más de un golpe, antes del ADSR suenan Golpes−1 ráfagas cortas separadas Hueco ms y el ADSR completo es el último golpe — el tren de pulsos del clap de la 808: una palmada no es un golpe de ruido, son tres o cuatro ráfagas a ~10 ms y luego la cola. El gráfico las pinta.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Voz · Master</h2>
@@ -568,9 +576,11 @@
 <!-- TECLADO -->
 <div id="kbWrap">
   <div id="keyboard"></div>
-  <div class="hint">
-    Cada tecla muestra su tecla del PC (estilo tracker, 2 filas) &nbsp;·&nbsp;
-    octava con <kbd>RePág</kbd> / <kbd>AvPág</kbd> &nbsp;·&nbsp; también con el ratón &nbsp;·&nbsp; polifónico.
+  <div id="kbBar">
+    <span class="lab">Octava</span>
+    <div class="stepper" id="kbOct" title="Octava base del teclado (RePág / AvPág también). Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U. Polifónico.">
+      <button data-kbo="-1" title="Octava abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava arriba (RePág)">+</button>
+    </div>
   </div>
 </div>
 

@@ -27,7 +27,7 @@ const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés d
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=6';
+const WK_V = '?v=9';   // v9: puerta de arranque en t0 (fase determinista) + reloj FM4 anclado a max(t0, tBirth)
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -198,6 +198,15 @@ export class AudioEngine {
                lfoCut: this.cutLFO.out, lfoRes: this.resLFO.out },
       stats: this.modStats,
     };
+    // Look-ahead de las notas en directo (lo lee Voice): el reloj que ve el hilo
+    // principal va por detrás del hilo de audio hasta un periodo de callback del
+    // dispositivo (baseLatency: 128 muestras en headless, 10-20 ms en una tarjeta
+    // WASAPI) y los eventos tardan otro tanto en llegar. Con 5 ms fijos, en algunas
+    // tarjetas la apertura del VCA, el blip de pitch y las ráfagas del flam caían
+    // «en el pasado» y se aplicaban de golpe: el bombo golpeaba solo a veces (en
+    // headless y offline el retraso es constante y no se nota). Offline: 5 ms (golden).
+    this.mod.lookahead = this.offline ? 0.005 : Math.max(0.005, 0.005 + 2 * (ctx.baseLatency || 0.01));
+    if (!this.offline) console.info('SubSDJ · look-ahead de nota', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
 
     this.ready = true;
   }
@@ -263,6 +272,7 @@ export class AudioEngine {
     }
   }
   _monoOff(id, when = null) {
+    if (!this.heldStack.some(n => n.id === id)) return;   // id ajeno (note-off de otra parte): ni re-desliza ni suelta la voz de otro
     this.heldStack = this.heldStack.filter(n => n.id !== id);
     if (this.heldStack.length) {
       const top = this.heldStack[this.heldStack.length - 1];

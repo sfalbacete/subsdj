@@ -50,9 +50,10 @@ export class Seq {
   }
   unhold(id) {
     const gone = this.held.find(h => h.id === id);
+    if (!gone) return;   // id que no sosteníamos (note-off de otra parte, o tras un allNotesOff): ni toca el latch ni para la frase
     this.held = this.held.filter(h => h.id !== id);
     if (!this.held.length) {
-      if (this.e.S.seqLatch === 'on' && gone) this.latched = { freq: gone.freq, vel: gone.vel };
+      if (this.e.S.seqLatch === 'on') this.latched = { freq: gone.freq, vel: gone.vel };
       else { this.latched = null; this._maybeStop(); }
     }
   }

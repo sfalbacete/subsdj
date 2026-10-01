@@ -26,7 +26,7 @@ import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, valToPos } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
-import { createScene, sceneToJSON, applySceneJSON } from './engine/parts.js';
+import { createScene, sceneToJSON, applySceneJSON, NoteRouter } from './engine/parts.js';
 import { mulberry32 } from './engine/Harmony.js';
 import { lfoBuffers } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
@@ -1016,6 +1016,55 @@ export async function runSelfTest() {
   }
 
   {
+    // Teclado ↔ partes (cazado por el usuario, 2026-10-01: «cambio de parte
+    // mientras toco y el audio se corrompe»): el note-off del teclado iba a la
+    // parte ACTUAL, no a la que recibió el note-on → nota colgada en la otra
+    // parte (una voz ocupada para siempre; en mono, el jugador resbalaba en
+    // legato sobre ella). (1) NoteRouter: el off llega al motor que sonó aunque
+    // la «actual» sea otra; (2) Capa: on en varias, off en las mismas; (3) un id
+    // ajeno no para el Seq con latch; (4) ni re-desliza la voz mono de otro.
+    // Sin render: se inspeccionan las voces de cada motor (offline, sin timers de cola).
+    const NAME = 'teclado ↔ partes (note-off a la parte que sonó · Capa · ids ajenos: Seq con latch sigue, mono no resbala)';
+    let r;
+    try {
+      const probs = [];
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(ctx, [{}, {}, { seqOn: 'on', seqLatch: 'on' }, { mode: 'mono', glide: 0.3 }]);
+      const [A, B, C, D] = sc.parts.map(p => p.engine);
+      const router = new NoteRouter();
+      // (1) note-on en A, «cambio de parte» a B, note-off: A suelta, B ni se entera
+      router.on('m60', [A], NOTE1);
+      if (!A.voices.has('m60')) probs.push('la nota no entra en la parte A');
+      router.off('m60', [B]);
+      if (A.voices.has('m60') || A.tails.size !== 1) probs.push('el note-off no llega a la parte que sonó (A sigue pulsada)');
+      if (B.voices.size || B.tails.size) probs.push('el note-off toca la parte actual en vez de la que sonó');
+      // (2) Capa: on en A y B, off en las mismas aunque la «actual» sea C
+      router.on('m62', [A, B], NOTE1);
+      router.off('m62', [C]);
+      if (A.voices.has('m62') || B.voices.has('m62') || C.voices.size) probs.push('Capa: el note-off no vuelve a las mismas partes');
+      // (3) Seq con latch: la raíz suelta deja la frase enganchada; un id ajeno no la para
+      C.noteOn('k', NOTE1); C.noteOff('k');
+      if (!C.seq.latched) probs.push('Seq: el latch no retiene la frase al soltar la raíz');
+      C.noteOff('ajeno');
+      if (!C.seq.latched || !C.seq.timer) probs.push('Seq: un note-off ajeno para la frase enganchada');
+      C.allNotesOff();
+      if (C.seq.latched || C.seq.timer) probs.push('Seq: allNotesOff no limpia el latch');
+      // (4) mono: un id ajeno no re-desliza la voz (glideTo) ni la suelta
+      D.noteOn('p', NOTE1); D.noteOn('q', NOTE2);
+      let glides = 0; const v = D.monoVoice; const g0 = v.glideTo.bind(v); v.glideTo = (...a) => { glides++; g0(...a); };
+      D.noteOff('ajeno');
+      if (glides || D.monoVoice !== v || D.heldStack.length !== 2) probs.push('mono: un note-off ajeno re-desliza o suelta la voz');
+      D.noteOff('q');
+      if (glides !== 1 || D.heldStack.length !== 1) probs.push('mono: soltar la de arriba no vuelve a la de abajo');
+      D.allNotesOff();
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
     // Armonía + jugadores (Roadmap 4.0 · C2): (1) armonía — cuantización a la
     // escala (empate hacia abajo), acordes por terceras sobre la escala, paseo
     // de funciones determinista con la semilla (y distinto con otra); (2)
@@ -1300,6 +1349,106 @@ export async function runSelfTest() {
   }
 
   {
+    // FM4 · reloj de las envolventes de operador: deben contar desde el ARRANQUE
+    // de la nota, no desde que nace el worklet (bug cazado por el usuario con el
+    // Bombo 808: «el golpe solo entra a veces»). Un operador con decay de 30 ms es
+    // un clic brillante; si la nota se programa 250 ms en el futuro (como hacen
+    // el arp y los jugadores, y como pasa en directo con el jitter del hilo
+    // principal), el clic debe seguir ahí al abrir el VCA: el tilt espectral de
+    // los primeros 25 ms de la nota programada ≈ el de la nota inmediata, y
+    // ambos ≫ el del cuerpo (seno) a los 200 ms.
+    body.appendChild(el('st-cat', 'FM4 · reloj de operadores'));
+    let r;
+    try {
+      const probs = [];
+      const st = { waveA: 'fm4', mix: 0, fm4Alg: '0', fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03,
+                   fm4R3: 1, fm4L3: 0, fm4D3: 4, fm4R4: 1, fm4L4: 0, fm4D4: 4, cutoff: 20000, reso: 0.7,
+                   envCurve: 1, a: 0.001, d: 0.5, s: 0, r: 0.1, width: 0 };
+      const render = async (S, when) => {
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+        if (when) eng._directOn('k1', NOTE1, 1, when); else eng.noteOn('k1', NOTE1, 1);
+        c.suspend(0.9).then(() => { eng.noteOff('k1'); c.resume(); });
+        return c.startRendering();
+      };
+      const onset = buf => { const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 1e-3) return i / SR; return 0; };
+      loadState(st);
+      const bNow = await render(structuredClone(engine.S), 0);
+      const bLater = await render(structuredClone(engine.S), 0.25);
+      const aN = analyze(bNow), aL = analyze(bLater);
+      if (aN.bad || aL.bad) probs.push('NaN/Inf');
+      const oN = onset(bNow), oL = onset(bLater);
+      if (!(oL > 0.2)) probs.push('la nota programada no arranca en el futuro (' + (oL * 1000).toFixed(0) + ' ms)');
+      const atkN = tiltW(bNow, oN, oN + 0.025), atkL = tiltW(bLater, oL, oL + 0.025), body_ = tiltW(bNow, oN + 0.2, oN + 0.3);
+      if (!(atkN > 2 * body_)) probs.push('el operador de 30 ms no da un ataque más brillante que el cuerpo (' + atkN.toExponential(2) + ' vs ' + body_.toExponential(2) + ')');
+      if (!(atkL / Math.max(1e-12, atkN) > 0.7)) probs.push('la nota programada pierde el clic (tilt ×' + (atkL / Math.max(1e-12, atkN)).toFixed(2) + ' respecto a la inmediata)');
+      console.log('fm4 reloj: tilt ataque inmediata', atkN.toExponential(2), '· programada', atkL.toExponential(2), '· cuerpo', body_.toExponential(2), '· arranque programada', (oL * 1000).toFixed(1), 'ms');
+      r = { name: 'FM4 reloj de operadores (el clic de 30 ms sobrevive a una nota programada 250 ms en el futuro)', peak: aL.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'FM4 reloj de operadores (el clic de 30 ms sobrevive a una nota programada 250 ms en el futuro)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Arranque determinista (percusión): con ataque 0 el VCA abre de ESCALÓN en t0
+    // (el primer cuarto de milisegundo ya está a nivel) y el worklet, que calla y
+    // congela sus fases hasta t0 (cuantizado a frontera de bloque), arranca la onda
+    // en su fase configurada: dos notas programadas en el futuro (200 y 300 ms,
+    // como las del directo: el look-ahead adaptativo deja siempre t0 por delante
+    // del nacimiento del worklet) dan, alineadas en su arranque, las MISMAS
+    // muestras. Sin la puerta, el oscilador corría libre desde que nacía y la fase
+    // en t0 era azar (el golpe del bombo cambiaba de una nota a otra). La nota
+    // inmediata offline (look-ahead 5 ms < nacimiento del worklet) no pasa por la
+    // puerta: solo se usa para el escalón.
+    body.appendChild(el('st-cat', 'Arranque determinista'));
+    let r;
+    try {
+      const probs = [];
+      const st = { waveA: 'sine', phaseA: 90, mix: 0, cutoff: 20000, reso: 0.7, envCurve: 1, a: 0, d: 0.2, s: 0, r: 0.05, width: 0 };
+      const render = async (S, when) => {
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 0.6), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+        if (when) eng._directOn('d1', NOTE1, 1, when); else eng.noteOn('d1', NOTE1, 1);
+        c.suspend(0.5).then(() => { eng.noteOff('d1'); c.resume(); });
+        return c.startRendering();
+      };
+      const onsetI = buf => { const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 1e-3) return i; return -1; };
+      loadState(st);
+      const bNow = await render(structuredClone(engine.S), 0);
+      const bL1 = await render(structuredClone(engine.S), 0.2);
+      const bL2 = await render(structuredClone(engine.S), 0.3);
+      const aN = analyze(bNow), aL = analyze(bL1);
+      if (aN.bad || aL.bad || analyze(bL2).bad) probs.push('NaN/Inf');
+      const iN = onsetI(bNow), i1 = onsetI(bL1), i2 = onsetI(bL2);
+      if (iN < 0 || i1 < 0 || i2 < 0) probs.push('silencio');
+      else {
+        const dN = bNow.getChannelData(0), d1 = bL1.getChannelData(0), d2 = bL2.getChannelData(0);
+        const rmsI = (d, i0, n) => { let s = 0; for (let i = i0; i < i0 + n; i++) s += d[i] * d[i]; return Math.sqrt(s / n); };
+        const q = Math.round(SR * 0.00025);
+        const stepN = rmsI(dN, iN, q) / Math.max(1e-9, rmsI(dN, iN + 20 * q, q));   // primer ¼ ms vs 5 ms después
+        const step1 = rmsI(d1, i1, q) / Math.max(1e-9, rmsI(d1, i1 + 20 * q, q));
+        if (!(stepN > 0.8 && step1 > 0.8)) probs.push('con ataque 0 el VCA no abre de escalón (¼ ms inicial / 5 ms = ' + stepN.toFixed(2) + ' · ' + step1.toFixed(2) + ')');
+        // alineadas por arranque con tolerancia de ±1 muestra: el instante del escalón
+        // del VCA se redondea a muestra a partir de t0 en segundos y puede caer una
+        // muestra antes o después entre renders (medido: 264 vs 265 muestras tras t0,
+        // todo lo demás idéntico); una fase azarosa daría decenas de dB a cualquier desfase
+        const n = Math.floor(SR * 0.05);
+        const diffAt = sh => { let m = 0; for (let i = 2; i < n && i1 + i < d1.length && i2 + i + sh < d2.length; i++) m = Math.max(m, Math.abs(d1[i1 + i] - d2[i2 + i + sh])); return m; };
+        const maxDiff = Math.min(diffAt(-1), diffAt(0), diffAt(1));
+        if (!(maxDiff < 1e-3)) probs.push('dos notas programadas no arrancan igual (máx |Δ| ' + maxDiff.toExponential(2) + ' en los primeros 50 ms, mejor desfase ±1 muestra)');
+        console.log('arranque: escalón ¼ ms/5 ms', stepN.toFixed(3), '/', step1.toFixed(3), '· programadas 200 vs 300 ms máx |Δ|', maxDiff.toExponential(2), '· arranques', (iN / SR * 1000).toFixed(1), '/', (i1 / SR * 1000).toFixed(1), '/', (i2 / SR * 1000).toFixed(1), 'ms');
+      }
+      r = { name: 'arranque determinista (ataque 0 = escalón · misma fase en dos notas programadas)', peak: aN.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'arranque determinista (ataque 0 = escalón · misma fase en dos notas programadas)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
     // Curva de envolvente (Roadmap 4.0 · A3): con Curva 1 el ataque sube deprisa
     // (RMS a mitad del ataque ≫ que con rampas lineales) y el decay se posa
     // pronto (RMS a mitad del decay ≪); el sostenido es el mismo. Con Curva 0 el
@@ -1349,6 +1498,66 @@ export async function runSelfTest() {
       r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual · release sigue al knob)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
       r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Flam de palmada (percusión): con Golpes 3 y Hueco 12 ms, antes del ADSR
+    // suenan dos ráfagas que caen a 0 antes de la siguiente — el final de cada
+    // hueco es un VALLE (RMS ≪ que a mitad de la ráfaga); con Golpes 1 esas
+    // mismas ventanas están en el sostenido (sin valles) y el camino es el de
+    // siempre (bit-idéntico: lo cubre el golden). El último golpe es el ADSR
+    // completo (el sostenido llega igual) y soltar DURANTE el flam apaga la
+    // nota. Seno a 880 Hz (periodo 1,1 ms: las ventanas de 2-3 ms promedian).
+    // Las ventanas se miden desde el ARRANQUE real del sonido (primera muestra
+    // audible), no desde 0: el noteOn lleva look-ahead y el worklet tarda en nacer.
+    body.appendChild(el('st-cat', 'Flam de palmada'));
+    let r;
+    try {
+      const probs = [];
+      const F = 880, GAP = 0.012;
+      const onset = buf => { const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 1e-3) return i / SR; return 0; };
+      const base = { waveA: 'sine', mix: 0, cutoff: 20000, reso: 0.7, a: 0.001, d: 0.1, s: 0.8, r: 0.05, width: 0, hitGap: GAP };
+      const render = async (st, { secs = 0.6, offAt = 0.4 } = {}) => {
+        const c = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = st; await eng.init(c);
+        eng.noteOn('f1', F, 1);
+        c.suspend(offAt).then(() => { eng.noteOff('f1'); c.resume(); });
+        return c.startRendering();
+      };
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      loadState({ ...base, hits: 1 });
+      const b1 = await render(structuredClone(engine.S));
+      loadState({ ...base, hits: 3 });
+      const b3 = await render(structuredClone(engine.S));
+      const a1 = analyze(b1), a3 = analyze(b3);
+      if (a1.bad || a3.bad) probs.push('NaN/Inf');
+      if (a1.peak > 1 || a3.peak > 1) probs.push('clipping');
+      const T1 = onset(b1), T3 = onset(b3);
+      if (Math.abs(T1 - T3) > 0.002) probs.push('el flam mueve el arranque de la nota (' + (T1 * 1000).toFixed(1) + ' / ' + (T3 * 1000).toFixed(1) + ' ms)');
+      const mid = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + i * GAP + 0.002, T0 + i * GAP + 0.005); };          // mitad de la ráfaga i
+      const valley = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + (i + 1) * GAP - 0.002, T0 + (i + 1) * GAP); };   // final del hueco i
+      const v3 = Math.max(valley(b3, 0), valley(b3, 1)) / Math.max(1e-9, Math.min(mid(b3, 0), mid(b3, 1)));
+      const v1 = Math.min(valley(b1, 0), valley(b1, 1)) / Math.max(1e-9, mid(b1, 0));
+      if (!(v3 < 0.5)) probs.push('las ráfagas no caen a 0 antes de la siguiente (valle/ráfaga ' + v3.toFixed(2) + ')');
+      if (!(v1 > 0.7)) probs.push('sin flam hay valles (' + v1.toFixed(2) + ')');
+      const sus = rmsW(b3, 0.25, 0.35) / Math.max(1e-9, rmsW(b1, 0.25, 0.35));
+      if (!(Math.abs(sus - 1) < 0.05)) probs.push('el sostenido cambia con el flam (' + sus.toFixed(3) + ')');
+      const tail = rmsW(b3, 0.5, 0.6);
+      if (!(tail < 1e-4)) probs.push('la nota con flam no muere tras soltar (' + dB(tail) + ')');
+      // soltar DURANTE el flam (a 12 ms, entre la 1ª y la 2ª ráfaga de cuatro): debe morir
+      loadState({ ...base, hits: 4 });
+      const bCut = await render(structuredClone(engine.S), { secs: 0.4, offAt: 0.012 });
+      const tailCut = rmsW(bCut, 0.2, 0.4);
+      if (analyze(bCut).bad) probs.push('soltar en el flam: NaN/Inf');
+      if (!(tailCut < 1e-4)) probs.push('soltar durante el flam no apaga la nota (' + dB(tailCut) + ')');
+      console.log('flam: arranque', (T3 * 1000).toFixed(1), 'ms · valle/ráfaga con 3 golpes', v3.toFixed(3), '· sin flam', v1.toFixed(3), '· sostenido ×', sus.toFixed(3), '· cola tras soltar', dB(tail), '· soltar en el flam', dB(tailCut));
+      r = { name: 'flam de palmada (ráfagas con valles · sin flam no hay valles · sostenido igual · soltar en el flam apaga)', peak: a3.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'flam de palmada (ráfagas con valles · sin flam no hay valles · sostenido igual · soltar en el flam apaga)', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);

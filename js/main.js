@@ -2,7 +2,6 @@
    SubSDJ · punto de entrada. Sirve por HTTP (módulos ES + AudioWorklet).
    ===================================================================== */
 import { engine } from './engine/AudioEngine.js';
-import { part } from './engine/parts.js';
 import { bindKnobs } from './ui/knobs.js';
 import { bindSliders } from './ui/sliders.js';
 import { bindOscControls } from './ui/oscControls.js';
@@ -26,6 +25,7 @@ import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initGroups } from './ui/groups.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
+import { setStatus, isStatus } from './ui/status.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
@@ -59,25 +59,14 @@ document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.
 engine.init()
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
-    const info = document.getElementById('powerInfo');
-    if (info && !info.classList.contains('on')) info.textContent = '⏻ pulsa una tecla o nota para sonar';
+    if (!isStatus('powerInfo', 'on')) setStatus('powerInfo', 'wait', 'audio listo: pulsa una tecla o una nota para sonar');
   })
   .catch(err => {
     console.error('SubSDJ: no se pudo iniciar el audio', err);
-    const info = document.getElementById('powerInfo');
-    if (info) info.textContent = '⚠ error al iniciar el audio (mira la consola)';
+    setStatus('powerInfo', 'err', 'error al iniciar el audio (mira la consola)');
   });
 
-// 3) Mini-HUD de diagnóstico: voces pulsadas · colas de release · worklets vivos
-setInterval(() => {
-  const el = document.getElementById('dbgInfo');
-  if (el && part().ready) {                   // la parte que edita el rack (el motor único si no hay escena)
-    const s = part().stats();
-    el.textContent = `voces ${s.pressed} · colas ${s.tails} · osc ${s.worklets}`;
-  }
-}, 500);
-
-// 4) Self-test (?selftest=1): renderiza los presets de fábrica en un
+// 3) Self-test (?selftest=1): renderiza los presets de fábrica en un
 //    OfflineAudioContext y valida la salida. No necesita el audio real.
 if (new URLSearchParams(location.search).has('selftest')) {
   import('./selftest.js')

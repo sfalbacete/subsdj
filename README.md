@@ -1,4 +1,4 @@
-# SubSDJ · Substractive Synthesizer (WebAudio)
+# SubSDJ · sintetizador (WebAudio)
 
 Recreación en **tiempo real** del viejo SubSDJ (soft-synth sustractivo hecho en VB.Net)
 con HTML + **WebAudio API** nativa. Sin dependencias, sin build.
@@ -43,7 +43,7 @@ variable `CHROME` si no es la habitual).
 
 ## Grabación, presets y arpegiador
 
-- **⏺ Grabar** (cabecera): graba la salida (lo mismo que suena) y al parar
+- **Grabar** (cabecera): graba la salida (lo mismo que suena) y al parar
   descarga un **WAV** 16-bit estéreo con fecha y hora en el nombre.
 - **Biblioteca de presets** (pantalla Presets; `engine/library.js`): UNA fuente
   de verdad para presets y escenas, en secciones que creas, renombras,
@@ -133,7 +133,8 @@ dejaban una fila casi vacía debajo de FM4 o de la matriz).
 La **cabecera** es un módulo fijo, pegado arriba: título, pestañas, botones,
 el **osciloscopio y el espectro** del máster (globales como el teclado: lo
 que suena, en todas las pantallas, a resolución física del monitor) y el
-estado (audio y HUD de voces). El **teclado** está en las tres,
+estado: dos símbolos, audio y MIDI (el color cuenta el estado; el
+tooltip lo explica). El **teclado** está en las tres,
 pegado al borde inferior (`position: sticky`): si el rack hace scroll sigue
 a mano; si la página es corta se queda en su sitio. La pestaña elegida se
 recuerda (`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se
@@ -187,19 +188,22 @@ fuego fuera de los bloques de tokens (check «piel»).
 
 - Layout estilo **tracker** (FastTracker), 2 filas:
   fila baja `Z S X D C V G B H N J M`, fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`.
-- Octava: `RePág` / `AvPág`. También con el ratón sobre el teclado en pantalla. Polifónico.
+- Octava: `RePág` / `AvPág`, o los botones − / + bajo el teclado (muestran el
+  rango visible, p. ej. C4–C6). Las notas, también con el ratón sobre el
+  teclado en pantalla. Polifónico.
 
 ## MIDI
 
 Conecta un teclado MIDI y acepta el permiso del navegador: se enlaza solo
-(indicador 🎹 en la cabecera, reconecta en caliente). **Velocity** escala la
+(símbolo MIDI en la cabecera: encendido con aparato, apagado sin él, el
+tooltip dice cuál; reconecta en caliente). **Velocity** escala la
 amplitud y la envolvente del filtro; **pitch bend** ±2 semitonos; **sustain**
 (CC64). Las notas MIDI iluminan el teclado en pantalla.
 
-### MIDI learn (🎛 MIDI map)
+### MIDI learn (MIDI map)
 
 Cualquier rosca/slider/botón del cacharro puede gobernar cualquier control de
-la UI. Botón **🎛 MIDI map** (cabecera) → clic en un control en pantalla →
+la UI. Botón **MIDI map** (cabecera) → clic en un control en pantalla →
 mueve el mando físico: ligado (insignia `CCnn` sobre el control). Clic derecho
 desliga; `Esc` sale. Funciona también con controles discretos (ondas, segs,
 formas de LFO, octavas): el recorrido del mando se parte en N zonas.
@@ -248,7 +252,7 @@ js/engine/
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   theme.js                     piel: token()/tint()/hue() sirven los tokens CSS a los canvas; selector de tema (lee los temas de las hojas)
-  partsControls.js             botón ▦ Partes + selector 1-4 en la cabecera + módulo Mezclador
+  partsControls.js             botón Partes + selector 1-4 en la cabecera + módulo Mezclador
   playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
@@ -278,10 +282,11 @@ se conservan como respaldo.
 2. **Rendimiento** ✔ *(hecha 2026-07-03)* — worklet multi-octava (octavas dentro del
    processor: 2 worklets por voz en vez de hasta 8); params del worklet a k-rate
    (el pow del detune se paga 1 vez por bloque, no 128); pitch/vibrato/PWM se
-   conectan a las voces bajo demanda; mini-HUD (voces · colas · osc) en la cabecera.
+   conectan a las voces bajo demanda; mini-HUD (voces · colas · osc) en la cabecera (quitado el 2026-09-28;
+   `engine.stats()` sigue ahí para la consola).
 3. **Expresividad** ✔ *(hecha 2026-07-03)* — Web MIDI (velocity → amp+filtro,
    pitch bend, sustain, mod wheel, CC74/71); envolvente de filtro con tiempos
-   propios (toggle «= Amp / Propia», compatible con los presets antiguos);
+   propios (toggle «Sigue ADSR / Propia» — hasta el 2026-09-28 «= Amp» —, compatible con los presets antiguos);
    pitch envelope por nota (Amount/Decay) + categoría de presets «Percusión».
 4. **Sonido** ✔ *(hecha 2026-07-03)* — chorus/ensemble estéreo; forma de onda por LFO
    (botón sin/tri/saw/sqr en cada grupo; desde 2026-09-28 también S&H y deriva); delay sincable a BPM (Libre/⅛/⅛·/¼/¼·/½);
@@ -606,6 +611,124 @@ son JUGADORES) y duplicar el rack por parte.
   S&H (pitch random)» (S&H por la matriz al pitch, ±720 ct: una nota
   mantenida se vuelve melodía aleatoria) y pares LFO 1-6 en el banco de
   demos (diffs 0,40 / 1,23 / 1,38). Selftest 129/129.
+- **Percusión: kit 808/909 + flam de palmada** ✔ *(2026-10-01, punto 14 del
+  PLAN)* — nueve presets nuevos en la categoría «Percusión» (ya había bombo
+  808, tom, caja zap, láser y hat FM): **Bombo 909** (triángulo + soplo de
+  ruido = el clic; drive por voz), **Caja 808** (los dos senos de la 808, 180
+  y 330 Hz — relación 1,83, no es una octava —, como portadoras del FM4
+  aditivo con decay de operador de ~100 ms, más ruido con mucho aire que dura
+  más), **Palmada 808**, **Rimshot 909** (BP resonante que la envolvente del
+  filtro barre en 30 ms), **Cencerro 808** (587 y 845 Hz como portadoras; el
+  drive tanh pone los armónicos de las cuadradas y un BP ancho a 1,2 kHz se
+  queda con el «clank»), **Hat abierto**, **Crash 909** y **Ride 909** (cuatro
+  portadoras con ratios no enteros y feedback a tope = ruido metálico, más
+  ruido por paso-alto; el ride con un «ping» a ratio 9 que sobrevive al
+  chapoteo) e **Hit rave** (sierra + cuadrada en unison ×3, envolvente de
+  filtro propia, distorsión, caída de pitch). Niveles igualados por medida
+  (pico / RMS de 300 ms de una nota C3, con Bombo 808 de referencia: −8 /
+  −18 dB). Suenan a caja de ritmos a propósito: así se hacían (la 808 era
+  síntesis analógica pura: resonadores amortiguados «bridged-T» para bombo,
+  toms y caja, seis cuadradas inarmónicas filtradas para platos y cencerro,
+  tren de pulsos para la palmada; la 909 era híbrida, con charles y platos
+  muestreados a 6 bits; el sampling puro vino con Linn, DMX y MPC).
+  **Prueba de oído (2026-10-01, auriculares HD668B):** la primera tanda de
+  bombos y cajas no sonaba a percusión en ninguna octava — sonaba a bajo con
+  puerta. Medido: el Bombo 808 se mantenía a −10 dB planos de 50 a 200 ms y
+  se cortaba a 400 (decay LINEAL), cuando un parche real es un resonador
+  amortiguado que decae exponencialmente desde el primer instante. Y lo que
+  hace «golpe» es una **envolvente de brillo**: los primeros 30 ms ricos en
+  armónicos y enseguida solo el seno. Se renderizaron candidatos en WAV
+  (sonda CDP) y se eligió a oído: **Bombo 808** pasa a ser el diseño FM4
+  (operador 2 a ratio 1 con decay de 30 ms = el golpe, operador 3 a ratio 0,5
+  = sub-clic, blip de pitch de 700 ct en 40 ms, caída exponencial); **Caja
+  808** con Curva 1 y ruido con más aire; y **Curva 1** con decays ~1,5× en
+  toda la categoría salvo los tres que ya convencían (Palmada, Hat FM, Hat
+  abierto). Lección: la pantalla de medida no sustituye al oído, pero explica
+  lo que el oído rechaza.
+  **Bug cazado por el usuario al estrenar el bombo** («el golpe solo entra a
+  veces»): las envolventes por operador del FM4 contaban el tiempo desde que
+  nacía el worklet (`this.t` del processor), no desde que arranca la nota.
+  Entre crear el nodo y que abra el VCA pasan el look-ahead (5 ms), el
+  nacimiento del processor y el jitter del hilo principal — en directo de 5 a
+  30 ms y VARIABLE, y con notas programadas por el arp o los jugadores hasta
+  120 ms — así que un modulador con decay de 30 ms (el clic) ya se había
+  gastado al abrir el VCA, unas veces sí y otras no; en el render offline el
+  desfase era fijo y por eso en los WAV el golpe sonaba siempre. Arreglo: la
+  Voice pasa `t0` (el arranque de la nota en el reloj de audio) en las
+  `processorOptions` y el processor mide el tiempo desde `max(t0, tBirth)`,
+  siendo tBirth el primer bloque que procesa (si el processor nace después de
+  t0, el sonido empieza al nacer y la envolvente cuenta desde ahí: el clic
+  llega entero); `currentTime` es el reloj del AudioWorkletGlobalScope; sin
+  t0 (worklet viejo) cae al reloj propio. De paso arregla el ataque de TODOS
+  los presets FM4 tocados por el arp, el Seq y los jugadores, que perdían
+  siempre el golpe. Evidencia doble: check «FM4 reloj de operadores» (nota
+  programada 250 ms en el futuro frente a inmediata, el tilt espectral de los
+  primeros 25 ms es igual y ambos ×12-16 el del cuerpo; verificado que falla
+  sin el arreglo) y una prueba EN TIEMPO REAL (AudioContext de verdad en
+  Chrome headless, 18 golpes a intervalos irregulares con el hilo principal
+  bloqueado 0-30 ms tras cada noteOn, grabados con el recorder-processor):
+  con el reloj viejo el brillo del ataque iba de ×21 a ×240 el del cuerpo
+  según el golpe (eso es «solo entra a veces»); con el arreglo, de ×80 a
+  ×240, siempre con clic. Segunda lección del mismo bug: al tocar un worklet
+  hay que SUBIR `WK_V` en AudioEngine.js (?v=N en la URL de addModule) —
+  Ctrl+F5 no refresca los módulos del AudioWorklet y el usuario siguió
+  oyendo el processor viejo tras el primer arreglo. Y tercera, la que faltaba
+  en su máquina (Realtek, salida WASAPI): el **look-ahead de la nota** era
+  fijo de 5 ms, pero el reloj que ve el hilo principal va por detrás del de
+  audio hasta un periodo de callback del dispositivo (`baseLatency`: 2,7 ms
+  con 128 muestras, 10-20 ms en una tarjeta WASAPI) y los eventos tardan otro
+  tanto en llegar; cuando la apertura del VCA, el blip de pitch y las ráfagas
+  del flam caen «en el pasado» se aplican de golpe, sin transitorio. En
+  headless y offline ese retraso es constante (de ahí que el bombo golpeara
+  siempre en las grabaciones de prueba y no en el synth del usuario). Ahora
+  `mod.lookahead` = 5 ms + 2·baseLatency en directo (25 ms en una tarjeta
+  típica; se imprime en consola al arrancar) y 5 ms offline (golden intacto):
+  en la prueba en tiempo real el arranque pasa de caer entre 8 y 17 ms tras
+  el noteOn, variable, a 25,7 ms clavados, con el ataque del VCA entero. Coste:
+  ~20 ms más de latencia de teclado.
+  **Y la cuarta, la de verdad** (al poner el margen adaptativo el bombo dejó
+  de golpear SIEMPRE, y toda la percusión perdió pegada): lo que el oído lee
+  como «golpe» no era el clic FM ni el blip, era el **escalón** — el VCA ya
+  abierto cuando el oscilador empezaba a sonar, cosa que antes ocurría al azar
+  (cuando el evento llegaba tarde) y con el margen adaptativo nunca, porque el
+  ataque de 1 ms, aunque sea RC, se come el primer milisegundo del transitorio,
+  que es donde vive el crack. Arreglo en tres piezas: (1) **ataque 0 = escalón**
+  (`a` admite 0; `_envSegs` pone `setValueAtTime(peak, t)`; los pulsos
+  del flam también son escalones, como en el clap de la 808) y toda la
+  categoría Percusión y los FM4 percusivos llevan `a: 0`; (2) **puerta de
+  arranque en el worklet**: hasta t0 el oscilador calla y sus fases no
+  avanzan, así la onda arranca en su fase configurada exactamente cuando abre
+  el VCA (antes corría libre desde que nacía y con escalón el golpe habría
+  cambiado de una nota a otra según la fase que pillara); (3) t0 **cuantizado a
+  frontera de bloque** (128 muestras) en la Voice, porque la puerta es por
+  bloques. Resultado en la prueba en tiempo real: los doce golpes salen
+  IDÉNTICOS (brillo ×241,8 el del cuerpo y −11,3 dB en todos, con el hilo
+  principal bloqueado o no). Check «arranque determinista»: con ataque 0 el
+  primer cuarto de milisegundo ya está a nivel (×1,7 respecto a 5 ms después)
+  y dos notas programadas a 200 y 300 ms dan las mismas muestras alineadas por
+  arranque (tolerancia ±1 muestra: el escalón se redondea a muestra). El knob
+  **Fase** del oscilador A pasa a ser un control del golpe: 90° en un seno es
+  el escalón máximo. Selftest 142/142.
+  La palmada pedía una pieza de motor: un clap 808 no es un golpe de ruido,
+  son tres o cuatro ráfagas a ~10 ms (un tren de pulsos sobre el VCA del
+  ruido) y luego la cola por un paso-banda a ~1 kHz; los LFOs no llegan
+  (globales, ≤ 20 Hz, sin redisparo por nota). **Flam** en el módulo ADSR:
+  knobs **Golpes** (`hits`, 1..4) y **Hueco** (`hitGap`, 5..40 ms). Con
+  Golpes > 1, `Voice._flam` programa Golpes−1 ráfagas antes del ADSR: cada
+  una sube 0 → pico en el ataque (acotado a un tercio del hueco: una ráfaga
+  tiene que ser un golpe) y cae a 0 en el resto del hueco con la curva del
+  knob Curva (`_relChain`: lineal o RC), así la siguiente arranca de 0
+  limpio y entre golpe y golpe hay un valle; el ADSR completo es el último
+  golpe (`_envAmp.t` se desplaza con él: los releases programados por los
+  jugadores siguen bien). Con Golpes = 1 el camino es el de siempre
+  (bit-idéntico). Soltar durante el flam funciona como siempre: release()
+  ancla el valor en curso y cancela las ráfagas que quedaban. El gráfico del
+  ADSR pinta las ráfagas. Evidencia: check «flam de palmada» (seno a 880 Hz,
+  ventanas medidas desde el arranque real del sonido, a 11 ms: valle/ráfaga
+  0,28 con 3 golpes frente a 1,42 sin flam, sostenido ×1,000, la nota muere al
+  soltar y también soltando a los 12 ms, en mitad del flam); pares PRC 1-4 en
+  el banco de demos (palmada sin/con flam, diff 1,55; caja 808 sin/con
+  redoble de dos golpes a 30 ms, diff 1,49). Selftest 141/141.
 
 **Eje B · FM de verdad** — la FM como FUENTE que luego pasa por nuestro
 filtro, vocal y matriz: lo que el DX7 nunca tuvo. Nota: una sierra invertida
@@ -818,6 +941,41 @@ módulos y el aviso «Escena»; sin alturas fijas de 2U. Se probó un medidor
 «CPU audio» (worklet cronometrando los huecos entre quanta) y se quitó: no
 medía bien. Check «curva de envolvente» ampliado (release recto a la mitad
 a mitad de camino; RC se posa; ambos a 0 en r), 120/120.
+
+**Tanda visual** *(2026-09-28, lista de Sergio)* — cabecera sin ruido: fuera
+el HUD de voces/colas/osc, el «WebAudio · AudioWorklet» y el subtítulo
+«Substractive Synthesizer» (ya no es solo sustractivo); el estado queda en
+dos **símbolos** (`ui/status.js`: ⏻ audio y un DIN MIDI, SVG con
+`currentColor`): apagado, esperando (late), activo (acento con halo) o
+error (rojo), y el tooltip lo explica. El logo **SubSDJ** lleva un degradado
+acento→acento2 recortado al texto (`background-clip:text`) que fluye ida y
+vuelta cada 10 s y un halo por `drop-shadow` (un `text-shadow` se pintaría
+ENCIMA del degradado recortado); sale de los tokens, así cambia con el tema,
+y `prefers-reduced-motion` lo para. Botones sin símbolos (MIDI map, Reset,
+Pánico, Grabar, Partes, Guardar, Borrar, Exportar, Importar, SFZ: no eran
+homogéneos). **Selects a la altura de los botones**: una sola regla `select`
+con el padding y el cuerpo de un `.btn` (cada uno llevaba el suyo, 3-4 px /
+11 px, y con `appearance:base-select` el navegador no añade marco propio: el
+hueco que se ve es exactamente el nuestro); el de tema es píldora como sus
+vecinos. Fuera la etiqueta «Presets». Editor de ondas: Seno y Sierra con su
+icono (los mismos SVG de los osciladores) y Suavizar como icono «zigzag →
+onda». «= Amp» del Env filtro pasa a **«Sigue ADSR»**. Bajo el teclado, en
+vez del texto explicativo, un stepper de **octava** (− / +, muestra el rango
+visible, p. ej. C4–C6; RePág/AvPág siguen). Selftest 129/129.
+
+**Nota colgada al cambiar de parte** (cazado por el usuario, 2026-10-01:
+«cambio de parte mientras toco y el audio se corrompe, los instrumentos se
+interrumpen»). El note-off del teclado y del MIDI iba a la parte ACTUAL
+(`part()`), no a la que había recibido el note-on: al cambiar de parte con una
+tecla pulsada, la nota se quedaba colgada en la parte anterior — una voz
+ocupada para siempre (con varias, el robo de voz de MAX_POLY se comía las
+notas del jugador: «se interrumpen») y, en mono, el jugador ya no re-disparaba
+sino que RESBALABA en legato sobre la nota colgada («se corrompe»). Arreglo:
+`NoteRouter` en `engine/parts.js` recuerda a qué motores fue cada note-on y
+manda el note-off a esos mismos (cubre también la Capa y el blur de la
+ventana). De paso, un id ajeno ya no toca al motor: `Seq.unhold` no apaga el
+latch ni para la frase, y `_monoOff` no re-desliza la voz mono de otro. Check
+«teclado ↔ partes» en el selftest; 130/130.
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.

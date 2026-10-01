@@ -33,15 +33,32 @@ export function setLayer(on) { layer = !!on; }
 // Gestos globales (bend, pánico): a todas las partes en escena, al motor único si no.
 export const eachPart = fn => { if (scene) scene.parts.forEach(p => fn(p.engine)); else fn(single); };
 
-// Notas del teclado / MIDI: la parte actual, o todas en modo Capa (las silenciadas no).
-export function playOn(id, freq, vel = 1) {
-  if (scene && layer) scene.parts.forEach(p => { if (!p.mute) p.engine.noteOn(id, freq, vel); });
-  else current.noteOn(id, freq, vel);
+// Notas del teclado / MIDI: la parte actual, o todas en modo Capa (las
+// silenciadas no). El note-off va a los MISMOS motores que recibieron el
+// note-on (NoteRouter): si entre medias cambia la parte que edita el rack, o
+// la Capa, la nota se suelta donde suena. Antes iba a la parte actual y la
+// nota quedaba colgada en la otra: una voz ocupada para siempre (con varias,
+// el robo de voz se comía las notas del jugador) y, en mono, las notas
+// siguientes del jugador resbalaban en legato sobre ella en vez de re-disparar.
+export class NoteRouter {
+  constructor() { this.sounding = new Map(); }   // id → motores que recibieron el noteOn
+  on(id, engines, freq, vel = 1) {
+    if (this.sounding.has(id)) this.off(id);     // mismo id dos veces: suelta la anterior donde esté
+    this.sounding.set(id, engines);
+    for (const e of engines) e.noteOn(id, freq, vel);
+  }
+  off(id, fallback = []) {
+    const targets = this.sounding.get(id) || fallback;
+    this.sounding.delete(id);
+    for (const e of targets) if (e.ready) e.noteOff(id);   // un motor desmontado (escena apagada) no tiene nada que soltar
+  }
+  clear() { this.sounding.clear(); }
 }
-export function playOff(id) {
-  if (scene && layer) scene.parts.forEach(p => p.engine.noteOff(id));
-  else current.noteOff(id);
-}
+const router = new NoteRouter();
+const keyTargets = () => scene && layer ? scene.parts.filter(p => !p.mute).map(p => p.engine) : [current];
+export function playOn(id, freq, vel = 1) { router.on(id, keyTargets(), freq, vel); }
+export function playOff(id) { router.off(id, [current]); }
+export function forgetSounding() { router.clear(); }   // tras un allNotesOff general (pánico): ya no suena nada
 
 // Construye una escena sobre `ctx` (pura: la usan enableScene y el selftest).
 // states[i] = preset (claves de PARAMS) con el que nace la parte i.
@@ -118,7 +135,7 @@ export async function enableScene() {
   const S = single.S;
   scene = await createScene(single.ctx, [toControls(S)],
     { salaS: S, fb: Math.min(0.8, S.dlyAmt * 0.85), dlyToRev: S.reverbMix, master: S.master });
-  single.allNotesOff();
+  single.allNotesOff(); router.clear();
   single.sala.setMaster(0);
   current = scene.parts[0].engine;
   return scene;
@@ -128,7 +145,7 @@ export function disableScene() {
   scene.conductor.stop();
   for (const p of scene.parts) p.engine.dispose();
   scene.sala.dispose();
-  scene = null; layer = false; current = single;
+  scene = null; layer = false; current = single; router.clear();
   single.sala.setMaster(single.S.master);
 }
 export function selectPart(i) { if (!scene || !scene.parts[i]) return; scene.sel = i; current = scene.parts[i].engine; }

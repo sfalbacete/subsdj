@@ -33,11 +33,12 @@ y va aparte, porque conviene meter primero los baratos.
 | 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
 | 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
 | 13 | **Pantallas + biblioteca de presets** ✔ | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer — HECHO (13a y 13b) | 13a bajo · 13b alto | — |
+| 14 | **Percusión: kit 808/909 + flam de palmada** ✔ | 9 presets (bombo 909, caja 808, palmada, rimshot, cencerro, hat abierto, crash, ride, hit rave) con niveles medidos + knobs Golpes/Hueco en el ADSR (el tren de ráfagas del clap 808: `Voice._flam`); check «flam de palmada» y pares PRC 1-4; tras prueba de oído, bombo y caja rediseñados (envolvente de brillo FM4 + Curva 1 en toda la categoría); bug del reloj de operadores FM4 arreglado (t0 en el worklet), look-ahead adaptativo (5 ms + 2·baseLatency) y el hallazgo final: el golpe ES el escalón → ataque 0 + puerta de arranque en el worklet + t0 en frontera de bloque (golpes idénticos en directo) — HECHO 2026-10-01 | bajo | — |
 
 **Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
 → ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
 2026-09-27; el bloque 13 completo). **10 (piel) COMPLETO el 2026-09-28** (1 tokens → 2 knob con arco → 3 selector → 4 temas) → **A4 ✔ (2026-09-28)**.
-**9 ✔ (2026-09-28). Siguiente: la recámara (12) — visualizadores en grande, swing del arp, loop points SFZ, W3.** Después A4 y 9 como
+**9 ✔ (2026-09-28). 14 (percusión + flam) ✔ (2026-10-01). Siguiente: la recámara (12) — visualizadores en grande, swing del arp, loop points SFZ, W3.** Después A4 y 9 como
 tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
@@ -102,6 +103,12 @@ visual, capturas CDP; commit por hito; README y este plan al día.
   sueltan las teclas del teclado. Y los jugadores Acorde/Raíz reponen sus notas en el compás
   siguiente si alguien las cortó (cargar un preset, Reset, poli↔mono, encender el Seq); cambiar la
   semilla en marcha suelta antes las notas. Sonda `probe-focus.mjs`.
+- **Nota colgada al cambiar de parte** (reportado por el usuario, 2026-10-01: «cambio de parte
+  mientras toco y el audio se corrompe, los instrumentos se interrumpen»): el note-off del
+  teclado/MIDI iba a la parte ACTUAL, no a la que recibió el note-on; la nota quedaba colgada en
+  la parte anterior (voz ocupada → robo de voz sobre el jugador; en mono, legato resbalando sobre
+  ella). `NoteRouter` en `engine/parts.js` manda el off a los motores que recibieron el on (también
+  Capa y blur). `Seq.unhold` y `_monoOff` ignoran ids ajenos. Check «teclado ↔ partes», 130/130.
 - **Curva de envolvente**: cazado por el usuario al primer uso — `setValueCurveAtTime` no se puede
   cancelar a mitad en Chrome (notas colgadas y caída de la página); ahora cadena de 12 rampas.
 - **Herramientas de verificación**, hoy en `%TEMP%\subsdj-tools` (efímeras: de ahí el punto 11):
@@ -451,6 +458,8 @@ entera o solo una sección «activa»?
 - **Visualizadores en grande**: el osciloscopio y el espectro de la cabecera (170×36) ampliables
   cuando haga falta verlos bien (pedido por el usuario «eventualmente», 2026-09-27).
 - **Arpegiador**: más divisiones y swing.
+- **Escena «Kit 909»**: cuatro partes de percusión (bombo, caja, hat, palmada) con jugadores de
+  Pulso E(k,n) — todo existe ya (C1 + C2 + los presets del punto 14); falta componer la escena.
 - **Exportador SFZ**: loop points automáticos (hoy nota sostenible ~3 s + release).
 - **Wavetable W3**: expresiones `f(x, t)` que generan una familia de frames coherentes, y/o
   editor de armónicos (aditiva pura). Decisión aplazada.

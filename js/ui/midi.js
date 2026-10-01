@@ -12,6 +12,7 @@ import { part, eachPart } from '../engine/parts.js';
 import { pressNote, releaseNote } from './keyboard.js';
 import { applyCC, learnCapture, setDevice } from './midimap.js';
 import { loadPresetIndex } from './presetBank.js';
+import { setStatus } from './status.js';
 
 let pedal = false;
 const pedalHeld = new Set();     // notas soltadas con el pedal pisado
@@ -41,10 +42,10 @@ function onMsg(e) {
 }
 
 export function initMIDI() {
-  const el = document.getElementById('midiInfo');
   if (!navigator.requestMIDIAccess) {                  // navegador sin Web MIDI
     const btn = document.getElementById('midiLearnBtn');
     if (btn) btn.hidden = true;
+    setStatus('midiInfo', '', 'este navegador no tiene Web MIDI');
     return;
   }
   navigator.requestMIDIAccess().then(acc => {
@@ -52,9 +53,9 @@ export function initMIDI() {
       const names = [];
       acc.inputs.forEach(inp => { inp.onmidimessage = onMsg; names.push(inp.name); });
       setDevice(names[0] || null);                     // carga el mapa de ESTE aparato
-      if (el) el.textContent = names.length ? '🎹 ' + names.join(' · ') : '🎹 sin dispositivo MIDI';
+      setStatus('midiInfo', names.length ? 'on' : '', names.length ? 'MIDI: ' + names.join(' · ') : 'sin dispositivo MIDI');   // símbolo de la cabecera
     };
     acc.onstatechange = rebind;                        // conectar/desconectar en caliente
     rebind();
-  }).catch(() => {});                                  // permiso denegado: sin MIDI, sin ruido
+  }).catch(() => setStatus('midiInfo', '', 'MIDI: sin permiso del navegador'));   // permiso denegado: sin MIDI, sin ruido
 }

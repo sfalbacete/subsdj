@@ -1,5 +1,6 @@
 /* SubSDJ · teclado en pantalla + teclado del PC (polifónico) */
-import { part, playOn, playOff, eachPart } from '../engine/parts.js';
+import { part, playOn, playOff, eachPart, forgetSounding } from '../engine/parts.js';
+import { setStatus } from './status.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // Layout estilo tracker (FastTracker/Impulse): dos filas de notas, semitonos desde la octava base.
@@ -25,7 +26,7 @@ const hintChip = off => off in HINTS ? `<span class="klab">${HINTS[off].toUpperC
 let baseOctave = 4;
 let numOctaves = 2;
 let octaveTouched = false;  // el usuario fijó octava con RePág/AvPág → no re-centrar al redimensionar
-let kb, powerInfo;
+let kb;
 const active = new Map();   // midi -> element|null
 const held = new Set();
 
@@ -77,6 +78,9 @@ function buildKeyboard() {
     row.appendChild(d); bindKeyEl(d, b.midi);
   });
 
+  const num = document.getElementById('kbOctNum');   // rango visible bajo el teclado: C4–C6
+  if (num) num.textContent = 'C' + baseOctave + '–C' + (baseOctave + numOctaves);
+
   // Tras reconstruir (resize), las notas que siguen sonando recuperan su tecla.
   active.forEach((el, midi) => {
     const d = row.querySelector(`[data-midi="${midi}"]`);
@@ -91,7 +95,7 @@ function press(midi, vel = 1) {
   const el = kb.querySelector(`[data-midi="${midi}"]`);
   if (el) el.classList.add('on');
   active.set(midi, el || null);
-  powerInfo.classList.add('on'); powerInfo.textContent = '⏻ audio activo';
+  setStatus('powerInfo', 'on', 'audio activo');
 }
 function release(midi) {
   if (!active.has(midi)) return;
@@ -104,12 +108,19 @@ function bindKeyEl(el, midi) {
   el.addEventListener('pointerup', () => release(midi));
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
-export function panic() { held.clear(); eachPart(e => e.allNotesOff()); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+export function panic() { held.clear(); eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
 // Soltar solo lo que sostiene ESTE teclado (QWERTY / ratón / MIDI): al perder el
 // foco de la ventana los keyup se pierden. Antes se llamaba a panic(), que
 // cortaba TODAS las voces de todas las partes — con la escena tocando, los pads
 // y drones de los jugadores desaparecían hasta el siguiente acorde.
 function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); }
+// Octava arriba/abajo (RePág/AvPág y los botones − / + bajo el teclado): suelta
+// lo que sostiene este teclado (sus notas cambiarían de tecla) y reconstruye.
+function shiftOctave(d) {
+  releaseHeldKeys(); octaveTouched = true;
+  baseOctave = Math.max(0, Math.min(9 - numOctaves, baseOctave + d));
+  buildKeyboard();
+}
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
 // así QWERTY y MIDI comparten estado visual y no se doble-disparan.
@@ -118,10 +129,10 @@ export function releaseNote(midi) { release(midi); }
 
 export function initKeyboard() {
   kb = document.getElementById('keyboard');
-  powerInfo = document.getElementById('powerInfo');
   numOctaves = octavesForWidth();
   baseOctave = defaultBase(numOctaves);
   buildKeyboard();
+  document.querySelectorAll('#kbOct button[data-kbo]').forEach(b => b.addEventListener('click', () => shiftOctave(+b.dataset.kbo)));
 
   // Al cambiar el ancho, recalcular cuántas octavas caben y reconstruir.
   let rszT;
@@ -152,9 +163,7 @@ export function initKeyboard() {
     }
     if (k === 'escape') { e.preventDefault(); panic(); return; }   // Escape = pánico (corta todo)
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
-      e.preventDefault(); releaseHeldKeys(); octaveTouched = true;
-      baseOctave = k === 'pageup' ? Math.min(9 - numOctaves, baseOctave + 1) : Math.max(0, baseOctave - 1);
-      buildKeyboard(); return;
+      e.preventDefault(); shiftOctave(k === 'pageup' ? 1 : -1); return;
     }
     if (!(k in KEYMAP)) return;
     if (held.has(k) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
