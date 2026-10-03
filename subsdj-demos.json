@@ -1,8 +1,24 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v21 (+ deriva por voz y fase por voz de los LFO, 2026-10)",
+  "banco": "SubSDJ · demos de mejoras — v22 (+ shimmer en la Sala, 2026-10)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "SHIM 1 · pad en la placa, sin shimmer": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 1200, "reso": 1, "filterSlope": "24", "a": 0.3, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.55, "reverbSize": 6, "reverbDamp": 0.3, "shimAmt": 0, "master": 0.55 },
+
+    "SHIM 2 · mismo pad, shimmer +12 a 0,7 (la cola sube sola)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 1200, "reso": 1, "filterSlope": "24", "a": 0.3, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.55, "reverbSize": 6, "reverbDamp": 0.3, "shimAmt": 0.7, "shimInt": "+12", "master": 0.55 },
+
+    "SHIM 3 · mismo pad, shimmer +12 (octava)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 1200, "reso": 1, "filterSlope": "24", "a": 0.3, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.55, "reverbSize": 6, "reverbDamp": 0.3, "shimAmt": 0.7, "shimInt": "+12", "master": 0.55 },
+
+    "SHIM 4 · mismo pad, shimmer +7 (quinta: coro denso)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 1200, "reso": 1, "filterSlope": "24", "a": 0.3, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.55, "reverbSize": 6, "reverbDamp": 0.3, "shimAmt": 0.7, "shimInt": "+7", "master": 0.55 },
 
     "FASE 1 · pad, LFO de cutoff en fase global (el acorde respira en bloque)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.45,
       "cutoff": 600, "reso": 2, "filterSlope": "24", "cutLfoShape": "sine", "cutLfoLvl": 450, "cutLfoSpd": 0.3, "lfoPhase": "global",

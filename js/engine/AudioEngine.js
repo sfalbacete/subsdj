@@ -33,11 +33,11 @@ const TAIL_FADE = 0.35;
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=9';   // v9: puerta de arranque en t0 (fase determinista) + reloj FM4 anclado a max(t0, tBirth)
+const WK_V = '?v=10';  // v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
-  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor']
+  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor']
     .map(n => ctx.audioWorklet.addModule(new URL('./worklets/' + n + '.js' + WK_V, import.meta.url))));
   workletsLoaded.add(ctx);
 }

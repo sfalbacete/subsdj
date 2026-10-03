@@ -12,8 +12,10 @@
      tanque (Dattorro, tabla 2): estéreo descorrelado de un solo tanque.
    Longitudes en muestras a la frecuencia del diseño (29 761 Hz), escaladas
    a la del contexto. Sale 100 % wet: el nivel lo pone el envío (Sala.js).
-   Params (k-rate): decay (0..0.98, la Sala lo deriva del Size), damp (0..1,
-   paso-bajo del tanque), mod (0..1, excursión de los allpass modulados).
+   Params (k-rate): decay (0..1, la Sala lo deriva del Size; ≈1 = FREEZE: el
+   tanque es un bucle de allpass y retardos, sin pérdidas a decay 1, así que
+   la cola se queda sonando tal cual), damp (0..1, paso-bajo del tanque), mod
+   (0..1, excursión de los allpass modulados).
    Si no entra nada y el tanque está vacío, no calcula (silencio barato).
    ===================================================================== */
 const REF_SR = 29761;
@@ -47,7 +49,7 @@ class Allpass {
 class PlateProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'decay', defaultValue: 0.5, minValue: 0, maxValue: 0.98, automationRate: 'k-rate' },
+      { name: 'decay', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'k-rate' },   // 1 = freeze (Sala.FREEZE_DECAY se queda un pelo por debajo)
       { name: 'damp',  defaultValue: 0.3, minValue: 0, maxValue: 1,    automationRate: 'k-rate' },
       { name: 'mod',   defaultValue: 0.5, minValue: 0, maxValue: 1,    automationRate: 'k-rate' },
     ];

@@ -197,6 +197,13 @@ export const FACTORY = {
       lfoPhase: 'voz', freqLfoLvl: 5, freqLfoSpd: 0.15, lfoFade: 4,
       a: 6, d: 3, s: 1, r: 15, envCurve: 0.4, width: 0.3, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'placa', reverbMix: 0.45, reverbSize: 12, reverbDamp: 0.4, reverbPre: 0.05, master: 0.6 },
+    /* bloque 3: shimmer — la cola vuelve a entrar en la placa una octava arriba en
+       cada vuelta y se convierte en un coro que asciende (Eno/Lanois). Toca una
+       nota grave, suéltala y escucha cómo sube sola; ❄ Freeze la deja ahí */
+    'Pad shimmer (coro que sube)': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, octB: -1, mix: 0.4,
+      cutoff: 1200, reso: 1, filterSlope: '24', drift: 3,
+      a: 1.5, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
+      reverbType: 'placa', reverbMix: 0.55, reverbSize: 8, reverbDamp: 0.3, reverbPre: 0.03, shimAmt: 0.7, shimInt: '+12', master: 0.55 },
   },
 
   'Voz': {

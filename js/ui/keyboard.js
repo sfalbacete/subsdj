@@ -108,7 +108,12 @@ function bindKeyEl(el, midi) {
   el.addEventListener('pointerup', () => release(midi));
   el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
 }
-export function panic() { held.clear(); eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear(); }
+export function panic() {
+  held.clear(); eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear();
+  // y suelta la reverb congelada (❄ Freeze de la Sala): «cortar todo» también es eso
+  const s = part().sala;
+  if (s && s.frozen) { s.setFreeze(false); document.dispatchEvent(new CustomEvent('freeze-changed')); }
+}
 // Soltar solo lo que sostiene ESTE teclado (QWERTY / ratón / MIDI): al perder el
 // foco de la ventana los keyup se pierden. Antes se llamaba a panic(), que
 // cortaba TODAS las voces de todas las partes — con la escena tocando, los pads

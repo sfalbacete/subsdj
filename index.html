@@ -551,7 +551,17 @@
       <button data-rt="sala" title="Convolución con una IR de ruido generada por código">Sala (IR)</button>
       <button data-rt="placa" title="Placa algorítmica (Dattorro, el linaje del Lexicon 224): la densidad crece con el tiempo y el tanque va modulado">Placa</button>
     </div>
-    <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa), hasta 20 s: la sala que suena más que la nota (la IR de 20 s cuesta CPU en proporción; la placa, no) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola (hasta 250 ms). En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto es de la sala compartida.</div>
+    <div class="row" style="margin-top:8px;align-items:center;gap:8px">
+      <div class="ctl"><div class="knob" data-knob="shimAmt"><div class="ind"></div></div><div class="lab">Shimmer</div><div class="val"></div></div>
+      <div class="seg" id="shimIntSel" style="flex:1" title="Intervalo del shimmer: lo que sube la cola en cada vuelta">
+        <button data-shi="+12" title="Octava: el shimmer clásico">+12</button>
+        <button data-shi="+7" title="Quinta: coro más denso, menos obvio">+7</button>
+        <button data-shi="+5" title="Cuarta">+5</button>
+        <button data-shi="-12" title="Octava abajo: sombra grave">−12</button>
+      </div>
+      <button id="freezeBtn" class="btn" title="Freeze (solo Placa): cierra la entrada y deja la cola sonando indefinidamente tal cual está; otra vez para soltarla. Pánico y Escape también la sueltan">❄ Freeze</button>
+    </div>
+    <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa), hasta 20 s: la sala que suena más que la nota (la IR de 20 s cuesta CPU en proporción; la placa, no) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola (hasta 250 ms). <b>Shimmer</b>: la cola vuelve a entrar en la reverb desplazada de tono (desplazador granular: dos cabezas en rampa con ventana seno) y en cada vuelta sube el intervalo elegido — la cola se convierte en un coro que asciende (Eno/Lanois); el knob es cuánta ENERGÍA vuelve por vuelta (a tope 0,8: estable, y calibrado contra la energía de la reverb, así que da igual el Size y el tipo). <b>❄ Freeze</b> (solo Placa): cierra la entrada y pone el tanque casi sin pérdidas — lo que estaba sonando se queda, indefinidamente, con la modulación del tanque meciéndolo; otra vez para soltarla. La IR no congela: es un FIR, no retiene nada. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto (también Shimmer y Freeze) es de la sala compartida.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Espacio</h2>

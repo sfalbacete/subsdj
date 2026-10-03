@@ -137,6 +137,10 @@ export const PARAMS = {
   reverbDamp: { def: 0, min: 0, max: 1 },           // los agudos de la cola mueren antes (vive en la IR)
   reverbPre:  { def: 0, min: 0, max: 0.25, unit: ' s', fmt: msFmt },  // predelay: separa el ataque de la cola (hasta 250 ms: la sala «lejos»)
   reverbType: { def: 'sala' },                      // 'sala' = convolución (IR de ruido) | 'placa' = algorítmica (Dattorro)
+  // Shimmer (Roadmap 5.0 · bloque 3; claves de la SALA): la cola vuelve a entrar
+  // en la reverb desplazada de tono → un coro que asciende en cada vuelta
+  shimAmt:    { def: 0, min: 0, max: 1, act: true },   // cuánto vuelve (ganancia del bucle = shimAmt·Sala.SHIM_FB_MAX)
+  shimInt:    { def: '+12' },                          // intervalo: '+12' octava (el clásico) | '+7' quinta | '+5' cuarta | '-12' octava abajo
 
   // --- Envolvente / voz / master ---
   // Tiempos ×10 (Roadmap 5.0 · bloque 1): hasta 20 s de ataque y 30 s de release.

@@ -16,7 +16,7 @@
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets } from './engine/AudioEngine.js';
-import { Sala, plateDecay } from './engine/Sala.js';
+import { Sala, plateDecay, reverbEnergyGain } from './engine/Sala.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
@@ -1869,6 +1869,116 @@ export async function runSelfTest() {
         if (!(swing(s1) < 1.3)) probs.push('a 0,005 Hz la deriva se mueve demasiado en 2 s (vaivén ' + swing(s1).toFixed(3) + ')');
         console.log('deriva por voz: corr entre notas', cD.toFixed(3), '· vaivén', swing(a1).toFixed(2), swing(a2).toFixed(2), '· renders máx |Δ|', md.toExponential(2), '· a 0,005 Hz vaivén', swing(s1).toFixed(3));
         r = { name: NAME, peak: analyze(bA).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+  }
+
+  // ---------- Roadmap 5.0 · bloque 3: shimmer + freeze ----------
+  {
+    body.appendChild(el('st-cat', 'Shimmer y freeze'));
+    const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+      let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+    const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
+      const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
+      for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+      return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
+    // El desplazador a solas: un seno de 440 Hz entra y sale a 880 (+12) o a
+    // 659,3 (+7), con el fundamental original ≫ por debajo y la energía conservada
+    // (sen² + cos² = 1 entre las dos cabezas).
+    {
+      const NAME = 'desplazador de tono (440 Hz → 880 a +12 · → 659 a +7 · energía conservada)';
+      let r;
+      try {
+        const probs = [];
+        const shift = async semis => {
+          const ctx = new OfflineAudioContext(1, Math.ceil(SR * 2), SR); await loadWorklets(ctx);
+          const osc = ctx.createOscillator(); osc.frequency.value = 440;
+          const sh = new AudioWorkletNode(ctx, 'shift-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+          sh.parameters.get('semitones').value = semis;
+          osc.connect(sh); sh.connect(ctx.destination); osc.start();
+          return ctx.startRendering();
+        };
+        const b12 = await shift(12), b7 = await shift(7);
+        const q12 = goertzel(b12, 880, 0.5, 2) / Math.max(1e-9, goertzel(b12, 440, 0.5, 2));
+        const q7 = goertzel(b7, 440 * Math.pow(2, 7 / 12), 0.5, 2) / Math.max(1e-9, goertzel(b7, 440, 0.5, 2));
+        const e12 = rmsW(b12, 0.5, 2) / Math.SQRT1_2;   // RMS de un seno de amplitud 1 = 0,707
+        if (!(q12 > 10)) probs.push('+12: 880 Hz / 440 Hz = ' + q12.toFixed(1) + ' (esperado ≫ 1)');
+        if (!(q7 > 10)) probs.push('+7: 659 Hz / 440 Hz = ' + q7.toFixed(1) + ' (esperado ≫ 1)');
+        if (!(e12 > 0.5 && e12 < 1.4)) probs.push('+12: la energía no se conserva (RMS relativo ' + e12.toFixed(2) + ')');
+        if (analyze(b12).bad) probs.push('NaN/Inf');
+        console.log('desplazador: +12 880/440', q12.toFixed(1), '· +7 659/440', q7.toFixed(1), '· energía', e12.toFixed(2));
+        r = { name: NAME, peak: analyze(b12).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // Shimmer en la Sala: un pluck (Size 4) con y sin bucle, en la placa y en la
+    // IR. Con shimmer a tope la cola a los 3-4 s es más brillante (tilt) y MUCHO
+    // más densa (RMS) que sin él, y no crece (energía por vuelta 0,8 < 1): a los
+    // 7-8 s pesa menos que a los 2-3 s. La ganancia del bucle sale de la energía
+    // de la reverb (reverbEnergyGain): se comprueba que el valor calculado para
+    // la placa a Size 4 reproduce la medida de Node (0,19).
+    {
+      const NAME = 'shimmer en la Sala (placa e IR: la cola se aclara y se llena · estable con el bucle a tope · ganancia calibrada)';
+      let r;
+      try {
+        const probs = [], med = {};
+        const pl = { waveA: 'sawtooth', mix: 0, cutoff: 6000, reso: 0.7, a: 0.002, d: 0.1, s: 0, r: 0.05, width: 0,
+                     reverbMix: 0.6, reverbSize: 4, reverbDamp: 0, reverbPre: 0, shimInt: '+12' };
+        let peak = 0;
+        for (const type of ['placa', 'sala']) {
+          loadState({ ...pl, reverbType: type, shimAmt: 0 });
+          const b0 = await renderOne(structuredClone(engine.S), { secs: 8, offAt: 0.1 });
+          loadState({ ...pl, reverbType: type, shimAmt: 1 });
+          const b1 = await renderOne(structuredClone(engine.S), { secs: 8, offAt: 0.1 });
+          const t0 = tiltW(b0, 3, 4), t1 = tiltW(b1, 3, 4), e0 = rmsW(b0, 3, 4), e1 = rmsW(b1, 3, 4);
+          const crece = rmsW(b1, 7, 8) / Math.max(1e-9, rmsW(b1, 2, 3));
+          med[type] = { t0, t1, e0, e1, crece };
+          if (!(e1 > 1e-3)) probs.push(type + ': sin cola con shimmer (' + dB(e1) + ')');
+          if (!(t1 > 1.5 * t0)) probs.push(type + ': el shimmer no aclara la cola (tilt ' + t1.toExponential(2) + ' vs ' + t0.toExponential(2) + ')');
+          if (!(e1 > 3 * e0)) probs.push(type + ': el shimmer no llena la cola (rms ' + dB(e1) + ' vs ' + dB(e0) + ')');
+          if (!(crece < 1)) probs.push(type + ': la cola CRECE con el bucle a tope (×' + crece.toFixed(2) + ' entre 2 s y 7 s)');
+          const a1 = analyze(b1); peak = Math.max(peak, a1.peak);
+          if (a1.bad || a1.peak > 1) probs.push(type + ': NaN/Inf o clipping con shimmer');
+        }
+        const gP = reverbEnergyGain('placa', 4), gI = reverbEnergyGain('sala', 4);
+        if (!(Math.abs(gP - 0.189) < 0.01 && Math.abs(gI - 0.28) < 0.01)) probs.push('reverbEnergyGain a Size 4: placa ' + gP.toFixed(3) + ' (medido 0,189) · IR ' + gI.toFixed(3) + ' (0,280)');
+        console.log('shimmer: placa tilt con/sin', med.placa.t1.toExponential(2), med.placa.t0.toExponential(2), 'rms', dB(med.placa.e1), dB(med.placa.e0), '7 s/2 s', med.placa.crece.toFixed(3),
+                    '· IR tilt', med.sala.t1.toExponential(2), med.sala.t0.toExponential(2), 'rms', dB(med.sala.e1), dB(med.sala.e0), '7 s/2 s', med.sala.crece.toFixed(3), '· G placa/IR', gP.toFixed(3), gI.toFixed(3));
+        r = { name: NAME, peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // Freeze: pluck en una placa CORTA (Size 2); congelar a 0,5 s mantiene la cola
+    // (a 5 s pesa como a 1 s) mientras que sin congelar se ha extinguido; soltar
+    // a 3 s la deja caer; con la IR, setFreeze no hace nada (no hay estado).
+    {
+      const NAME = 'freeze (la cola se queda · suelta y cae · solo placa)';
+      let r;
+      try {
+        const probs = [];
+        const pl = { waveA: 'sawtooth', mix: 0, cutoff: 6000, reso: 0.7, a: 0.002, d: 0.1, s: 0, r: 0.05, width: 0,
+                     reverbType: 'placa', reverbMix: 0.6, reverbSize: 2, reverbDamp: 0, reverbPre: 0 };
+        const rend = async (st, acciones) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 6), SR);
+          const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+          eng.noteOn('f', NOTE1); ctx.suspend(0.1).then(() => { eng.noteOff('f'); ctx.resume(); });
+          for (const [t, fn] of acciones) ctx.suspend(t).then(() => { fn(eng); ctx.resume(); });
+          return ctx.startRendering(); };
+        const bLibre = await rend(pl, []);
+        const bFrz = await rend(pl, [[0.5, e => { if (!e.sala.setFreeze(true)) probs.push('setFreeze(true) no actuó con la placa'); }]]);
+        const bSuelta = await rend(pl, [[0.5, e => e.sala.setFreeze(true)], [3.0, e => e.sala.setFreeze(false)]]);
+        let irOk = true;
+        await rend({ ...pl, reverbType: 'sala' }, [[0.5, e => { irOk = e.sala.setFreeze(true) === false && !e.sala.frozen; }]]);
+        const hold = rmsW(bFrz, 5, 5.5) / Math.max(1e-9, rmsW(bFrz, 1, 1.5)), libre = rmsW(bLibre, 5, 5.5) / Math.max(1e-9, rmsW(bLibre, 1, 1.5));
+        const caida = rmsW(bSuelta, 5.5, 6) / Math.max(1e-9, rmsW(bSuelta, 2.5, 3));
+        if (!(rmsW(bFrz, 5, 5.5) > 1e-3)) probs.push('congelada, la cola se apaga (' + dB(rmsW(bFrz, 5, 5.5)) + ' a los 5 s)');
+        if (!(hold > 0.6 && hold < 1.5)) probs.push('congelada, la cola no se mantiene (5 s / 1 s = ' + hold.toFixed(3) + ')');
+        if (!(libre < 0.05)) probs.push('sin congelar, la cola de Size 2 debería haberse extinguido (5 s / 1 s = ' + libre.toFixed(3) + ')');
+        if (!(caida < 0.2)) probs.push('al soltar no cae (6 s / 3 s = ' + caida.toFixed(3) + ')');
+        if (!irOk) probs.push('con la IR, setFreeze debería no hacer nada');
+        if (analyze(bFrz).bad || analyze(bFrz).peak > 1) probs.push('NaN/Inf o clipping congelada');
+        console.log('freeze: 5 s / 1 s congelada', hold.toFixed(3), '· libre', libre.toExponential(2), '· tras soltar 6 s / 3 s', caida.toExponential(2));
+        r = { name: NAME, peak: analyze(bFrz).peak, ok: !probs.length, problems: probs };
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }

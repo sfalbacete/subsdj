@@ -1077,3 +1077,38 @@ check: con dos senos a nivel normal el **limitador de la Sala** (umbral −3 dB)
 comprimía la suma y acoplaba las pistas (corr −0,995 falsa); el render de
 prueba va a −12 dB. Preset «Pad de cuatro vientos (deriva por voz)» en
 Cinescape; pares **FASE 1-2** (diff 0,45) y **DERIVA 1-2** (0,52).
+
+**3 Shimmer + freeze en la Sala** ✔ *(hecho 2026-10-03)* — **Shimmer**: bucle
+cola → HP 120 Hz → LP 5 kHz → desplazador de tono → ×g → entrada de la reverb
+(vale para la IR y para la placa; claves de la Sala `shimAmt`, `shimInt`:
+compartidas en Partes y fuera del preset en ese modo). El desplazador
+(`worklets/shift-processor.js`) es el granular clásico: una línea de retardo y
+dos cabezas cuyo retardo baja en rampa de 100 ms a 0 — leer acercándose a la
+escritura es leer más deprisa, ×2^(st/12) —, cada una con ventana seno (0 en
+el salto) y a media vuelta (sen² + cos² = 1: potencia constante); a +12 salen
+10 granos por segundo, el leve trémolo de todo shimmer, que la reverb
+disuelve. Intervalos +12 / +7 / +5 / −12. La ganancia del bucle se **calibra
+contra la energía de la reverb**: la primera versión llevaba una ganancia fija
+de 0,8 y no había coro — el check lo cazó: la cola con shimmer pesaba lo mismo
+que sin él. Una reverb devuelve mucha MENOS energía de la que entra: la IR
+normalizada por el ConvolverNode tiene RMS fija 0,00126 (su constante de
+calibración), luego energía 0,07·Size; la placa, medida con impulso en Node,
+0,08 a Size 1 y 0,54 a Size 20 (`PLATE_G`). Con ganancia fija cada vuelta
+perdía ~9 dB. Ahora g = √(amt·0,8 / G): la energía por vuelta es amt·0,8 sea
+cual sea el Size y el tipo (acumulación en régimen 1/(1−0,8) = ×5, que Mix y
+el limitador absorben), y girar Size no cambia el shimmer. **Freeze** (botón
+❄: gesto de ejecución, no parámetro — una cola congelada no se guarda): solo
+placa. Cierra la entrada de la reverb (y con ella el bucle del shimmer:
+realimentar un tanque sin pérdidas crecería sin tope) y pone el decay a 0,9995
+(el worklet admite hasta 1; antes 0,98): lo que sonaba se queda, mecido por la
+modulación del tanque, media hora hasta caer 60 dB. La IR es un FIR y no
+retiene nada: con «Sala» el botón se desactiva, y pasar a IR estando congelada
+suelta. Pánico y Escape sueltan. Evidencia: check «desplazador» (seno de 440
+Hz → 880 a +12, relación 8710 sobre el fundamental; → 659 a +7, 5547; energía
+1,28), «shimmer» (pluck a Size 4: cola a los 3-4 s con/sin, placa −55 / −69,5
+dB, IR −41,5 / −71,6 dB; tilt ×190 / ×38; a los 7-8 s pesa 0,006 / 0,125 de lo
+que pesaba a los 2-3 s: estable; `reverbEnergyGain` reproduce las medidas
+0,189 / 0,280) y «freeze» (congelada a 0,5 s, a los 5 s pesa 0,969 de lo que
+pesaba a 1 s; libre, 4·10⁻⁵; soltada a los 3 s cae a 10⁻³ a los 6; con la IR no
+actúa); 155/155; `WK_V` v10. Preset «Pad shimmer (coro que sube)» en
+Cinescape; pares **SHIM 1-2** (diff 0,21) y **SHIM 3-4** (+12 vs +7, 0,24).

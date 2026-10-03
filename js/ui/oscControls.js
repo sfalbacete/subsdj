@@ -63,6 +63,19 @@ function setTrans(which, n) {
   if (el) el.textContent = n > 0 ? '+' + n : n < 0 ? '−' + (-n) : '0';
 }
 
+// ❄ Freeze de la Sala: gesto de ejecución, no parámetro del preset (una cola
+// congelada no tiene sentido guardada). Solo con Placa: con la IR el botón se
+// desactiva. Pánico/Escape la sueltan (keyboard.panic emite 'freeze-changed').
+function bindFreeze() {
+  const fz = document.getElementById('freezeBtn');
+  if (!fz) return;
+  const paint = () => { const s = part().sala; fz.classList.toggle('on', !!(s && s.frozen)); };
+  fz.addEventListener('click', () => { part().resume(); const s = part().sala; if (s) s.setFreeze(!s.frozen); paint(); });
+  document.addEventListener('freeze-changed', paint);
+  document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') { fz.disabled = e.detail.value !== 'placa'; paint(); } });
+  fz.disabled = PARAMS.reverbType.def !== 'placa';
+}
+
 export function bindOscControls() {
   bindSeg('waveA', 'w', 'waveA', 'oscA.wave');
   bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
@@ -76,6 +89,8 @@ export function bindOscControls() {
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algoritmo (quién modula a quién)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
   bindSeg('lfoPhaseSel', 'lph', 'lfoPhase', 'lfoPhase');   // LFOs: fase global (un LFO por motor) / por voz (copias en fase Weyl)
+  bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: intervalo del desplazador (clave de la Sala)
+  bindFreeze();
   bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador
   bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
   bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');

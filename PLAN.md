@@ -1,7 +1,7 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1 y 2 HECHOS, selftest 151/151). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+bloques 1, 2 y 3 HECHOS, selftest 155/155). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -478,7 +478,7 @@ La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad 
 |---|--------|------------|-------|------------|
 | 1 | **Tiempo ×10 + octava por oscilador** ✔ | la escala del paisaje: 20 s de ataque, 30 s de release, LFOs de minutos, sala de 20 s, delay de 4 s; suboscilador — HECHO 2026-10-03 | bajo | — |
 | 2 | **Deriva por voz + fase por voz** ✔ | cada nota del acorde evoluciona por su cuenta: fuente «Deriva (voz)» + selector LFO global / por voz (fase Weyl determinista) — HECHO 2026-10-03 | bajo | 1 |
-| 3 | **Shimmer + freeze en la Sala** | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada | medio (worklet ~120 líneas) | — |
+| 3 | **Shimmer + freeze en la Sala** ✔ | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada — HECHO 2026-10-03 (bucle calibrado por energía de la reverb) | medio | — |
 | 4 | **Fuentes de ejecución** | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s | bajo | — |
 | 5 | **Resonadores** | cuencos, metal frotado, viento sobre cuerdas: banco de combs/modos inarmónicos excitado por ruido (el banco Vocal ya es un banco de pasabandas) | medio | 1, 2 |
 | 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
@@ -510,11 +510,16 @@ Lección: los checks que miden amplitud por voz deben renderizar a −12 dB o el
 acopla las pistas. El plan era: fuente «Deriva (por voz)» en `MX_SOURCES` desde un offset aleatorio
 y fase aleatoria por voz para los LFOs dedicados.
 
-**3 · Shimmer + freeze** — Propósito: la cola que crece sola. Qué: worklet pitch shifter granular
-(dos granos con ventana Hann y lectura en dientes de sierra, +12 o +7 st) en un bucle reverb →
-LP → shifter → ×amt → reverb (knobs Shimmer, Intervalo); Freeze: botón que cierra la entrada y
-pone el decay de la placa a 0,999 (la IR no congela: es FIR). Verificación: con shimmer, la
-energía por encima de 2·f0 en la cola crece con el tiempo; sin él, cae. Coste medio.
+**3 · Shimmer + freeze** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del plan: la
+ganancia del bucle NO es fija: se calibra contra la energía de la reverb (IR 0,07·Size por la
+constante de normalización del ConvolverNode; placa medida en Node, tabla `PLATE_G`) para que la
+energía por vuelta sea amt·0,8 — con ganancia fija no había coro (cada vuelta perdía ~9 dB; el
+check lo cazó). Ventanas seno (no Hann) a media vuelta: potencia constante. Freeze a decay 0,9995
+(el worklet sube su tope a 1) y como botón, no parámetro; con la IR se desactiva. Medidas: 440 →
+880 Hz relación 8710; cola a 3-4 s +14 dB (placa) / +30 dB (IR) con shimmer; estable (7 s/2 s
+0,006 / 0,125); congelada mantiene 0,969 a los 5 s; 155/155. Preset «Pad shimmer»; pares SHIM 1-4.
+El plan era: worklet pitch shifter granular (dos granos con ventana Hann y lectura en dientes de
+sierra, +12 o +7 st) en un bucle reverb → LP → shifter → ×amt → reverb; Freeze con decay 0,999.
 
 **4 · Fuentes de ejecución** — rueda (CC1), aftertouch y expresión (CC11) como fuentes de la
 matriz (`ui/midi.js` ya recibe MIDI; falta un ConstantSource global por fuente). Verificación:

@@ -19,7 +19,37 @@
 import { makeIR, mkLFO } from './nodes.js';
 
 export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
-                                  'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType']);
+                                  'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt']);
+
+// Shimmer (Roadmap 5.0 · bloque 3): bucle cola → HP → LP → desplazador de tono
+// (worklets/shift-processor.js) → ×ganancia → entrada de la reverb. Cada vuelta
+// sube el intervalo elegido: la cola se vuelve un coro que asciende (Eno/Lanois).
+// La ganancia del bucle se CALIBRA contra la energía de la reverb: una reverb
+// devuelve mucha menos energía de la que entra (la IR normalizada por WebAudio
+// tiene RMS fija 0,00126 → energía ≈ 0,07·Size; la placa, medida en Node con un
+// impulso, de 0,08 a Size 1 a 0,54 a Size 20), así que con una ganancia fija
+// cada vuelta perdía ~9 dB y no había coro. Con g = √(amt·SHIM_LOOP_MAX / G) la
+// energía por vuelta es amt·SHIM_LOOP_MAX sea cual sea el Size y el tipo: a
+// tope, 0,8 < 1 (estable; la acumulación en régimen es 1/(1−0,8) = ×5 de
+// energía, que el knob Mix y el limitador absorben), y da igual girar Size.
+// HP/LP del bucle: sin graves que se acumulen vuelta tras vuelta y con el
+// espectro de entrada al desplazador acotado (a +12 lo que entra a 5 kHz sale
+// a 10 kHz: ahí la escalera de octavas se extingue sola).
+const SHIM_LOOP_MAX = 0.8, SHIM_G_MAX = 8, SHIM_HP = 120, SHIM_LP = 5000;
+const IR_G_PER_S = 0.0699;   // 44100 · 0,00125893²: la constante de normalización del ConvolverNode
+const PLATE_G = [[0.5, 0.075], [1, 0.082], [2, 0.114], [4, 0.189], [8, 0.351], [12, 0.409], [20, 0.538]];   // medida (damp 0)
+const tableAt = (tab, x) => {
+  if (x <= tab[0][0]) return tab[0][1];
+  for (let i = 1; i < tab.length; i++) { const [x0, y0] = tab[i - 1], [x1, y1] = tab[i]; if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  return tab[tab.length - 1][1];
+};
+export const reverbEnergyGain = (type, size) => type === 'placa' ? tableAt(PLATE_G, size) : IR_G_PER_S * size;
+// Freeze: la placa a decay FREEZE_DECAY (un pelo bajo 1: el tanque es casi sin
+// pérdidas y la cola tarda ~media hora en caer 60 dB) con la ENTRADA cerrada: lo
+// que estaba sonando se queda. Solo la placa tiene estado que congelar (la IR
+// es un FIR: no retiene nada). Al cerrar la entrada se corta también el bucle
+// del shimmer: realimentar un tanque sin pérdidas crecería sin tope.
+export const FREEZE_DECAY = 0.9995;
 
 // Placa (worklets/plate-processor.js, Dattorro): el Size del knob es un RT60 en
 // segundos. Tabla MEDIDA (impulso en Node, pendiente de la cola entre 0,5 y
@@ -143,6 +173,42 @@ export class Sala {
     this.revRet.connect(this.sum);
     this.sum.connect(this.comp); this.comp.connect(this.master);
     this.master.connect(this.analyser); this.analyser.connect(dest);
+
+    // --- Shimmer (bajo demanda: el caso común shimAmt = 0 no paga el worklet) y freeze ---
+    this.shim = null; this.frozen = false;
+    if (S.shimAmt > 0) this._ensureShim();
+  }
+
+  // ---------- shimmer ----------
+  _shimSemis() { return parseInt(this.S.shimInt, 10) || 12; }
+  // ganancia (amplitud) del bucle para que la energía por vuelta sea amt·SHIM_LOOP_MAX
+  _shimGain() {
+    const G = reverbEnergyGain(this.S.reverbType, this.S.reverbSize);
+    return Math.min(SHIM_G_MAX, Math.sqrt(this.S.shimAmt * SHIM_LOOP_MAX / Math.max(1e-3, G)));
+  }
+  _shimUpdate(smooth) { if (this.shim) smooth(this.shim.fb.gain, this._shimGain()); }
+  _ensureShim() {
+    if (this.shim) return this.shim;
+    const ctx = this.ctx;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.Q.value = -3; hp.frequency.value = SHIM_HP;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.Q.value = -3; lp.frequency.value = SHIM_LP;
+    const shift = new AudioWorkletNode(ctx, 'shift-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+    shift.parameters.get('semitones').value = this._shimSemis();
+    const fb = ctx.createGain(); fb.gain.value = this._shimGain();
+    this.revRet.connect(hp); hp.connect(lp); lp.connect(shift); shift.connect(fb); fb.connect(this.revIn);   // revIn: con freeze se cierra y corta el bucle
+    return this.shim = { hp, lp, shift, fb };
+  }
+  // Freeze (solo placa). `at` opcional en el reloj de audio (lo usa el selftest).
+  // Devuelve si cambió algo: con la IR no hay estado que congelar y no hace nada.
+  setFreeze(on, at = null) {
+    on = !!on;
+    if (on === this.frozen) return false;
+    if (on && this.S.reverbType !== 'placa') return false;
+    this.frozen = on;
+    const t = at !== null ? at : this.ctx.currentTime;
+    this.revIn.gain.setTargetAtTime(on ? 0 : 1, t, 0.05);
+    this._ensurePlate().parameters.get('decay').setTargetAtTime(on ? FREEZE_DECAY : plateDecay(this.S.reverbSize), t, 0.05);
+    return true;
   }
 
   // Claves de la sala (SALA_KEYS): actualiza el estado de TODOS los motores
@@ -162,11 +228,14 @@ export class Sala {
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
       case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
         this._plateParams();                               // la placa cambia al instante (son dos params)
+        this._shimUpdate(smooth);                          // la ganancia del bucle del shimmer sigue a la energía de la reverb (Size)
         if (this.S.reverbType === 'placa') { this._irStale = true; break; }   // la IR se rehará al volver a «sala»
         clearTimeout(this._revTimer);
         this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
         break;
-      case 'reverbType': this._setType(value); break;
+      case 'reverbType': if (this.frozen && value !== 'placa') this.setFreeze(false); this._setType(value); this._shimUpdate(smooth); break;   // la IR no congela: soltar antes de cambiar
+      case 'shimAmt': if (value > 0) this._ensureShim(); this._shimUpdate(smooth); break;
+      case 'shimInt': if (this.shim) this.shim.shift.parameters.get('semitones').setValueAtTime(this._shimSemis(), now); break;
     }
   }
 
@@ -182,7 +251,7 @@ export class Sala {
     if (!this.plate) return;
     const t = this.ctx.currentTime, p = this.plate.parameters;
     const put = (name, v) => { const ap = p.get(name); if (!ap) return; if (now) ap.value = v; else ap.setTargetAtTime(v, t, 0.05); };
-    put('decay', plateDecay(this.S.reverbSize)); put('damp', this.S.reverbDamp); put('mod', PLATE_MOD);
+    put('decay', this.frozen ? FREEZE_DECAY : plateDecay(this.S.reverbSize)); put('damp', this.S.reverbDamp); put('mod', PLATE_MOD);   // congelada: el Size no la suelta
   }
   _front() { return this._revFront === 'A' ? this.convA : this.convB; }
   // Cambio de reverb con fundido de 50 ms; la entrada de la que se apaga se
@@ -242,6 +311,7 @@ export class Sala {
     clearTimeout(this._revTimer); clearTimeout(this._revOffTimer); clearTimeout(this._typeTimer);
     for (const l of [this.wowL, this.wowR]) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
+    if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,
                      this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.irMix, this.plateMix,
                      this.revRet, this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }
