@@ -1,7 +1,7 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1, 2 y 3 HECHOS, selftest 155/155). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+bloques 1 a 4 HECHOS, selftest 157/157). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -479,7 +479,7 @@ La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad 
 | 1 | **Tiempo ×10 + octava por oscilador** ✔ | la escala del paisaje: 20 s de ataque, 30 s de release, LFOs de minutos, sala de 20 s, delay de 4 s; suboscilador — HECHO 2026-10-03 | bajo | — |
 | 2 | **Deriva por voz + fase por voz** ✔ | cada nota del acorde evoluciona por su cuenta: fuente «Deriva (voz)» + selector LFO global / por voz (fase Weyl determinista) — HECHO 2026-10-03 | bajo | 1 |
 | 3 | **Shimmer + freeze en la Sala** ✔ | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada — HECHO 2026-10-03 (bucle calibrado por energía de la reverb) | medio | — |
-| 4 | **Fuentes de ejecución** | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s | bajo | — |
+| 4 | **Fuentes de ejecución** ✔ | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s — HECHO 2026-10-03 (+ rueda en pantalla bajo el teclado) | bajo | — |
 | 5 | **Resonadores** | cuencos, metal frotado, viento sobre cuerdas: banco de combs/modos inarmónicos excitado por ruido (el banco Vocal ya es un banco de pasabandas) | medio | 1, 2 |
 | 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
 | 7 | **Cinta en máster** | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado | bajo | — |
@@ -521,9 +521,15 @@ check lo cazó). Ventanas seno (no Hann) a media vuelta: potencia constante. Fre
 El plan era: worklet pitch shifter granular (dos granos con ventana Hann y lectura en dientes de
 sierra, +12 o +7 st) en un bucle reverb → LP → shifter → ×amt → reverb; Freeze con decay 0,999.
 
-**4 · Fuentes de ejecución** — rueda (CC1), aftertouch y expresión (CC11) como fuentes de la
-matriz (`ui/midi.js` ya recibe MIDI; falta un ConstantSource global por fuente). Verificación:
-sonda MIDI sintética → el AudioParam destino se mueve. Coste bajo.
+**4 · Fuentes de ejecución** ✔ **HECHO 2026-10-03** — detalle en el README. Como estaba planeado:
+ConstantSource 0..1 por fuente y motor (`AudioEngine.perf`), `parts.setPerf` a todas las partes,
+`handleMidi` exportado para la sonda. Añadido: rueda en pantalla bajo el teclado (sigue al CC1).
+Decisiones: CC1/CC11 alimentan la fuente SIEMPRE además del mapeo (de fábrica CC1 → vibrato); el
+aftertouch polifónico se trata como el de canal (la fuente es por motor); 0 = reposo. Medidas:
+rueda → cutoff tilt ×5,4; aftertouch → pitch 185,0 Hz exactos; expresión → amplitud ×0,200; MIDI
+sintético → fuentes 1 / 0,504 / 0; 157/157. Preset «Pad de ejecución». Sin par A/B (son gestos, no
+viven en el preset): la evidencia es el check. El plan era: rueda (CC1), aftertouch y expresión
+(CC11) como fuentes de la matriz; verificación con sonda MIDI sintética.
 
 **5 · Resonadores** — modo «resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como
 fuente) o banco de combs Karplus-Strong por voz. Coste medio. **6 · Granular** — modo de onda

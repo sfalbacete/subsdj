@@ -1,5 +1,5 @@
 /* SubSDJ · teclado en pantalla + teclado del PC (polifónico) */
-import { part, playOn, playOff, eachPart, forgetSounding } from '../engine/parts.js';
+import { part, playOn, playOff, eachPart, forgetSounding, setPerf } from '../engine/parts.js';
 import { setStatus } from './status.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -138,6 +138,16 @@ export function initKeyboard() {
   baseOctave = defaultBase(numOctaves);
   buildKeyboard();
   document.querySelectorAll('#kbOct button[data-kbo]').forEach(b => b.addEventListener('click', () => shiftOctave(+b.dataset.kbo)));
+
+  // Rueda de modulación en pantalla: fuente «Rueda (CC1)» de la matriz
+  // (parts.setPerf → todas las partes). Sigue también a la rueda MIDI vía
+  // 'perf-change' (ui/midi.js). Doble clic = reposo. No es un control del preset.
+  const wheel = document.getElementById('kbWheel');
+  if (wheel) {
+    wheel.addEventListener('input', () => { part().resume(); setPerf('wheel', +wheel.value); });
+    wheel.addEventListener('dblclick', () => { wheel.value = 0; setPerf('wheel', 0); });
+    document.addEventListener('perf-change', e => { if (e.detail.id === 'wheel') wheel.value = e.detail.value; });
+  }
 
   // Al cambiar el ancho, recalcular cuántas octavas caben y reconstruir.
   let rszT;

@@ -530,6 +530,7 @@ export class Voice {
       return (this.vlfo && k) ? this._vlfo(k).out : (this.mod.mxLfo[src] || null);
     }
     if (src === 'drift') return this._driftSrc();
+    if (this.mod.perf && this.mod.perf[src]) return this.mod.perf[src];   // rueda / aftertouch / expresión (0..1, del motor)
     if (src === 'env') return this.fenv;
     if (this._mxConsts[src]) return this._mxConsts[src];
     const val = src === 'vel' ? this.vel

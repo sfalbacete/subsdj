@@ -27,6 +27,8 @@ const MAX_TAILS = 16;   // colas de release vivas; por encima, fundido de la má
 // cuando le toca irse, y un corte de 10 ms se oye como un clic de pad. 350 ms
 // entre 16 colas y la reverb no se distingue de la propia caída.
 const TAIL_FADE = 0.35;
+// Fuentes de ejecución (rueda, aftertouch, expresión): suavizado de los saltos de 1/127 del MIDI
+const PERF_TAU = 0.02;
 
 // Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
 // parts.createScene, que construye la Sala compartida antes de ningún motor).
@@ -56,6 +58,7 @@ export class AudioEngine {
     this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
     this.seq = new Seq(this);     // secuenciador de pasos (activo cuando S.seqOn == 'on')
     this.wseq = new WaveSeq(this);// secuencia de tabla (activa cuando S.wsOn == 'on')
+    this.perfVal = { wheel: 0, at: 0, expr: 0 };   // fuentes de ejecución (0..1); los nodos nacen en init()
   }
 
   // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
@@ -188,12 +191,19 @@ export class AudioEngine {
     // de los filtros de todas las voces (exponencial, sin cruzar 0 Hz — la
     // misma ruta que el destino Cutoff de la matriz). A 0 no hace nada.
     this.macroCut = ctx.createConstantSource(); this.macroCut.offset.value = 0; this.macroCut.start();
+    // Fuentes de EJECUCIÓN (Roadmap 5.0 · bloque 4): rueda (CC1), aftertouch y
+    // expresión (CC11) como ConstantSource 0..1 por motor; la matriz las ofrece
+    // como fuentes 'wheel' / 'at' / 'expr' (Voice._mxSrcNode). Llegan por MIDI
+    // (ui/midi.js) o por la rueda en pantalla (ui/keyboard.js); en modo Partes
+    // van a todas las partes (parts.setPerf), como el bend.
+    this.perf = {};
+    for (const k in this.perfVal) { const c = ctx.createConstantSource(); c.offset.value = this.perfVal[k]; c.start(); this.perf[k] = c; }
 
     // hub de modulación que se pasa a cada voz
     this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
-      pitchOffset: this.pitchOffset, macroCut: this.macroCut,
+      pitchOffset: this.pitchOffset, macroCut: this.macroCut, perf: this.perf,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
@@ -447,6 +457,14 @@ export class AudioEngine {
     }
   }
 
+  // Rueda / aftertouch / expresión (0..1): fuentes de ejecución de la matriz. Fuera
+  // de CONTROLS/presets (son gestos, como el bend). Antes de init() solo se anota.
+  setPerf(id, v) {
+    if (!(id in this.perfVal)) return;
+    v = Math.max(0, Math.min(1, +v || 0)); this.perfVal[id] = v;
+    if (this.ready) this.perf[id].offset.setTargetAtTime(v, this.ctx.currentTime, PERF_TAU);
+  }
+
   // Pitch bend MIDI (cents). Va por fuera de CONTROLS/presets: se SUMA al
   // slider de cents en el mismo ConstantSource compartido (pitchOffset).
   setBend(cents) {
@@ -478,6 +496,7 @@ export class AudioEngine {
     for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } }
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
+    for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }
     for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
     this.sala.engines = this.sala.engines.filter(e => e !== this);
     if (this.ownsSala) this.sala.dispose();

@@ -366,7 +366,7 @@
       </div>
       <div class="ctl"><div class="knob" data-knob="mxDriftSpd"><div class="ind"></div></div><div class="lab">Deriva Spd</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Matriz:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su knob Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity) · <b>«Deriva (voz)»</b> = paseo lento PROPIO de cada voz (Deriva Spd: 0,05 Hz = un vaivén cada 20 s): a cutoff, pan o wavetable, cada nota del acorde evoluciona por su cuenta. <b>LFO · fase</b>: «global» = un LFO por motor, el acorde respira en bloque (como siempre); «por voz» = cada voz arranca sus LFO de cutoff/reso/vibrato/PWM/pan en una fase distinta (secuencia de Weyl k·φ: determinista y repartida; la primera voz suena como siempre) — aplica por nota.</div>
+    <div class="help"><b>Matriz:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su knob Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity) · <b>«Deriva (voz)»</b> = paseo lento PROPIO de cada voz (Deriva Spd: 0,05 Hz = un vaivén cada 20 s): a cutoff, pan o wavetable, cada nota del acorde evoluciona por su cuenta. <b>LFO · fase</b>: «global» = un LFO por motor, el acorde respira en bloque (como siempre); «por voz» = cada voz arranca sus LFO de cutoff/reso/vibrato/PWM/pan en una fase distinta (secuencia de Weyl k·φ: determinista y repartida; la primera voz suena como siempre) — aplica por nota. <b>Rueda / Aftertouch / Expresión</b> = fuentes de EJECUCIÓN (0..1, 0 = reposo): la rueda bajo el teclado o el CC1, la presión del teclado MIDI y el pedal CC11 — el pad se toca durante la nota (Rueda → Cutoff a 0,5 abre dos octavas; Expresión → Amplitud a −1 apaga al pisar). No se guardan en el preset: son gestos.</div>
   </div>
 </div>
 </section>
@@ -601,6 +601,7 @@
     <div class="stepper" id="kbOct" title="Octava base del teclado (RePág / AvPág también). Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U. Polifónico.">
       <button data-kbo="-1" title="Octava abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava arriba (RePág)">+</button>
     </div>
+    <label class="wheel" title="Rueda de modulación: fuente «Rueda (CC1)» de la matriz (0 = reposo). La rueda de un teclado MIDI (CC1) también la mueve. Doble clic = 0"><span class="lab">Rueda</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>
   </div>
 </div>
 

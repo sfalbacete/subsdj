@@ -204,6 +204,16 @@ export const FACTORY = {
       cutoff: 1200, reso: 1, filterSlope: '24', drift: 3,
       a: 1.5, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'placa', reverbMix: 0.55, reverbSize: 8, reverbDamp: 0.3, reverbPre: 0.03, shimAmt: 0.7, shimInt: '+12', master: 0.55 },
+    /* bloque 4: fuentes de ejecución — la rueda (bajo el teclado o CC1) abre el
+       filtro dos octavas, la presión del teclado MIDI añade resonancia y el pedal
+       de expresión (CC11) apaga al pisar: el pad se TOCA durante la nota. En
+       reposo (todo a 0) es un pad oscuro y quieto */
+    'Pad de ejecución (rueda, aftertouch, pedal)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octB: -1, mix: 0.45,
+      cutoff: 450, reso: 1.5, filterSlope: '24', lfoPhase: 'voz',
+      mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.5, mx2src: 'at', mx2dst: 'reso', mx2amt: 0.6, mx3src: 'expr', mx3dst: 'amp', mx3amt: -0.8,
+      mx4src: 'drift', mx4dst: 'pan', mx4amt: 0.5, mxDriftSpd: 0.05,
+      a: 2, d: 2, s: 1, r: 8, envCurve: 0.3, width: 0.4, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
+      reverbType: 'placa', reverbMix: 0.4, reverbSize: 8, reverbDamp: 0.3, master: 0.6 },
   },
 
   'Voz': {

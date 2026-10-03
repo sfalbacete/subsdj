@@ -199,6 +199,11 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'note',    label: 'Nota (altura)' },
   { id: 'rnd',     label: 'S&H por nota' },
   { id: 'drift',   label: 'Deriva (voz)' },  // paseo lento PROPIO de cada voz (nodes.mkVoiceLFO 'drift' a mxDriftSpd): el acorde respira voz a voz
+  // Fuentes de EJECUCIÓN (Roadmap 5.0 · bloque 4), 0..1 por motor (AudioEngine.perf):
+  // el pad se TOCA durante la nota. 0 = reposo, así un preset suena igual sin tocarlas.
+  { id: 'wheel',   label: 'Rueda (CC1)' },   // rueda de modulación: la de pantalla (bajo el teclado) o el CC1
+  { id: 'at',      label: 'Aftertouch' },    // presión del teclado MIDI (canal; el polifónico se trata igual)
+  { id: 'expr',    label: 'Expresión (CC11)' },  // pedal de expresión
 ];
 export const MX_DESTS = [
   { id: 'pitch',  label: 'Pitch' },         // cents sobre el detune de ambos osciladores

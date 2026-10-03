@@ -32,6 +32,7 @@ export function setLayer(on) { layer = !!on; }
 
 // Gestos globales (bend, pánico): a todas las partes en escena, al motor único si no.
 export const eachPart = fn => { if (scene) scene.parts.forEach(p => fn(p.engine)); else fn(single); };
+export const setPerf = (id, v) => eachPart(e => e.setPerf(id, v));   // rueda / aftertouch / expresión (0..1): a todas las partes, como el bend
 
 // Notas del teclado / MIDI: la parte actual, o todas en modo Capa (las
 // silenciadas no). El note-off va a los MISMOS motores que recibieron el

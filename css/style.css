@@ -521,3 +521,7 @@ body[data-screen="presets"] [data-screens]:not([data-screens~="presets"]){displa
 #libMsg{margin:0 0 0 auto;font-size:11px;}
 .pl-item:hover{border-color:var(--accent);color:var(--accent);}
 .pl-item.cur{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:var(--accent);color:var(--accent);}
+
+/* rueda de modulación bajo el teclado (Roadmap 5.0 · bloque 4): fuente «Rueda (CC1)» de la matriz */
+#kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
+#kbBar .wheel input[type=range]{width:140px;}

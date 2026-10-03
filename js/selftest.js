@@ -38,6 +38,7 @@ import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
 import { loadPresetIndex, navOptions, presetBankReady } from './ui/presetBank.js';
+import { handleMidi } from './ui/midi.js';
 import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
@@ -1982,6 +1983,52 @@ export async function runSelfTest() {
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
+  }
+
+  // ---------- Roadmap 5.0 · bloque 4: fuentes de ejecución ----------
+  // Rueda, aftertouch y expresión como fuentes de la matriz (0..1 por motor). Se
+  // fija el valor con la API (setPerf) antes de la nota y se mide el efecto por el
+  // camino real: rueda → cutoff abre (tilt), aftertouch → pitch sube 600 ct (cruces
+  // por cero), expresión → amplitud a −0,8 deja el 20 %. Y el MIDI sintético (CC1,
+  // presión de canal, CC11) llega a las fuentes del motor en vivo; la rueda en
+  // pantalla sigue al CC1.
+  {
+    body.appendChild(el('st-cat', 'Fuentes de ejecución'));
+    const NAME = 'fuentes de ejecución (rueda → cutoff · aftertouch → pitch 600 ct · expresión → amplitud · MIDI CC1/presión/CC11 · la rueda sigue al CC1)';
+    let r;
+    try {
+      const probs = [];
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const hzOf = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
+      const perfRender = async (st, id, v, secs = 1.2) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.setPerf(id, v);
+        eng.noteOn('p', NOTE1); return ctx.startRendering(); };
+      const saw = { waveA: 'sawtooth', mix: 0, cutoff: 400, reso: 0.7, filterSlope: '24', a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
+      const w0 = await perfRender({ ...saw, mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.6 }, 'wheel', 0);
+      const w1 = await perfRender({ ...saw, mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.6 }, 'wheel', 1);
+      const tw = tiltW(w1, 0.3, 1.1) / Math.max(1e-12, tiltW(w0, 0.3, 1.1));
+      if (!(tw > 3)) probs.push('la rueda no abre el filtro (tilt ×' + tw.toFixed(2) + ')');
+      const sine = { waveA: 'sine', mix: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
+      const atB = await perfRender({ ...sine, mx1src: 'at', mx1dst: 'pitch', mx1amt: 0.5 }, 'at', 1);
+      const fAt = hzOf(atB, 0.3, 1.1), fEsp = NOTE1 * Math.pow(2, 0.5);
+      if (!(Math.abs(fAt - fEsp) < 2.5)) probs.push('el aftertouch no sube el pitch 600 ct (' + fAt.toFixed(1) + ' Hz, esperado ' + fEsp.toFixed(1) + ')');
+      const e0 = await perfRender({ ...sine, mx1src: 'expr', mx1dst: 'amp', mx1amt: -0.8 }, 'expr', 0);
+      const e1 = await perfRender({ ...sine, mx1src: 'expr', mx1dst: 'amp', mx1amt: -0.8 }, 'expr', 1);
+      const qe = rmsW(e1, 0.3, 1.1) / Math.max(1e-9, rmsW(e0, 0.3, 1.1));
+      if (!(qe > 0.15 && qe < 0.25)) probs.push('la expresión no atenúa (×' + qe.toFixed(3) + ', esperado 0,20)');
+      // MIDI sintético sobre el motor en vivo (sin dispositivo): CC1 a tope, presión 64, CC11 a 0
+      handleMidi([0xb0, 1, 127]); handleMidi([0xd0, 64]); handleMidi([0xb0, 11, 0]);
+      const pv = { ...engine.perfVal }, wheelEl = document.getElementById('kbWheel');
+      if (!(pv.wheel === 1 && Math.abs(pv.at - 64 / 127) < 1e-9 && pv.expr === 0)) probs.push('MIDI → fuentes: ' + JSON.stringify(pv));
+      if (wheelEl && +wheelEl.value !== 1) probs.push('la rueda en pantalla no sigue al CC1 (' + wheelEl.value + ')');
+      handleMidi([0xb0, 1, 0]); handleMidi([0xd0, 0]);   // reposo
+      loadState({});
+      console.log('ejecucion: rueda tilt x', tw.toFixed(2), '· aftertouch', fAt.toFixed(1), 'Hz (esperado', fEsp.toFixed(1) + ')', '· expresion x', qe.toFixed(3), '· MIDI', JSON.stringify(pv));
+      r = { name: NAME, peak: analyze(w1).peak, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

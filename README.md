@@ -1112,3 +1112,26 @@ que pesaba a los 2-3 s: estable; `reverbEnergyGain` reproduce las medidas
 pesaba a 1 s; libre, 4·10⁻⁵; soltada a los 3 s cae a 10⁻³ a los 6; con la IR no
 actúa); 155/155; `WK_V` v10. Preset «Pad shimmer (coro que sube)» en
 Cinescape; pares **SHIM 1-2** (diff 0,21) y **SHIM 3-4** (+12 vs +7, 0,24).
+
+**4 Fuentes de ejecución** ✔ *(hecho 2026-10-03)* — Rueda (CC1), aftertouch y
+expresión (CC11) como fuentes de la matriz: `wheel`, `at`, `expr`, 0..1 por
+motor (0 = reposo: un preset suena igual mientras no se tocan), un
+`ConstantSource` cada una en `AudioEngine.perf` con suavizado de 20 ms (el
+MIDI llega a saltos de 1/127). Son GESTOS, fuera de CONTROLS y de los presets,
+como el bend; en Partes van a todas las partes (`parts.setPerf`). Entran por
+`ui/midi.js` (`handleMidi`, exportado para la sonda): CC1 y CC11 alimentan
+SIEMPRE su fuente, además de lo que tengan mapeado (de fábrica CC1 → vibrato;
+quitar ese mapeo deja la rueda solo para la matriz); el aftertouch de canal y
+el polifónico alimentan `at` (la fuente es por motor, no por nota). Y una
+**rueda en pantalla** bajo el teclado, junto al stepper de octava, para tocar
+con el ratón: mueve `wheel` y sigue a la rueda MIDI ('perf-change'); doble clic
+= reposo. Semántica: Rueda → Cutoff a 0,5 abre dos octavas; Expresión →
+Amplitud con cantidad −1 apaga al pisar y con +1 sube hasta ×2 (el destino es
+1 + cantidad·fuente). Evidencia: check «fuentes de ejecución» — rueda →
+cutoff a 0,6 (2,4 octavas): tilt ×5,4; aftertouch → pitch a 0,5 (600 ct): el
+seno pasa de 130,8 a 185,0 Hz, el valor exacto; expresión → amplitud a −0,8:
+×0,200; MIDI sintético CC1 127 / presión 64 / CC11 0 → fuentes 1 / 0,504 / 0
+en el motor en vivo y la rueda en pantalla a 1; 157/157. Preset «Pad de
+ejecución (rueda, aftertouch, pedal)» en Cinescape. Sin par A/B en el banco de
+demos: la sonda carga presets y las fuentes de ejecución no viven en el preset;
+la evidencia es el check, que recorre el mismo camino (matriz real, nota real).
