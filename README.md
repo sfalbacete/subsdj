@@ -979,3 +979,101 @@ latch ni para la frase, y `_monoOff` no re-desliza la voz mono de otro. Check
 
 Orden: A1 → B1 → C1 → C2 → C3; A2 y B2 son bloques grandes independientes
 para intercalar cuando apetezca. Método por fase: el de siempre.
+
+## Roadmap 5.0 «cinescape» (acordado 2026-10-03)
+
+Origen: «no soy capaz de sacar sonidos que llamen la atención: lo que sale es
+clásico». Diagnóstico: el motor es un sustractivo completo, pero (1) **todo se
+mueve a la vez** — los LFOs son globales al motor y un acorde respira como un
+bloque; (2) **las constantes de tiempo son de instrumento, no de paisaje** —
+ataque ≤ 2 s, release ≤ 3 s, LFO ≥ 0,05 Hz, sala ≤ 4 s; (3) **el espectro es
+siempre armónico y estable**. Lo cinematográfico es cada voz a su ritmo, diez
+veces más lento, en una sala que suena más que la nota, con material que no está
+en la nota. La receta «sierra + cuadrada + unísono + LP 24 dB + reverb grande»
+de cualquier tutorial ES el pad clásico de fábrica («Supersaw pad», «Pad
+catedral»): no saca de ahí. De esa receta solo faltaba el suboscilador.
+
+Bloques, por valor frente a coste: **1 tiempo ×10 + octava por oscilador** ·
+**2 deriva por voz como fuente de la matriz** (y fase aleatoria por voz en los
+LFOs: decorrelación) · **3 shimmer y freeze en la Sala** (pitch shifter granular
++12/+7 en la realimentación de la reverb; freeze = decay ≈ 1 con la entrada
+cerrada) · **4 fuentes de ejecución** (rueda, aftertouch, expresión en la
+matriz: el pad se toca) · **5 resonadores** (banco de combs o modos inarmónicos
+excitado por ruido continuo: cuencos, metal frotado; el banco Vocal ya es un
+banco de pasabandas) · **6 granular** (nubes de granos sobre la tabla de usuario
+o lo último grabado: lo único que no repite nunca) · **7 cinta en máster**
+(siseo, wow de pocos ms, saturación suave). Orden: 1 → 2 (escuchar) → 3; 5 y 6
+cuando tiempo y decorrelación estén resueltos (sin eso también sonarían
+clásicos). Detalle por bloque en PLAN.md.
+
+**1 Tiempo ×10 + octava por oscilador** ✔ *(hecho 2026-10-03)* — Rangos: ataque
+y decay hasta 20 s y release hasta 30 s (ADSR y Env filtro), glide 10 s, LFO
+Fade 20 s, P.Env Dec 10 s, los seis Speed de LFO desde 0,005 Hz (un ciclo cada
+200 s: a esa escala el LFO deriva, no oscila), Delay hasta 4 s (`DLY_MAX` 4,5 s
+en la línea; el sync se recorta a 4), Size de reverb hasta 20 s y predelay hasta
+250 ms. La IR de 20 s se genera en ~55 ms y el convolver gasta CPU en proporción
+a la IR (por eso 20 y no 60; la placa no paga longitud). Placa: la tabla
+RT60→decay se amplía con puntos MEDIDOS en Node entre 1 y 15 s — la cola tardía
+del tanque cae más despacio que el tramo inicial (la difusión de los allpass
+reparte la energía al principio), y en una cola de 20 s manda la pendiente
+tardía: 16,2 s ↔ 0,93 · 21,8 ↔ 0,95 · 26,3 ↔ 0,96; Size 20 ↔ decay 0,944 (el
+worklet admite 0,98); los seis puntos viejos se conservan (los presets no
+cambian). Todo en **log** (`params.js`): un slider lineal de 0..20 s pondría el
+milisegundo en el 0,005 % del recorrido; con `lmin`, la posición 0 sigue siendo
+0 EXACTO (ataque = escalón, glide apagado) y el resto va en log desde el paso
+viejo. Los **sliders guardan el valor** en vez de releerlo de la posición: un
+slider log de 1000 pasos cuantizaba cada preset al cargarlo (±1 % a 12 s de
+ataque). **Octava** por oscilador (`octA`/`octB`, −2..+2; stepper «Octava»
+junto a «Apiladas», el antiguo «Octavas»): el oscilador suena a f·2^oct como
+RATIO de frecuencia (`o.ratio`, el mismo que usa el glide), así los cents y el
+portamento siguen significando lo mismo; −1 es el suboscilador que faltaba (las
+octavas apiladas solo iban hacia arriba). Colas: `MAX_TAILS` 12 → 16 y el
+fundido de la cola que sobra pasa de 10 a 350 ms (con 25 s de release la cola
+más vieja aún suena a medio nivel cuando le toca irse: 10 ms era un clic).
+Evidencia: cuatro checks en el selftest — «octava por oscilador» (cruces por
+cero: 131,0 / 65,5 / 261,5 Hz a 0 / −1 / +1; el glide en mono a −1 acaba en
+98,0 Hz), «tiempos ×10» (ataque 10 s: nivel a 1 s / 2 s = 0,482; release 20 s:
+a 2 s de soltar 0,901; tabla PARAMS ida y vuelta con 0 exacto; controles
+devuelven exacto lo que se les pone), «LFO a 0,005 Hz» (seno 0,0314 =
+sin(2π·0,005); S&H sin cambiar de escalón en 1 s) y «sala y delay largos» (IR de
+20 s: nivel a 10 s 0,179 ≈ (½)^2,5; cola a 3,5 s con Size 20 / 4: IR −39 / −87
+dB, placa −43 / −74 dB; eco a 3,5 s −28 dB con el hueco anterior en silencio);
+148/148. Categoría **Cinescape** en fábrica («Pad glaciar (ataque 12 s)»,
+«Drone de sótano (−2 octavas)») y pares **TIEMPO 1-4** (diff 0,73 / 0,30) y
+**OCT 1-2** (0,73) en el banco de demos.
+
+**2 Deriva por voz + fase por voz de los LFO** ✔ *(hecho 2026-10-03)* — El
+problema: los LFO son UNO por motor, así que un acorde respira en bloque; el
+oído lee «vivo» cuando cada voz hace lo suyo a su ritmo. Dos piezas, ambas en
+el módulo Matriz. (a) Fuente **«Deriva (voz)»**: un paseo lento PROPIO de cada
+voz — el buffer de deriva de los LFO (`nodes.lfoBuffers`, suma de 5 senos con
+ciclos enteros: continuo y sin costura) leído por un `AudioBufferSource` por
+voz a la velocidad del knob **Deriva Spd** (0,005–5 Hz, log; 0,05 Hz = un
+vaivén cada 20 s), ±1 crudo; a cutoff, pan, wavetable o amplitud, cada nota del
+acorde evoluciona por su cuenta. Se crea solo si algún slot la usa. (b)
+Selector **LFO global / LFO por voz** (`lfoPhase`, por nota): con «por voz»
+cada voz crea sus COPIAS de los LFO de cutoff/reso/vibrato/PWM/pan
+(`nodes.mkVoiceLFO`; cutoff y reso al nacer porque siempre van cableados,
+los demás bajo demanda como los `ensure*`) y las arranca en su fase; el
+trémolo sigue siendo global porque va tras la mezcla. Un `OscillatorNode` no
+admite fase inicial, así que los LFO por voz son **buffers de un periodo** (1 s
+a 8 kHz, `playbackRate` = Hz) con las mismas fases que el oscilador nativo
+(sin/tri/saw arrancan en 0 subiendo, sqr en +1); S&H y deriva usan los buffers
+de siempre. Cambiar forma o Speed a mitad de nota ancla la fase en curso y
+sigue (no reinicia el ciclo). La **fase de cada voz** sale de la secuencia de
+Weyl k·φ mod 1 (φ = razón áurea, contador por contexto): determinista —
+renders y SFZ reproducibles, y el selftest puede MEDIRLA— y máximamente
+repartida (dos notas seguidas nunca caen cerca); la voz 0 tiene fase 0, así
+que una nota sola suena como con el LFO global. Las voces vivas reciben
+Level/Speed/forma en vivo (`Voice.setLfo`, `setMxDriftSpd`). Evidencia: check
+«fase por voz» — acorde C3+G3 con LFO→amplitud vía matriz y pista de amplitud
+por nota (Goertzel con Hann, 50 ms): correlación entre notas 1,000 en global y
+**−0,738 por voz, que es cos(2π·0,618) = −0,74**; la voz 0 por voz contra
+global 0,999; buffers de forma con las fases del nativo. Check «deriva por
+voz»: correlación entre notas 0,122 (la autocorrelación del buffer al desfase
+de Weyl sale ≈0,13 a mano), vaivén ×31 en cada voz, dos renders iguales **bit
+a bit** (máx |Δ| = 0), a 0,005 Hz vaivén 1,03 en 2 s; 151/151. Lección del
+check: con dos senos a nivel normal el **limitador de la Sala** (umbral −3 dB)
+comprimía la suma y acoplaba las pistas (corr −0,995 falsa); el render de
+prueba va a −12 dB. Preset «Pad de cuatro vientos (deriva por voz)» en
+Cinescape; pares **FASE 1-2** (diff 0,45) y **DERIVA 1-2** (0,52).

@@ -10,6 +10,8 @@
      step      granularidad del slider (solo sliders)
      fmt       formato de presentación específico (solo sliders)
      log       true = el slider trabaja en posición 0..1 con mapeo log min→max
+     lmin      suelo del tramo log cuando min = 0 (posición 0 = 0 EXACTO —
+               «apagado» o «escalón»—, y a partir de ahí log desde lmin)
      act       true = el 0 es "apagado" (no un ajuste): el knob se atenúa a 0
                y el parámetro cuenta para los LEDs de actividad (ui/activity.js)
    El switch de AudioEngine.set() sigue siendo quien APLICA cada parámetro
@@ -19,6 +21,10 @@
 import { VOC_ORDEN } from './vocal.js';
 
 const msFmt = v => (v * 1000).toFixed(0) + ' ms';
+// Tiempos ×10 (Roadmap 5.0 · bloque 1): ms por debajo de 1 s, segundos por encima
+const secFmt = v => v >= 1 ? v.toFixed(2) + ' s' : (v * 1000).toFixed(0) + ' ms';
+// LFOs lentos de verdad (0,005 Hz = un ciclo cada 200 s): tres decimales por debajo de 0,1 Hz
+const hzFmt = v => (v < 0.1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v.toFixed(1)) + ' Hz';
 const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s');   // decay por operador (FM4): tope = plano
 const twoDec = v => v.toFixed(2);
 // knob Vocal: enseña la vocal (u, o, a…) o el tramo entre dos (u·o)
@@ -32,10 +38,12 @@ export const PARAMS = {
   waveA:    { def: 'sawtooth', t: 'oscA.wave' },
   detuneA:  { def: 0, min: -50, max: 50, unit: ' ct', t: 'oscA.detune' },
   phaseA:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscA.phase' },
-  octavesA: { def: 1, min: 1, max: 4, t: 'oscA.octaves' },
+  octA:     { def: 0, min: -2, max: 2, t: 'oscA.oct' },        // Octava: transposición ±2 (−1 = suboscilador; por nota)
+  octavesA: { def: 1, min: 1, max: 4, t: 'oscA.octaves' },    // Apiladas: 1-4 octavas hacia ARRIBA dentro del oscilador
   waveB:    { def: 'square', t: 'oscB.wave' },
   detuneB:  { def: 7, min: -50, max: 50, unit: ' ct', t: 'oscB.detune' },
   phaseB:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscB.phase' },
+  octB:     { def: 0, min: -2, max: 2, t: 'oscB.oct' },
   octavesB: { def: 1, min: 1, max: 4, t: 'oscB.octaves' },
   mix:      { def: 0.4, min: 0, max: 1 },
   ring:     { def: 0, min: 0, max: 1, act: true },
@@ -60,28 +68,30 @@ export const PARAMS = {
 
   // --- Modulación ---
   pulseWidth: { def: 0.5, min: 0.02, max: 0.98, step: 0.01, fmt: v => (v * 100).toFixed(0) + '%' },
+  // LFOs: Speed en log desde 0,005 Hz (un ciclo cada 200 s: la escala del
+  // paisaje, no del vibrato) — Roadmap 5.0 · bloque 1 «tiempo ×10»
   pwmLfoLvl:  { def: 0, min: 0, max: 0.45, act: true },
-  pwmLfoSpd:  { def: 3, min: 0.05, max: 20, unit: ' Hz' },
+  pwmLfoSpd:  { def: 3, min: 0.005, max: 20, log: true, fmt: hzFmt },
   pwmLfoShape:{ def: 'sine' },
   amplitude:  { def: 0.8, min: 0, max: 1, step: 0.01, fmt: twoDec },
   ampLfoLvl:  { def: 0, min: 0, max: 0.6, act: true },
-  ampLfoSpd:  { def: 5, min: 0.05, max: 20, unit: ' Hz' },
+  ampLfoSpd:  { def: 5, min: 0.005, max: 20, log: true, fmt: hzFmt },
   ampLfoShape:{ def: 'sine' },
   freqCents:  { def: 0, min: -1200, max: 1200, step: 1, fmt: v => v.toFixed(0) + ' ct' },
   freqLfoLvl: { def: 0, min: 0, max: 200, unit: ' ct', act: true },
-  freqLfoSpd: { def: 5, min: 0.05, max: 20, unit: ' Hz' },
+  freqLfoSpd: { def: 5, min: 0.005, max: 20, log: true, fmt: hzFmt },
   freqLfoShape:{ def: 'sine' },
-  lfoFade:    { def: 0, min: 0, max: 2, unit: ' s' },   // vibrato/PWM entran en rampa tras cada noteOn
+  lfoFade:    { def: 0, min: 0, max: 20, log: true, lmin: 0.05, fmt: secFmt, act: true },   // vibrato/PWM entran en rampa tras cada noteOn (0 = inmediato)
 
   // --- Filtro (por voz) ---
   cutoff:    { def: 6000, min: 20, max: 20000, log: true,
                fmt: v => v >= 1000 ? (v / 1000).toFixed(2) + ' kHz' : v.toFixed(0) + ' Hz' },
   cutLfoLvl: { def: 0, min: 0, max: 5000, unit: ' Hz', act: true },
-  cutLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
+  cutLfoSpd: { def: 2, min: 0.005, max: 20, log: true, fmt: hzFmt },
   cutLfoShape:{ def: 'sine' },
   reso:      { def: 2, min: 0.1, max: 24, step: 0.1, fmt: v => v.toFixed(1) },
   resLfoLvl: { def: 0, min: 0, max: 15, act: true },
-  resLfoSpd: { def: 2, min: 0.05, max: 20, unit: ' Hz' },
+  resLfoSpd: { def: 2, min: 0.005, max: 20, log: true, fmt: hzFmt },
   resLfoShape:{ def: 'sine' },
   morph:        { def: 0, min: 0, max: 1 },
   filterEnvAmt: { def: 0, min: -6000, max: 6000, unit: ' Hz', act: true },
@@ -90,10 +100,10 @@ export const PARAMS = {
   filterType:   { def: 'morph' },                 // 'morph' (LP↔HP paralelo) | 'bp' (LP y HP en serie) | 'notch' (LP + HP a 1); estructura: por nota
   filterDrive:  { def: 0, min: 0, max: 1, act: true },  // saturación tanh PRE-filtro por voz (0 = transparente)
   fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
-  fa: { def: 0.01, min: 0.001, max: 2, unit: ' s' },
-  fd: { def: 0.2,  min: 0.001, max: 2, unit: ' s' },
+  fa: { def: 0.01, min: 0.001, max: 20, log: true, fmt: secFmt },   // tiempos ×10, en log (1 ms y 20 s en el mismo knob)
+  fd: { def: 0.2,  min: 0.001, max: 20, log: true, fmt: secFmt },
   fs: { def: 0.7,  min: 0, max: 1 },
-  fr: { def: 0.3,  min: 0.001, max: 3, unit: ' s' },
+  fr: { def: 0.3,  min: 0.001, max: 30, log: true, fmt: secFmt },
 
   // --- Vocal (banco de formantes por voz, entre el drive y el filtro) ---
   vocAmt:   { def: 0, min: 0, max: 1, act: true },  // dry/wet del tracto vocal (0 = sin banco)
@@ -112,7 +122,7 @@ export const PARAMS = {
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus a 3 fases)
   dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },
-  dlyTime: { def: 0.3, min: 0.02, max: 1.5, unit: ' s' },
+  dlyTime: { def: 0.3, min: 0.02, max: 4, log: true, fmt: secFmt },   // hasta 4 s (ecos en el horizonte); Sala.DLY_MAX acompaña
   dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)
   dlyDamp: { def: 0, min: 0, max: 1, act: true },   // filtro EN EL BUCLE: cada repetición pierde agudos (y algo de graves), como cinta/BBD
   dlyWow:  { def: 0, min: 0, max: 1, act: true },   // modulación lenta del tiempo: cada repetición se desafina un pelo (wow de cinta)
@@ -121,25 +131,29 @@ export const PARAMS = {
   // --- Espacio ---
   width:      { def: 0, min: 0, max: 1, act: true },
   panLfoLvl:  { def: 0, min: 0, max: 1, act: true },    // autopan por voz
-  panLfoSpd:  { def: 0.4, min: 0.05, max: 8, unit: ' Hz' },
+  panLfoSpd:  { def: 0.4, min: 0.005, max: 8, log: true, fmt: hzFmt },
   reverbMix:  { def: 0, min: 0, max: 0.6, act: true },
-  reverbSize: { def: 1.8, min: 0.2, max: 4, unit: ' s' },
+  reverbSize: { def: 1.8, min: 0.2, max: 20, log: true, fmt: secFmt },   // hasta 20 s: IR de 20 s (CPU lineal con la IR) o placa (tabla medida hasta 26 s)
   reverbDamp: { def: 0, min: 0, max: 1 },           // los agudos de la cola mueren antes (vive en la IR)
-  reverbPre:  { def: 0, min: 0, max: 0.1, unit: ' s' },  // predelay: separa el ataque de la cola
+  reverbPre:  { def: 0, min: 0, max: 0.25, unit: ' s', fmt: msFmt },  // predelay: separa el ataque de la cola (hasta 250 ms: la sala «lejos»)
   reverbType: { def: 'sala' },                      // 'sala' = convolución (IR de ruido) | 'placa' = algorítmica (Dattorro)
 
   // --- Envolvente / voz / master ---
-  a: { def: 0.01, min: 0, max: 2, step: 0.001, fmt: msFmt },      // 0 = escalón (percusión: el golpe es el escalón)
-  d: { def: 0.2,  min: 0.001, max: 2, step: 0.001, fmt: msFmt },
+  // Tiempos ×10 (Roadmap 5.0 · bloque 1): hasta 20 s de ataque y 30 s de release.
+  // En LOG: un slider lineal de 0..20 s pondría el milisegundo en el 0,005 % del
+  // recorrido; en log, 1 ms y 20 s caben en la misma barra con resolución pareja.
+  // El ataque conserva el 0 EXACTO en la posición 0 (lmin): el golpe es el escalón.
+  a: { def: 0.01, min: 0, max: 20, log: true, lmin: 0.001, fmt: secFmt },   // 0 = escalón (percusión: el golpe es el escalón)
+  d: { def: 0.2,  min: 0.001, max: 20, log: true, fmt: secFmt },
   s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
-  r: { def: 0.3,  min: 0.001, max: 3, step: 0.001, fmt: msFmt },
+  r: { def: 0.3,  min: 0.001, max: 30, log: true, fmt: secFmt },
   envCurve: { def: 0, min: 0, max: 1, act: true },   // 0 = rampas lineales (como siempre) · 1 = tramos RC (analógico): ataque y decay exponenciales
   // Flam (clap 808): hits−1 ráfagas cortas separadas hitGap ANTES del ADSR (Voice._flam); 1 = sin flam (camino de siempre)
   hits:   { def: 1, min: 1, max: 4, step: 1, fmt: v => Math.round(v) + (Math.round(v) > 1 ? ' golpes' : ' golpe') },
   hitGap: { def: 0.012, min: 0.005, max: 0.04, unit: ' s', fmt: v => (v * 1000).toFixed(0) + ' ms' },
-  glide:  { def: 0, min: 0, max: 1, unit: ' s', act: true },
+  glide:  { def: 0, min: 0, max: 10, log: true, lmin: 0.01, fmt: secFmt, act: true },   // hasta 10 s: drones que resbalan
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
-  pitchEnvDec: { def: 0.08, min: 0.005, max: 1, unit: ' s' },
+  pitchEnvDec: { def: 0.08, min: 0.005, max: 10, log: true, fmt: secFmt },  // hasta 10 s: risers y caídas lentas
   mode:   { def: 'poly' },
   arpMode: { def: 'off' },                          // off | up | down | updown | random
   arpDiv:  { def: '1/16' },                         // división musical del paso (usa bpm)
@@ -180,6 +194,7 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'vel',     label: 'Velocity' },
   { id: 'note',    label: 'Nota (altura)' },
   { id: 'rnd',     label: 'S&H por nota' },
+  { id: 'drift',   label: 'Deriva (voz)' },  // paseo lento PROPIO de cada voz (nodes.mkVoiceLFO 'drift' a mxDriftSpd): el acorde respira voz a voz
 ];
 export const MX_DESTS = [
   { id: 'pitch',  label: 'Pitch' },         // cents sobre el detune de ambos osciladores
@@ -198,8 +213,19 @@ for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
   PARAMS['mx' + i + 'amt'] = { def: 0, min: -1, max: 1, act: true };
 }
+// Modulación POR VOZ (Roadmap 5.0 · bloque 2): velocidad de la fuente «Deriva
+// (voz)» (0,05 Hz = un vaivén cada 20 s) y fase de los LFO de cutoff/reso/
+// vibrato/PWM/pan: 'global' = un LFO por motor (como siempre; el acorde respira
+// en bloque) · 'voz' = cada voz arranca los suyos en una fase distinta
+// (estructura: aplica por nota, como filterSlope).
+PARAMS.mxDriftSpd = { def: 0.05, min: 0.005, max: 5, log: true, fmt: hzFmt };
+PARAMS.lfoPhase = { def: 'global' };
 
 // Posición de slider (0..1 si log) <-> valor de motor. Para params sin `log`
 // la posición ES el valor (el <input> lleva min/max/step reales).
-export const posToVal = (p, x) => p.log ? p.min * Math.pow(p.max / p.min, x) : x;
-export const valToPos = (p, v) => p.log ? Math.log(v / p.min) / Math.log(p.max / p.min) : v;
+// Log con min = 0 (`lmin`): la posición 0 es 0 EXACTO (ataque = escalón, glide
+// apagado) y el resto del recorrido va en log desde lmin hasta max. Un valor
+// entre 0 y lmin cae en la posición 0 (no hay presets ahí: lmin es el paso viejo).
+const logLo = p => p.min > 0 ? p.min : p.lmin;
+export const posToVal = (p, x) => !p.log ? x : (x <= 0 ? p.min : logLo(p) * Math.pow(p.max / logLo(p), x));
+export const valToPos = (p, v) => !p.log ? v : (v <= p.min ? 0 : Math.max(0, Math.log(v / logLo(p)) / Math.log(p.max / logLo(p))));

@@ -7,7 +7,8 @@
    Modo de siempre: el motor crea su propia Sala. Modo Partes (parts.js):
    varios motores comparten UNA Sala (modelo send/return).
    El filtro es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
-   son globales al motor pero se conectan a los params de cada voz al crearse.
+   son globales al motor pero se conectan a los params de cada voz al crearse
+   (o, con lfoPhase 'voz', cada voz crea sus copias en su propia fase: nodes.mkVoiceLFO).
    ===================================================================== */
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
@@ -20,7 +21,12 @@ import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, s
 import { Sala, SALA_KEYS } from './Sala.js';
 
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
-const MAX_TAILS = 12;   // colas de release vivas; por encima, fundido exprés de la más vieja
+const MAX_TAILS = 16;   // colas de release vivas; por encima, fundido de la más vieja (TAIL_FADE)
+// Fundido de la cola que sobra. Era 10 ms («entre 12 colas es inaudible»): con
+// releases de 20-30 s (Roadmap 5.0) la cola más vieja aún suena a medio nivel
+// cuando le toca irse, y un corte de 10 ms se oye como un clic de pad. 350 ms
+// entre 16 colas y la reverb no se distingue de la propia caída.
+const TAIL_FADE = 0.35;
 
 // Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
 // parts.createScene, que construye la Sala compartida antes de ningún motor).
@@ -311,13 +317,13 @@ export class AudioEngine {
     v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); }, ms);
     if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
   }
-  _fadeKill(v) {            // fundido exprés (~40 ms) y liberar: entre 12 colas es inaudible
+  _fadeKill(v) {            // fundido TAIL_FADE y liberar (ver arriba)
     if (!v) return;
     this.tails.delete(v);
     if (v._timer) clearTimeout(v._timer);
     if (v.disposed) return;
-    v.fadeOut(0.01);
-    v._timer = setTimeout(() => this._dispose(v), 60);
+    v.fadeOut(TAIL_FADE);
+    v._timer = setTimeout(() => this._dispose(v), TAIL_FADE * 1000 + 60);
   }
   _dispose(v) {             // libera nodos tras la cola de release (NO toca el contador)
     if (v.disposed) return;
@@ -349,8 +355,14 @@ export class AudioEngine {
     // reverb): las aplica la Sala, que en modo Partes es compartida — y
     // propaga el valor al S de todas las partes (un solo reloj).
     if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
+    // LFOs por voz (lfoPhase 'voz'): Level/Speed/forma del LFO k también a las
+    // copias de cada voz viva; el LFO global del motor sigue cambiando en el switch.
+    const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape)$/.exec(name);
+    if (lf) this._forVoices(v => v.setLfo(lf[1], lf[2].toLowerCase(), value));
     const now = this.ctx.currentTime, smooth = (p, val) => p.setTargetAtTime(val, now, 0.02);
     switch (name) {
+      case 'mxDriftSpd': this._forVoices(v => v.setMxDriftSpd(value)); break;   // deriva por voz (fuente 'drift' de la matriz)
+      // lfoPhase: estructura de la voz (LFO globales o propios): aplica por nota, como filterSlope
       case 'mix':   this._forVoices(v => v.setMix(value)); break;
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
       case 'noise': this._forVoices(v => v.setNoise(value)); break;

@@ -26,15 +26,27 @@ export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWo
 // 1,5 s, damp 0): RT60 1,17 s ↔ decay 0,3 · 1,84 ↔ 0,5 (el del artículo) ·
 // 2,38 ↔ 0,6 · 3,22 ↔ 0,7 · 4,72 ↔ 0,8 · 8,25 ↔ 0,9. Interpolación lineal
 // entre puntos; por debajo del primero, la fórmula 10^(−0,61/RT).
-const PLATE_RT = [[1.17, 0.3], [1.84, 0.5], [2.38, 0.6], [3.22, 0.7], [4.72, 0.8], [8.25, 0.9]];
-function plateDecay(size) {
+// Colas LARGAS (Roadmap 5.0, Size hasta 20 s): la caída del tanque no es una
+// exponencial pura — el tramo inicial cae más deprisa (la difusión de los
+// allpass reparte la energía) y la cola tardía, más despacio. Para lo que se
+// OYE en una cola de 20 s manda la pendiente tardía, así que los puntos nuevos
+// se midieron entre 1 y 15 s (mismo impulso, damp 0, mod 0,5): 16,2 s ↔ 0,93 ·
+// 21,8 ↔ 0,95 · 26,3 ↔ 0,96. Los seis primeros se conservan tal cual (los
+// presets de siempre no cambian); entre 8,25 y 16,2 la interpolación une
+// ambas medidas de forma monótona. Size 20 ↔ decay ≈ 0,943 (el worklet admite 0,98).
+const PLATE_RT = [[1.17, 0.3], [1.84, 0.5], [2.38, 0.6], [3.22, 0.7], [4.72, 0.8], [8.25, 0.9],
+                  [16.2, 0.93], [21.8, 0.95], [26.3, 0.96]];
+export function plateDecay(size) {
   if (size <= PLATE_RT[0][0]) return Math.pow(10, -0.611 / Math.max(0.2, size));
   for (let i = 1; i < PLATE_RT.length; i++) {
     const [s0, d0] = PLATE_RT[i - 1], [s1, d1] = PLATE_RT[i];
     if (size <= s1) return d0 + (d1 - d0) * (size - s0) / (s1 - s0);
   }
-  return 0.9;
+  return PLATE_RT[PLATE_RT.length - 1][1];
 }
+// Topes de las líneas de retardo (se fijan al crear el nodo): el delay llega a
+// 4 s (PARAMS.dlyTime.max) más el wow; el predelay de la reverb a 250 ms.
+export const DLY_MAX = 4.5, REV_PRE_MAX = 0.25;
 const PLATE_MOD = 0.5;   // excursión de los allpass modulados (0..1): descorrela los modos sin marear
 
 // Delay «de cinta»: filtros DENTRO del bucle del ping-pong y wow del tiempo.
@@ -63,8 +75,8 @@ export class Sala {
     this.sum = ctx.createGain();                     // seco + retornos
 
     // --- Delay ping-pong (estéreo): los ecos rebotan L<->R ---
-    this.dlyL = ctx.createDelay(2.0); this.dlyL.delayTime.value = this._effDelay();
-    this.dlyR = ctx.createDelay(2.0); this.dlyR.delayTime.value = this._effDelay();
+    this.dlyL = ctx.createDelay(DLY_MAX); this.dlyL.delayTime.value = this._effDelay();
+    this.dlyR = ctx.createDelay(DLY_MAX); this.dlyR.delayTime.value = this._effDelay();
     this.ppFbL = ctx.createGain(); this.ppFbR = ctx.createGain();
     this.ppFbL.gain.value = this.ppFbR.gain.value = fb;
     this.ppMerge = ctx.createChannelMerger(2);
@@ -90,7 +102,7 @@ export class Sala {
     // nueva entra por el que está apagado y se cruza en ~50 ms, sin cortar en
     // seco la cola de la anterior. Predelay: DelayNode antes de los convolvers
     // (separa el ataque de la cola). ---
-    this.revPre = ctx.createDelay(0.1); this.revPre.delayTime.value = S.reverbPre;
+    this.revPre = ctx.createDelay(REV_PRE_MAX); this.revPre.delayTime.value = S.reverbPre;
     this.convA = ctx.createConvolver(); this.convA.buffer = makeIR(ctx, S.reverbSize, 2.5, S.reverbDamp);
     this.convB = ctx.createConvolver();
     this.revXA = ctx.createGain(); this.revXA.gain.value = 1;
@@ -221,7 +233,7 @@ export class Sala {
   // Tiempo efectivo del delay: libre (knob Time) o división musical del BPM
   _effDelay() {
     const div = { '1/8': 0.5, '1/8.': 0.75, '1/4': 1, '1/4.': 1.5, '1/2': 2 }[this.S.dlySync];
-    return div ? Math.min(1.5, (60 / this.S.bpm) * div) : this.S.dlyTime;
+    return div ? Math.min(4, (60 / this.S.bpm) * div) : Math.min(4, this.S.dlyTime);   // tope = PARAMS.dlyTime.max (la línea mide DLY_MAX)
   }
 
   // Desmontaje (al apagar la escena): para los LFOs del wow y rompe el bucle

@@ -1,6 +1,9 @@
 /* SubSDJ · sliders (range). Config en PARAMS (tabla única); el HTML no lleva
-   min/max/step/value: se fijan aquí. Los params `log` (cutoff) usan el slider
-   como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en espacio-motor.
+   min/max/step/value: se fijan aquí. Los params `log` (cutoff, A/D/R) usan el
+   slider como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en
+   espacio-motor. El valor vive en una variable, no en el <input>: set(v) lo
+   guarda EXACTO y coloca el pulgar; get() lo devuelve tal cual (un slider log
+   de 1000 pasos cuantizaría cada preset al cargarlo: a 12 s de ataque, ±1 %).
    Como el knob, el slider publica su posición 0..1 en --pos (el CSS rellena
    el carril hasta el pulgar si el tema lo pide). */
 import { part } from '../engine/parts.js';
@@ -27,19 +30,19 @@ export function bindSliders() {
     if (!el || !p) return;
     if (p.log) { el.min = 0; el.max = 1; el.step = 0.001; }
     else { el.min = p.min; el.max = p.max; el.step = p.step != null ? p.step : 0.01; }
+    let value = p.def;
     const update = () => {
-      const val = posToVal(p, parseFloat(el.value));
       el.style.setProperty('--pos', ((parseFloat(el.value) - el.min) / (el.max - el.min)).toFixed(4));
-      applyTarget(p.t || name, val);
-      if (vEl) vEl.textContent = p.fmt ? p.fmt(val) : String(val);
+      applyTarget(p.t || name, value);
+      if (vEl) vEl.textContent = p.fmt ? p.fmt(value) : String(value);
     };
-    el.addEventListener('input', update);
+    el.addEventListener('input', () => { value = posToVal(p, parseFloat(el.value)); update(); });   // arrastre: el valor sale de la posición
     el.addEventListener('pointerdown', () => part().resume());
     el.value = valToPos(p, p.def);
     update();
     CONTROLS[name] = {
-      get: () => posToVal(p, parseFloat(el.value)),
-      set: v => { el.value = valToPos(p, v); update(); },
+      get: () => value,
+      set: v => { value = Math.min(p.max, Math.max(p.min, +v)); el.value = valToPos(p, value); update(); },
       def: p.def,
       el: el.closest('.slider'),
     };

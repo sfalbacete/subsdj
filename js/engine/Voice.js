@@ -1,16 +1,20 @@
 /* =====================================================================
    SubSDJ · Voice — una nota polifónica.
    Cadena por voz:
-     osc A/B (worklet) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
+     osc A/B (worklet; cada uno a freq·2^oct — Octava ±2) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
         --> VOCAL (banco de formantes, dry/wet; el ruido ya sumado = aliento)
         --> filtro LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + envFiltro + LFO)
         --> VCA(ADSR) --> ampMod(matriz, base 1) --> pan --> bus
    Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
+   Con lfoPhase 'voz' los LFO de cutoff/reso/vibrato/PWM/pan son COPIAS por voz
+   (nodes.mkVoiceLFO) arrancadas en la fase que le toca a la voz (Weyl), y la
+   fuente «Deriva (voz)» de la matriz es un paseo lento propio de cada voz.
    Matriz de modulación: slots fuente→GainNode(amt·span)→AudioParams del
    destino — la misma fontanería que las rutas dedicadas, generalizada.
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN, FM4_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
+import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase } from './nodes.js';
 import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
          VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
          VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
@@ -59,6 +63,13 @@ export class Voice {
     const t = Math.ceil(((startAt || ctx.currentTime) + (mod.lookahead || 0.005)) / Q - 1e-6) * Q;
     this.t0 = t;                          // referencia para el fade-in de LFOs (lfoFade)
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
+
+    // --- Modulación por voz (Roadmap 5.0 · bloque 2) ---
+    // Fase de esta voz (secuencia de Weyl, nodes.js): la usan sus LFO propios
+    // (lfoPhase 'voz', creados bajo demanda en _vlfo) y su deriva (fuente 'drift').
+    this.phase = nextVoicePhase(ctx);
+    this.vlfo = S.lfoPhase === 'voz' ? {} : null;   // k -> LFO propio (null = los globales del motor)
+    this.drift = null;                              // fuente «Deriva (voz)» de la matriz, si algún slot la usa
 
     // --- Osciladores (worklet) ---
     this.oscs = [];                       // {node, detune, pw, ratio}
@@ -165,10 +176,13 @@ export class Voice {
       vocOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
     }
 
-    // LFOs globales -> cutoff (todas las etapas) / Q (solo la etapa con resonancia)
-    mod.cutLFOGain.connect(lp.frequency); mod.cutLFOGain.connect(hp.frequency);
-    if (lp2) { mod.cutLFOGain.connect(lp2.frequency); mod.cutLFOGain.connect(hp2.frequency); }
-    mod.resLFOGain.connect(lp.Q);         mod.resLFOGain.connect(hp.Q);
+    // LFOs -> cutoff (todas las etapas) / Q (solo la etapa con resonancia): el
+    // global del motor (fase única) o el propio de esta voz (lfoPhase 'voz')
+    const cutG = this._lfoGain('cut'), resG = this._lfoGain('res');
+    cutG.connect(lp.frequency); cutG.connect(hp.frequency);
+    if (lp2) { cutG.connect(lp2.frequency); cutG.connect(hp2.frequency); }
+    resG.connect(lp.Q); resG.connect(hp.Q);
+    this.cutG = cutG; this.resG = resG;
     // macro de apertura del arreglo (cents sobre el detune: exponencial)
     if (mod.macroCut) [lp, hp, lp2, hp2].forEach(f => { if (f) mod.macroCut.connect(f.detune); });
 
@@ -259,14 +273,20 @@ export class Voice {
     // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
 
+    // Octava (cfg.oct, −2..+2): el oscilador suena a freq·2^oct — −1 es el
+    // suboscilador clásico, +1/+2 apilan hacia arriba sin recurrir a Apiladas.
+    // Va como RATIO de frecuencia (no en cents): así el glide (glideTo usa o.ratio)
+    // y el detune en cents siguen significando lo mismo que a la octava base.
+    const ratio = Math.pow(2, cfg.oct || 0);
+    const fEnd = freq * ratio, fStart = startFreq ? startFreq * ratio : fEnd;
     // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
-    fParam.value = glide > 0 ? startFreq : freq;
+    fParam.value = glide > 0 ? fStart : fEnd;
     // glide (portamento): rampa exponencial desde la nota anterior
     if (glide > 0) {
-      fParam.setValueAtTime(startFreq, t);
-      fParam.exponentialRampToValueAtTime(freq, t + glide);
+      fParam.setValueAtTime(fStart, t);
+      fParam.exponentialRampToValueAtTime(fEnd, t + glide);
     } else {
-      fParam.setValueAtTime(freq, t);
+      fParam.setValueAtTime(fEnd, t);
     }
     dParam.value = cfg.detune;
     // Pitch envelope por nota: arranca desviado pitchEnvAmt cents y decae
@@ -280,7 +300,7 @@ export class Voice {
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
       uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P,
-      isWt: cfg.wave === 'tabla', ratio: 1 });   // isWt: la secuencia de tabla solo automatiza estos
+      isWt: cfg.wave === 'tabla', ratio });   // isWt: la secuencia de tabla solo automatiza estos · ratio: octava (glideTo)
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
@@ -375,16 +395,43 @@ export class Voice {
   ensureVib() {
     if (this._connVib || this.disposed) return; this._connVib = true;
     this.vibFade = this._lfoFadeGain();
-    this.mod.freqLFOGain.connect(this.vibFade);
+    this.vibG = this._lfoGain('freq'); this.vibG.connect(this.vibFade);
     this.oscs.forEach(o => this.vibFade.connect(o.detune));
   }
   ensurePwm() {
     if (this._connPwm || this.disposed) return; this._connPwm = true;
     this.pwmFade = this._lfoFadeGain();
-    this.mod.pwmLFOGain.connect(this.pwmFade);
+    this.pwmG = this._lfoGain('pwm'); this.pwmG.connect(this.pwmFade);
     this.oscs.forEach(o => this.pwmFade.connect(o.pw));
   }
-  ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.mod.panLFOGain.connect(this.panner.pan); }
+  ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.panG = this._lfoGain('pan'); this.panG.connect(this.panner.pan); }
+
+  // ---------- LFOs y deriva POR VOZ (Roadmap 5.0 · bloque 2) ----------
+  // _vlfo(k): el LFO propio k ('cut'|'res'|'freq'|'pwm'|'pan'), creado al primer
+  // uso leyendo el estado (forma, Speed, Level) y arrancado en la fase de la voz.
+  // _lfoGain(k): la ganancia de profundidad que hay que conectar al destino —
+  // la del LFO propio con lfoPhase 'voz', la global del motor si no.
+  _vlfo(k) {
+    if (!this.vlfo[k]) this.vlfo[k] = mkVoiceLFO(this.ctx, this.S[k + 'LfoShape'] || 'sine', this.S[k + 'LfoSpd'], this.S[k + 'LfoLvl'], this.t0, this.phase);
+    return this.vlfo[k];
+  }
+  _lfoGain(k) { return this.vlfo ? this._vlfo(k).depth : this.mod[k + 'LFOGain']; }
+  // Fuente «Deriva (voz)»: el buffer de deriva (nodes.lfoBuffers) leído desde la
+  // fase de la voz a la velocidad mxDriftSpd, ±1 crudo (la cantidad la pone el slot).
+  _driftSrc() {
+    if (!this.drift) this.drift = mkVoiceLFO(this.ctx, 'drift', this.S.mxDriftSpd, 1, this.t0, this.phase);
+    return this.drift.out;
+  }
+  // Level / Speed / forma del LFO k en vivo (los llama el engine; con lfoPhase
+  // 'global' no hay copia propia y no hace nada: el global ya cambió).
+  setLfo(k, what, value) {
+    if (!this.vlfo || !this.vlfo[k] || this.disposed) return;
+    const l = this.vlfo[k], tc = this.ctx.currentTime;
+    if (what === 'lvl') l.depth.gain.setTargetAtTime(value, tc, 0.02);
+    else if (what === 'spd') setVoiceLfoRate(this.ctx, l, value, tc);
+    else setVoiceLfoShape(this.ctx, l, value);
+  }
+  setMxDriftSpd(hz) { if (this.drift && !this.disposed) setVoiceLfoRate(this.ctx, this.drift, hz, this.ctx.currentTime); }
 
   // ---------- vocal: banco de formantes (tabla y curvas en vocal.js) ----------
   // 3 bandpass en paralelo anclados a la frecuencia REF de cada formante; el
@@ -478,7 +525,11 @@ export class Voice {
   // pasar por su knob Level); 'env' es el ConstantSource de la env de filtro;
   // vel/note/rnd son un valor fijo por nota => ConstantSource propio ("CV").
   _mxSrcNode(src) {
-    if (src.startsWith('lfo')) return this.mod.mxLfo[src] || null;
+    if (src.startsWith('lfo')) {        // con lfoPhase 'voz', el LFO propio (crudo, ±1); el trémolo es siempre el global (va tras la mezcla)
+      const k = { lfoCut: 'cut', lfoRes: 'res', lfoFreq: 'freq', lfoPwm: 'pwm' }[src];
+      return (this.vlfo && k) ? this._vlfo(k).out : (this.mod.mxLfo[src] || null);
+    }
+    if (src === 'drift') return this._driftSrc();
     if (src === 'env') return this.fenv;
     if (this._mxConsts[src]) return this._mxConsts[src];
     const val = src === 'vel' ? this.vel
@@ -653,20 +704,21 @@ export class Voice {
     if (m.stats) m.stats.worklets -= this.oscs.length;
     // desconectar la modulación global de los params de esta voz y parar worklets
     // (vibrato/PWM llegan a través de las ganancias de fade por voz)
-    if (this.vibFade) { try { m.freqLFOGain.disconnect(this.vibFade); } catch (e) {} try { this.vibFade.disconnect(); } catch (e) {} }
-    if (this.pwmFade) { try { m.pwmLFOGain.disconnect(this.pwmFade); } catch (e) {} try { this.pwmFade.disconnect(); } catch (e) {} }
+    if (this.vibFade) { try { this.vibG.disconnect(this.vibFade); } catch (e) {} try { this.vibFade.disconnect(); } catch (e) {} }
+    if (this.pwmFade) { try { this.pwmG.disconnect(this.pwmFade); } catch (e) {} try { this.pwmFade.disconnect(); } catch (e) {} }
     this.oscs.forEach(o => {
       try { m.pitchOffset.disconnect(o.detune); } catch (e) {}
       try { o.node.port.postMessage('stop'); } catch (e) {}
       try { o.node.disconnect(); } catch (e) {}
     });
-    try { m.panLFOGain.disconnect(this.panner.pan); } catch (e) {}
-    try { m.cutLFOGain.disconnect(this.lp.frequency); } catch (e) {}
-    try { m.cutLFOGain.disconnect(this.hp.frequency); } catch (e) {}
-    if (this.lp2) { try { m.cutLFOGain.disconnect(this.lp2.frequency); } catch (e) {} }
-    if (this.hp2) { try { m.cutLFOGain.disconnect(this.hp2.frequency); } catch (e) {} }
-    try { m.resLFOGain.disconnect(this.lp.Q); } catch (e) {}
-    try { m.resLFOGain.disconnect(this.hp.Q); } catch (e) {}
+    // (cutG/resG/panG son los gains globales del motor o los propios de la voz: la misma desconexión)
+    if (this.panG) { try { this.panG.disconnect(this.panner.pan); } catch (e) {} }
+    [this.lp, this.hp, this.lp2, this.hp2].forEach(f => { if (f) { try { this.cutG.disconnect(f.frequency); } catch (e) {} } });
+    try { this.resG.disconnect(this.lp.Q); } catch (e) {}
+    try { this.resG.disconnect(this.hp.Q); } catch (e) {}
+    // LFOs y deriva propios de la voz: parar sus buffers (un BufferSource en loop no se para solo)
+    if (this.vlfo) for (const k in this.vlfo) stopVoiceLFO(this.vlfo[k]);
+    stopVoiceLFO(this.drift);
     // matriz: soltar los slots (la fuente puede ser un LFO global: hay que
     // desconectarla del gain del slot para no dejar basura en el grafo)
     this.mxSlots.forEach(s => {

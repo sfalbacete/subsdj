@@ -75,12 +75,13 @@
       <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
       <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
     </div>
-    <div class="row" style="margin-top:10px">
+    <div class="row tight" style="margin-top:10px">
       <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="phaseA"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
-      <div class="ctl"><div class="stepper"><button data-oct="A" data-d="-1">−</button><span class="num" id="octA">1</span><button data-oct="A" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+      <div class="ctl"><div class="stepper"><button data-tr="A" data-d="-1">−</button><span class="num" id="trA">0</span><button data-tr="A" data-d="1">+</button></div><div class="lab">Octava</div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="A" data-d="-1">−</button><span class="num" id="octA">1</span><button data-oct="A" data-d="1">+</button></div><div class="lab">Apiladas</div></div>
     </div>
-    <div class="help"><b>Oscilador A.</b> Detune en cents (±50) · Phase = fase inicial del ciclo · Octavas apila 1-4 octavas dentro del oscilador. «Súper» = 7 sierras detunadas (knob Spread en Mezcla) · «Tabla» = tabla de ondas (módulo Tabla de ondas).</div>
+    <div class="help"><b>Oscilador A.</b> Detune en cents (±50) · Phase = fase inicial del ciclo · <b>Octava</b> transpone el oscilador −2..+2 octavas (−1 = suboscilador clásico; aplica por nota) · <b>Apiladas</b> apila 1-4 octavas hacia arriba dentro del oscilador. «Súper» = 7 sierras detunadas (knob Spread en Mezcla) · «Tabla» = tabla de ondas (módulo Tabla de ondas).</div>
   </div>
   <div class="panel osc" data-screens="diseno">
     <h2>Osc B</h2>
@@ -93,12 +94,13 @@
       <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
       <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
     </div>
-    <div class="row" style="margin-top:10px">
+    <div class="row tight" style="margin-top:10px">
       <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="phaseB"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
-      <div class="ctl"><div class="stepper"><button data-oct="B" data-d="-1">−</button><span class="num" id="octB">1</span><button data-oct="B" data-d="1">+</button></div><div class="lab">Octavas</div></div>
+      <div class="ctl"><div class="stepper"><button data-tr="B" data-d="-1">−</button><span class="num" id="trB">0</span><button data-tr="B" data-d="1">+</button></div><div class="lab">Octava</div></div>
+      <div class="ctl"><div class="stepper"><button data-oct="B" data-d="-1">−</button><span class="num" id="octB">1</span><button data-oct="B" data-d="1">+</button></div><div class="lab">Apiladas</div></div>
     </div>
-    <div class="help"><b>Oscilador B.</b> Igual que A; con Mix al centro suenan los dos. Detúnalos entre sí (±cents) para el grosor clásico de dos osciladores.</div>
+    <div class="help"><b>Oscilador B.</b> Igual que A; con Mix al centro suenan los dos. Detúnalos entre sí (±cents) para el grosor clásico de dos osciladores; B en Octava −1 con un seno = el suboscilador que ancla el grave.</div>
   </div>
   <div class="panel osc" data-screens="diseno">
     <h2>Mezcla</h2>
@@ -312,7 +314,7 @@
       <div class="ctl"><div class="knob" data-knob="hits"><div class="ind"></div></div><div class="lab">Golpes</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="hitGap"><div class="ind"></div></div><div class="lab">Hueco</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «Sigue ADSR»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira. <b>Curva</b>: a 0 las rampas son lineales (como siempre); al subirla, ataque y decay se vuelven exponenciales tipo RC, como en un ADSR analógico — el ataque sube deprisa y frena al llegar, el decay cae deprisa y se posa despacio. Como la sonoridad es logarítmica, el decay exponencial se oye parejo y el lineal «se queda colgado y cae de golpe». El release ya era exponencial. <b>Flam</b> (Golpes · Hueco): con más de un golpe, antes del ADSR suenan Golpes−1 ráfagas cortas separadas Hueco ms y el ADSR completo es el último golpe — el tren de pulsos del clap de la 808: una palmada no es un golpe de ruido, son tres o cuatro ráfagas a ~10 ms y luego la cola. El gráfico las pinta.</div>
+    <div class="help"><b>Envolvente de amplitud</b> (y del filtro en modo «Sigue ADSR»). El gráfico pinta ambas envolventes. Sliders a propósito: una envolvente son barras de tiempo, se dibuja mejor que se gira. Recorrido en <b>log</b>: ataque y decay hasta 20 s, release hasta 30 s (la escala del pad cinematográfico), y el milisegundo sigue teniendo sitio; el tope izquierdo del ataque es 0 exacto = escalón. <b>Curva</b>: a 0 las rampas son lineales (como siempre); al subirla, ataque y decay se vuelven exponenciales tipo RC, como en un ADSR analógico — el ataque sube deprisa y frena al llegar, el decay cae deprisa y se posa despacio. Como la sonoridad es logarítmica, el decay exponencial se oye parejo y el lineal «se queda colgado y cae de golpe». El release ya era exponencial. <b>Flam</b> (Golpes · Hueco): con más de un golpe, antes del ADSR suenan Golpes−1 ráfagas cortas separadas Hueco ms y el ADSR completo es el último golpe — el tren de pulsos del clap de la 808: una palmada no es un golpe de ruido, son tres o cuatro ráfagas a ~10 ms y luego la cola. El gráfico las pinta.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Voz · Master</h2>
@@ -326,7 +328,7 @@
       <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">P.Env Dec</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="master"><div class="ind"></div></div><div class="lab">Master</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Voz.</b> Mono (legato) con prioridad de última nota; Glide = portamento · Pitch env: la nota arranca desviada Amount cents y cae al tono en Dec (bombos, toms, zaps) · Master = volumen de salida.</div>
+    <div class="help"><b>Voz.</b> Mono (legato) con prioridad de última nota; Glide = portamento (hasta 10 s: drones que resbalan) · Pitch env: la nota arranca desviada Amount cents y cae al tono en Dec (bombos, toms, zaps; hasta 10 s = risers) · Master = volumen de salida.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>LFO trémolo</h2>
@@ -351,12 +353,20 @@
     <div class="row" style="margin-top:6px;justify-content:center">
       <div class="ctl"><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="lab">LFO Fade</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Afinación global + vibrato.</b> ±Cents desplaza TODO el synth (también lo mueve el pitch bend MIDI) · LFO Fade: vibrato y PWM entran en rampa tras cada nota, como un intérprete (0 = inmediato).</div>
+    <div class="help"><b>Afinación global + vibrato.</b> ±Cents desplaza TODO el synth (también lo mueve el pitch bend MIDI) · LFO Fade: vibrato y PWM entran en rampa tras cada nota, como un intérprete (0 = inmediato; hasta 20 s). Los Speed de todos los LFO van en log desde 0,005 Hz (un ciclo cada 200 s): a esa escala el LFO ya no «oscila», deriva.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Matriz de modulación</h2>
     <div id="mxRows"></div>
-    <div class="help"><b>Matriz:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su knob Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity).</div>
+    <div class="row" style="margin-top:8px;align-items:center;justify-content:space-between;gap:8px">
+      <span class="fieldlab" style="margin:0" title="Fase de los LFO de cutoff, reso, vibrato, PWM y pan">LFO</span>
+      <div class="seg" id="lfoPhaseSel" style="flex:1" title="Fase de los LFO de cutoff, reso, vibrato, PWM y pan">
+        <button data-lph="global" title="Uno por motor: todas las voces se mueven a la vez (el acorde respira en bloque)">Global</button>
+        <button data-lph="voz" title="Cada voz arranca los suyos en una fase distinta (secuencia de Weyl): el acorde respira voz a voz">Por voz</button>
+      </div>
+      <div class="ctl"><div class="knob" data-knob="mxDriftSpd"><div class="ind"></div></div><div class="lab">Deriva Spd</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Matriz:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su knob Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity) · <b>«Deriva (voz)»</b> = paseo lento PROPIO de cada voz (Deriva Spd: 0,05 Hz = un vaivén cada 20 s): a cutoff, pan o wavetable, cada nota del acorde evoluciona por su cuenta. <b>LFO · fase</b>: «global» = un LFO por motor, el acorde respira en bloque (como siempre); «por voz» = cada voz arranca sus LFO de cutoff/reso/vibrato/PWM/pan en una fase distinta (secuencia de Weyl k·φ: determinista y repartida; la primera voz suena como siempre) — aplica por nota.</div>
   </div>
 </div>
 </section>
@@ -527,7 +537,7 @@
       <button data-sync="1/4.">¼·</button>
       <button data-sync="1/2">½</button>
     </div>
-    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador. <b>Damp</b> = filtro DENTRO del bucle: cada repetición pierde agudos (y algo de graves), como la cinta o los BBD — a 0 es transparente exacto. <b>Wow</b> desafina un pelo cada repetición (modulación lenta del tiempo, distinta en L y R): el eco se ensancha. En modo <b>Partes</b>: Amount es el ENVÍO de esta parte; Time/BPM/Damp/Wow y el sync son de la sala compartida.</div>
+    <div class="help"><b>Delay ping-pong</b> (los ecos rebotan L↔R). Time hasta 4 s (en log). Sincado a una división, el knob Time se ignora. El BPM también gobierna el arpegiador y el secuenciador. <b>Damp</b> = filtro DENTRO del bucle: cada repetición pierde agudos (y algo de graves), como la cinta o los BBD — a 0 es transparente exacto. <b>Wow</b> desafina un pelo cada repetición (modulación lenta del tiempo, distinta en L y R): el eco se ensancha. En modo <b>Partes</b>: Amount es el ENVÍO de esta parte; Time/BPM/Damp/Wow y el sync son de la sala compartida.</div>
   </div>
   <div class="panel" data-screens="diseno secuenciacion">
     <h2>Reverb</h2>
@@ -541,7 +551,7 @@
       <button data-rt="sala" title="Convolución con una IR de ruido generada por código">Sala (IR)</button>
       <button data-rt="placa" title="Placa algorítmica (Dattorro, el linaje del Lexicon 224): la densidad crece con el tiempo y el tanque va modulado">Placa</button>
     </div>
-    <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto es de la sala compartida.</div>
+    <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa), hasta 20 s: la sala que suena más que la nota (la IR de 20 s cuesta CPU en proporción; la placa, no) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola (hasta 250 ms). En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto es de la sala compartida.</div>
   </div>
   <div class="panel" data-screens="diseno">
     <h2>Espacio</h2>

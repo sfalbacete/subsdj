@@ -1,8 +1,47 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v19 (+ flam de palmada, 2026-10)",
+  "banco": "SubSDJ · demos de mejoras — v21 (+ deriva por voz y fase por voz de los LFO, 2026-10)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "FASE 1 · pad, LFO de cutoff en fase global (el acorde respira en bloque)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.45,
+      "cutoff": 600, "reso": 2, "filterSlope": "24", "cutLfoShape": "sine", "cutLfoLvl": 450, "cutLfoSpd": 0.3, "lfoPhase": "global",
+      "a": 1, "d": 1, "s": 1, "r": 3, "width": 0.5, "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "master": 0.6 },
+
+    "FASE 2 · mismo pad, LFO por voz (cada nota respira a su ritmo)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.45,
+      "cutoff": 600, "reso": 2, "filterSlope": "24", "cutLfoShape": "sine", "cutLfoLvl": 450, "cutLfoSpd": 0.3, "lfoPhase": "voz",
+      "a": 1, "d": 1, "s": 1, "r": 3, "width": 0.5, "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "master": 0.6 },
+
+    "DERIVA 1 · pad quieto (sin deriva por voz)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.45,
+      "cutoff": 800, "reso": 1.5, "filterSlope": "24",
+      "a": 1, "d": 1, "s": 1, "r": 3, "width": 0.5, "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "master": 0.6 },
+
+    "DERIVA 2 · mismo pad, Deriva (voz) → cutoff y → pan a 0,3 Hz": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.45,
+      "cutoff": 800, "reso": 1.5, "filterSlope": "24",
+      "mx1src": "drift", "mx1dst": "cutoff", "mx1amt": 0.35, "mx2src": "drift", "mx2dst": "pan", "mx2amt": 0.7, "mxDriftSpd": 0.3,
+      "a": 1, "d": 1, "s": 1, "r": 3, "width": 0.5, "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "master": 0.6 },
+
+    "TIEMPO 1 · pad, ataque 2 s y release 3 s (los topes viejos)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -7, "detuneB": 9, "octB": -1, "mix": 0.45,
+      "cutoff": 900, "reso": 1.2, "filterSlope": "24", "a": 2, "d": 1, "s": 1, "r": 3, "envCurve": 0.3, "width": 0.5,
+      "chMode": "ensemble", "chAmt": 0.35, "chSpd": 0.3, "reverbType": "placa", "reverbMix": 0.45, "reverbSize": 4, "reverbDamp": 0.4, "master": 0.6 },
+
+    "TIEMPO 2 · mismo pad, ataque 12 s, release 25 s y placa de 16 s": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -7, "detuneB": 9, "octB": -1, "mix": 0.45,
+      "cutoff": 900, "reso": 1.2, "filterSlope": "24", "a": 12, "d": 1, "s": 1, "r": 25, "envCurve": 0.3, "width": 0.5,
+      "chMode": "ensemble", "chAmt": 0.35, "chSpd": 0.3, "reverbType": "placa", "reverbMix": 0.45, "reverbSize": 16, "reverbDamp": 0.4, "master": 0.6 },
+
+    "TIEMPO 3 · pad con LFO deriva de cutoff a 0,05 Hz (el tope viejo)": { "waveA": "sawtooth", "waveB": "square", "detuneB": 8, "mix": 0.4,
+      "cutoff": 700, "reso": 2, "cutLfoShape": "drift", "cutLfoLvl": 450, "cutLfoSpd": 0.05,
+      "a": 1.5, "d": 1, "s": 1, "r": 4, "width": 0.5, "reverbMix": 0.35, "reverbSize": 6, "master": 0.6 },
+
+    "TIEMPO 4 · mismo pad, LFO a 0,006 Hz (casi tres minutos por vuelta)": { "waveA": "sawtooth", "waveB": "square", "detuneB": 8, "mix": 0.4,
+      "cutoff": 700, "reso": 2, "cutLfoShape": "drift", "cutLfoLvl": 450, "cutLfoSpd": 0.006,
+      "a": 1.5, "d": 1, "s": 1, "r": 4, "width": 0.5, "reverbMix": 0.35, "reverbSize": 6, "master": 0.6 },
+
+    "OCT 1 · dos sierras a la misma octava": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "mix": 0.5,
+      "cutoff": 1400, "reso": 1.5, "a": 0.4, "d": 0.4, "s": 0.85, "r": 1.5, "width": 0.4, "reverbMix": 0.3, "master": 0.6 },
+
+    "OCT 2 · mismas, B una octava abajo (suboscilador)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneA": -6, "detuneB": 8, "octB": -1, "mix": 0.5,
+      "cutoff": 1400, "reso": 1.5, "a": 0.4, "d": 0.4, "s": 0.85, "r": 1.5, "width": 0.4, "reverbMix": 0.3, "master": 0.6 },
 
     "PRC 1 · palmada de un golpe (sin flam)": { "waveA": "sine", "mix": 0, "noise": 1, "noiseColor": 0.1, "filterType": "bp", "cutoff": 1300, "reso": 2.5,
       "hits": 1, "hitGap": 0.011, "a": 0, "d": 0.28, "s": 0, "r": 0.12, "envCurve": 0.6, "dist": 0.35,

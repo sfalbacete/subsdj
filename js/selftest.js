@@ -16,7 +16,7 @@
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets } from './engine/AudioEngine.js';
-import { Sala } from './engine/Sala.js';
+import { Sala, plateDecay } from './engine/Sala.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
@@ -24,11 +24,11 @@ import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
-import { PARAMS, valToPos } from './engine/params.js';
+import { PARAMS, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter } from './engine/parts.js';
 import { mulberry32 } from './engine/Harmony.js';
-import { lfoBuffers } from './engine/nodes.js';
+import { lfoBuffers, makeIR, mkLFO, setLfoShape } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
 import { euclid } from './engine/Player.js';
@@ -1652,6 +1652,226 @@ export async function runSelfTest() {
       r = { name: 'LFO S&H / deriva (buffers · formas distintas · escalera vs continuo · matriz)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
+  }
+
+  // ---------- Roadmap 5.0 · bloque 1: tiempo ×10 + octava por oscilador ----------
+  {
+    body.appendChild(el('st-cat', 'Tiempo ×10 y octava'));
+    const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+      let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+    // Octava por oscilador: frecuencia fundamental por cruces por cero de un seno
+    // limpio (C3 = 130,81 Hz: a −1 deben salir ~65,4 Hz, a +1 ~261,6) y el glide
+    // en mono conserva la octava (glideTo multiplica por el ratio del oscilador).
+    {
+      const NAME = 'octava por oscilador (−1 = sub · +1 · el glide conserva la octava)';
+      let r;
+      try {
+        const probs = [];
+        const base = { waveA: 'sine', mix: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0 };
+        const hzOf = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+          let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
+        const one = async st => { loadState(st); return renderOne(structuredClone(engine.S), { secs: 1.6, offAt: 1.5 }); };
+        const b0 = await one({ ...base, octA: 0 }), bSub = await one({ ...base, octA: -1 }), bUp = await one({ ...base, octA: 1 });
+        const f0 = hzOf(b0, 0.5, 1.5), fSub = hzOf(bSub, 0.5, 1.5), fUp = hzOf(bUp, 0.5, 1.5);
+        if (!(Math.abs(f0 - NOTE1) < 2)) probs.push('octava 0 no da C3 (' + f0.toFixed(1) + ' Hz)');
+        if (!(Math.abs(fSub - NOTE1 / 2) < 1.5)) probs.push('octava −1 no da C2 (' + fSub.toFixed(1) + ' Hz)');
+        if (!(Math.abs(fUp - NOTE1 * 2) < 3)) probs.push('octava +1 no da C4 (' + fUp.toFixed(1) + ' Hz)');
+        // glide mono: C3 → G3 con octava −1 debe acabar en G2 (98 Hz)
+        loadState({ ...base, octA: -1, mode: 'mono', glide: 0.2 });
+        const ctxG = new OfflineAudioContext(2, Math.ceil(SR * 1.6), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctxG);
+        eng.noteOn('g1', NOTE1);
+        ctxG.suspend(0.5).then(() => { eng.noteOn('g2', NOTE2); ctxG.resume(); });
+        const bG = await ctxG.startRendering();
+        const fG = hzOf(bG, 1.0, 1.5);
+        if (!(Math.abs(fG - NOTE2 / 2) < 1.5)) probs.push('el glide no conserva la octava (' + fG.toFixed(1) + ' Hz, esperado ' + (NOTE2 / 2).toFixed(1) + ')');
+        console.log('octava: 0 / −1 / +1', f0.toFixed(1), fSub.toFixed(1), fUp.toFixed(1), 'Hz · glide a −1 acaba en', fG.toFixed(1), 'Hz');
+        r = { name: NAME, peak: analyze(bSub).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // Tiempos ×10: ataque de 10 s (rampa lineal: el nivel a 1 s es la mitad que a
+    // 2 s), release de 20 s (a 2 s de soltar queda ~90 %), la tabla PARAMS es
+    // coherente (todo log tiene suelo; con min 0, la posición 0 es 0 exacto) y los
+    // controles devuelven EXACTO lo que se les pone (los sliders ya no cuantizan).
+    {
+      const NAME = 'tiempos ×10 (ataque 10 s · release 20 s · PARAMS log con 0 exacto · controles exactos)';
+      let r;
+      try {
+        const probs = [];
+        const base = { waveA: 'sawtooth', mix: 0, cutoff: 20000, reso: 0.7, d: 0.1, s: 1, width: 0, envCurve: 0 };
+        loadState({ ...base, a: 10, r: 0.1 });
+        const bA = await renderOne(structuredClone(engine.S), { secs: 2.2, offAt: 2.1 });
+        const qA = rmsW(bA, 0.9, 1.0) / Math.max(1e-9, rmsW(bA, 1.9, 2.0));
+        if (!(qA > 0.4 && qA < 0.6)) probs.push('ataque de 10 s: nivel a 1 s / a 2 s = ' + qA.toFixed(3) + ' (esperado ≈0,49)');
+        loadState({ ...base, a: 0.005, r: 20 });
+        const bR = await renderOne(structuredClone(engine.S), { secs: 2.5, offAt: 0.3 });
+        const qR = rmsW(bR, 2.2, 2.4) / Math.max(1e-9, rmsW(bR, 0.1, 0.3));
+        if (!(qR > 0.8 && qR < 0.97)) probs.push('release de 20 s: nivel a 2 s de soltar / sostenido = ' + qR.toFixed(3) + ' (esperado ≈0,90)');
+        for (const k in PARAMS) {
+          const p = PARAMS[k]; if (!p.log) continue;
+          const lo = p.min > 0 ? p.min : p.lmin;
+          if (!(lo > 0 && lo < p.max)) { probs.push(k + ': log sin suelo'); continue; }
+          for (const v of [p.def, lo * 3, p.max]) if (!(Math.abs(posToVal(p, valToPos(p, v)) - v) <= 1e-9 * Math.max(1, v))) probs.push(k + ': ida y vuelta de ' + v + ' → ' + posToVal(p, valToPos(p, v)));
+          if (p.min === 0 && (valToPos(p, 0) !== 0 || posToVal(p, 0) !== 0)) probs.push(k + ': el 0 no es la posición 0');
+        }
+        const ex = (name, v) => { CONTROLS[name].set(v); const g = CONTROLS[name].get(); if (g !== v) probs.push(name + ': set ' + v + ' → get ' + g); };
+        ex('a', 12.345); ex('a', 0); ex('d', 0.001); ex('r', 30); ex('cutoff', 1180); ex('cutLfoSpd', 0.005); ex('glide', 0); ex('reverbSize', 20);
+        loadState({});
+        console.log('tiempos largos: ataque 10 s nivel 1 s/2 s', qA.toFixed(3), '· release 20 s a 2 s', qR.toFixed(3));   // (prefijo sin «×» ni comas: el runner filtra los logs de medida por /^[a-z0-9 ]+:/)
+        r = { name: NAME, peak: analyze(bR).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // LFO a 0,005 Hz de verdad: el seno nativo recorre sin(2π·0,005·1 s) = 0,031
+    // en un segundo (ni recortado a 0,05 ni parado) y el S&H (buffer a
+    // playbackRate 0,0005) mantiene su escalón durante todo el render.
+    {
+      const NAME = 'LFO a 0,005 Hz (seno nativo y S&H por buffer)';
+      let r;
+      try {
+        const probs = [];
+        const ctxL = new OfflineAudioContext(2, SR, SR);
+        const merge = ctxL.createChannelMerger(2); merge.connect(ctxL.destination);
+        const l1 = mkLFO(ctxL, 0.005, 1); l1.out.connect(merge, 0, 0);
+        const l2 = mkLFO(ctxL, 0.005, 1); setLfoShape(ctxL, l2, 'sh'); l2.out.connect(merge, 0, 1);
+        const b = await ctxL.startRendering();
+        const s = b.getChannelData(0), h = b.getChannelData(1);
+        let sMax = -2, sMin = 2, hMax = -2, hMin = 2;
+        for (let i = 0; i < s.length; i++) { if (s[i] > sMax) sMax = s[i]; if (s[i] < sMin) sMin = s[i]; if (h[i] > hMax) hMax = h[i]; if (h[i] < hMin) hMin = h[i]; }
+        const esperado = Math.sin(2 * Math.PI * 0.005);
+        if (!(Math.abs(sMax - esperado) < 0.004 && sMin > -1e-4)) probs.push('seno a 0,005 Hz: máx ' + sMax.toFixed(4) + ' mín ' + sMin.toFixed(4) + ' (esperado sube hasta ' + esperado.toFixed(4) + ')');
+        if (!(hMax - hMin < 1e-4)) probs.push('S&H a 0,005 Hz cambia de escalón en 1 s (rango ' + (hMax - hMin).toExponential(2) + ')');
+        console.log('lfo lento: seno a 0,005 Hz máx', sMax.toFixed(4), 'esperado', esperado.toFixed(4), '· S&H rango', (hMax - hMin).toExponential(2));
+        r = { name: NAME, peak: Math.abs(sMax), ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // Sala y delay largos: la IR de 20 s mide 20 s y a los 10 s conserva
+    // (1/2)^2,5 ≈ 18 % de su nivel inicial; plateDecay es monótona hasta 20 s y
+    // queda bajo el tope del worklet (0,98); con un pluck, la cola de Size 20 a
+    // los 3,5 s es ≫ que la de Size 4 (IR y placa); el delay a 3,5 s devuelve el
+    // eco donde toca (antes la línea medía 2 s y el tiempo se recortaba).
+    {
+      const NAME = 'sala y delay largos (IR 20 s · placa hasta 20 s · eco a 3,5 s)';
+      let r;
+      try {
+        const probs = [];
+        const ctxI = new OfflineAudioContext(2, SR, SR);
+        const tIR = performance.now(), ir = makeIR(ctxI, 20, 2.5, 0), msIR = performance.now() - tIR;
+        if (ir.length !== 20 * SR) probs.push('la IR de 20 s mide ' + ir.length + ' muestras');
+        const qIR = rmsW(ir, 9.9, 10.1) / Math.max(1e-9, rmsW(ir, 0.05, 0.25));
+        if (!(qIR > 0.12 && qIR < 0.26)) probs.push('IR a los 10 s / inicio = ' + qIR.toFixed(3) + ' (esperado ≈0,18)');
+        const pd = [4, 8.25, 12, 16.2, 20].map(plateDecay);
+        if (!pd.every((v, i) => i === 0 || v > pd[i - 1]) || !(pd[4] > 0.93 && pd[4] < 0.98)) probs.push('plateDecay no es monótona/acotada: ' + pd.map(x => x.toFixed(3)).join(' '));
+        const pl = { waveA: 'sawtooth', mix: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.08, s: 0, r: 0.05, width: 0, reverbMix: 0.6, reverbPre: 0 };
+        const colas = {};
+        for (const type of ['sala', 'placa']) {
+          loadState({ ...pl, reverbType: type, reverbSize: 4 });
+          const b4 = await renderOne(structuredClone(engine.S), { secs: 4, offAt: 0.1 });
+          loadState({ ...pl, reverbType: type, reverbSize: 20 });
+          const b20 = await renderOne(structuredClone(engine.S), { secs: 4, offAt: 0.1 });
+          const c20 = rmsW(b20, 3.5, 4), c4 = rmsW(b4, 3.5, 4);
+          colas[type] = [c20, c4];
+          if (!(c20 > 1e-3)) probs.push(type + ': Size 20 sin cola audible a los 3,5 s (' + dB(c20) + ')');
+          if (!(c20 > 3 * c4)) probs.push(type + ': la cola de Size 20 a los 3,5 s no es ≫ que la de Size 4 (' + dB(c20) + ' vs ' + dB(c4) + ')');
+          if (analyze(b20).bad) probs.push(type + ': NaN/Inf con Size 20');
+        }
+        const dl = { waveA: 'sawtooth', mix: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.05, s: 0, r: 0.05, width: 0,
+                     dlyAmt: 0.6, dlyTime: 3.5, dlySync: 'libre', dlyDamp: 0, reverbMix: 0 };
+        loadState(dl);
+        const bD = await renderOne(structuredClone(engine.S), { secs: 4.2, offAt: 0.1 });
+        const eco = rmsW(bD, 3.5, 3.8), hueco = rmsW(bD, 2.0, 3.4);
+        if (!(eco > 1e-3 && eco > 10 * hueco)) probs.push('eco de 3,5 s: ' + dB(eco) + ' frente a ' + dB(hueco) + ' en el hueco anterior');
+        loadState({});
+        console.log('sala larga: IR 20 s en', msIR.toFixed(0), 'ms · nivel a 10 s', qIR.toFixed(3), '· plateDecay 4/8,25/12/16,2/20 =', pd.map(x => x.toFixed(3)).join(' '),
+                    '· cola 3,5 s IR 20/4', dB(colas.sala[0]), dB(colas.sala[1]), '· placa 20/4', dB(colas.placa[0]), dB(colas.placa[1]), '· eco 3,5 s', dB(eco), 'hueco', dB(hueco));
+        r = { name: NAME, peak: analyze(bD).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+  }
+
+  // ---------- Roadmap 5.0 · bloque 2: deriva por voz + fase por voz ----------
+  {
+    body.appendChild(el('st-cat', 'Deriva y fase por voz'));
+    // Pista de amplitud de UNA nota dentro del acorde: Goertzel con ventana Hann
+    // por saltos de 50 ms a la frecuencia de la nota (la otra nota cae a más de
+    // tres bins y la Hann la deja por debajo de −31 dB). Amplitud por ventana.
+    const track = (buf, f, t0, t1, hop = 0.05) => {
+      const d = buf.getChannelData(0), N = Math.floor(hop * SR), w = 2 * Math.PI * f / SR, c = 2 * Math.cos(w), out = [];
+      for (let t = t0; t + hop <= t1 + 1e-9; t += hop) {
+        const i0 = Math.floor(t * SR); let s1 = 0, s2 = 0;
+        for (let i = 0; i < N; i++) { const x = d[i0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / N)); const s0 = x + c * s1 - s2; s2 = s1; s1 = s0; }
+        out.push(Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N);
+      }
+      return out;
+    };
+    const corr = (a, b) => { const n = Math.min(a.length, b.length); let ma = 0, mb = 0; for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; } ma /= n; mb /= n;
+      let sab = 0, saa = 0, sbb = 0; for (let i = 0; i < n; i++) { sab += (a[i] - ma) * (b[i] - mb); saa += (a[i] - ma) ** 2; sbb += (b[i] - mb) ** 2; }
+      return sab / Math.sqrt(Math.max(1e-18, saa * sbb)); };
+    const swing = a => Math.max(...a) / Math.max(1e-9, Math.min(...a));
+    // acorde C3 + G3 pulsado a la vez y sostenido todo el render
+    const chord = async (st, secs = 2.5) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+      const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+      eng.noteOn('c1', NOTE1); eng.noteOn('c2', NOTE2); return ctx.startRendering(); };
+    // Nivel bajo a propósito: dos senos con la amplitud modulada hasta ×2 sumarían
+    // ~2,0 y el LIMITADOR de la Sala (umbral −3 dB) los comprimiría juntos,
+    // acoplando las dos pistas (corr falsa). Así el pico del acorde queda en ~0,4.
+    const base = { waveA: 'sine', mix: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.25, master: 0.4 };
+    // Fase por voz: con el LFO de cutoff (crudo, vía matriz → amplitud) las dos
+    // notas suben y bajan juntas en 'global' (corr ≈ 1) y desfasadas 0,618 de
+    // ciclo en 'voz' (corr ≈ cos(2π·0,618) = −0,74). La primera voz en 'voz'
+    // suena como en 'global' (fase 0: el buffer seno ≡ el oscilador nativo).
+    {
+      const NAME = 'fase por voz de los LFO (global: a la vez · por voz: desfasadas 0,618 de ciclo · voz 0 = el global · buffers de forma)';
+      let r;
+      try {
+        const probs = [];
+        const st = { ...base, cutLfoLvl: 0, cutLfoSpd: 1, cutLfoShape: 'sine', mx1src: 'lfoCut', mx1dst: 'amp', mx1amt: 0.8 };
+        const bG = await chord({ ...st, lfoPhase: 'global' }), bV = await chord({ ...st, lfoPhase: 'voz' });
+        const g1 = track(bG, NOTE1, 0.3, 2.3), g2 = track(bG, NOTE2, 0.3, 2.3), v1 = track(bV, NOTE1, 0.3, 2.3), v2 = track(bV, NOTE2, 0.3, 2.3);
+        const cG = corr(g1, g2), cV = corr(v1, v2), c11 = corr(g1, v1);
+        if (!(swing(g1) > 2 && swing(v1) > 2 && swing(v2) > 2)) probs.push('el LFO no mueve la amplitud (vaivén ' + [swing(g1), swing(v1), swing(v2)].map(x => x.toFixed(2)).join(' / ') + ')');
+        if (!(cG > 0.95)) probs.push('fase global: las dos notas no van a la vez (corr ' + cG.toFixed(3) + ')');
+        if (!(cV < -0.4)) probs.push('fase por voz: las dos notas no van desfasadas (corr ' + cV.toFixed(3) + ', esperado ≈ −0,74)');
+        if (!(c11 > 0.98)) probs.push('la primera voz en «por voz» no suena como en «global» (corr ' + c11.toFixed(3) + ')');
+        // buffers de las formas nativas: las fases del oscilador nativo (sin/tri/saw arrancan en 0 subiendo, sqr en +1)
+        const bf = lfoBuffers(new OfflineAudioContext(1, 8, SR)), q = n => bf[n].getChannelData(0), L = bf.sine.length;
+        const okB = Math.abs(q('sine')[L / 4] - 1) < 1e-3 && q('square')[0] === 1 && q('square')[L / 2] === -1
+          && Math.abs(q('triangle')[L / 4] - 1) < 1e-3 && Math.abs(q('sawtooth')[L / 4] - 0.5) < 1e-3 && Math.abs(q('sawtooth')[L / 2] + 1) < 1e-3;
+        if (!okB) probs.push('los buffers de forma no reproducen las fases del oscilador nativo');
+        console.log('fase por voz: corr global', cG.toFixed(3), '· por voz', cV.toFixed(3), '· voz 0 vs global', c11.toFixed(3), '· vaivén', swing(v1).toFixed(2));
+        r = { name: NAME, peak: analyze(bV).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // Deriva por voz: fuente 'drift' → amplitud a 3 Hz (rápida para que se vea en
+    // 2 s): cada nota vaga por su cuenta (las dos se mueven y no van a la par), el
+    // render es REPRODUCIBLE (secuencia de Weyl: dos renders iguales bit a bit) y
+    // a 0,005 Hz la deriva apenas se mueve en 2 s.
+    {
+      const NAME = 'deriva por voz (fuente «Deriva (voz)» · voces descorreladas · render reproducible · a 0,005 Hz quieta)';
+      let r;
+      try {
+        const probs = [];
+        const st = { ...base, mx1src: 'drift', mx1dst: 'amp', mx1amt: 1, mxDriftSpd: 3 };
+        const bA = await chord(st), bB = await chord(st);
+        const a1 = track(bA, NOTE1, 0.3, 2.3), a2 = track(bA, NOTE2, 0.3, 2.3);
+        const cD = corr(a1, a2);
+        if (!(swing(a1) > 1.5 && swing(a2) > 1.5)) probs.push('la deriva no mueve la amplitud (vaivén ' + swing(a1).toFixed(2) + ' / ' + swing(a2).toFixed(2) + ')');
+        if (!(Math.abs(cD) < 0.85)) probs.push('las dos voces derivan igual (corr ' + cD.toFixed(3) + ')');
+        const dA = bA.getChannelData(0), dB = bB.getChannelData(0); let md = 0;
+        for (let i = 0; i < dA.length; i++) { const e = Math.abs(dA[i] - dB[i]); if (e > md) md = e; }
+        if (!(md < 1e-6)) probs.push('dos renders iguales difieren (máx |Δ| ' + md.toExponential(2) + '): la deriva no es determinista');
+        const bS = await chord({ ...st, mxDriftSpd: 0.005 });
+        const s1 = track(bS, NOTE1, 0.3, 2.3);
+        if (!(swing(s1) < 1.3)) probs.push('a 0,005 Hz la deriva se mueve demasiado en 2 s (vaivén ' + swing(s1).toFixed(3) + ')');
+        console.log('deriva por voz: corr entre notas', cD.toFixed(3), '· vaivén', swing(a1).toFixed(2), swing(a2).toFixed(2), '· renders máx |Δ|', md.toExponential(2), '· a 0,005 Hz vaivén', swing(s1).toFixed(3));
+        r = { name: NAME, peak: analyze(bA).peak, ok: !probs.length, problems: probs };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

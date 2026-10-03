@@ -46,12 +46,21 @@ function bindLfoShapes() {
   });
 }
 
+// Steppers del oscilador: «Apiladas» (octaves, 1-4 octavas hacia arriba dentro
+// del oscilador) y «Octava» (oct, transposición −2..+2; −1 = suboscilador).
 function setOctave(which, n) {
   const p = PARAMS['octaves' + which.slice(3)];
   n = Math.min(p.max, Math.max(p.min, n));
   applyTarget(which + '.octaves', n);
   const el = document.getElementById('oct' + which.slice(3));
   if (el) el.textContent = n;
+}
+function setTrans(which, n) {
+  const p = PARAMS['oct' + which.slice(3)];
+  n = Math.min(p.max, Math.max(p.min, Math.round(+n || 0)));
+  applyTarget(which + '.oct', n);
+  const el = document.getElementById('tr' + which.slice(3));
+  if (el) el.textContent = n > 0 ? '+' + n : n < 0 ? '−' + (-n) : '0';
 }
 
 export function bindOscControls() {
@@ -66,6 +75,7 @@ export function bindOscControls() {
   bindSeg('reverbTypeSel', 'rt', 'reverbType', 'reverbType');   // reverb: sala (IR) / placa (Dattorro)
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algoritmo (quién modula a quién)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
+  bindSeg('lfoPhaseSel', 'lph', 'lfoPhase', 'lfoPhase');   // LFOs: fase global (un LFO por motor) / por voz (copias en fase Weyl)
   bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador
   bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
   bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');
@@ -86,14 +96,18 @@ export function bindOscControls() {
 
   document.querySelectorAll('.stepper button').forEach(b => {
     b.addEventListener('click', () => {
-      if (!b.dataset.oct) return;                    // otros steppers (p.ej. pasos del seq) se cablean aparte
-      const which = 'osc' + b.dataset.oct;
-      setOctave(which, part().S[which].octaves + parseInt(b.dataset.d, 10));
+      const d = parseInt(b.dataset.d, 10);
+      if (b.dataset.oct) { const which = 'osc' + b.dataset.oct; setOctave(which, part().S[which].octaves + d); }
+      else if (b.dataset.tr) { const which = 'osc' + b.dataset.tr; setTrans(which, (part().S[which].oct || 0) + d); }
+      // otros steppers (p.ej. pasos del seq, octava del teclado) se cablean aparte
     });
   });
   ['A', 'B'].forEach(s => {
     CONTROLS['octaves' + s] = { get: () => part().S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def,
       el: document.getElementById('oct' + s).closest('.ctl'), opts: [1, 2, 3, 4] };
     setOctave('osc' + s, PARAMS['octaves' + s].def);
+    CONTROLS['oct' + s] = { get: () => part().S['osc' + s].oct || 0, set: n => setTrans('osc' + s, n), def: PARAMS['oct' + s].def,
+      el: document.getElementById('tr' + s).closest('.ctl'), opts: [-2, -1, 0, 1, 2] };
+    setTrans('osc' + s, PARAMS['oct' + s].def);
   });
 }

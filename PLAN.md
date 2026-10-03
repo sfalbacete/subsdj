@@ -1,6 +1,7 @@
 # SubSDJ · Plan de pendientes
 
-Fecha: 2026-09-27 · Estado: Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
+bloques 1 y 2 HECHOS, selftest 151/151). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -463,6 +464,67 @@ entera o solo una sección «activa»?
 - **Exportador SFZ**: loop points automáticos (hoy nota sostenible ~3 s + release).
 - **Wavetable W3**: expresiones `f(x, t)` que generan una familia de frames coherentes, y/o
   editor de armónicos (aditiva pura). Decisión aplazada.
+
+## Roadmap 5.0 «cinescape» (acordado 2026-10-03)
+
+Origen: Sergio, jugando con el synth, no saca «sonidos que llamen la atención»: timbres
+interesantes pero clásicos. Quiere lo de las películas: largo, profundo, ambiental, rico en
+texturas. Diagnóstico (README, sección Roadmap 5.0): tres propiedades que el oído lee como
+«sinte de los 80» — LFOs globales (todo se mueve a la vez), constantes de tiempo de instrumento
+(ataque ≤ 2 s, release ≤ 3 s, LFO ≥ 0,05 Hz, sala ≤ 4 s) y espectro siempre armónico y estable.
+La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad clásico de fábrica.
+
+| # | Bloque | Qué nos da | Coste | Depende de |
+|---|--------|------------|-------|------------|
+| 1 | **Tiempo ×10 + octava por oscilador** ✔ | la escala del paisaje: 20 s de ataque, 30 s de release, LFOs de minutos, sala de 20 s, delay de 4 s; suboscilador — HECHO 2026-10-03 | bajo | — |
+| 2 | **Deriva por voz + fase por voz** ✔ | cada nota del acorde evoluciona por su cuenta: fuente «Deriva (voz)» + selector LFO global / por voz (fase Weyl determinista) — HECHO 2026-10-03 | bajo | 1 |
+| 3 | **Shimmer + freeze en la Sala** | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada | medio (worklet ~120 líneas) | — |
+| 4 | **Fuentes de ejecución** | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s | bajo | — |
+| 5 | **Resonadores** | cuencos, metal frotado, viento sobre cuerdas: banco de combs/modos inarmónicos excitado por ruido (el banco Vocal ya es un banco de pasabandas) | medio | 1, 2 |
+| 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
+| 7 | **Cinta en máster** | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado | bajo | — |
+
+**Orden acordado:** 1 → 2 → escuchar → 3 (shimmer) → 4 → 7; 5 y 6 cuando tiempo y decorrelación estén
+resueltos (sin eso también sonarían clásicos). Receta para probar el diagnóstico con lo que ya hay:
+Capa con cuatro partes (sub seno con drift · supersaw 7 voces LP 600 Hz + LFO 0,05 Hz + ensemble ·
+ruido con Vocal «u» y Vida · campana FM4 con release largo), Placa a Size 4.
+
+**1 · Tiempo ×10 + octava por oscilador** ✔ **HECHO 2026-10-03** — detalle en el README. Resumen:
+rangos ×10 en log con `lmin` (posición 0 = 0 exacto), sliders que guardan el valor exacto, Speed de
+LFO desde 0,005 Hz, Delay 4 s (`DLY_MAX`), Size 20 s (IR ~55 ms de generación; placa con tabla
+RT60→decay ampliada con medidas en Node entre 1 y 15 s: 16,2 ↔ 0,93 · 21,8 ↔ 0,95 · 26,3 ↔ 0,96),
+predelay 250 ms, `octA`/`octB` −2..+2 como ratio de frecuencia (stepper «Octava» junto a «Apiladas»),
+`MAX_TAILS` 16 con fundido de 350 ms. Cuatro checks nuevos (148/148), categoría «Cinescape»
+(«Pad glaciar (ataque 12 s)», «Drone de sótano (−2 octavas)»), pares TIEMPO 1-4 y OCT 1-2.
+Fuera a propósito: subir el tope de Mix de reverb (0,6; los niveles están igualados por medida) y
+los Speed de chorus/flanger (efectos, no paisaje).
+
+**2 · Deriva por voz + fase por voz** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del
+plan: la deriva usa el buffer de deriva de los LFO (`lfoBuffers.drift`, mulberry32) y no el `wander`
+de Vocal; la fase por voz NO es aleatoria sino la secuencia de Weyl k·φ (determinista: renders y SFZ
+reproducibles, el selftest la mide), con un selector `lfoPhase` global/por voz por nota (bit-compatible
+por defecto); los LFO por voz son buffers de un periodo (un OscillatorNode no admite fase inicial),
+no PeriodicWaves. Medidas: corr entre notas 1,000 global / −0,738 por voz (= cos 2π·0,618), deriva
+0,122, renders bit a bit iguales; 151/151. Preset «Pad de cuatro vientos»; pares FASE 1-2 y DERIVA 1-2.
+Lección: los checks que miden amplitud por voz deben renderizar a −12 dB o el limitador de la Sala
+acopla las pistas. El plan era: fuente «Deriva (por voz)» en `MX_SOURCES` desde un offset aleatorio
+y fase aleatoria por voz para los LFOs dedicados.
+
+**3 · Shimmer + freeze** — Propósito: la cola que crece sola. Qué: worklet pitch shifter granular
+(dos granos con ventana Hann y lectura en dientes de sierra, +12 o +7 st) en un bucle reverb →
+LP → shifter → ×amt → reverb (knobs Shimmer, Intervalo); Freeze: botón que cierra la entrada y
+pone el decay de la placa a 0,999 (la IR no congela: es FIR). Verificación: con shimmer, la
+energía por encima de 2·f0 en la cola crece con el tiempo; sin él, cae. Coste medio.
+
+**4 · Fuentes de ejecución** — rueda (CC1), aftertouch y expresión (CC11) como fuentes de la
+matriz (`ui/midi.js` ya recibe MIDI; falta un ConstantSource global por fuente). Verificación:
+sonda MIDI sintética → el AudioParam destino se mueve. Coste bajo.
+
+**5 · Resonadores** — modo «resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como
+fuente) o banco de combs Karplus-Strong por voz. Coste medio. **6 · Granular** — modo de onda
+«grano» en el worklet (N granos leyendo la tabla con fases aleatorias y ventanas Hann, densidad y
+dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto. **7 · Cinta en
+máster** — ruido a −50 dB, DelayNode de pocos ms modulado, tanh suave; en la Sala. Coste bajo.
 
 ## Lo que NO haremos (decidido)
 

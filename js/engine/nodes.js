@@ -89,8 +89,63 @@ export function lfoBuffers(ctx) {
   let pk = 0;
   for (let i = 0; i < dLen; i++) { let v = 0; for (const c of comps) v += c.a * Math.sin(c.w * i + c.ph); dd[i] = v; if (Math.abs(v) > pk) pk = Math.abs(v); }
   for (let i = 0; i < dLen; i++) dd[i] /= pk;
-  b = { sh, drift, rnd, unit: LFO_UNIT }; lfoBufCache.set(ctx, b);
+  // Formas nativas como buffers de UN periodo (1 s a LFO_SR → rate = hz) para los
+  // LFO POR VOZ: un buffer en loop admite fase inicial (offset de arranque), un
+  // OscillatorNode no. Mismas fases que el oscilador nativo (sin/tri/saw/sqr
+  // arrancan en 0, 0, 0, +1), así «por voz» con fase 0 suena como el global.
+  const per = LFO_SR, mk = f => { const buf = ctx.createBuffer(1, per, LFO_SR), d = buf.getChannelData(0); for (let i = 0; i < per; i++) d[i] = f(i / per); return buf; };
+  b = { sh, drift, rnd, unit: LFO_UNIT, seq: 0,
+        sine: mk(x => Math.sin(2 * Math.PI * x)),
+        triangle: mk(x => x < 0.25 ? 4 * x : x < 0.75 ? 2 - 4 * x : 4 * x - 4),
+        sawtooth: mk(x => x < 0.5 ? 2 * x : 2 * x - 2),
+        square: mk(x => x < 0.5 ? 1 : -1) };
+  lfoBufCache.set(ctx, b);
   return b;
+}
+// --- LFO POR VOZ (Roadmap 5.0 · bloque 2: fase por voz y deriva por voz) ---
+// Por qué: los LFO del motor son UNO por motor, así que un acorde respira en
+// bloque. Con lfoPhase 'voz' cada voz lleva sus propias copias (cut/res/freq/
+// pwm/pan) arrancadas en una FASE distinta; y la fuente «Deriva (voz)» de la
+// matriz es un paseo lento propio de cada voz. La fase de cada voz sale de la
+// secuencia de Weyl k·φ mod 1 (φ = razón áurea): determinista (renders y SFZ
+// reproducibles; el selftest puede medirla) y máximamente repartida (dos notas
+// seguidas nunca caen cerca; voz 0 = fase 0 = el sonido de siempre).
+// Las seis formas son buffers en loop (sin/tri/saw/sqr: rate = hz; S&H/deriva:
+// rate = hz·unit, como el LFO alternativo global). El contador vive por
+// contexto (lfoBuffers): las partes de una escena comparten la secuencia.
+export const LFO_WEYL = 0.6180339887498949;
+export function nextVoicePhase(ctx) { const b = lfoBuffers(ctx); return (b.seq++ * LFO_WEYL) % 1; }
+const voiceRate = (b, shape, hz) => LFO_ALT.includes(shape) ? hz * b.unit : hz;
+export function mkVoiceLFO(ctx, shape, hz, depth, t0, phase) {
+  const out = ctx.createGain(), gain = ctx.createGain(); gain.gain.value = depth; out.connect(gain);
+  const lfo = { out, depth: gain, src: null, shape: null, hz, t0, phase, born: false };
+  setVoiceLfoShape(ctx, lfo, shape);
+  return lfo;
+}
+// Fase en curso = la de nacimiento + lo recorrido desde el último ancla: cambiar
+// de forma o de velocidad a mitad de nota no reinicia el ciclo.
+const phaseNow = (lfo, now) => (lfo.phase + lfo.hz * Math.max(0, now - lfo.t0)) % 1;
+export function setVoiceLfoShape(ctx, lfo, shape) {
+  if (lfo.shape === shape) return;
+  const b = lfoBuffers(ctx), now = ctx.currentTime;
+  if (lfo.born) { lfo.phase = phaseNow(lfo, now); lfo.t0 = Math.max(now, lfo.t0); }
+  if (lfo.src) { try { lfo.src.stop(); lfo.src.disconnect(); } catch (e) {} }
+  const src = ctx.createBufferSource();
+  src.buffer = b[shape] || b.sine; src.loop = true;
+  src.playbackRate.value = voiceRate(b, shape, lfo.hz);
+  src.connect(lfo.out);
+  src.start(Math.max(now, lfo.t0), lfo.phase * src.buffer.duration);
+  lfo.src = src; lfo.shape = shape; lfo.born = true;
+}
+export function setVoiceLfoRate(ctx, lfo, hz, t) {
+  const now = ctx.currentTime;
+  lfo.phase = phaseNow(lfo, now); lfo.t0 = Math.max(now, lfo.t0); lfo.hz = hz;   // ancla la fase antes de cambiar la velocidad
+  if (lfo.src) lfo.src.playbackRate.setTargetAtTime(voiceRate(lfoBuffers(ctx), lfo.shape, hz), t, 0.02);
+}
+export function stopVoiceLFO(lfo) {
+  if (!lfo) return;
+  if (lfo.src) { try { lfo.src.stop(); } catch (e) {} try { lfo.src.disconnect(); } catch (e) {} }
+  try { lfo.out.disconnect(); } catch (e) {} try { lfo.depth.disconnect(); } catch (e) {}
 }
 // LFO: oscilador nativo (sin/tri/saw/sqr) o fuente alternativa (S&H / deriva),
 // ambos vertidos en `out` (±1, crudo): quien consume el LFO (depth, la matriz)

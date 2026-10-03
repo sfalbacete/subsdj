@@ -168,6 +168,37 @@ export const FACTORY = {
   /* módulo Vocal (banco de formantes por voz): tres esquinas del espacio
      robot ↔ humano — Q fina y formantes clavados = máquina; Q natural +
      Vida (micro-deriva) + drift + vibrato con fade + aliento = coro */
+  /* Roadmap 5.0 «cinescape»: sonidos a la escala del paisaje — tiempos ×10
+     (ataques de 10 s, releases de 20-30 s, LFOs de minutos, salas de 20 s) y
+     octava por oscilador (−1 = suboscilador, −2 = sótano). La categoría crece
+     con cada bloque del roadmap. */
+  'Cinescape': {
+    /* bloque 1: 12 s de ataque, 25 s de release, env de filtro propia aún más
+       lenta (8 s) y deriva de cutoff a 0,02 Hz (una vuelta cada 50 s); B una
+       octava abajo ancla el grave. Mantén un acorde y espera: entra de la nada */
+    'Pad glaciar (ataque 12 s)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, octB: -1, mix: 0.45,
+      uniVoices: '3', uniDetune: 10, drift: 4, cutoff: 700, reso: 1.2, filterSlope: '24',
+      fenvMode: 'own', filterEnvAmt: 900, fa: 8, fd: 6, fs: 0.5, fr: 20,
+      cutLfoShape: 'drift', cutLfoLvl: 250, cutLfoSpd: 0.02,
+      a: 12, d: 4, s: 1, r: 25, envCurve: 0.4, width: 0.6, chMode: 'ensemble', chAmt: 0.35, chSpd: 0.25,
+      reverbType: 'placa', reverbMix: 0.5, reverbSize: 14, reverbDamp: 0.4, reverbPre: 0.06, master: 0.6 },
+    /* bloque 1: A dos octavas abajo (C3 → C1, 32 Hz) y B seno una abajo; mono con
+       glide de 3 s (la nota nueva RESBALA), filtro casi cerrado con deriva lenta */
+    'Drone de sótano (−2 octavas)': { waveA: 'sawtooth', octA: -2, waveB: 'sine', octB: -1, mix: 0.4, drift: 6,
+      cutoff: 420, reso: 3, filterSlope: '24', cutLfoShape: 'drift', cutLfoLvl: 200, cutLfoSpd: 0.03,
+      mode: 'mono', glide: 3, a: 4, d: 2, s: 1, r: 12, envCurve: 0.3, width: 0, dist: 0.2,
+      reverbType: 'placa', reverbMix: 0.35, reverbSize: 9, reverbDamp: 0.6, master: 0.65 },
+    /* bloque 2: Deriva (voz) → cutoff y → pan a 0,04 Hz, LFO de vibrato POR VOZ con
+       fade de 4 s — cuatro notas, cuatro vientos: cada una abre, cierra y se pasea
+       por el estéreo a su aire. Compáralo con LFO · fase global: el bloque respira */
+    'Pad de cuatro vientos (deriva por voz)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octB: -1, mix: 0.45,
+      uniVoices: '2', uniDetune: 8, cutoff: 750, reso: 1.5, filterSlope: '24',
+      mx1src: 'drift', mx1dst: 'cutoff', mx1amt: 0.4, mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.8, mxDriftSpd: 0.04,
+      lfoPhase: 'voz', freqLfoLvl: 5, freqLfoSpd: 0.15, lfoFade: 4,
+      a: 6, d: 3, s: 1, r: 15, envCurve: 0.4, width: 0.3, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
+      reverbType: 'placa', reverbMix: 0.45, reverbSize: 12, reverbDamp: 0.4, reverbPre: 0.05, master: 0.6 },
+  },
+
   'Voz': {
     'Coro humano': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, mix: 0.5,
       vocAmt: 0.75, vocVowel: 0.5, vocQ: 0.65, vocVida: 0.6,
