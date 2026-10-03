@@ -1,8 +1,24 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v22 (+ shimmer en la Sala, 2026-10)",
+  "banco": "SubSDJ · demos de mejoras — v23 (+ cinta en el máster, 2026-10)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
   "presets": {
+
+    "CINTA 1 · pad limpio (sin cinta)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 900, "reso": 1, "filterSlope": "24", "a": 0.4, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "reverbDamp": 0.3, "tapeSat": 0, "tapeWow": 0, "master": 0.6 },
+
+    "CINTA 2 · mismo pad por cinta (saturación 0,7 · wow 0,5)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 900, "reso": 1, "filterSlope": "24", "a": 0.4, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "reverbDamp": 0.3, "tapeSat": 0.7, "tapeWow": 0.5, "master": 0.6 },
+
+    "CINTA 3 · mismo pad limpio": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 900, "reso": 1, "filterSlope": "24", "a": 0.4, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "reverbDamp": 0.3, "tapeSat": 0, "tapeWow": 0, "master": 0.6 },
+
+    "CINTA 4 · mismo pad, solo wow a tope (el tono vaga)": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
+      "cutoff": 900, "reso": 1, "filterSlope": "24", "a": 0.4, "d": 1, "s": 0.9, "r": 2, "width": 0.5,
+      "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "reverbDamp": 0.3, "tapeSat": 0, "tapeWow": 1, "master": 0.6 },
 
     "SHIM 1 · pad en la placa, sin shimmer": { "waveA": "sawtooth", "waveB": "triangle", "detuneA": -5, "detuneB": 7, "octB": -1, "mix": 0.4,
       "cutoff": 1200, "reso": 1, "filterSlope": "24", "a": 0.3, "d": 1, "s": 0.9, "r": 2, "width": 0.5,

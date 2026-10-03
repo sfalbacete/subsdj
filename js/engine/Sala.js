@@ -16,10 +16,11 @@
    enganchados: set() mantiene su S en sincronía (Arp/Seq/WaveSeq leen el
    S.bpm de su propio motor: un solo reloj para la escena).
    ===================================================================== */
-import { makeIR, mkLFO } from './nodes.js';
+import { makeIR, mkLFO, setLfoShape } from './nodes.js';
 
 export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
-                                  'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt']);
+                                  'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
+                                  'tapeSat', 'tapeWow']);
 
 // Shimmer (Roadmap 5.0 · bloque 3): bucle cola → HP → LP → desplazador de tono
 // (worklets/shift-processor.js) → ×ganancia → entrada de la reverb. Cada vuelta
@@ -50,6 +51,36 @@ export const reverbEnergyGain = (type, size) => type === 'placa' ? tableAt(PLATE
 // es un FIR: no retiene nada). Al cerrar la entrada se corta también el bucle
 // del shimmer: realimentar un tanque sin pérdidas crecería sin tope.
 export const FREEZE_DECAY = 0.9995;
+
+// Cinta en el MÁSTER (Roadmap 5.0 · bloque 7): suma (seco + retornos) →
+// saturación suave → wow/flutter → limitador. El «pegamento degradado» de
+// Arnalds, Frahm o Guðnadóttir: la mezcla entera pasa por la misma cinta, así
+// que las partes se funden. Las dos etapas son transparentes EXACTAS a 0
+// (caminos secos a ganancia 1 y húmedos a 0: los renders de siempre no cambian
+// ni una muestra; el wow a 0 ni siquiera añade su latencia).
+// Revisión tras ESCUCHAR (Sergio, 2026-10-03): la primera versión (rodilla
+// k = 2, entrada ×3) «petardeaba» con un acorde de tres notas — era
+// intermodulación: con el sub a −1 el pico de la mezcla pasa de 1,5 y eso, con
+// esa curva, ya es recorte duro, no cinta. Ahora la curva es tanh(x) a secas
+// (pendiente 1 en el origen: la señal pequeña sale como entra), la entrada sube
+// como mucho ×2 y el knob entra AL CUADRADO (la mitad baja es solo color; la
+// alta, compresión). El wow a ±7 ct no se oía en un pad que ya lleva detune
+// de ±7 y ensemble: ahora ±25 ct a tope. El siseo fijo se QUITÓ: un ruido que
+// no reacciona a lo que tocas no aporta (el aire que sigue a las notas ya lo da
+// el knob Ruido de cada voz).
+const TAPE_SAT_DRIVE = 1;         // ganancia de entrada a tope: 1 + DRIVE·sat² = ×2 (+6 dB)
+const TAPE_SAT_MAKEUP = 0.52;     // 1/(1 + 0,52·sat²): a tope, un seno de pico 0,5 sale al mismo nivel (tanh(1)·0,656 = 0,5)
+const TAPE_LP_MIN = 8000;         // Hz: la cinta pierde agudos al saturar (log de 20 kHz a esto)
+const TAPE_DLY = 0.008;           // s: retardo base de la línea de wow (mayor que la excursión máxima)
+// Wow: la desviación de tono es la DERIVADA del retardo (2π·f·d). Con la forma
+// 'drift' (componentes 0,375…1,625 × f, normalizada a ±1) y 6 ms a 0,8 Hz salen
+// ≈ ±40 ct a tope: a tope es cinta ESTROPEADA, a propósito (a 0,3, ±12 ct, el
+// vaivén de una pletina real). La 2ª versión (±15 ct medidos) Sergio no la oía.
+const TAPE_WOW_HZ = 0.8, TAPE_WOW_DEPTH = 0.006;      // deriva irregular: ≈ ±40 ct a tope
+const TAPE_FLUT_HZ = 6.5, TAPE_FLUT_DEPTH = 0.00008;  // flutter (el motor de arrastre): ≈ ±6 ct
+const TAPE_CURVE = (() => { const n = 2048, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x); } return c; })();
+const tapeLP = sat => 20000 * Math.pow(TAPE_LP_MIN / 20000, sat);
+const tapePre = sat => 1 + TAPE_SAT_DRIVE * sat * sat, tapePost = sat => 1 / (1 + TAPE_SAT_MAKEUP * sat * sat);
 
 // Placa (worklets/plate-processor.js, Dattorro): el Size del knob es un RT60 en
 // segundos. Tabla MEDIDA (impulso en Node, pendiente de la cola entre 0,5 y
@@ -154,6 +185,27 @@ export class Sala {
     this.master = ctx.createGain(); this.master.gain.value = master;
     this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.8;
 
+    // --- Cinta en el máster (ver constantes TAPE_*): dos etapas, cada una exacta a 0 ---
+    this.tapeIn = ctx.createGain();
+    // 1) saturación dry/wet
+    this.satDry = ctx.createGain(); this.satDry.gain.value = 1 - S.tapeSat;
+    this.satPre = ctx.createGain(); this.satPre.gain.value = tapePre(S.tapeSat);
+    this.satShaper = ctx.createWaveShaper(); this.satShaper.curve = TAPE_CURVE; this.satShaper.oversample = '2x';
+    this.satPost = ctx.createGain(); this.satPost.gain.value = tapePost(S.tapeSat);
+    this.satLP = ctx.createBiquadFilter(); this.satLP.type = 'lowpass'; this.satLP.Q.value = -3; this.satLP.frequency.value = tapeLP(S.tapeSat);
+    this.satWet = ctx.createGain(); this.satWet.gain.value = S.tapeSat;
+    this.satOut = ctx.createGain();
+    // 2) wow/flutter: línea corta modulada por una deriva irregular (buffer 'drift') y un seno rápido;
+    //    a 0 el camino seco pasa entero (ni latencia ni fase); con wow > 0 pasa todo por la línea
+    const wowOn = S.tapeWow > 0 ? 1 : 0;
+    this.wowDry = ctx.createGain(); this.wowDry.gain.value = 1 - wowOn;
+    this.wowWet = ctx.createGain(); this.wowWet.gain.value = wowOn;
+    this.tapeDelay = ctx.createDelay(0.02); this.tapeDelay.delayTime.value = TAPE_DLY;
+    this.tapeWowLFO = mkLFO(ctx, TAPE_WOW_HZ, S.tapeWow * TAPE_WOW_DEPTH); setLfoShape(ctx, this.tapeWowLFO, 'drift');
+    this.tapeFlutLFO = mkLFO(ctx, TAPE_FLUT_HZ, S.tapeWow * TAPE_FLUT_DEPTH);
+    this.tapeWowLFO.depth.connect(this.tapeDelay.delayTime); this.tapeFlutLFO.depth.connect(this.tapeDelay.delayTime);
+    this.tapeOut = ctx.createGain();
+
     // --- Conexiones ---
     this.dry.connect(this.sum);
     this.dlyIn.connect(this.dampL.lp);                                        // envío mono -> filtro de cinta -> línea L
@@ -171,7 +223,14 @@ export class Sala {
     if (S.reverbType === 'placa') { this._ensurePlate(); this.revPre.connect(this.plate); }
     else this.revPre.connect(this.convA);
     this.revRet.connect(this.sum);
-    this.sum.connect(this.comp); this.comp.connect(this.master);
+    // suma → cinta (saturación → wow) → limitador → máster → analizador
+    this.sum.connect(this.tapeIn);
+    this.tapeIn.connect(this.satDry); this.satDry.connect(this.satOut);
+    this.tapeIn.connect(this.satPre); this.satPre.connect(this.satShaper); this.satShaper.connect(this.satPost);
+    this.satPost.connect(this.satLP); this.satLP.connect(this.satWet); this.satWet.connect(this.satOut);
+    this.satOut.connect(this.wowDry); this.wowDry.connect(this.tapeOut);
+    this.satOut.connect(this.tapeDelay); this.tapeDelay.connect(this.wowWet); this.wowWet.connect(this.tapeOut);
+    this.tapeOut.connect(this.comp); this.comp.connect(this.master);
     this.master.connect(this.analyser); this.analyser.connect(dest);
 
     // --- Shimmer (bajo demanda: el caso común shimAmt = 0 no paga el worklet) y freeze ---
@@ -234,6 +293,14 @@ export class Sala {
         this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
         break;
       case 'reverbType': if (this.frozen && value !== 'placa') this.setFreeze(false); this._setType(value); this._shimUpdate(smooth); break;   // la IR no congela: soltar antes de cambiar
+      // cinta en el máster (TAPE_*): cada etapa vuelve a ser exacta a 0
+      case 'tapeSat':
+        smooth(this.satDry.gain, 1 - value); smooth(this.satWet.gain, value);
+        smooth(this.satPre.gain, tapePre(value)); smooth(this.satPost.gain, tapePost(value));
+        smooth(this.satLP.frequency, tapeLP(value)); break;
+      case 'tapeWow': { const on = value > 0 ? 1 : 0;
+        smooth(this.wowDry.gain, 1 - on); smooth(this.wowWet.gain, on);
+        smooth(this.tapeWowLFO.depth.gain, value * TAPE_WOW_DEPTH); smooth(this.tapeFlutLFO.depth.gain, value * TAPE_FLUT_DEPTH); break; }
       case 'shimAmt': if (value > 0) this._ensureShim(); this._shimUpdate(smooth); break;
       case 'shimInt': if (this.shim) this.shim.shift.parameters.get('semitones').setValueAtTime(this._shimSemis(), now); break;
     }
@@ -309,7 +376,12 @@ export class Sala {
   // de realimentación; sin fuentes vivas, el grafo se libera solo.
   dispose() {
     clearTimeout(this._revTimer); clearTimeout(this._revOffTimer); clearTimeout(this._typeTimer);
-    for (const l of [this.wowL, this.wowR]) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} }
+    for (const l of [this.wowL, this.wowR, this.tapeWowLFO, this.tapeFlutLFO]) {
+      try { l.osc.stop(); l.osc.disconnect(); } catch (e) {}
+      if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} }   // el wow de cinta es un buffer 'drift'
+    }
+    for (const n of [this.tapeIn, this.satDry, this.satPre, this.satShaper, this.satPost, this.satLP, this.satWet, this.satOut,
+                     this.wowDry, this.wowWet, this.tapeDelay, this.tapeOut]) { try { n.disconnect(); } catch (e) {} }
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,

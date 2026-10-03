@@ -214,6 +214,15 @@ export const FACTORY = {
       mx4src: 'drift', mx4dst: 'pan', mx4amt: 0.5, mxDriftSpd: 0.05,
       a: 2, d: 2, s: 1, r: 8, envCurve: 0.3, width: 0.4, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'placa', reverbMix: 0.4, reverbSize: 8, reverbDamp: 0.3, master: 0.6 },
+    /* bloque 7: cinta en el máster — saturación suave que pega la mezcla y wow que
+       hace vagar el tono de todo: el pegamento degradado de Arnalds y Frahm. Pon
+       los dos knobs de Cinta a 0 y compara: lo mismo suena «digital» */
+    'Pad de cinta (nostalgia)': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, octB: -1, mix: 0.4,
+      cutoff: 900, reso: 1, filterSlope: '24', lfoPhase: 'voz', drift: 3,
+      mx1src: 'drift', mx1dst: 'pan', mx1amt: 0.5, mxDriftSpd: 0.05,
+      a: 1.2, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.25, chSpd: 0.3,
+      reverbType: 'placa', reverbMix: 0.4, reverbSize: 6, reverbDamp: 0.4, reverbPre: 0.03,
+      tapeSat: 0.5, tapeWow: 0.5, master: 0.6 },
   },
 
   'Voz': {

@@ -563,6 +563,14 @@
     </div>
     <div class="help"><b>Reverb.</b> «Sala (IR)» = convolución con una IR de ruido generada por código; «Placa» = algorítmica (Dattorro): allpass de difusión + tanque en figura de ocho modulado — la densidad de ecos CRECE con el tiempo y la modulación mata el metal. Size = tiempo de cola (RT60 en la placa), hasta 20 s: la sala que suena más que la nota (la IR de 20 s cuesta CPU en proporción; la placa, no) · Damp = la cola pierde agudos antes · Predelay separa el ataque de la cola (hasta 250 ms). <b>Shimmer</b>: la cola vuelve a entrar en la reverb desplazada de tono (desplazador granular: dos cabezas en rampa con ventana seno) y en cada vuelta sube el intervalo elegido — la cola se convierte en un coro que asciende (Eno/Lanois); el knob es cuánta ENERGÍA vuelve por vuelta (a tope 0,8: estable, y calibrado contra la energía de la reverb, así que da igual el Size y el tipo). <b>❄ Freeze</b> (solo Placa): cierra la entrada y pone el tanque casi sin pérdidas — lo que estaba sonando se queda, indefinidamente, con la modulación del tanque meciéndolo; otra vez para soltarla. La IR no congela: es un FIR, no retiene nada. En modo <b>Partes</b>: Mix es el ENVÍO de esta parte; el resto (también Shimmer y Freeze) es de la sala compartida.</div>
   </div>
+  <div class="panel" data-screens="diseno secuenciacion">
+    <h2>Cinta</h2>
+    <div class="row" style="margin-top:8px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="tapeSat"><div class="ind"></div></div><div class="lab">Saturación</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="tapeWow"><div class="ind"></div></div><div class="lab">Wow</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Cinta en el máster.</b> La mezcla entera (seco + delay + reverb, todas las partes) pasa por la misma cinta antes del limitador: el «pegamento degradado» de Arnalds, Frahm o Guðnadóttir. <b>Saturación</b>: tanh con la entrada hasta ×2 y pérdida de agudos (la cinta oscurece al saturar); el knob entra al cuadrado: la mitad baja es color (armónicos, pegamento), la alta comprime los picos del acorde. <b>Wow</b>: el tono de toda la mezcla vaga despacio e irregular (forma «deriva» a 0,8 Hz: ±12 cents a 0,3, la pletina real; ±40 a tope, cinta estropeada a propósito) más un flutter rápido a 6,5 Hz (±6 cents); a 0 no añade ni latencia. Se oye mejor sobre una nota sola y larga: en un pad con detune y ensemble el vaivén se esconde hasta que el knob pasa de la mitad. Las dos son exactas a 0: los presets de siempre no cambian ni una muestra. Claves de la <b>Sala</b>: en Partes son de la sala compartida.</div>
+  </div>
   <div class="panel" data-screens="diseno">
     <h2>Espacio</h2>
     <div class="row" style="margin-top:8px;justify-content:space-around">

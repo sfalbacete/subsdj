@@ -139,8 +139,12 @@ export const PARAMS = {
   reverbType: { def: 'sala' },                      // 'sala' = convolución (IR de ruido) | 'placa' = algorítmica (Dattorro)
   // Shimmer (Roadmap 5.0 · bloque 3; claves de la SALA): la cola vuelve a entrar
   // en la reverb desplazada de tono → un coro que asciende en cada vuelta
-  shimAmt:    { def: 0, min: 0, max: 1, act: true },   // cuánto vuelve (ganancia del bucle = shimAmt·Sala.SHIM_FB_MAX)
+  shimAmt:    { def: 0, min: 0, max: 1, act: true },   // cuánto vuelve (energía por vuelta = shimAmt·Sala.SHIM_LOOP_MAX)
   shimInt:    { def: '+12' },                          // intervalo: '+12' octava (el clásico) | '+7' quinta | '+5' cuarta | '-12' octava abajo
+  // Cinta en el máster (Roadmap 5.0 · bloque 7; claves de la SALA): saturación
+  // suave y wow/flutter sobre la mezcla entera — a 0 exactas (el siseo se quitó tras escucharlo: no aportaba)
+  tapeSat:    { def: 0, min: 0, max: 1, act: true },   // tanh con entrada hasta ×2 (el knob entra al cuadrado) + pérdida de agudos (log 20 → 8 kHz)
+  tapeWow:    { def: 0, min: 0, max: 1, act: true },   // deriva irregular del tono (≈ ±40 ct a tope: cinta estropeada; ±12 a 0,3) + flutter a 6,5 Hz (≈ ±6 ct)
 
   // --- Envolvente / voz / master ---
   // Tiempos ×10 (Roadmap 5.0 · bloque 1): hasta 20 s de ataque y 30 s de release.

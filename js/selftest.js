@@ -16,7 +16,7 @@
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets } from './engine/AudioEngine.js';
-import { Sala, plateDecay, reverbEnergyGain } from './engine/Sala.js';
+import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain } from './engine/Sala.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
@@ -2027,6 +2027,58 @@ export async function runSelfTest() {
       loadState({});
       console.log('ejecucion: rueda tilt x', tw.toFixed(2), '· aftertouch', fAt.toFixed(1), 'Hz (esperado', fEsp.toFixed(1) + ')', '· expresion x', qe.toFixed(3), '· MIDI', JSON.stringify(pv));
       r = { name: NAME, peak: analyze(w1).peak, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  // ---------- Roadmap 5.0 · bloque 7: cinta en el máster ----------
+  // Saturación: un seno de C3 gana 3er armónico (392 Hz) a tope y no lo tiene a 0,
+  // sin saltar de nivel; y a 0,3 (la zona «un poco» del knob, que entra al
+  // cuadrado) sigue siendo color, no recorte: 3er armónico < 2 %. Wow: un seno
+  // de 440 Hz vaga más de 5 Hz (frecuencia instantánea por cruces por cero
+  // interpolados, suavizada sobre 20 periodos) y sin wow se queda quieto. Y las
+  // dos son claves de la Sala.
+  {
+    body.appendChild(el('st-cat', 'Cinta en el máster'));
+    const NAME = 'cinta en el máster (saturación: armónicos sin saltar de nivel, suave a 0,3 · wow: el tono vaga · claves de la Sala)';
+    let r;
+    try {
+      const probs = [];
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
+        const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
+        for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
+      const instFreq = (buf, t0, t1, avg = 20) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), cross = [];
+        for (let i = i0 + 1; i < i1; i++) if (d[i - 1] < 0 && d[i] >= 0) cross.push(i - 1 + (-d[i - 1]) / (d[i] - d[i - 1]));
+        const f = []; for (let k = avg; k < cross.length; k++) f.push(SR * avg / (cross[k] - cross[k - avg])); return f; };
+      const spread = f => f.length ? Math.max(...f) - Math.min(...f) : NaN;
+      const one = async (st, freq, secs) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); if (freq) eng.noteOn('c', freq); return ctx.startRendering(); };
+      const sine = { waveA: 'sine', mix: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0 };
+      const h3 = buf => goertzel(buf, 3 * NOTE1, 0.3, 1.1) / Math.max(1e-9, goertzel(buf, NOTE1, 0.3, 1.1));
+      const s0 = await one({ ...sine, tapeSat: 0 }, NOTE1, 1.2), s1 = await one({ ...sine, tapeSat: 1 }, NOTE1, 1.2), sM = await one({ ...sine, tapeSat: 0.3 }, NOTE1, 1.2);
+      const h0 = h3(s0), h1 = h3(s1), hM = h3(sM);
+      const lvl = rmsW(s1, 0.3, 1.1) / Math.max(1e-9, rmsW(s0, 0.3, 1.1));
+      if (!(h0 < 0.003)) probs.push('a saturación 0 hay 3er armónico (' + h0.toFixed(4) + '): no es transparente');
+      if (!(h1 > 0.03)) probs.push('a saturación 1 no aparece el 3er armónico (' + h1.toFixed(4) + ')');
+      if (!(hM < 0.02)) probs.push('a saturación 0,3 ya recorta (3er armónico ' + hM.toFixed(4) + ', debe ser color: < 2 %)');
+      if (!(lvl > 0.6 && lvl < 1.5)) probs.push('la saturación cambia el nivel (×' + lvl.toFixed(2) + ')');
+      const w0 = await one({ ...sine, tapeWow: 0 }, 440, 3), w1 = await one({ ...sine, tapeWow: 1 }, 440, 3);
+      const sp0 = spread(instFreq(w0, 0.5, 3)), sp1 = spread(instFreq(w1, 0.5, 3));
+      if (!(sp0 < 0.05)) probs.push('sin wow el tono vaga (' + sp0.toFixed(3) + ' Hz)');
+      if (!(sp1 > 8)) probs.push('con wow el tono no vaga lo bastante (' + sp1.toFixed(2) + ' Hz, esperado > 8 ≈ ±15 ct)');
+      // el camino del KNOB: la Sala nace con wow 0 y se sube a 1 en vivo (set → smooth); a partir de 0,6 s debe vagar igual
+      loadState({ ...sine, tapeWow: 0 });
+      const ctxK = new OfflineAudioContext(2, Math.ceil(SR * 3), SR), engK = new AudioEngine(); engK.S = structuredClone(engine.S); await engK.init(ctxK);
+      engK.noteOn('k', 440); ctxK.suspend(0.2).then(() => { engK.set('tapeWow', 1); ctxK.resume(); });
+      const wK = await ctxK.startRendering(), spK = spread(instFreq(wK, 0.8, 3));
+      if (!(spK > 8)) probs.push('subiendo el wow EN VIVO (set) el tono no vaga (' + spK.toFixed(2) + ' Hz)');
+      if (!(['tapeSat', 'tapeWow'].every(k => SALA_KEYS.has(k)))) probs.push('las claves de cinta no son de la Sala');
+      loadState({});
+      console.log('cinta: 3er armonico a 0 / 0,3 / 1', h0.toFixed(4), hM.toFixed(4), h1.toFixed(4), '· nivel x', lvl.toFixed(2), '· wow Hz sin/con/en vivo', sp0.toFixed(3), sp1.toFixed(2), spK.toFixed(2));
+      r = { name: NAME, peak: analyze(s1).peak, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }

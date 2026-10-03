@@ -9,11 +9,18 @@ Los módulos ES y el AudioWorklet **no funcionan desde `file://`**: hay que serv
 
 ```
 cd WebAudioAPI/synth_test
-python -m http.server 8000
+node tools/serve.mjs
 ```
 
-→ <http://127.0.0.1:8000/> (o Live Server de VSCode). El AudioContext arranca
-suspendido y se reanuda con el primer gesto (tecla o clic).
+→ <http://127.0.0.1:8000/>. El AudioContext arranca suspendido y se reanuda
+con el primer gesto (tecla o clic). `tools/serve.mjs` sirve con
+`Cache-Control: no-store`: **usa este y no `python -m http.server`** para
+desarrollar. Python no manda cabeceras de caché y el navegador aplica caché
+heurística a los módulos ES (fresco el 10 % del tiempo desde la última
+modificación), así que tras editar el motor podías seguir oyendo el `Sala.js`
+de hace una hora aunque recargases — pasó con la cinta (bloque 7): tres
+versiones del wow y el oído seguía oyendo la primera. Si usas otro servidor,
+recarga con Ctrl+F5 después de cada cambio.
 
 ## Self-test
 
@@ -1135,3 +1142,40 @@ en el motor en vivo y la rueda en pantalla a 1; 157/157. Preset «Pad de
 ejecución (rueda, aftertouch, pedal)» en Cinescape. Sin par A/B en el banco de
 demos: la sonda carga presets y las fuentes de ejecución no viven en el preset;
 la evidencia es el check, que recorre el mismo camino (matriz real, nota real).
+
+**7 Cinta en el máster** ✔ *(hecho 2026-10-03, revisado el mismo día tras
+escucharlo)* — Módulo **Cinta** (claves de la Sala `tapeSat`, `tapeWow`): la
+mezcla entera (seco + delay + reverb, todas las partes) pasa por la misma
+cinta entre la suma y el limitador — el «pegamento degradado» de Arnalds,
+Frahm o Guðnadóttir. Dos etapas, cada una EXACTA a 0 (caminos secos a
+ganancia 1 y húmedos a 0: los renders de siempre no cambian ni una muestra;
+el check «arranque» sigue clavando el escalón en 11,8 ms). **Saturación**:
+tanh(x) a secas (pendiente 1 en el origen: la señal pequeña sale como entra),
+entrada 1 + sat² (hasta ×2) y compensación 1/(1 + 0,52·sat²) (a tope, un seno
+de pico 0,5 sale al mismo nivel), más un paso-bajo que baja en log de 20 a
+8 kHz con el knob: la cinta oscurece al saturar. **Wow**: una línea de 8 ms
+modulada por una deriva irregular (el buffer 'drift' de los LFO a 0,8 Hz,
+±6 ms) y un flutter senoidal a 6,5 Hz (±6 cents); a 0 el camino seco pasa
+entero, sin latencia, y con wow > 0 todo pasa por la línea. La desviación de
+tono es la DERIVADA del retardo (2π·f·d): medida, ±33 cents a tope sobre un
+seno de 440 Hz (16,8 Hz de vaivén) — a tope es cinta estropeada a propósito,
+a 0,3 son los ±12 cents de una pletina real.
+**La revisión** (lo que oyó Sergio con la primera versión): (1) la saturación
+«petardeaba» con un acorde de tres notas en cuanto se subía un poco — era
+intermodulación: con el sub a −1 el pico de la mezcla pasa de 1,5 y con la
+rodilla k = 2 y entrada ×3 eso ya era recorte duro; de ahí la curva más suave,
+la entrada ×2 y el knob al cuadrado (la mitad baja es solo color); (2) el wow
+a ±7 cents no se oía en un pad que ya lleva detune de ±7 y ensemble, y a ±15
+(2ª versión) tampoco («no hace nada»): ahora ±33 medidos; de paso el check
+prueba el camino del KNOB (la Sala nace con wow 0 y se sube en vivo con
+`set`: 16,8 Hz, igual que naciendo a tope — el motor no era el problema; un
+módulo servido de la caché del navegador sí pudo serlo: recargar con
+Ctrl+F5); (3) el **siseo se quitó**: un ruido fijo que no reacciona a lo que
+tocas no aporta («no me dice mucho»), y el aire que sigue a las notas ya lo
+da el knob Ruido de cada voz. Evidencia: check «cinta en el máster» — 3er
+armónico de un seno de C3 a saturación 0 / 0,3 / 1 = 0,0019 / 0,0139 / 0,1035
+(a 0,3 debe ser < 2 %: color, no recorte), nivel a tope ×1,00; frecuencia
+instantánea de un seno de 440 Hz (cruces por cero interpolados, 20 periodos):
+vaga 16,8 Hz con wow a tope, naciendo a tope y subiéndolo en vivo, y 0,000
+sin; claves en `SALA_KEYS`; 159/159. Preset «Pad de cinta (nostalgia)» en
+Cinescape; pares **CINTA 1-2** y **CINTA 3-4** (solo wow).

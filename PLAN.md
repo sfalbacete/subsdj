@@ -1,7 +1,7 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1 a 4 HECHOS, selftest 157/157). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+bloques 1 a 4 y 7 HECHOS, selftest 159/159; quedan 5 resonadores y 6 granular). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -482,7 +482,7 @@ La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad 
 | 4 | **Fuentes de ejecución** ✔ | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s — HECHO 2026-10-03 (+ rueda en pantalla bajo el teclado) | bajo | — |
 | 5 | **Resonadores** | cuencos, metal frotado, viento sobre cuerdas: banco de combs/modos inarmónicos excitado por ruido (el banco Vocal ya es un banco de pasabandas) | medio | 1, 2 |
 | 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
-| 7 | **Cinta en máster** | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado | bajo | — |
+| 7 | **Cinta en máster** ✔ | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado — HECHO 2026-10-03 (módulo Cinta, claves de la Sala, exactas a 0) | bajo | — |
 
 **Orden acordado:** 1 → 2 → escuchar → 3 (shimmer) → 4 → 7; 5 y 6 cuando tiempo y decorrelación estén
 resueltos (sin eso también sonarían clásicos). Receta para probar el diagnóstico con lo que ya hay:
@@ -534,8 +534,19 @@ viven en el preset): la evidencia es el check. El plan era: rueda (CC1), afterto
 **5 · Resonadores** — modo «resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como
 fuente) o banco de combs Karplus-Strong por voz. Coste medio. **6 · Granular** — modo de onda
 «grano» en el worklet (N granos leyendo la tabla con fases aleatorias y ventanas Hann, densidad y
-dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto. **7 · Cinta en
-máster** — ruido a −50 dB, DelayNode de pocos ms modulado, tanh suave; en la Sala. Coste bajo.
+dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto.
+
+**7 · Cinta en máster** ✔ **HECHO 2026-10-03, revisado tras escucharlo** — detalle en el README. En la
+Sala (suma → cinta → limitador): saturación tanh(x) con entrada 1 + sat² (hasta ×2) y pérdida de
+agudos, y wow (línea de 8 ms con deriva 'drift' a 0,8 Hz ≈ ±33 ct medidos + flutter 6,5 Hz ≈ ±6 ct);
+las dos exactas a 0 (el wow a 0 no añade latencia). Revisión por el oído de Sergio: la primera
+saturación (k = 2, ×3) petardeaba con tres notas (intermodulación del sub) → curva suave y knob al
+cuadrado; el wow a ±7 ct no se oía, y a ±15 tampoco → ±33 a tope (cinta estropeada a propósito) y el
+check prueba también el camino del knob (set en vivo: 16,8 Hz, igual que naciendo a tope; sospecha
+de caché de módulos en el navegador: Ctrl+F5); el siseo fijo NO aportaba → quitado (el aire por nota
+ya es el knob Ruido). Check: 3er armónico 0,0019 / 0,0139 / 0,1035 a 0 / 0,3 / 1, nivel ×1,00; wow
+16,8 Hz de vaivén a 440 Hz; 159/159. Preset «Pad de cinta (nostalgia)»; pares CINTA 1-4. El plan era: ruido a −50 dB, DelayNode
+de pocos ms modulado, tanh suave; en la Sala.
 
 ## Lo que NO haremos (decidido)
 
