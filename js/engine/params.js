@@ -114,6 +114,12 @@ export const PARAMS = {
   vocBrillo:{ def: 0.5, min: 0, max: 1 },           // formante del cantante (F4-F5): 0 = sin ellos · 0.5 = tabla · 1 = +12 dB
   vocAtk:   { def: 0, min: 0, max: 1, act: true },  // golpe consonántico: burst de ruido por el tracto al arrancar la nota
 
+  // --- Resonador (Roadmap 5.0 · bloque 5): banco modal por voz afinado a la nota, tras el Vocal; engine/reson.js ---
+  resAmt:    { def: 0, min: 0, max: 1, act: true },  // dry/wet del banco (0 = sin banco)
+  resMat:    { def: 0.5, min: 0, max: 1 },           // material: 0 = cuerda/tubo (armónicos 1, 2, 3…) … 1 = barra/cuenco (1, 2,76, 5,40…)
+  resDecay:  { def: 0.5, min: 0, max: 1 },           // Q en log 10 → 600: cuánto tarda cada modo en cantar y en apagarse (τ = Q/(π·f))
+  resBrillo: { def: 0.5, min: 0, max: 1 },           // reparto entre modos graves y agudos (0 oscuro · 0,77 plano · 1 brillante), a nivel constante
+
   // --- FX ---
   dist:    { def: 0, min: 0, max: 1, act: true },
   flAmt:   { def: 0, min: 0, max: 1, act: true },

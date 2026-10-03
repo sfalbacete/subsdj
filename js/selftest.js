@@ -39,6 +39,7 @@ import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
 import { loadPresetIndex, navOptions, presetBankReady } from './ui/presetBank.js';
 import { handleMidi } from './ui/midi.js';
+import { resRatios, resQ, resGains } from './engine/reson.js';
 import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
@@ -2079,6 +2080,55 @@ export async function runSelfTest() {
       loadState({});
       console.log('cinta: 3er armonico a 0 / 0,3 / 1', h0.toFixed(4), hM.toFixed(4), h1.toFixed(4), '· nivel x', lvl.toFixed(2), '· wow Hz sin/con/en vivo', sp0.toFixed(3), sp1.toFixed(2), spK.toFixed(2));
       r = { name: NAME, peak: analyze(s1).peak, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  // ---------- Roadmap 5.0 · bloque 5: resonador modal ----------
+  // Tablas (razones de cuerda y barra, Q, ganancias normalizadas); ruido + seno en
+  // C3 por el banco (wet 1): con Material 0 el 2º modo canta en 2·f0 y con 1 en
+  // 2,756·f0 (Goertzel de 1,1 s, el seno no tiene energía ahí); Decay estrecha los
+  // modos (2·f0 frente a 2,1·f0, Q 600 vs Q 10); el cuenco con ruido SUENA (refuerzo
+  // ∝ √Q); y en mono el banco sigue el glide (tras C3 → G3, 2·C3 ya no es modo).
+  {
+    body.appendChild(el('st-cat', 'Resonador'));
+    const NAME = 'resonador modal (tablas · material cuerda↔barra · Decay = selectividad · el cuenco con ruido suena · sigue el glide)';
+    let r;
+    try {
+      const probs = [];
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
+        const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
+        for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
+      const rh = resRatios(0), rb = resRatios(1), gg = resGains(rb, 0.5), e2 = gg.reduce((a, x) => a + x * x, 0);
+      if (!(rh.every((x, i) => Math.abs(x - (i + 1)) < 1e-9) && Math.abs(rb[1] - 2.756) < 1e-9 && Math.abs(rb[5] - 18.638) < 1e-9)) probs.push('razones: ' + rh.map(x => x.toFixed(2)).join(',') + ' / ' + rb.map(x => x.toFixed(2)).join(','));
+      if (!(Math.abs(resQ(0) - 10) < 1e-9 && Math.abs(resQ(1) - 600) < 1e-6)) probs.push('resQ: ' + resQ(0) + ' ' + resQ(1));
+      if (!(Math.abs(e2 - 2) < 1e-9)) probs.push('ganancias no normalizadas (Σg² = ' + e2.toFixed(3) + ')');
+      const ex = { waveA: 'sine', mix: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 0.7, resBrillo: 0.6 };
+      const rend = async st => { loadState(st); return renderOne(structuredClone(engine.S), { secs: 2.2, offAt: 2.1 }); };
+      const pk = (buf, f) => goertzel(buf, f, 1, 2.1);
+      const bH = await rend({ ...ex, resMat: 0 }), bB = await rend({ ...ex, resMat: 1 });
+      const qH = pk(bH, 2 * NOTE1) / Math.max(1e-9, pk(bH, 2.756 * NOTE1)), qB = pk(bB, 2.756 * NOTE1) / Math.max(1e-9, pk(bB, 2 * NOTE1));
+      if (!(qH > 3)) probs.push('cuerda: el 2º modo no canta en 2·f0 (2f0 / 2,76f0 = ' + qH.toFixed(2) + ')');
+      if (!(qB > 3)) probs.push('barra: el 2º modo no canta en 2,76·f0 (2,76f0 / 2f0 = ' + qB.toFixed(2) + ')');
+      const bQ0 = await rend({ ...ex, resMat: 0, resDecay: 0 }), bQ1 = await rend({ ...ex, resMat: 0, resDecay: 1 });
+      const sel = buf => pk(buf, 2 * NOTE1) / Math.max(1e-9, pk(buf, 2.1 * NOTE1));
+      const s0 = sel(bQ0), s1 = sel(bQ1);
+      if (!(s1 > 4 * s0)) probs.push('Decay no estrecha los modos (2f0 / 2,1f0: Q600 ' + s1.toFixed(1) + ' vs Q10 ' + s0.toFixed(1) + ')');
+      const lvl = rmsW(bQ1, 1, 2.1);
+      if (!(lvl > 0.03 && lvl < 0.7)) probs.push('nivel del cuenco con ruido fuera de rango (' + dB(lvl) + ', esperado −30…−3 dB)');
+      if (analyze(bQ1).bad || analyze(bQ1).peak > 1) probs.push('NaN/Inf o clipping a Q 600');
+      loadState({ ...ex, resMat: 0, mode: 'mono', glide: 0.2 });
+      const ctxG = new OfflineAudioContext(2, Math.ceil(SR * 2.2), SR), engG = new AudioEngine(); engG.S = structuredClone(engine.S); await engG.init(ctxG);
+      engG.noteOn('g1', NOTE1); ctxG.suspend(0.5).then(() => { engG.noteOn('g2', NOTE2); ctxG.resume(); });
+      const bG = await ctxG.startRendering();
+      const qG = goertzel(bG, 2 * NOTE2, 1.2, 2.1) / Math.max(1e-9, goertzel(bG, 2 * NOTE1, 1.2, 2.1));   // 2·G3 es modo tras el glide; 2·C3 ya no (y no es modo de G3)
+      if (!(qG > 2)) probs.push('el banco no sigue el glide (2·G3 / 2·C3 tras deslizar = ' + qG.toFixed(2) + ')');
+      loadState({});
+      console.log('resonador: 2f0/2,76f0 cuerda', qH.toFixed(1), '· 2,76f0/2f0 barra', qB.toFixed(1), '· selectividad Q10 / Q600', s0.toFixed(1), s1.toFixed(1), '· nivel cuenco', dB(lvl), '· glide', qG.toFixed(1));
+      r = { name: NAME, peak: analyze(bB).peak, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }

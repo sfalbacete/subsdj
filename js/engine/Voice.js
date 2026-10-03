@@ -3,6 +3,7 @@
    Cadena por voz:
      osc A/B (worklet; cada uno a freq·2^oct — Octava ±2) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
         --> VOCAL (banco de formantes, dry/wet; el ruido ya sumado = aliento)
+        --> RESONADOR (banco modal afinado a la nota, dry/wet; engine/reson.js)
         --> filtro LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + envFiltro + LFO)
         --> VCA(ADSR) --> ampMod(matriz, base 1) --> pan --> bus
    Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
@@ -15,6 +16,7 @@
 import { MX_SLOTS, MX_SPAN, FM4_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase } from './nodes.js';
+import { resRatios, resQ, resGains, resNoiseGain } from './reson.js';
 import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
          VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
          VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
@@ -134,6 +136,12 @@ export class Voice {
     const vocOut = ctx.createGain();
     dvOut.connect(vocDry); vocDry.connect(vocOut);
 
+    // --- Resonador: banco modal dry/wet TRAS el Vocal (engine/reson.js). Como el
+    // Vocal, solo el crossfade existe siempre: el banco nace bajo demanda (ensureReson).
+    const resDry = ctx.createGain(); resDry.gain.value = 1 - S.resAmt;
+    const resOut = ctx.createGain();
+    vocOut.connect(resDry); resDry.connect(resOut);
+
     // --- Filtro por voz: LP + HP en paralelo con crossfade (morph) ---
     // keytrack: el cutoff sigue la altura de la nota (0 = fijo, 1 = 1:1 con el tono)
     // Pendiente 24 dB: 2ª etapa en CASCADA delante, plana. OJO doble: en WebAudio
@@ -170,10 +178,10 @@ export class Voice {
     const lpMix = ctx.createGain(); lpMix.gain.value = ft === 'morph' ? 1 - S.morph : 1;
     const hpMix = ctx.createGain(); hpMix.gain.value = ft === 'morph' ? S.morph : 1;
     const filterOut = ctx.createGain();
-    if (ft === 'bp') { vocOut.connect(lpIn); lp.connect(hpIn); hp.connect(filterOut); }   // serie
+    if (ft === 'bp') { resOut.connect(lpIn); lp.connect(hpIn); hp.connect(filterOut); }   // serie
     else {                                                                                  // paralelo (morph / notch)
-      vocOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
-      vocOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
+      resOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
+      resOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
     }
 
     // LFOs -> cutoff (todas las etapas) / Q (solo la etapa con resonancia): el
@@ -230,9 +238,10 @@ export class Voice {
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
       filterType: ft, lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
-      dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut, vocDry, vocOut });
+      dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut, vocDry, vocOut, resDry, resOut });
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
     if (S.vocAmt > 0) this.ensureVocal();       // banco de formantes (también lo crea la matriz vía 'vow')
+    if (S.resAmt > 0) this.ensureReson();       // banco modal (necesita vocOut y noiseGain ya asignados)
     if (S.vocVida > 0) this.ensureVida();
     if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // golpe consonántico (evento de arranque)
 
@@ -520,6 +529,53 @@ export class Voice {
     this.vocBurstSrc = src; this.vocBurstGain = g; this.vocBurstBp = bp;
   }
 
+  // ---------- resonador: banco modal (tablas y fórmulas en reson.js) ----------
+  // Seis bandpass en paralelo a f0·razón_i, entrada = la señal de la voz tras el
+  // Vocal (ganancia 1) + el ruido de la voz REFORZADO ∝ √Q (ver reson.js); la
+  // suma pasa por resWet (= Mezcla) a resOut, donde ya espera el camino seco.
+  ensureReson() {
+    if (this.resBqs || this.disposed) return;
+    const ctx = this.ctx, S = this.S, q = resQ(S.resDecay), nyq = ctx.sampleRate * 0.45;
+    this.resRatios = resRatios(S.resMat); this.resFreq = this.noteFreq;
+    const gains = resGains(this.resRatios, S.resBrillo);
+    this.resIn = ctx.createGain();
+    this.resNoise = ctx.createGain(); this.resNoise.gain.value = resNoiseGain(q);
+    this.vocOut.connect(this.resIn); this.noiseGain.connect(this.resNoise); this.resNoise.connect(this.resIn);
+    this.resWet = ctx.createGain(); this.resWet.gain.value = S.resAmt;
+    this.resBqs = []; this.resGs = [];
+    this.resRatios.forEach((r, i) => {
+      const f = this.noteFreq * r, bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
+      bq.frequency.value = Math.min(nyq, f); bq.Q.value = q;                 // Q LINEAL en el bandpass (f/BW)
+      const g = ctx.createGain(); g.gain.value = f < nyq ? gains[i] : 0;     // modo sobre Nyquist: mudo
+      this.resIn.connect(bq); bq.connect(g); g.connect(this.resWet);
+      this.resBqs.push(bq); this.resGs.push(g);
+    });
+    this.resWet.connect(this.resOut);
+  }
+  _resRetune(tau = 0.03) {       // frecuencias (nota actual × razones) y ganancias (Brillo), suavizadas
+    if (!this.resBqs) return;
+    const tc = this.ctx.currentTime, nyq = this.ctx.sampleRate * 0.45, gains = resGains(this.resRatios, this.S.resBrillo);
+    this.resBqs.forEach((bq, i) => {
+      const f = this.resFreq * this.resRatios[i];
+      bq.frequency.setTargetAtTime(Math.min(nyq, f), tc, tau);
+      this.resGs[i].gain.setTargetAtTime(f < nyq ? gains[i] : 0, tc, tau);
+    });
+  }
+  setResAmt(v) {
+    if (v > 0) this.ensureReson();
+    const tc = this.ctx.currentTime;
+    this.resDry.gain.setTargetAtTime(1 - v, tc, 0.02);
+    if (this.resWet) this.resWet.gain.setTargetAtTime(v, tc, 0.02);
+  }
+  setResMat(m)    { if (!this.resBqs) return; this.resRatios = resRatios(m); this._resRetune(); }
+  setResBrillo()  { this._resRetune(); }
+  setResDecay(d) {
+    if (!this.resBqs) return;
+    const q = resQ(d), tc = this.ctx.currentTime;
+    this.resBqs.forEach(bq => bq.Q.setTargetAtTime(q, tc, 0.03));
+    this.resNoise.gain.setTargetAtTime(resNoiseGain(q), tc, 0.03);
+  }
+
   // ---------- matriz de modulación (tablas en params.js) ----------
   // Fuente de un slot: los LFO llegan CRUDOS (el oscilador global, ±1, sin
   // pasar por su knob Level); 'env' es el ConstantSource de la env de filtro;
@@ -647,8 +703,7 @@ export class Voice {
   // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.
   glideTo(freq, time) {
     const t = this.ctx.currentTime;
-    this.oscs.forEach(o => {
-      const target = Math.max(1, freq * o.ratio), p = o.freq;
+    const slide = (p, target) => {
       if (time > 0) {
         if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
         else { p.cancelScheduledValues(t); p.setValueAtTime(Math.max(1, p.value), t); }
@@ -656,7 +711,10 @@ export class Voice {
       } else {
         p.cancelScheduledValues(t); p.setValueAtTime(target, t);
       }
-    });
+    };
+    this.oscs.forEach(o => slide(o.freq, Math.max(1, freq * o.ratio)));
+    // el banco de resonadores sigue la nota: sus modos resbalan con los osciladores
+    if (this.resBqs) { const nyq = this.ctx.sampleRate * 0.45; this.resFreq = freq; this.resBqs.forEach((bq, i) => slide(bq.frequency, Math.min(nyq, freq * this.resRatios[i]))); }
   }
 
   // ---------- release ----------
@@ -736,7 +794,8 @@ export class Voice {
      this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut,
      this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain, this.vocBurstGain, this.vocBurstBp,
      ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || []),
-     ...(this.vocBrillos || [])].forEach(n => {
+     ...(this.vocBrillos || []),
+     this.resDry, this.resOut, this.resIn, this.resNoise, this.resWet, ...(this.resBqs || []), ...(this.resGs || [])].forEach(n => {
       if (n) { try { n.disconnect(); } catch (e) {} }
     });
     try { this.noiseSrc.stop(); } catch (e) {}

@@ -217,6 +217,16 @@
     </div>
     <div class="help"><b>Vocal</b> — tracto vocal por voz (banco de 5 formantes entre el drive y el filtro). Vocal recorre u→o→a→e→i · Tamaño encoge/agranda el tracto (niño ↔ gigante) · Q: fina = robot/vocoder, ancha = suave · Vida = los formantes vagan un poco, como una boca real · Brillo = «formante del cantante» (F4-F5, ~3 kHz: lo que deja oír una voz lírica sobre la orquesta) · Golpe = consonante al empezar la nota: la boca ARRANCA cerrada y se abre a la vocal (transición de formantes, lo que el oído usa para oír /k/) + el burst de la explosión — bajo = «wa» blanda, alto = «ka» dura; escala con velocity; con attack lento se pierde (es un transitorio). Con el secuenciador: «ka-ka-ka». Los formantes están FIJOS en Hz (no siguen la nota): eso es lo que suena «a voz». Aliento = knob Ruido. Fuente ideal: osc en «Tabla» con el set <b>glotal</b> (Morph = esfuerzo vocal). En la matriz es el destino <b>«Vocal»</b>: S&amp;H→Vocal = una vocal por nota; env→Vocal articula el ataque.</div>
   </div>
+  <div class="panel" data-screens="diseno">
+    <h2>Resonador</h2>
+    <div class="row tight" style="margin-top:8px;justify-content:space-around">
+      <div class="ctl"><div class="knob" data-knob="resAmt"><div class="ind"></div></div><div class="lab">Mezcla</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="resMat"><div class="ind"></div></div><div class="lab">Material</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="resDecay"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="resBrillo"><div class="ind"></div></div><div class="lab">Brillo</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Resonador</b> — banco de seis resonadores modales por voz, afinados a la NOTA (f0 × razones), entre el Vocal y el filtro. Síntesis modal «lite»: un cuerpo que vibra son sus modos, y cada resonador (biquad de 2 polos) es un modo con su frecuencia, su Q y su ganancia. <b>Material</b> va de cuerda o tubo (armónicos 1, 2, 3…) a barra libre o cuenco (1 · 2,76 · 5,40 · 8,93 · 13,3 · 18,6) interpolando el logaritmo de las razones: en medio, la inarmonicidad de un piano o de una campana. <b>Decay</b> = Q de 10 a 600 en log: cuánto tarda cada modo en cantar y en apagarse (τ = Q/(π·f): a tope y 130 Hz, segundo y medio). <b>Brillo</b> reparte el peso entre modos graves y agudos sin cambiar el nivel. Excítalo con <b>Ruido</b> (módulo Mezcla) para cuencos frotados y viento sobre cuerdas: el ruido entra al banco reforzado ∝ √Q (la potencia que deja pasar un resonador es ∝ f/Q; sin eso, a Q alta el cuenco no sonaría), y la señal tonal entra a 0 dB (un parcial justo en un modo pasa tal cual: una sierra no revienta). Con una sierra: metal que zumba. Sigue la nota y el glide. A 0 no existe.</div>
+  </div>
 </div>
 </section>
 

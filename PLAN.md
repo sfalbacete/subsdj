@@ -1,7 +1,7 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1 a 4 y 7 HECHOS, selftest 159/159; quedan 5 resonadores y 6 granular). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+bloques 1 a 5 y 7 HECHOS, selftest 162/162; queda 6 granular). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -480,7 +480,7 @@ La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad 
 | 2 | **Deriva por voz + fase por voz** ✔ | cada nota del acorde evoluciona por su cuenta: fuente «Deriva (voz)» + selector LFO global / por voz (fase Weyl determinista) — HECHO 2026-10-03 | bajo | 1 |
 | 3 | **Shimmer + freeze en la Sala** ✔ | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada — HECHO 2026-10-03 (bucle calibrado por energía de la reverb) | medio | — |
 | 4 | **Fuentes de ejecución** ✔ | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s — HECHO 2026-10-03 (+ rueda en pantalla bajo el teclado) | bajo | — |
-| 5 | **Resonadores** | cuencos, metal frotado, viento sobre cuerdas: banco de combs/modos inarmónicos excitado por ruido (el banco Vocal ya es un banco de pasabandas) | medio | 1, 2 |
+| 5 | **Resonadores** ✔ | cuencos, metal frotado, viento sobre cuerdas: banco modal por voz afinado a la nota, Material cuerda↔barra, ruido reforzado ∝ √Q — HECHO 2026-10-03 | medio | 1, 2 |
 | 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
 | 7 | **Cinta en máster** ✔ | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado — HECHO 2026-10-03 (módulo Cinta, claves de la Sala, exactas a 0) | bajo | — |
 
@@ -531,8 +531,18 @@ sintético → fuentes 1 / 0,504 / 0; 157/157. Preset «Pad de ejecución». Sin
 viven en el preset): la evidencia es el check. El plan era: rueda (CC1), aftertouch y expresión
 (CC11) como fuentes de la matriz; verificación con sonda MIDI sintética.
 
-**5 · Resonadores** — modo «resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como
-fuente) o banco de combs Karplus-Strong por voz. Coste medio. **6 · Granular** — modo de onda
+**5 · Resonadores** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del plan: módulo propio
+(`engine/reson.js`, 6 biquads bandpass por voz tras el Vocal), no un modo del Vocal ni combs
+Karplus-Strong (un bucle con DelayNode nativo tiene 128 muestras de latencia mínima: no afina por encima
+de ~340 Hz). Knob Material = morph log entre cuerda (armónicos) y barra libre (∝ (2n+1)²); Decay = Q
+10→600; Brillo con Σg² constante. Hallazgo: dos caminos de entrada — tonal a 0 dB, ruido ∝ √Q —
+porque la potencia de ruido que pasa un resonador es ∝ f/Q. Medidas: 2º modo 37× / 82× en su sitio
+según Material; selectividad ×1,1 (Q 10) vs ×19 (Q 600); cuenco con ruido −15,7 dB; sigue el glide
+(40×); 162/162. Presets «Cuenco tibetano» y «Metal frotado»; pares RES 1-4. El plan era: modo
+«resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como fuente) o banco de combs
+Karplus-Strong por voz.
+
+**6 · Granular** — modo de onda
 «grano» en el worklet (N granos leyendo la tabla con fases aleatorias y ventanas Hann, densidad y
 dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto.
 

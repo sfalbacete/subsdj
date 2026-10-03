@@ -223,6 +223,20 @@ export const FACTORY = {
       a: 1.2, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.25, chSpd: 0.3,
       reverbType: 'placa', reverbMix: 0.4, reverbSize: 6, reverbDamp: 0.4, reverbPre: 0.03,
       tapeSat: 0.5, tapeWow: 0.5, master: 0.6 },
+    /* bloque 5: resonador modal excitado por RUIDO — seis modos de cuenco (1 · 2,76 ·
+       5,40…) afinados a la nota, Q alta: el cuenco tarda en cantar y sigue cantando.
+       Mantén la nota y espera; cada voz es un cuenco (deriva por voz en el pan) */
+    'Cuenco tibetano (ruido + resonador)': { waveA: 'sine', mix: 0, noise: 1, noiseColor: 0.2,
+      resAmt: 1, resMat: 1, resDecay: 0.85, resBrillo: 0.45, cutoff: 9000, reso: 0.7, lfoPhase: 'voz',
+      mx1src: 'drift', mx1dst: 'pan', mx1amt: 0.6, mxDriftSpd: 0.05,
+      a: 1.5, d: 2, s: 1, r: 12, envCurve: 0.3, width: 0.3,
+      reverbType: 'placa', reverbMix: 0.5, reverbSize: 10, reverbDamp: 0.3, reverbPre: 0.04, master: 0.6 },
+    /* bloque 5: sierra por un resonador a medio camino entre cuerda y barra (inarmónico
+       como un piano preparado), Q media y algo de ruido: metal que zumba */
+    'Metal frotado (sierra + resonador)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octB: -1, mix: 0.4, noise: 0.25, noiseColor: -0.2,
+      resAmt: 0.75, resMat: 0.55, resDecay: 0.6, resBrillo: 0.6, filterDrive: 0.25, cutoff: 2500, reso: 1, filterSlope: '24',
+      a: 0.8, d: 1.5, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.2, chSpd: 0.3,
+      reverbType: 'placa', reverbMix: 0.4, reverbSize: 7, reverbDamp: 0.4, master: 0.55 },
   },
 
   'Voz': {

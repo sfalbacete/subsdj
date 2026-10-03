@@ -400,6 +400,10 @@ export class AudioEngine {
       case 'vocVida':  this._forVoices(v => v.setVocVida(value)); break;
       case 'vocBrillo':this._forVoices(v => v.setVocBrillo(value)); break;
       // vocAtk es un evento de arranque de nota: se lee al crear cada voz
+      case 'resAmt':    this._forVoices(v => v.setResAmt(value)); break;     // resonador modal (engine/reson.js)
+      case 'resMat':    this._forVoices(v => v.setResMat(value)); break;
+      case 'resDecay':  this._forVoices(v => v.setResDecay(value)); break;
+      case 'resBrillo': this._forVoices(v => v.setResBrillo(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;

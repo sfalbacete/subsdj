@@ -1179,3 +1179,31 @@ instantánea de un seno de 440 Hz (cruces por cero interpolados, 20 periodos):
 vaga 16,8 Hz con wow a tope, naciendo a tope y subiéndolo en vivo, y 0,000
 sin; claves en `SALA_KEYS`; 159/159. Preset «Pad de cinta (nostalgia)» en
 Cinescape; pares **CINTA 1-2** y **CINTA 3-4** (solo wow).
+
+**5 Resonadores** ✔ *(hecho 2026-10-03)* — Módulo **Resonador**
+(`engine/reson.js`, por voz, entre el Vocal y el filtro, dry/wet como el
+Vocal): seis resonadores modales (biquad bandpass de 2 polos) afinados a la
+NOTA, f_i = f0·razón_i. Síntesis modal «lite»: un cuerpo que vibra son sus
+modos, y cada biquad es un modo con su frecuencia, su Q (τ = Q/(π·f): cuánto
+tarda en cantar y en apagarse) y su ganancia. **Material** interpola el
+LOGARITMO de las razones entre una cuerda o tubo (armónicos 1…6) y una barra
+libre-libre (Fletcher & Rossing, ∝ (2n+1)²: 1 · 2,76 · 5,40 · 8,93 · 13,3 ·
+18,6): en medio, la inarmonicidad de un piano o de una campana. **Decay** = Q
+de 10 a 600 en log. **Brillo** reparte el peso entre modos graves y agudos
+con Σg² = 2 constante (no cambia el nivel). El banco sigue la nota y el glide
+(sus modos resbalan con los osciladores en mono). **El problema del nivel**,
+resuelto con dos caminos de entrada: la señal tonal entra a ganancia 1 (un
+parcial justo en un modo pasa a 0 dB: una sierra no revienta), y el RUIDO de
+la voz entra por un camino propio reforzado ∝ √Q — la potencia de ruido que
+deja pasar un resonador es ∝ su anchura f/Q, así que con una ganancia común a
+Q alta el cuenco no sonaba (−35…−48 dB por modo) y si se subía para el
+ruido, la sierra reventaba. Modos por encima de Nyquist, mudos. Evidencia:
+check «resonador modal» — tablas (razones, Q 10/600, Σg² = 2); ruido + seno
+en C3 por el banco: con Material 0 el 2º modo canta en 2·f0 (37 veces más que
+en 2,76·f0) y con Material 1 en 2,76·f0 (82 veces más que en 2·f0); Decay
+estrecha los modos (2·f0 frente a 2,1·f0: ×1,1 a Q 10, ×19 a Q 600); el
+cuenco con ruido a Q 600 suena a −15,7 dB RMS; en mono el banco sigue el
+glide (tras C3 → G3, 2·G3 canta 40 veces más que 2·C3, que ya no es modo);
+162/162. Presets «Cuenco tibetano (ruido + resonador)» y «Metal frotado
+(sierra + resonador)» en Cinescape; pares **RES 1-2** (ruido + seno, diff 0,73)
+y **RES 3-4** (sierra por cuerda, 0,27).
