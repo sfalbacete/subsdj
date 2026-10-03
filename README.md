@@ -1011,7 +1011,9 @@ banco de pasabandas) · **6 granular** (nubes de granos sobre la tabla de usuari
 o lo último grabado: lo único que no repite nunca) · **7 cinta en máster**
 (siseo, wow de pocos ms, saturación suave). Orden: 1 → 2 (escuchar) → 3; 5 y 6
 cuando tiempo y decorrelación estén resueltos (sin eso también sonarían
-clásicos). Detalle por bloque en PLAN.md.
+clásicos). Detalle por bloque en PLAN.md. **Estado (2026-10-03): 1, 2, 3, 4,
+7 y 5 hechos, escuchados y en master; el 6 (granular) queda APARCADO a
+petición de Sergio («para otro momento»).**
 
 **1 Tiempo ×10 + octava por oscilador** ✔ *(hecho 2026-10-03)* — Rangos: ataque
 y decay hasta 20 s y release hasta 30 s (ADSR y Env filtro), glide 10 s, LFO

@@ -1,7 +1,8 @@
 # SubSDJ · Plan de pendientes
 
 Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1 a 5 y 7 HECHOS, selftest 162/162; queda 6 granular). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+bloques 1 a 5 y 7 HECHOS y en master (`bbba744`), selftest 162/162; el 6 granular APARCADO «para otro
+momento»). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -481,7 +482,7 @@ La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad 
 | 3 | **Shimmer + freeze en la Sala** ✔ | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada — HECHO 2026-10-03 (bucle calibrado por energía de la reverb) | medio | — |
 | 4 | **Fuentes de ejecución** ✔ | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s — HECHO 2026-10-03 (+ rueda en pantalla bajo el teclado) | bajo | — |
 | 5 | **Resonadores** ✔ | cuencos, metal frotado, viento sobre cuerdas: banco modal por voz afinado a la nota, Material cuerda↔barra, ruido reforzado ∝ √Q — HECHO 2026-10-03 | medio | 1, 2 |
-| 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca | alto | 1, 2 |
+| 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca — APARCADO 2026-10-03 («para otro momento») | alto | 1, 2 |
 | 7 | **Cinta en máster** ✔ | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado — HECHO 2026-10-03 (módulo Cinta, claves de la Sala, exactas a 0) | bajo | — |
 
 **Orden acordado:** 1 → 2 → escuchar → 3 (shimmer) → 4 → 7; 5 y 6 cuando tiempo y decorrelación estén
