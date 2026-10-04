@@ -1,6 +1,9 @@
 # SubSDJ · Plan de pendientes
 
-Fecha: 2026-10-03 · **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
+Fecha: 2026-10-04 · **Roadmap 6.0 en exploración** (sección propia más abajo): el Grano se probó y se
+DESCARTÓ; la dirección buscada son sonidos complejos y escalonados (modulación por pasos); presets
+«Escalonados» con lo que ya hay; el módulo de Pasos, pendiente de que Sergio lo vea claro.
+**Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
 bloques 1 a 5 y 7 HECHOS y en master (`bbba744`), selftest 162/162; el 6 granular APARCADO «para otro
 momento»). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
@@ -558,6 +561,24 @@ de caché de módulos en el navegador: Ctrl+F5); el siseo fijo NO aportaba → q
 ya es el knob Ruido). Check: 3er armónico 0,0019 / 0,0139 / 0,1035 a 0 / 0,3 / 1, nivel ×1,00; wow
 16,8 Hz de vaivén a 440 Hz; 159/159. Preset «Pad de cinta (nostalgia)»; pares CINTA 1-4. El plan era: ruido a −50 dB, DelayNode
 de pocos ms modulado, tanh suave; en la Sala.
+
+## Roadmap 6.0 — en exploración (2026-10-04)
+
+Origen: «¿cómo conseguimos sonidos más ricos, con más textura?». Contexto completo en el README.
+
+**Descartado: 1 · Grano** (la voz × ruido de ancho B: temblor / raspa / aliento pegados a los
+armónicos). Se hizo entero (módulo, check, pares GRANO 1-8, dos presets) y, tras escucharlo: «no era lo
+que esperaba, ni lo que buscaba». Quitado del código sin commit. Respondía a «textura» como grano FINO
+(ms); lo buscado era otra escala. Lo que se aprendió y vale para lo que venga: el limitador de la Sala
+(−3 dB) va ANTES del master — un pad normal ya roza el limitador, y cualquier fuente con mucha cresta
+(ruido multiplicado, picos gaussianos) pierde nivel ahí; para medir niveles sin él, bajar `amplitude`.
+
+**La dirección buscada: sonidos complejos y escalonados** — el timbre moviéndose por pasos, con ritmo,
+generado por LFO o similar. Paso 1 (en curso): presets «Escalonados» con lo que YA hay (S&H, secuencia
+de tabla, LFO crudos en la matriz, fase por voz, delay a tempo) para oír hasta dónde llega la
+topología actual. Paso 2 (pendiente de que Sergio lo vea claro, NO planificar aún): módulo de **Pasos**
+— carriles de distinta longitud (polimetría: 16·12·5 → mcm 240 pasos), división y valor por paso,
+como fuentes de la matriz; generalizar lo que la secuencia de tabla ya hace para wtPos. Y LFO a tempo.
 
 ## Lo que NO haremos (decidido)
 

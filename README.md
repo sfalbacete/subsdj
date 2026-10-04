@@ -1209,3 +1209,40 @@ glide (tras C3 → G3, 2·G3 canta 40 veces más que 2·C3, que ya no es modo);
 162/162. Presets «Cuenco tibetano (ruido + resonador)» y «Metal frotado
 (sierra + resonador)» en Cinescape; pares **RES 1-2** (ruido + seno, diff 0,73)
 y **RES 3-4** (sierra por cuerda, 0,27).
+
+## Roadmap 6.0 — en exploración (2026-10-04)
+
+Origen: «¿cómo conseguimos sonidos más ricos, con más textura?». Lo leí como
+textura FINA (irregularidad a escala de milisegundos dentro de cada voz) y se
+hizo un primer bloque, el **Grano**: la voz multiplicada por un ruido de ancho
+B (temblor, raspa o aliento pegados a los armónicos). **Descartado tras
+escucharlo** («no era lo que esperaba, ni lo que buscaba») y quitado del
+código. Lo que se busca en realidad son **sonidos complejos y escalonados**:
+el timbre moviéndose por PASOS, con ritmo, generado por LFO o algo así.
+Lección: ante una palabra ancha («textura»), pedir una referencia antes de
+construir.
+
+**Qué hay ya** para eso: el S&H en cualquier LFO (escalones aleatorios, uno
+por periodo), la secuencia de tabla (el único patrón de pasos escrito a mano:
+frames a tempo, por voz), los LFO CRUDOS como fuentes de la matriz (un LFO que
+no se usa para lo suyo —el de PWM sin ondas cuadradas, por ejemplo— es una
+fuente escalonada más, a su propia velocidad), la fase por voz (cada nota de
+un acorde con sus propios escalones) y el delay a tempo. Demostración: la
+categoría de fábrica **Escalonados** (seis presets a 120 bpm: un S&H a tres
+destinos; tabla + filtro + puerta a semicorcheas, corcheas y tresillos;
+escalera de cutoff y melodía de pitch hechas con tres LFO cuadrados a 1, 2 y
+4 Hz con pesos 4:2:1 — un contador binario de ocho niveles; S&H por voz; y
+cuatro ciclos de 5, 6, 8 y 16 pasos). Medido: la melodía da 800, 600 … −600
+cents exactos, una nota por corchea. Dato que hay que saber: la onda
+cuadrada NATIVA del navegador está limitada en banda y normaliza a 1 el pico
+de Gibbs, así que su meseta vale ±0,849 — con pesos 1/3, 1/6, 1/12 los tonos
+enteros salían de 170 cents; van ×1/0,849. **Qué falta**: patrones escritos para
+cualquier destino (no solo la tabla), LFO a tempo (hoy van en Hz: a 120 bpm la
+semicorchea son 8 Hz, y no arrancan en fase con el compás) y, sobre todo,
+varios patrones de LONGITUDES distintas — 16, 12 y 5 pasos no vuelven a
+coincidir hasta mcm = 240 pasos (30 s en semicorcheas a 120 bpm): cada capa es
+simple y regular, el conjunto suena complejo y sigue siendo rítmico (el
+phasing de Reich, los bucles de longitudes distintas de Eno). Candidato: un
+módulo de **Pasos** (carriles con longitud, división y valor por paso, como
+fuentes de la matriz). **Pendiente de que Sergio lo vea claro** antes de
+planificar nada.

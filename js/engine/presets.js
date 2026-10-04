@@ -239,6 +239,87 @@ export const FACTORY = {
       reverbType: 'placa', reverbMix: 0.4, reverbSize: 7, reverbDamp: 0.4, master: 0.55 },
   },
 
+  /* Escalonados: el timbre moviéndose por PASOS con lo que ya hay (Roadmap 6.0,
+     exploración). Todos a 120 bpm, donde semicorchea = 8 Hz, corchea = 4 Hz y
+     tresillo de corchea = 6 Hz (los LFO van en Hz, no a tempo). Truco común: un
+     LFO CRUDO entra en la matriz aunque su knob Level esté a 0, así que los LFO
+     que no se usan para lo suyo (reso, PWM sin onda cuadrada…) son fuentes de
+     pasos extra, cada una a su velocidad. Mantén una nota o un acorde. */
+  'Escalonados': {
+    /* UN S&H a corcheas mueve a la vez cutoff, resonancia y pan: cada paso es
+       un color y un sitio nuevos (la «computadora» de las pelis de los 70) */
+    'Un S&H, tres destinos': { waveA: 'sawtooth', waveB: 'square', detuneB: 5, pulseWidth: 0.35, mix: 0.35,
+      cutoff: 1100, reso: 6, filterSlope: '24',
+      cutLfoShape: 'sh', cutLfoSpd: 4,
+      mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.4, mx2src: 'lfoCut', mx2dst: 'reso', mx2amt: 0.35,
+      mx3src: 'lfoCut', mx3dst: 'pan', mx3amt: 0.7,
+      a: 0.01, d: 0.4, s: 0.85, r: 0.8, bpm: 120, dlyAmt: 0.3, dlySync: '1/8.', dlyDamp: 0.4,
+      reverbType: 'placa', reverbMix: 0.25, reverbSize: 3, master: 0.6 },
+    /* tres capas a tres velocidades: la secuencia de tabla cambia de timbre a
+       semicorcheas (patrón escrito), el filtro salta al azar a corcheas (S&H) y
+       una puerta cuadrada va en tresillos (el LFO de trémolo, crudo, a la
+       amplitud): 4 contra 3. En un acorde, cada voz arranca su frase en su nota */
+    'Tabla, filtro y puerta (16 · 8 · tresillo)': { waveA: 'tabla', waveB: 'tabla', detuneA: -6, detuneB: 6, mix: 0.5,
+      wtSet: 'formante', wtPos: 0, wsOn: 'on', wsPat: '0 3 7 1 5 2 6 4', wsDiv: '1/16', wsXf: 0.1,
+      cutoff: 2200, reso: 3, filterSlope: '24',
+      cutLfoShape: 'sh', cutLfoSpd: 4, ampLfoShape: 'square', ampLfoSpd: 6,
+      mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.3, mx2src: 'lfoAmp', mx2dst: 'amp', mx2amt: 0.6,
+      a: 0.02, d: 0.5, s: 0.9, r: 1.2, width: 0.5, bpm: 120, dlyAmt: 0.3, dlySync: '1/8.', dlyDamp: 0.3,
+      reverbType: 'placa', reverbMix: 0.3, reverbSize: 3.5, master: 0.72 },
+    /* tres LFO CUADRADOS a 1, 2 y 4 Hz sumados en el cutoff con pesos 4:2:1 son
+       un contador binario: ocho escalones de ~400 cents (la cuadrada nativa
+       vale ±0,849, ver la Melodía) que se repiten cada segundo (dos tiempos a
+       120). Recién creado el motor salen en escalera;
+       al cargarlo en vivo las fases de los LFO no se reinician y la escalera se
+       baraja — mismos ocho niveles, mismo ciclo, otro orden */
+    'Escalera de ocho (3 LFO cuadrados)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 8, mix: 0.4,
+      cutoff: 1000, reso: 9, filterSlope: '24',
+      cutLfoShape: 'square', cutLfoSpd: 1, resLfoShape: 'square', resLfoSpd: 2, pwmLfoShape: 'square', pwmLfoSpd: 4,
+      mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.2, mx2src: 'lfoRes', mx2dst: 'cutoff', mx2amt: 0.1,
+      mx3src: 'lfoPwm', mx3dst: 'cutoff', mx3amt: 0.05,
+      a: 0.01, d: 0.3, s: 0.9, r: 0.8, bpm: 120, dlyAmt: 0.25, dlySync: '1/8',
+      reverbType: 'placa', reverbMix: 0.25, reverbSize: 2.5, master: 0.6 },
+    /* el mismo contador, al PITCH: 400 + 200 + 100 cents → ocho notas a tono
+       entero (con +100 ct de afinación caen en la escala de tonos enteros de
+       la nota), una por corchea; el LFO de trémolo cuadrado a 8 Hz articula
+       las semicorcheas. Una melodía que nadie ha escrito: la tocan los LFO.
+       Ojo a los pesos (0,3926 y no 1/3): la cuadrada NATIVA del navegador está
+       limitada en banda y normaliza a 1 el pico de Gibbs, así que su meseta
+       vale ±0,849 — con 1/3 los tonos enteros salían de 170 cents (medido) */
+    'Melodía de LFO (tonos enteros)': { waveA: 'square', waveB: 'triangle', octB: 1, pulseWidth: 0.4, mix: 0.3,
+      cutoff: 2400, reso: 4, freqCents: 100,
+      cutLfoShape: 'square', cutLfoSpd: 1, resLfoShape: 'square', resLfoSpd: 2, pwmLfoShape: 'square', pwmLfoSpd: 4,
+      ampLfoShape: 'square', ampLfoSpd: 8,
+      mx1src: 'lfoCut', mx1dst: 'pitch', mx1amt: 0.3926, mx2src: 'lfoRes', mx2dst: 'pitch', mx2amt: 0.1963,
+      mx3src: 'lfoPwm', mx3dst: 'pitch', mx3amt: 0.0981, mx4src: 'lfoAmp', mx4dst: 'amp', mx4amt: 0.75,
+      a: 0.01, d: 0.2, s: 0.9, r: 0.5, bpm: 120, dlyAmt: 0.35, dlySync: '1/8.', dlyDamp: 0.4,
+      reverbType: 'placa', reverbMix: 0.2, reverbSize: 2.5, master: 0.6 },
+    /* LFO POR VOZ en S&H: cada nota de un acorde salta por su cuenta — la vocal
+       (corcheas) y el sitio en el estéreo, y el filtro en tresillos. Mantén un
+       acorde de tres o cuatro notas: un coro de máquinas que habla a pasos */
+    'Acorde que habla (S&H por voz)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -5, detuneB: 6, mix: 0.5,
+      cutoff: 3000, reso: 1.5, vocAmt: 0.85, vocVowel: 0.5, vocQ: 0.4, vocBrillo: 0.6,
+      lfoPhase: 'voz', cutLfoShape: 'sh', cutLfoSpd: 4, resLfoShape: 'sh', resLfoSpd: 6,
+      mx1src: 'lfoCut', mx1dst: 'vow', mx1amt: 0.9, mx2src: 'lfoCut', mx2dst: 'pan', mx2amt: 0.6,
+      mx3src: 'lfoRes', mx3dst: 'cutoff', mx3amt: 0.25,
+      a: 0.03, d: 0.5, s: 0.9, r: 1.5, width: 0.3, bpm: 120, dlyAmt: 0.25, dlySync: '1/8.',
+      reverbType: 'placa', reverbMix: 0.35, reverbSize: 4, master: 0.6 },
+    /* la idea del «módulo de Pasos», a medias: cuatro ciclos de longitudes
+       distintas — cuadradas de 5, 6 y 8 semicorcheas (1,6 · 1,333 · 1 Hz) al
+       cutoff, a la vocal y al pan, y una frase de tabla de 16 — no vuelven a
+       coincidir hasta mcm(5, 6, 8, 16) = 240 semicorcheas: 30 s. Cada capa es
+       tonta y regular; juntas parecen no repetirse. (Aquí cada «carril» solo
+       tiene dos valores y no se puede escribir: eso es lo que añadiría Pasos) */
+    'Tres ciclos que tardan 30 s (5 · 6 · 8 · 16)': { waveA: 'tabla', waveB: 'sawtooth', detuneB: 7, octB: -1, mix: 0.35,
+      wtSet: 'metálica', wtPos: 0, wsOn: 'on', wsPat: '0 2 4 7 . 5 3 1 6 . 2 7 . 4 1 .', wsDiv: '1/16', wsXf: 0.2,
+      cutoff: 1600, reso: 4, filterSlope: '24', vocAmt: 0.6, vocQ: 0.45,
+      cutLfoShape: 'square', cutLfoSpd: 1.6, resLfoShape: 'square', resLfoSpd: 1.33333, pwmLfoShape: 'square', pwmLfoSpd: 1,
+      mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.25, mx2src: 'lfoRes', mx2dst: 'vow', mx2amt: 0.8,
+      mx3src: 'lfoPwm', mx3dst: 'pan', mx3amt: 0.5,
+      a: 0.05, d: 0.5, s: 0.9, r: 2, width: 0.4, bpm: 120, dlyAmt: 0.3, dlySync: '1/8.', dlyDamp: 0.4,
+      reverbType: 'placa', reverbMix: 0.35, reverbSize: 5, master: 0.75 },
+  },
+
   'Voz': {
     'Coro humano': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, mix: 0.5,
       vocAmt: 0.75, vocVowel: 0.5, vocQ: 0.65, vocVida: 0.6,
