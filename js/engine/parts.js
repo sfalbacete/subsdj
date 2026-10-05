@@ -14,7 +14,7 @@
    ===================================================================== */
 import { AudioEngine, engine as single, loadWorklets } from './AudioEngine.js';
 import { Sala, SALA_KEYS } from './Sala.js';
-import { makeDefaultState, applyPreset, toControls } from './state.js';
+import { makeDefaultState, applyPreset, toControls, withPresetBase } from './state.js';
 import { Conductor } from './Conductor.js';
 import { PARAMS } from './params.js';
 import { factoryPreset } from './presets.js';
@@ -118,7 +118,7 @@ export function applySceneJSON(sc, j) {
     const p = sc.parts[i]; if (!p) return;
     let st = pj.estado;
     if (!st && pj.preset) st = { ...(factoryPreset(pj.preset) || {}), ...(pj.ajustes || {}) };
-    if (st) { p.engine.allNotesOff(); applyStateToEngine(p.engine, { ...toControls(makeDefaultState()), ...st }); }   // base limpia + estado
+    if (st) { p.engine.allNotesOff(); applyStateToEngine(p.engine, { ...toControls(makeDefaultState()), ...withPresetBase(st) }); }   // base limpia + estado (sobre la base de los presets)
     p.presetName = pj.nombre || pj.preset || p.presetName;
     p.presetVal = pj.presetVal || (pj.preset ? 'f:' + pj.preset : p.presetVal);
     if (typeof pj.pan === 'number') { p.pan = pj.pan; p.engine.setPan(pj.pan); }

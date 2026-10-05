@@ -3,7 +3,11 @@
    Se DERIVA de la tabla única PARAMS (params.js): aquí no hay defaults
    propios, así no pueden divergir motor y UI.
    ===================================================================== */
-import { PARAMS } from './params.js';
+import { PARAMS, PRESET_BASE } from './params.js';
+
+// Un preset es una DIFERENCIA sobre PRESET_BASE (params.js), no sobre los
+// defaults neutros: así los de siempre suenan igual. {} = Reset (sin base).
+export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...p } : {});
 
 export function makeDefaultState() {
   const S = { oscA: {}, oscB: {} };
@@ -17,8 +21,9 @@ export function makeDefaultState() {
 
 // Preset (claves de PARAMS, espacio-motor) -> estado S, SIN pasar por la UI
 // (las partes nacen con su preset). Claves desconocidas: se ignoran, como
-// en loadState. Devuelve el mismo S.
+// en loadState. Va sobre la base de los presets. Devuelve el mismo S.
 export function applyPreset(S, preset) {
+  preset = withPresetBase(preset);
   for (const name in preset) {
     const p = PARAMS[name]; if (!p) continue;
     const t = p.t || name;

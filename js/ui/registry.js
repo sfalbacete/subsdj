@@ -14,7 +14,7 @@
    ===================================================================== */
 import { part, sceneOn } from '../engine/parts.js';
 import { SALA_KEYS } from '../engine/Sala.js';
-import { toControls } from '../engine/state.js';
+import { toControls, withPresetBase } from '../engine/state.js';
 
 export const CONTROLS = {};
 let syncing = false;   // mientras syncControls vuelca, los set() de los controles no llegan al motor
@@ -37,7 +37,8 @@ export function loadState(state) {
   const e = part();
   e.resume();
   e.allNotesOff();
-  applyDefaults();                                  // base limpia
+  applyDefaults();                                  // base limpia (neutra: {} = Reset)
+  state = withPresetBase(state);                    // un preset va sobre la base de los presets (params.js)
   for (const k in state) if (CONTROLS[k] && !salaKey(k)) CONTROLS[k].set(state[k]);
 }
 

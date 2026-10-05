@@ -2,8 +2,9 @@
    SubSDJ · mega-banco de presets, organizado por tipo de sonido.
    FORMATO v2: valores en ESPACIO-MOTOR (cutoff en Hz, tiempos en s…),
    las claves son los nombres canónicos de PARAMS. Cada preset declara
-   sólo lo que se desvía del default; los nombres son ÚNICOS en todo el
-   banco (el lookup es por nombre).
+   sólo lo que se desvía de la BASE DE LOS PRESETS (params.PRESET_BASE: los
+   defaults de antes, no los neutros de Reset); los nombres son ÚNICOS en
+   todo el banco (el lookup es por nombre).
    Los presets de usuario v1 (cutoff = posición 0..1 del slider) se
    migran automáticamente a v2 la primera vez (v1 queda como copia).
    REGLA cutLFO: el LFO de cutoff SUMA Hz al valor base (Voice.js), así

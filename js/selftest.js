@@ -24,7 +24,7 @@ import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
 import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
-import { PARAMS, valToPos, posToVal } from './engine/params.js';
+import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter } from './engine/parts.js';
 import { mulberry32 } from './engine/Harmony.js';
@@ -33,7 +33,7 @@ import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
 import { euclid } from './engine/Player.js';
 import { Conductor } from './engine/Conductor.js';
-import { CONTROLS, loadState } from './ui/registry.js';
+import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
@@ -2131,6 +2131,29 @@ export async function runSelfTest() {
       r = { name: NAME, peak: analyze(bB).peak, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
+  }
+
+  // Reset neutro (oct-2026): {} deja el oscilador A a solas y ningún módulo
+  // toca la señal (todo param `act` a 0, filtro abierto y plano, puerta); un
+  // preset NO vacío va sobre PRESET_BASE (los defaults de antes) y suena como siempre
+  {
+    body.appendChild(el('st-cat', 'Reset neutro'));
+    const probs = [];
+    loadState({});
+    const z = snapshot();
+    for (const k in PARAMS) if (PARAMS[k].act && z[k] !== 0) probs.push('Reset: ' + k + ' = ' + z[k]);
+    if (!(z.mix === 0 && z.detuneB === 0 && z.cutoff === PARAMS.cutoff.max && z.reso === -3 && z.s === 1))
+      probs.push('Reset no neutro: mix ' + z.mix + ' · detuneB ' + z.detuneB + ' · cutoff ' + z.cutoff + ' · reso ' + z.reso + ' · s ' + z.s);
+    let n = 0;
+    for (const cat in FACTORY) for (const name in FACTORY[cat]) {
+      const p = FACTORY[cat][name]; if (!Object.keys(p).length) continue;
+      loadState(p); const q = snapshot(); n++;
+      const k = Object.keys(PRESET_BASE).find(k => !(k in p) && q[k] !== PRESET_BASE[k]);
+      if (k) probs.push(name + ': ' + k + ' = ' + q[k] + ' (base ' + PRESET_BASE[k] + ')');
+    }
+    if (toControls(applyPreset(makeDefaultState(), { master: 0.5 })).cutoff !== PRESET_BASE.cutoff) probs.push('applyPreset (Partes) no va sobre la base de los presets');
+    loadState({});
+    push({ name: 'Reset neutro · ' + n + ' presets de fábrica sobre la base de siempre', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

@@ -36,8 +36,10 @@ Renderiza **cada preset de fábrica** en un `OfflineAudioContext` (acorde C3+G3,
 4. que no hay clipping (pico ≤ 0 dBFS),
 5. que no hay nombres duplicados en el banco.
 
-Además: migración de presets v1→v2 (check estático) y un **estrés de 16 notas**
-que ejercita el robo de voz (`MAX_POLY`) y el recorte de colas (`MAX_TAILS`).
+Además: migración de presets v1→v2 (check estático), **Reset neutro** (todo módulo
+a 0, filtro abierto y plano, puerta; cada preset de fábrica sobre `PRESET_BASE`) y un
+**estrés de 16 notas** que ejercita el robo de voz (`MAX_POLY`) y el recorte de colas
+(`MAX_TAILS`).
 
 Resultados en un panel en pantalla, en consola (`console.table`) y en el título
 de la pestaña (`✓ SELFTEST 52/52`). **Úsalo antes y después de tocar el motor.**
@@ -279,6 +281,19 @@ Los presets (formato **v2**) guardan valores en **espacio-motor** (`cutoff` en H
 tiempos en segundos…). Los presets de usuario del localStorage antiguo (v1 o v2)
 entran en la biblioteca («★ Míos») la primera vez, migrados; las copias antiguas
 se conservan como respaldo.
+
+**Reset es neutro** (y así arranca el synth, desde 2026-10-05): el oscilador A a
+solas (Mix 0, B sin desafinar), el filtro abierto y plano (20 kHz con Reso −3 dB,
+el Butterworth sin pico: ±0,02 dB hasta 12 kHz), la envolvente en puerta (A 2 ms ·
+S 1 · R 20 ms, lo justo contra el clic) y todos los módulos a 0: suena la onda
+pura. Los presets, en cambio, se guardan como **diferencias** y van sobre la
+**base de los presets** (`PRESET_BASE` en `params.js`: los defaults de antes —
+B a +7 ct mezclado al 0,4, LP a 6 kHz con 2 dB, ADSR 10 ms / 0,7 / 300 ms), así
+que los de fábrica, los bancos del repo, las escenas y los importados suenan
+exactamente igual que antes (verificado: los 560 estados efectivos, idénticos);
+los guardados con Guardar llevan todas las claves y la base no les cambia nada.
+Un preset nuevo escrito a mano parte de esa base (o fija las claves); `{}`
+(«Init (default)») es Reset.
 
 ## Roadmap (acordado 2026-07)
 

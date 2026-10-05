@@ -3,7 +3,8 @@
    Clave = nombre canónico (es la clave de CONTROLS y de los presets v2).
    Valores SIEMPRE en espacio-motor (Hz, segundos, cents, 0..1…).
    Campos:
-     def       valor por defecto (de aquí derivan state.js y toda la UI)
+     def       valor por defecto (de aquí derivan state.js y toda la UI): NEUTRO,
+               es lo que deja Reset (los presets van sobre PRESET_BASE, abajo)
      min/max   rango del control
      t         target del motor si no coincide con la clave ('oscA.detune')
      unit      sufijo para el formato genérico de los knobs (' Hz', ' ct'…)
@@ -41,11 +42,11 @@ export const PARAMS = {
   octA:     { def: 0, min: -2, max: 2, t: 'oscA.oct' },        // Octava: transposición ±2 (−1 = suboscilador; por nota)
   octavesA: { def: 1, min: 1, max: 4, t: 'oscA.octaves' },    // Apiladas: 1-4 octavas hacia ARRIBA dentro del oscilador
   waveB:    { def: 'square', t: 'oscB.wave' },
-  detuneB:  { def: 7, min: -50, max: 50, unit: ' ct', t: 'oscB.detune' },
+  detuneB:  { def: 0, min: -50, max: 50, unit: ' ct', t: 'oscB.detune' },
   phaseB:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscB.phase' },
   octB:     { def: 0, min: -2, max: 2, t: 'oscB.oct' },
   octavesB: { def: 1, min: 1, max: 4, t: 'oscB.octaves' },
-  mix:      { def: 0.4, min: 0, max: 1 },
+  mix:      { def: 0, min: 0, max: 1 },                // 0 = solo A · 1 = solo B (Reset: el oscilador A a solas)
   ring:     { def: 0, min: 0, max: 1, act: true },
   noise:    { def: 0, min: 0, max: 1, act: true },
   noiseColor:{ def: 0, min: -1, max: 1 },           // − oscuro (LP) · 0 blanco · + "aire" (HP)
@@ -84,12 +85,13 @@ export const PARAMS = {
   lfoFade:    { def: 0, min: 0, max: 20, log: true, lmin: 0.05, fmt: secFmt, act: true },   // vibrato/PWM entran en rampa tras cada noteOn (0 = inmediato)
 
   // --- Filtro (por voz) ---
-  cutoff:    { def: 6000, min: 20, max: 20000, log: true,
+  cutoff:    { def: 20000, min: 20, max: 20000, log: true,   // Reset: abierto (con Reso −3 dB, plano a ±0,02 dB hasta 12 kHz)
                fmt: v => v >= 1000 ? (v / 1000).toFixed(2) + ' kHz' : v.toFixed(0) + ' Hz' },
   cutLfoLvl: { def: 0, min: 0, max: 5000, unit: ' Hz', act: true },
   cutLfoSpd: { def: 2, min: 0.005, max: 20, log: true, fmt: hzFmt },
   cutLfoShape:{ def: 'sine' },
-  reso:      { def: 2, min: 0.1, max: 24, step: 0.1, fmt: v => v.toFixed(1) },
+  // Q en dB (la de lowpass/highpass en WebAudio): −3 dB = Q lineal 0,707, el Butterworth PLANO (sin pico); 0 dB ya marca ~1,25 dB en el corte
+  reso:      { def: -3, min: -3, max: 24, step: 0.1, fmt: v => v.toFixed(1) },
   resLfoLvl: { def: 0, min: 0, max: 15, act: true },
   resLfoSpd: { def: 2, min: 0.005, max: 20, log: true, fmt: hzFmt },
   resLfoShape:{ def: 'sine' },
@@ -157,10 +159,11 @@ export const PARAMS = {
   // En LOG: un slider lineal de 0..20 s pondría el milisegundo en el 0,005 % del
   // recorrido; en log, 1 ms y 20 s caben en la misma barra con resolución pareja.
   // El ataque conserva el 0 EXACTO en la posición 0 (lmin): el golpe es el escalón.
-  a: { def: 0.01, min: 0, max: 20, log: true, lmin: 0.001, fmt: secFmt },   // 0 = escalón (percusión: el golpe es el escalón)
+  // Reset = PUERTA: sustain 1 y ataque/release de 2/20 ms (lo justo contra el clic)
+  a: { def: 0.002, min: 0, max: 20, log: true, lmin: 0.001, fmt: secFmt },   // 0 = escalón (percusión: el golpe es el escalón)
   d: { def: 0.2,  min: 0.001, max: 20, log: true, fmt: secFmt },
-  s: { def: 0.7,  min: 0, max: 1, step: 0.01, fmt: twoDec },
-  r: { def: 0.3,  min: 0.001, max: 30, log: true, fmt: secFmt },
+  s: { def: 1,    min: 0, max: 1, step: 0.01, fmt: twoDec },
+  r: { def: 0.02, min: 0.001, max: 30, log: true, fmt: secFmt },
   envCurve: { def: 0, min: 0, max: 1, act: true },   // 0 = rampas lineales (como siempre) · 1 = tramos RC (analógico): ataque y decay exponenciales
   // Flam (clap 808): hits−1 ráfagas cortas separadas hitGap ANTES del ADSR (Voice._flam); 1 = sin flam (camino de siempre)
   hits:   { def: 1, min: 1, max: 4, step: 1, fmt: v => Math.round(v) + (Math.round(v) > 1 ? ' golpes' : ' golpe') },
@@ -239,6 +242,19 @@ for (let i = 1; i <= MX_SLOTS; i++) {
 // (estructura: aplica por nota, como filterSlope).
 PARAMS.mxDriftSpd = { def: 0.05, min: 0.005, max: 5, log: true, fmt: hzFmt };
 PARAMS.lfoPhase = { def: 'global' };
+
+/* --- Base de los presets ---
+   Los `def` de arriba son NEUTROS: Reset (y el arranque) dejan el oscilador A
+   a solas, sin desafinar, con el filtro abierto y plano y la envolvente en
+   puerta; ningún módulo toca la señal. Pero los presets se guardan como
+   DIFERENCIAS (fábrica, bancos del repo, demos, escenas a mano: solo lo que
+   se desvía), y se escribieron sobre los defaults de antes (hasta oct-2026):
+   B a +7 ct mezclado al 0,4, LP a 6 kHz con 2 dB, ADSR 10 ms / 0,7 / 300 ms.
+   Un preset NO vacío se aplica sobre esta base (state.withPresetBase) y suena
+   exactamente igual que antes; los guardados con Guardar llevan todas las
+   claves (snapshot), así que la base no les cambia nada. {} sigue siendo Reset.
+   Un preset NUEVO escrito a mano también parte de aquí (o fija las claves). */
+export const PRESET_BASE = { detuneB: 7, mix: 0.4, cutoff: 6000, reso: 2, a: 0.01, s: 0.7, r: 0.3 };
 
 // Posición de slider (0..1 si log) <-> valor de motor. Para params sin `log`
 // la posición ES el valor (el <input> lleva min/max/step reales).
