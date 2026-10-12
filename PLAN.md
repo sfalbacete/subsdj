@@ -90,7 +90,10 @@ visual, capturas CDP; commit por hito; README y este plan al día.
   recortado» y check «canvas»; 170/170. Detalle en el README («Panel fijo, pantallas y cabecera»).
 - **Dependencias** (2026-10-12, misma rama): `ui/deps.js` apaga (atenuado, tocable, con motivo en tooltip y en
   la pantalla Salida) lo que no hace nada con la configuración actual; check «dependencias»; 171/171.
-  PENDIENTE: el check del resonador es inestable (ruido aleatorio sobre un modo de Q 600): hacerlo determinista.
+  El check del resonador, inestable, ya es determinista (2026-10-12): medía ruido con un Goertzel (un
+  sorteo de Rayleigh; el cociente de dos fallaba ~7 % en 30 repeticiones, y Material y glide tenían el mismo
+  defecto); ahora corta el ruido con la nota pulsada y mide la cola libre de los modos (τ = Q/(π·f):
+  0,731 / 0,530 s medidos frente a 0,730 / 0,530). Probado rompiendo el resonador: lo detecta.
 - **Rendimiento** (2026-10-12, misma rama; «Coro humano» con muchas teclas se cortaba): filtro sin modulación
   conectada si no la usa, drive bajo demanda, Vocal en k-rate y sin WaveShapers si la vocal no se mueve
   (voz −40 %; acordes encadenados 85 % → 67 %) y presupuesto de CPU común a las partes (colas primero, nunca

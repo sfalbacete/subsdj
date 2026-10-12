@@ -1406,12 +1406,21 @@ deja pasar un resonador es ∝ su anchura f/Q, así que con una ganancia común 
 Q alta el cuenco no sonaba (−35…−48 dB por modo) y si se subía para el
 ruido, la sierra reventaba. Modos por encima de Nyquist, mudos. Evidencia:
 check «resonador modal» — tablas (razones, Q 10/600, Σg² = 2); ruido + seno
-en C3 por el banco: con Material 0 el 2º modo canta en 2·f0 (37 veces más que
-en 2,76·f0) y con Material 1 en 2,76·f0 (82 veces más que en 2·f0); Decay
-estrecha los modos (2·f0 frente a 2,1·f0: ×1,1 a Q 10, ×19 a Q 600); el
-cuenco con ruido a Q 600 suena a −15,7 dB RMS; en mono el banco sigue el
-glide (tras C3 → G3, 2·G3 canta 40 veces más que 2·C3, que ya no es modo);
-162/162. Presets «Cuenco tibetano (ruido + resonador)» y «Metal frotado
+en C3 por el banco y, con la nota aún pulsada (el VCA va detrás del banco),
+se corta el ruido y se mide la **cola libre** de los modos: con Material 0
+canta en 2·f0 (74 dB sobre 2,76·f0) y con Material 1 en 2,76·f0 (84 dB sobre
+2·f0); con Decay 1 (Q 600) la cola cae con τ = 0,731 y 0,530 s, frente a
+los Q/(π·f) = 0,730 y 0,530 teóricos; con Decay 0 (Q 10) el modo ha muerto a
+los 0,15 s (−67 dB); el cuenco con ruido suena a −19 dB RMS; en mono el
+banco sigue el glide (tras C3 → G3 la cola canta en 2·G3, 80 dB sobre 2·C3,
+que ya no es modo); 162/162 al cerrarlo. La primera versión medía el ruido
+mismo (cociente de dos Goertzel, 2·f0 frente a 2,1·f0) y fallaba de vez en
+cuando: un Goertzel sobre ruido es un sorteo de Rayleigh (dos grados de
+libertad; alargar la ventana lo estrecha, no lo promedia) y el cociente de
+dos sorteos tiene una cola larga — 2 de 30 repeticiones suspendían. La cola
+libre es determinista en su ritmo: el ruido decide con cuánto empieza cada
+modo, no cómo se apaga. Reescrito el 2026-10-12 y probado rompiendo el
+resonador (Decay sin efecto y Material clavado en cuerda): lo detecta. Presets «Cuenco tibetano (ruido + resonador)» y «Metal frotado
 (sierra + resonador)» en Cinescape; pares **RES 1-2** (ruido + seno, diff 0,73)
 y **RES 3-4** (sierra por cuerda, 0,27).
 

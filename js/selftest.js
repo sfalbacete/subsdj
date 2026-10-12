@@ -2230,49 +2230,72 @@ export async function runSelfTest() {
   }
 
   // ---------- Roadmap 5.0 · bloque 5: resonador modal ----------
-  // Tablas (razones de cuerda y barra, Q, ganancias normalizadas); ruido + seno en
-  // C3 por el banco (wet 1): con Material 0 el 2º modo canta en 2·f0 y con 1 en
-  // 2,756·f0 (Goertzel de 1,1 s, el seno no tiene energía ahí); Decay estrecha los
-  // modos (2·f0 frente a 2,1·f0, Q 600 vs Q 10); el cuenco con ruido SUENA (refuerzo
-  // ∝ √Q); y en mono el banco sigue el glide (tras C3 → G3, 2·C3 ya no es modo).
+  // Tablas (razones de cuerda y barra, Q, ganancias normalizadas); después ruido +
+  // seno en C3 por el banco (wet 1) y, con la nota aún pulsada (el VCA va detrás del
+  // banco: soltarla mediría el release), se CORTA EL RUIDO: lo que sigue sonando son
+  // los modos, y se mide esa cola libre. Medir el ruido mismo no vale: un Goertzel
+  // sobre ruido es un sorteo de Rayleigh (2 grados de libertad, alargar la ventana no
+  // lo promedia) y el cociente de dos sorteos fallaba ~7 % de las pasadas (medido con
+  // 30 repeticiones, oct-2026). La cola es determinista en su RITMO, τ = Q/(π·f): el
+  // ruido decide con cuánto empieza cada modo, no cómo se apaga.
+  // Material 0 → tras el corte canta 2·f0 y no 2,756·f0; 1 → al revés. Decay 1 (Q 600)
+  // → τ medido = teórico en los dos; Decay 0 (Q 10) → muerto a los 0,15 s. El cuenco
+  // con ruido SUENA (refuerzo ∝ √Q); y en mono el banco sigue el glide (tras C3 → G3
+  // la cola canta en 2·G3 y no en 2·C3).
   {
     body.appendChild(el('st-cat', 'Resonador'));
-    const NAME = 'resonador modal (tablas · material cuerda↔barra · Decay = selectividad · el cuenco con ruido suena · sigue el glide)';
+    const NAME = 'resonador modal (tablas · material cuerda↔barra · Decay = τ de la cola · el cuenco con ruido suena · sigue el glide)';
     let r;
     try {
       const probs = [];
+      const CUT = 1, RING = [CUT + 0.15, CUT + 0.55];   // s: corte del ruido y ventana de la cola (0,4 s: bins de 2,5 Hz, la fuga de 3·f0 no llega a 2,756·f0)
       const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-      const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
+      // Goertzel con ventana de Hann: la fuga del seno en f0 hacia 2·f0 cae a ~−75 dB
+      const hannG = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), N = Math.min(d.length, Math.floor(t1 * SR)) - i0;
         const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
-        for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        for (let i = 0; i < N; i++) { const s0 = d[i0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1))) + c * s1 - s2; s2 = s1; s1 = s0; }
         return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
+      const ring = (buf, fa, fb, [t0, t1] = RING) => 20 * Math.log10(hannG(buf, fa, t0, t1) / (hannG(buf, fb, t0, t1) + 1e-12));   // dB: fa canta y fb no
+      const tauAt = (buf, f) => {                        // regresión de ln|A| en ventanas de 0,1 s tras el corte: pendiente = −1/τ
+        const xs = [], ys = [];
+        for (let t = CUT + 0.15; t + 0.1 <= CUT + 1.45; t += 0.05) { xs.push(t + 0.05); ys.push(Math.log(hannG(buf, f, t, t + 0.1) + 1e-12)); }
+        const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+        let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+        return -sxx / sxy; };
       const rh = resRatios(0), rb = resRatios(1), gg = resGains(rb, 0.5), e2 = gg.reduce((a, x) => a + x * x, 0);
       if (!(rh.every((x, i) => Math.abs(x - (i + 1)) < 1e-9) && Math.abs(rb[1] - 2.756) < 1e-9 && Math.abs(rb[5] - 18.638) < 1e-9)) probs.push('razones: ' + rh.map(x => x.toFixed(2)).join(',') + ' / ' + rb.map(x => x.toFixed(2)).join(','));
       if (!(Math.abs(resQ(0) - 10) < 1e-9 && Math.abs(resQ(1) - 600) < 1e-6)) probs.push('resQ: ' + resQ(0) + ' ' + resQ(1));
       if (!(Math.abs(e2 - 2) < 1e-9)) probs.push('ganancias no normalizadas (Σg² = ' + e2.toFixed(3) + ')');
-      const ex = { waveA: 'sine', mix: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 0.7, resBrillo: 0.6 };
-      const rend = async st => { loadState(st); return renderOne(structuredClone(engine.S), { secs: 2.2, offAt: 2.1 }); };
-      const pk = (buf, f) => goertzel(buf, f, 1, 2.1);
-      const bH = await rend({ ...ex, resMat: 0 }), bB = await rend({ ...ex, resMat: 1 });
-      const qH = pk(bH, 2 * NOTE1) / Math.max(1e-9, pk(bH, 2.756 * NOTE1)), qB = pk(bB, 2.756 * NOTE1) / Math.max(1e-9, pk(bB, 2 * NOTE1));
-      if (!(qH > 3)) probs.push('cuerda: el 2º modo no canta en 2·f0 (2f0 / 2,76f0 = ' + qH.toFixed(2) + ')');
-      if (!(qB > 3)) probs.push('barra: el 2º modo no canta en 2,76·f0 (2,76f0 / 2f0 = ' + qB.toFixed(2) + ')');
-      const bQ0 = await rend({ ...ex, resMat: 0, resDecay: 0 }), bQ1 = await rend({ ...ex, resMat: 0, resDecay: 1 });
-      const sel = buf => pk(buf, 2 * NOTE1) / Math.max(1e-9, pk(buf, 2.1 * NOTE1));
-      const s0 = sel(bQ0), s1 = sel(bQ1);
-      if (!(s1 > 4 * s0)) probs.push('Decay no estrecha los modos (2f0 / 2,1f0: Q600 ' + s1.toFixed(1) + ' vs Q10 ' + s0.toFixed(1) + ')');
-      const lvl = rmsW(bQ1, 1, 2.1);
+      const ex = { waveA: 'sine', mix: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 1, resBrillo: 0.6 };
+      const rendCut = async (st, { cut = CUT, legato = 0 } = {}) => {   // ruido + seno; en `cut` se corta el ruido con la nota pulsada
+        loadState(st);
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * (CUT + 1.6)), SR), eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+        eng.noteOn('t1', NOTE1);
+        if (legato) ctx.suspend(0.5).then(() => { eng.noteOn('t2', legato); ctx.resume(); });
+        ctx.suspend(cut).then(() => { eng.set('noise', 0); ctx.resume(); });
+        return ctx.startRendering();
+      };
+      const bH = await rendCut({ ...ex, resMat: 0 }), bB = await rendCut({ ...ex, resMat: 1 });
+      const rH = ring(bH, 2 * NOTE1, 2.756 * NOTE1), rB = ring(bB, 2.756 * NOTE1, 2 * NOTE1);
+      if (!(rH > 30)) probs.push('cuerda: la cola no canta en 2·f0 (2f0 sobre 2,76f0 = ' + rH.toFixed(1) + ' dB, esperado > 30)');
+      if (!(rB > 30)) probs.push('barra: la cola no canta en 2,76·f0 (2,76f0 sobre 2f0 = ' + rB.toFixed(1) + ' dB, esperado > 30)');
+      const tH = tauAt(bH, 2 * NOTE1), tB = tauAt(bB, 2.756 * NOTE1);
+      const eH = resQ(1) / (Math.PI * 2 * NOTE1), eB = resQ(1) / (Math.PI * 2.756 * NOTE1);
+      if (!(Math.abs(tH / eH - 1) < 0.05 && Math.abs(tB / eB - 1) < 0.05))
+        probs.push('Decay 1 (Q 600): τ de la cola ' + tH.toFixed(3) + ' / ' + tB.toFixed(3) + ' s, esperado Q/(π·f) = ' + eH.toFixed(3) + ' / ' + eB.toFixed(3));
+      const bQ0 = await rendCut({ ...ex, resMat: 0, resDecay: 0 });
+      const drop0 = 20 * Math.log10(hannG(bQ0, 2 * NOTE1, CUT + 0.15, CUT + 0.25) / (hannG(bQ0, 2 * NOTE1, CUT - 0.15, CUT - 0.05) + 1e-12));
+      if (!(drop0 < -30)) probs.push('Decay 0 (Q 10): el modo sigue sonando tras cortar el ruido (' + drop0.toFixed(1) + ' dB a los 0,15 s, esperado < −30)');
+      const lvl = rmsW(bH, 0.5, CUT);
       if (!(lvl > 0.03 && lvl < 0.7)) probs.push('nivel del cuenco con ruido fuera de rango (' + dB(lvl) + ', esperado −30…−3 dB)');
-      if (analyze(bQ1).bad || analyze(bQ1).peak > 1) probs.push('NaN/Inf o clipping a Q 600');
-      loadState({ ...ex, resMat: 0, mode: 'mono', glide: 0.2 });
-      const ctxG = new OfflineAudioContext(2, Math.ceil(SR * 2.2), SR), engG = new AudioEngine(); engG.S = structuredClone(engine.S); await engG.init(ctxG);
-      engG.noteOn('g1', NOTE1); ctxG.suspend(0.5).then(() => { engG.noteOn('g2', NOTE2); ctxG.resume(); });
-      const bG = await ctxG.startRendering();
-      const qG = goertzel(bG, 2 * NOTE2, 1.2, 2.1) / Math.max(1e-9, goertzel(bG, 2 * NOTE1, 1.2, 2.1));   // 2·G3 es modo tras el glide; 2·C3 ya no (y no es modo de G3)
-      if (!(qG > 2)) probs.push('el banco no sigue el glide (2·G3 / 2·C3 tras deslizar = ' + qG.toFixed(2) + ')');
+      if (analyze(bH).bad || analyze(bH).peak > 1) probs.push('NaN/Inf o clipping a Q 600');
+      const bG = await rendCut({ ...ex, resMat: 0, mode: 'mono', glide: 0.2 }, { cut: 1.2, legato: NOTE2 });
+      const rG = ring(bG, 2 * NOTE2, 2 * NOTE1, [1.35, 1.75]);   // 2·G3 es modo tras el glide; 2·C3 ya no (y no es modo de G3)
+      if (!(rG > 30)) probs.push('el banco no sigue el glide (la cola en 2·G3 sobre 2·C3 = ' + rG.toFixed(1) + ' dB, esperado > 30)');
       loadState({});
-      console.log('resonador: 2f0/2,76f0 cuerda', qH.toFixed(1), '· 2,76f0/2f0 barra', qB.toFixed(1), '· selectividad Q10 / Q600', s0.toFixed(1), s1.toFixed(1), '· nivel cuenco', dB(lvl), '· glide', qG.toFixed(1));
+      console.log('resonador: cola 2f0/2,76f0 cuerda', rH.toFixed(1), 'dB · 2,76f0/2f0 barra', rB.toFixed(1), 'dB · τ Q600', tH.toFixed(3), tB.toFixed(3),
+        's (Q/πf', eH.toFixed(3), eB.toFixed(3) + ') · Q10 a 0,15 s', drop0.toFixed(1), 'dB · nivel cuenco', dB(lvl), '· glide', rG.toFixed(1), 'dB');
       r = { name: NAME, peak: analyze(bB).peak, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
