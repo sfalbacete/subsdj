@@ -2328,7 +2328,7 @@ export async function runSelfTest() {
   // Versión: X.Y.Z, la primera entrada del CHANGELOG es ella (no se publica una
   // versión sin anotar) y la cabecera la enseña
   {
-    body.appendChild(el('st-cat', 'Versión'));
+    body.appendChild(el('st-cat', 'Publicación'));
     const probs = [];
     let top = null;
     try {
@@ -2340,6 +2340,25 @@ export async function runSelfTest() {
     const badge = document.getElementById('verBadge');
     if (!badge || badge.textContent !== 'v' + VERSION) probs.push('la cabecera no enseña v' + VERSION);
     push({ name: 'versión ' + VERSION + ' (= primera entrada del CHANGELOG, visible en la cabecera)', peak: 0, ok: !probs.length, problems: probs });
+  }
+
+  // Tarjeta para redes (Open Graph): título, descripción, URL e imagen presentes; la
+  // imagen con URL ABSOLUTA bajo og:url (las redes no resuelven rutas relativas), su
+  // fichero existe en el repo y mide lo que declaran og:image:width/height
+  {
+    const probs = [];
+    const og = p => document.querySelector(`meta[property="og:${p}"]`)?.content || '';
+    for (const p of ['title', 'description', 'url', 'image']) if (!og(p)) probs.push('falta og:' + p);
+    const url = og('url'), img = og('image');
+    let w = 0, h = 0;
+    if (!(url.startsWith('https://') && img.startsWith(url))) probs.push('og:image no es absoluta bajo og:url (' + img + ')');
+    else {
+      const im = new Image(); im.src = img.slice(url.length);   // el MISMO fichero, servido desde aquí
+      try { await im.decode(); w = im.naturalWidth; h = im.naturalHeight; } catch (e) { probs.push('no está ' + img.slice(url.length)); }
+    }
+    if (w && !(w === +og('image:width') && h === +og('image:height')))
+      probs.push('la imagen mide ' + w + '×' + h + ' y og:image:width/height dicen ' + og('image:width') + '×' + og('image:height'));
+    push({ name: 'tarjeta para redes (Open Graph, imagen ' + (w ? w + '×' + h : '—') + ')', peak: 0, ok: !probs.length, problems: probs });
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

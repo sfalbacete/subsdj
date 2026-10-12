@@ -5,6 +5,12 @@ Una entrada por versión publicada, la más reciente arriba. Numeración X.Y.Z:
 cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
 de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
+## [1.0.1] — 2026-10-12
+
+- **Tarjeta al compartir el enlace**: Facebook, LinkedIn, WhatsApp o X
+  enseñan título, descripción y una imagen del panel (etiquetas Open Graph).
+  Antes la tarjeta salía vacía. Check «tarjeta para redes» en el selftest.
+
 ## [1.0.0] — 2026-10-12
 
 Primera versión publicada. Lo que trae:
