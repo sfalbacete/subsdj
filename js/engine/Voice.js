@@ -271,7 +271,7 @@ export class Voice {
   // Coste estimado de una voz en CPU de audio, en «voces simples» (dos sierras
   // con el filtro quieto y sin módulos = 1): lo usa el presupuesto común de
   // AudioEngine (VOICE_BUDGET). Pesos MEDIDOS (render offline de 12 voces por
-  // variante; ver el README): lo caro es lo que se calcula por muestra.
+  // variante; ver docs/DISENO.md): lo caro es lo que se calcula por muestra.
   static cost(S) {
     const c = COST;
     const osc = o => {

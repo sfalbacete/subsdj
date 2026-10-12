@@ -5,7 +5,7 @@ DESCARTÓ; la dirección buscada son sonidos complejos y escalonados (modulació
 «Escalonados» con lo que ya hay; el módulo de Pasos, pendiente de que Sergio lo vea claro.
 **Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
 bloques 1 a 5 y 7 HECHOS y en master (`bbba744`), selftest 162/162; el 6 granular APARCADO «para otro
-momento»). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (README); hechas **A1 delay de
+momento»). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (DISENO.md); hechas **A1 delay de
 cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
 (`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
 **A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
@@ -13,10 +13,10 @@ cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes 
 COMPLETOS y del eje A solo queda A4. Fuera del plan:
 notas colgadas + Pánico (`4e2b47e`), cuatro
 escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
-complementa al README: allí
+complementa a DISENO.md: allí
 vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
 cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
-y en el README.
+y en DISENO.md.
 
 El orden de la lista es **por lo que más nos da → lo que menos**. El orden de EJECUCIÓN es otro
 y va aparte, porque conviene meter primero los baratos.
@@ -48,7 +48,7 @@ tardes sueltas. Queda también la recámara (12).
 
 **Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
 pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
-visual, capturas CDP; commit por hito; README y este plan al día.
+visual, capturas CDP; commit por hito; DISENO.md y este plan al día.
 
 ## Decisiones abiertas (te tocan a ti)
 
@@ -87,7 +87,7 @@ visual, capturas CDP; commit por hito; README y este plan al día.
   (bandas Fuente / Voz / Modulación-efectos en el orden de la señal), selectores giratorios
   (`ui/rotary.js`), conmutadores con LED, faders en las envolventes, banco de LFOs, pantalla Salida
   (`ui/display.js`); fuera `ui/groups.js` y los filtros `data-screens`. Check «pantallas» con «nada
-  recortado» y check «canvas»; 170/170. Detalle en el README («Panel fijo, pantallas y cabecera»).
+  recortado» y check «canvas»; 170/170. Detalle en DISENO.md («Panel fijo, pantallas y cabecera»).
 - **Dependencias** (2026-10-12, misma rama): `ui/deps.js` apaga (atenuado, tocable, con motivo en tooltip y en
   la pantalla Salida) lo que no hace nada con la configuración actual; check «dependencias»; 171/171.
   El check del resonador, inestable, ya es determinista (2026-10-12): medía ruido con un Goertzel (un
@@ -148,7 +148,7 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 
 ### 1 · C1 Partes + mezclador
 
-**✔ HECHO 2026-09-25** — selftest 106/106; detalle, medidas y evidencia en el README.
+**✔ HECHO 2026-09-25** — selftest 106/106; detalle, medidas y evidencia en DISENO.md.
 
 **Propósito.** Poder echar a andar varios instrumentos (presets) a la vez. Sin esto no existe
 nada de lo generativo. No es un multipista: nadie escribe notas.
@@ -187,7 +187,7 @@ tres y medir pico). Captura del selector y del mezclador.
 
 ### 2 · C2 Armonía + jugadores
 
-**✔ HECHO 2026-09-26** — selftest 107/107; detalle, medidas y evidencia en el README. Los cinco
+**✔ HECHO 2026-09-26** — selftest 107/107; detalle, medidas y evidencia en DISENO.md. Los cinco
 jugadores del plan quedaron en cuatro modos: Acorde con el Arp de la parte encendido ES el
 Arpegio, y Raíz con el Seq encendido ES la Frase.
 
@@ -226,7 +226,7 @@ ver C3) sin NaN ni clipping. Pares A/B: mismo preset con jugador Pulso E(3,8) vs
 
 ### 3 · C3 Arreglo y escenas
 
-**✔ HECHO 2026-09-26** — selftest 108/108; detalle, medidas y evidencia en el README. La
+**✔ HECHO 2026-09-26** — selftest 108/108; detalle, medidas y evidencia en DISENO.md. La
 «curva de densidad por parte» quedó como un umbral de entrada por parte sobre una sola curva
 de energía (más simple de entender y de tocar); las secciones salen solas de los umbrales.
 
@@ -252,7 +252,7 @@ semilla distinta difieren. Escena de demo en el repo.
 
 ### 4 · A2 Reverb de placa algorítmica
 
-**✔ HECHO 2026-09-27** — selftest 110/110; detalle, medidas y evidencia en el README.
+**✔ HECHO 2026-09-27** — selftest 110/110; detalle, medidas y evidencia en DISENO.md.
 
 **Propósito.** El «suena fino» más grande. Nuestra reverb es convolución con una IR de ruido
 generada por código: la cola es estática y granulada. Una reverb algorítmica tiene densidad de
@@ -275,7 +275,7 @@ longitudes son las del artículo y la calibración (RT60 y nivel) salió de medi
 
 ### 5 · B1 fmIndex como destino de la matriz + feedback del operador
 
-**✔ HECHO 2026-09-25** — selftest 105/105; el detalle y las medidas están en el README.
+**✔ HECHO 2026-09-25** — selftest 105/105; el detalle y las medidas están en DISENO.md.
 
 **Propósito.** La FM estática aburre: el DX7 vive de que el índice de modulación cambie durante
 la nota. Con el índice en la matriz: env→índice = pluck y campana (ataque brillante, cuerpo
@@ -298,7 +298,7 @@ mayor que el del tramo sostenido; con feedback el espectro gana armónicos (tilt
 
 ### 6 · B2 Oscilador «FM4»
 
-**✔ HECHO 2026-09-27** — selftest 116/116; detalle, medidas y evidencia en el README.
+**✔ HECHO 2026-09-27** — selftest 116/116; detalle, medidas y evidencia en DISENO.md.
 
 **Propósito.** La FM completa como FUENTE que luego pasa por nuestro filtro, vocal, matriz y
 wave sequencing — lo que el DX7 nunca tuvo. Y entender de una vez los «algoritmos»: un grafo
@@ -320,7 +320,7 @@ operadores), 13 params planos y el módulo FM4.
 
 ### 7 · A3 Curva de envolvente
 
-**✔ HECHO 2026-09-27** — selftest 118/118; detalle y medidas en el README.
+**✔ HECHO 2026-09-27** — selftest 118/118; detalle y medidas en DISENO.md.
 
 **Propósito.** Ataque y decay son rampas LINEALES en amplitud; la sonoridad es logarítmica, así
 que un decay lineal «se queda colgado y luego cae de golpe». Las envolventes analógicas son
@@ -425,7 +425,7 @@ Chrome headless con dos scripts Node que viven en el scratchpad de la sesión (e
 un panel por el texto de su título). Python no está en el PATH de Git Bash, así que Node es
 el camino.
 
-**Qué haremos.** Copiarlos a `tools/` con una nota en el README (`node tools/run-selftest.mjs
+**Qué haremos.** Copiarlos a `tools/` con una nota en DISENO.md (`node tools/run-selftest.mjs
 "selftest=1&demos=DLY"`). No es build: el proyecto sigue sin dependencias.
 
 **Coste.** Mínimo.
@@ -437,7 +437,7 @@ pequeño y apabullante. No hace falta ver todo en todo momento. Tres pantallas p
 gestión de presets de verdad.
 
 **13a · Pantallas** ✔ **HECHO 2026-09-27** — selftest 119/119 (check «pantallas»); sección «Pantallas»
-del README; capturas de las tres pantallas. Lo que quedó distinto del plan: la barra rápida vive en
+de DISENO.md; capturas de las tres pantallas. Lo que quedó distinto del plan: la barra rápida vive en
 Diseño Y en Presets (guardar/borrar/exportar/importar son sus botones); un aviso «Escena» en
 Secuenciación con las Partes apagadas (explica y las enciende); la pantalla Presets estrena una
 lista v0 del banco por secciones alimentada del `<select>` (13b la sustituirá por la biblioteca);
@@ -454,7 +454,7 @@ localStorage; LEDs, plegado y el motor no se tocan. Evidencia: capturas de las t
 sonda que comprueba que ningún módulo queda huérfano (todos en al menos una pantalla).
 
 **13b · Biblioteca de presets** ✔ **HECHO 2026-09-27** — selftest 120/120 (check «biblioteca», modelo
-sobre almacenamiento falso); detalle en el README («Grabación, presets y arpegiador» y Roadmap
+sobre almacenamiento falso); detalle en DISENO.md («Grabación, presets y arpegiador» y Roadmap
 4.0); capturas de la pantalla con favorito y filtro. Distinto del plan: el arrastre también reordena
 dentro de la sección; las escenas son ítems de tipo «escena» en una sección normal («Escenas»);
 importar FUNDE (nunca sustituye) y acepta biblioteca, banco v2 o escena; la barra rápida lista toda
@@ -479,7 +479,7 @@ BORRAR de la biblioteca (con
 también en la biblioteca, como sección propia? ¿La barra rápida de Diseño muestra la biblioteca
 entera o solo una sección «activa»?
 
-### 12 · Recámara antigua (ya en el README)
+### 12 · Recámara antigua (ya en DISENO.md)
 
 - **Visualizadores en grande**: el osciloscopio y el espectro de la cabecera (170×36) ampliables
   cuando haga falta verlos bien (pedido por el usuario «eventualmente», 2026-09-27).
@@ -494,7 +494,7 @@ entera o solo una sección «activa»?
 
 Origen: Sergio, jugando con el synth, no saca «sonidos que llamen la atención»: timbres
 interesantes pero clásicos. Quiere lo de las películas: largo, profundo, ambiental, rico en
-texturas. Diagnóstico (README, sección Roadmap 5.0): tres propiedades que el oído lee como
+texturas. Diagnóstico (DISENO.md, sección Roadmap 5.0): tres propiedades que el oído lee como
 «sinte de los 80» — LFOs globales (todo se mueve a la vez), constantes de tiempo de instrumento
 (ataque ≤ 2 s, release ≤ 3 s, LFO ≥ 0,05 Hz, sala ≤ 4 s) y espectro siempre armónico y estable.
 La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad clásico de fábrica.
@@ -514,7 +514,7 @@ resueltos (sin eso también sonarían clásicos). Receta para probar el diagnós
 Capa con cuatro partes (sub seno con drift · supersaw 7 voces LP 600 Hz + LFO 0,05 Hz + ensemble ·
 ruido con Vocal «u» y Vida · campana FM4 con release largo), Placa a Size 4.
 
-**1 · Tiempo ×10 + octava por oscilador** ✔ **HECHO 2026-10-03** — detalle en el README. Resumen:
+**1 · Tiempo ×10 + octava por oscilador** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Resumen:
 rangos ×10 en log con `lmin` (posición 0 = 0 exacto), sliders que guardan el valor exacto, Speed de
 LFO desde 0,005 Hz, Delay 4 s (`DLY_MAX`), Size 20 s (IR ~55 ms de generación; placa con tabla
 RT60→decay ampliada con medidas en Node entre 1 y 15 s: 16,2 ↔ 0,93 · 21,8 ↔ 0,95 · 26,3 ↔ 0,96),
@@ -524,7 +524,7 @@ predelay 250 ms, `octA`/`octB` −2..+2 como ratio de frecuencia (stepper «Octa
 Fuera a propósito: subir el tope de Mix de reverb (0,6; los niveles están igualados por medida) y
 los Speed de chorus/flanger (efectos, no paisaje).
 
-**2 · Deriva por voz + fase por voz** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del
+**2 · Deriva por voz + fase por voz** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del
 plan: la deriva usa el buffer de deriva de los LFO (`lfoBuffers.drift`, mulberry32) y no el `wander`
 de Vocal; la fase por voz NO es aleatoria sino la secuencia de Weyl k·φ (determinista: renders y SFZ
 reproducibles, el selftest la mide), con un selector `lfoPhase` global/por voz por nota (bit-compatible
@@ -535,7 +535,7 @@ Lección: los checks que miden amplitud por voz deben renderizar a −12 dB o el
 acopla las pistas. El plan era: fuente «Deriva (por voz)» en `MX_SOURCES` desde un offset aleatorio
 y fase aleatoria por voz para los LFOs dedicados.
 
-**3 · Shimmer + freeze** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del plan: la
+**3 · Shimmer + freeze** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del plan: la
 ganancia del bucle NO es fija: se calibra contra la energía de la reverb (IR 0,07·Size por la
 constante de normalización del ConvolverNode; placa medida en Node, tabla `PLATE_G`) para que la
 energía por vuelta sea amt·0,8 — con ganancia fija no había coro (cada vuelta perdía ~9 dB; el
@@ -546,7 +546,7 @@ check lo cazó). Ventanas seno (no Hann) a media vuelta: potencia constante. Fre
 El plan era: worklet pitch shifter granular (dos granos con ventana Hann y lectura en dientes de
 sierra, +12 o +7 st) en un bucle reverb → LP → shifter → ×amt → reverb; Freeze con decay 0,999.
 
-**4 · Fuentes de ejecución** ✔ **HECHO 2026-10-03** — detalle en el README. Como estaba planeado:
+**4 · Fuentes de ejecución** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Como estaba planeado:
 ConstantSource 0..1 por fuente y motor (`AudioEngine.perf`), `parts.setPerf` a todas las partes,
 `handleMidi` exportado para la sonda. Añadido: rueda en pantalla bajo el teclado (sigue al CC1).
 Decisiones: CC1/CC11 alimentan la fuente SIEMPRE además del mapeo (de fábrica CC1 → vibrato); el
@@ -556,7 +556,7 @@ sintético → fuentes 1 / 0,504 / 0; 157/157. Preset «Pad de ejecución». Sin
 viven en el preset): la evidencia es el check. El plan era: rueda (CC1), aftertouch y expresión
 (CC11) como fuentes de la matriz; verificación con sonda MIDI sintética.
 
-**5 · Resonadores** ✔ **HECHO 2026-10-03** — detalle en el README. Distinto del plan: módulo propio
+**5 · Resonadores** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del plan: módulo propio
 (`engine/reson.js`, 6 biquads bandpass por voz tras el Vocal), no un modo del Vocal ni combs
 Karplus-Strong (un bucle con DelayNode nativo tiene 128 muestras de latencia mínima: no afina por encima
 de ~340 Hz). Knob Material = morph log entre cuerda (armónicos) y barra libre (∝ (2n+1)²); Decay = Q
@@ -571,7 +571,7 @@ Karplus-Strong por voz.
 «grano» en el worklet (N granos leyendo la tabla con fases aleatorias y ventanas Hann, densidad y
 dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto.
 
-**7 · Cinta en máster** ✔ **HECHO 2026-10-03, revisado tras escucharlo** — detalle en el README. En la
+**7 · Cinta en máster** ✔ **HECHO 2026-10-03, revisado tras escucharlo** — detalle en DISENO.md. En la
 Sala (suma → cinta → limitador): saturación tanh(x) con entrada 1 + sat² (hasta ×2) y pérdida de
 agudos, y wow (línea de 8 ms con deriva 'drift' a 0,8 Hz ≈ ±33 ct medidos + flutter 6,5 Hz ≈ ±6 ct);
 las dos exactas a 0 (el wow a 0 no añade latencia). Revisión por el oído de Sergio: la primera
@@ -585,7 +585,7 @@ de pocos ms modulado, tanh suave; en la Sala.
 
 ## Roadmap 6.0 — en exploración (2026-10-04)
 
-Origen: «¿cómo conseguimos sonidos más ricos, con más textura?». Contexto completo en el README.
+Origen: «¿cómo conseguimos sonidos más ricos, con más textura?». Contexto completo en DISENO.md.
 
 **Descartado: 1 · Grano** (la voz × ruido de ancho B: temblor / raspa / aliento pegados a los
 armónicos). Se hizo entero (módulo, check, pares GRANO 1-8, dos presets) y, tras escucharlo: «no era lo

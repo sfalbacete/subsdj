@@ -45,6 +45,7 @@ import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } fro
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
+import { VERSION } from './version.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -2322,6 +2323,23 @@ export async function runSelfTest() {
     if (toControls(applyPreset(makeDefaultState(), { master: 0.5 })).cutoff !== PRESET_BASE.cutoff) probs.push('applyPreset (Partes) no va sobre la base de los presets');
     loadState({});
     push({ name: 'Reset neutro · ' + n + ' presets de fábrica sobre la base de siempre', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
+  }
+
+  // Versión: X.Y.Z, la primera entrada del CHANGELOG es ella (no se publica una
+  // versión sin anotar) y la cabecera la enseña
+  {
+    body.appendChild(el('st-cat', 'Versión'));
+    const probs = [];
+    let top = null;
+    try {
+      const md = await (await fetch('CHANGELOG.md', { cache: 'no-store' })).text();
+      top = (/^## \[(\d+\.\d+\.\d+)\]/m.exec(md) || [])[1] || null;
+    } catch (e) { probs.push('no se pudo leer CHANGELOG.md'); }
+    if (!/^\d+\.\d+\.\d+$/.test(VERSION)) probs.push('VERSION no es X.Y.Z: ' + VERSION);
+    if (top !== VERSION) probs.push('el CHANGELOG empieza por ' + top + ' y VERSION es ' + VERSION);
+    const badge = document.getElementById('verBadge');
+    if (!badge || badge.textContent !== 'v' + VERSION) probs.push('la cabecera no enseña v' + VERSION);
+    push({ name: 'versión ' + VERSION + ' (= primera entrada del CHANGELOG, visible en la cabecera)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica

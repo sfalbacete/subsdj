@@ -29,8 +29,10 @@ import { initDisplay } from './ui/display.js';
 import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
 import { setStatus, isStatus } from './ui/status.js';
+import { VERSION } from './version.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
+document.getElementById('verBadge').textContent = 'v' + VERSION;   // junto al título (js/version.js)
 initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
