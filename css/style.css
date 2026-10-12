@@ -62,7 +62,8 @@
   --r-panel:14px; --r-ctl:8px; --r-btn:999px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
   --lab-case:none; --lab-space:0;            /* etiquetas de control */
-  --title-case:none; --title-space:.3px;     /* h2 de módulo, pestañas, barra de presets */
+  --title-case:none; --title-space:.3px;     /* pestañas, barra de presets */
+  --sec-case:uppercase; --sec-space:1.6px;   /* título de sección del panel: serigrafía */
   color-scheme:dark;   /* widgets nativos (popups, scrollbars sin estilar) en oscuro */
 }
 
@@ -122,13 +123,25 @@ select option:checked{background:color-mix(in srgb,var(--accent) 14%,transparent
 select optgroup{padding:2px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;}
 select optgroup option{color:var(--ink);font-size:12px;text-transform:none;letter-spacing:0;}
 *{box-sizing:border-box;}
+/* EL INSTRUMENTO (ui/frame.js): #inst mide SIEMPRE 1920 × 1000 y se escala
+   entero con zoom para caber en la ventana; nada refluye. html.frame-scroll =
+   la ventana es tan pequeña que el zoom tocó suelo (MIN_ZOOM): entonces hay
+   scroll. margin:auto (no justify-content) centra sin cortar al desbordar. */
 html{margin:0;height:100%;}
-body{margin:0;min-height:100%;}   /* min: el teclado pegajoso necesita que body crezca con el rack */
+body{margin:0;height:100%;overflow:hidden;display:flex;}
+html.frame-scroll body{overflow:auto;}
 body{
   background:radial-gradient(1200px 600px at 50% -10%, var(--bg-glow), var(--bg));
   color:var(--ink); font:var(--font);
-  -webkit-user-select:none; user-select:none; padding:0 14px 0;   /* la cabecera-módulo va pegada arriba */
+  -webkit-user-select:none; user-select:none;
 }
+#inst{width:1920px;height:1000px;flex:none;margin:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
+/* Ningún canvas aporta tamaño propio: lo pone SOLO el CSS. Sin esto, un canvas
+   en una caja que mide lo que su contenido toma su backing store (width/height,
+   que fitCanvas pone a tamaño × dpr × zoom) como ancho natural: cada redibujado
+   lo agrandaba otro ×dpr×zoom (a 1,95 en una 4K al 150 %) hasta que el canvas
+   reventaba. contain:size = se maqueta como si estuviera vacío. */
+#inst canvas{contain:size;}
 /* Logo: degradado acento→acento2 recortado al texto (background-clip:text)
    que fluye despacio (el fondo mide el doble y se desplaza una vuelta, ida y
    vuelta) y un halo por drop-shadow: un text-shadow se pintaría POR ENCIMA
@@ -142,15 +155,11 @@ h1{font-size:18px;margin:0;letter-spacing:2px;
   filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent) 40%,transparent));
   animation:logoFlow 10s ease-in-out infinite;}
 @keyframes logoFlow{50%{background-position:100% 0;filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent2) 55%,transparent));}}
-/* Cabecera = módulo fijo (sticky arriba): título, pestañas, botones, visualizadores y estado */
-header{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:14px;
-  margin:0 -14px 12px;padding:9px 14px;background:var(--panel-face);
-  border:1px solid var(--edge);border-top:none;border-radius:0 0 12px 12px;box-shadow:var(--shadow-panel);}
-#hdrRight{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-#hdrViz{display:flex;gap:6px;}
-.hviz{display:block;width:170px;height:36px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+/* Cabecera: una sola fila fija — título, pestañas, presets (con «Archivo ▾»), botones, tema y estado */
+header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;
+  background:var(--panel-face);border:1px solid var(--edge);border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
+header .sp{flex:1;}
 .badge{font-size:11px;color:var(--dim);}
-#hdrInfo{display:flex;align-items:center;gap:14px;}
 /* Estado (audio · MIDI): dos iconos SVG con currentColor; la clase pone el color (ui/status.js) */
 #status{display:inline-flex;align-items:center;gap:10px;}
 #status .st{display:inline-flex;color:var(--dim);cursor:help;transition:color .2s;}
@@ -188,9 +197,14 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #partSel[hidden]{display:none;}
 #partSel button{padding:5px 11px;font-size:12px;}
 .panel[hidden]{display:none;}
-#mixer{grid-column:1 / -1;}   /* el mezclador ocupa todo el ancho del rack: 4 tiras + sala en una fila */
-.mix{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-top:8px;}
-.strip{flex:1 1 200px;min-width:200px;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;
+/* Módulos de Partes con las Partes apagadas: en su sitio, atenuados (no se
+   esconden: la posición no cambia). El mezclador vacío dice qué hacer. */
+.panel.parts-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
+.panel.parts-off h2{opacity:.6;}
+#mixStrips:empty::before{content:"Enciende «Partes» en la cabecera: cuatro instrumentos sobre una sala compartida.";
+  font-size:11px;color:var(--dim);}
+.mix{display:flex;gap:10px;flex-wrap:nowrap;align-items:stretch;}
+.strip{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;
   padding:8px;display:flex;flex-direction:column;gap:6px;}
 .strip.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
 .strip.muted .row{opacity:.45;}
@@ -212,56 +226,55 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #harmony select{flex:1;}
 #harmProg{width:110px;}
 #harmSeed{width:76px;}
+.harmlay{gap:18px;align-items:flex-start;}
+.harmlay .vcol{gap:7px;min-width:200px;}
+#harmRoot{width:70px;flex:none;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
 #playerArr select{font-size:11px;height:44px;max-width:92px;}   /* a la altura del knob de al lado */
-/* FM4: 8 algoritmos en dos filas; 4 operadores en filas con etiqueta */
-#fm4AlgSel{flex-wrap:wrap;}
-#wsModeSel button{padding-left:6px;padding-right:6px;}   /* «Loop» y «1shot» iban pegados (los botones de un seg no llevan aire lateral) */
-#fm4AlgSel button{flex:1 1 25%;font-size:9px;padding:5px 1px;letter-spacing:0;white-space:nowrap;}
-.fm4ops .row{align-items:center;margin-top:4px;flex-wrap:nowrap;}
-.fm4ops .oplab{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);width:30px;flex:none;}
-
-#presetBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;
-  background:var(--panel-face);border:1px solid var(--edge);
-  border-radius:var(--r-panel);padding:9px 12px;box-shadow:var(--shadow-panel);}
-#presetBar label{font-size:11px;color:var(--accent);text-transform:var(--title-case);letter-spacing:var(--title-space);}
-#presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);
+/* Presets en la cabecera: ‹ selector › nombre Guardar «Archivo ▾» */
+#presetBar{display:flex;align-items:center;gap:8px;}
+#presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);width:150px;
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
-#presetBar select{min-width:220px;}
-#presetBar input{width:160px;}
-#presetMsg{font-size:11px;color:var(--dim);margin-left:auto;}
+#presetBar select{width:230px;}
+.menuWrap{position:relative;}
+.menu{position:absolute;top:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px;min-width:190px;
+  background:var(--well);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:var(--shadow-pop);}
+.menu[hidden]{display:none;}
+.menu .btn{text-align:left;border-radius:var(--r-ctl);}
+/* Avisos del banco (guardado, importado…): flotan bajo la cabecera y se apagan solos (ui/display.js) */
+#presetMsg{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);z-index:20;pointer-events:none;
+  font-size:11px;color:var(--ink);background:var(--well);border:1px solid var(--edge);border-radius:var(--r-btn);
+  padding:4px 12px;white-space:nowrap;box-shadow:var(--shadow-pop);opacity:0;transition:opacity .3s;}
+#presetMsg.show{opacity:1;}
 
-/* Rack con unidades (estilo Eurorack): columnas iguales; el alto se cuantiza
-   en unidades de --rackU (módulo = 1U por defecto, .u2/.u3 = 2/3 unidades;
-   minmax(...,auto) = si un módulo no cabe, SU fila crece en vez de recortar
-   contenido — nunca se pierde funcionalidad por la rejilla). dense rellena
-   huecos: rack compacto. .wide = módulo doble de ancho (visualizadores). */
-:root{--rackU:184px;}
-.rack{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;
-  grid-auto-rows:minmax(var(--rackU),auto);grid-auto-flow:dense;align-items:stretch;}
-.panel{min-width:0;}
-.panel.u2{grid-row:span 2;}
-.panel.u3{grid-row:span 3;}
-.panel.wide{grid-column:span 2;}
-@media (max-width:520px){.panel.wide,#mixer{grid-column:auto;}}
-.rack-group{margin-bottom:16px;}
-.rack-group[hidden]{display:none;}
-.rack-title{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin:0 0 6px 4px;
-  cursor:pointer;display:flex;align-items:center;gap:8px;}
-.rack-title:hover{color:var(--accent);}
-.rack-title::after{content:'▾';font-size:10px;transition:transform .15s;}   /* plegable: clic; doble clic = solo esta (ui/groups.js) */
-.rack-group.collapsed .rack-title::after{transform:rotate(-90deg);}
-.rack-group.collapsed .rack{display:none;}
-.rack-group.collapsed{margin-bottom:8px;}
-.panel{background:var(--panel-face);border:1px solid var(--edge);
-  border-radius:var(--r-panel);padding:10px 12px 14px;box-shadow:var(--shadow-panel);}
-.panel h2{font-size:11px;text-transform:var(--title-case);letter-spacing:var(--title-space);color:var(--accent);
-  margin:0 0 10px;border-bottom:1px solid var(--edge);padding-bottom:6px;}
+/* PANTALLAS Y BANDAS. Cada pestaña es un .screen con su panel fijo: bandas
+   (.band) de alto fijo y secciones (.panel) separadas por una línea, como la
+   serigrafía de un frontal. Las secciones miden lo que su contenido (flex
+   auto) y .grow reparte el sobrante: así no hay celdas vacías estiradas.
+   Los módulos compartidos (data-slot) cuelgan de un .slot con display:
+   contents: para la banda son una sección más. */
+#screens{flex:none;height:744px;display:flex;}   /* el cuerpo mide lo mismo en todas las pantallas; el teclado se queda el resto */
+.screen{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
+.screen[hidden]{display:none;}
+.band{flex:none;display:flex;min-width:0;background:var(--panel-face);border:1px solid var(--edge);
+  border-radius:var(--r-panel);box-shadow:var(--shadow-panel);overflow:hidden;}
+#bandFuente{height:238px;} #bandVoz{height:236px;} #bandModFx{height:254px;}
+#bandSeq{height:262px;} #bandSala{height:236px;} #bandEscena{height:230px;}
+.band-full{flex:1;min-height:0;}
+.slot{display:contents;}
+.panel{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;padding:8px 10px;border-left:1px solid var(--edge);}
+.band > .panel:first-child,.band > .slot:first-child > .panel{border-left:none;}
+.panel.grow{flex:1 1 auto;}
+.panel h2{font-size:10px;font-weight:600;text-transform:var(--sec-case);letter-spacing:var(--sec-space);color:var(--accent);
+  margin:0 0 6px;white-space:nowrap;}
 .panel.osc h2{color:var(--accent2);}
+.g{display:grid;grid-template-columns:repeat(var(--c,3),auto);gap:6px 2px;justify-content:start;align-items:end;}
+.hrow{display:flex;gap:2px;align-items:flex-end;}
+.vcol{display:flex;flex-direction:column;gap:6px;align-items:center;}
 .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;}
-.row.tight{gap:2px;}   /* filas de 4-5 knobs en una columna de rack: los .ctl reparten el ancho en vez de medir 62px fijos */
+.row.tight{gap:2px;}   /* filas de knobs generadas (mezclador): los .ctl reparten el ancho */
 .row.tight .ctl{flex:1 1 0;width:auto;min-width:46px;}
-.ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px;}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:58px;}
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
 
@@ -292,6 +305,15 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   background:conic-gradient(from 225deg,var(--knob-ind) calc(var(--pos,0) * 270deg),var(--knob-arc-track) 0 270deg,transparent 0);
   mask:radial-gradient(farthest-side,transparent calc(100% - var(--knob-arc)),black calc(100% - var(--knob-arc) + 1px));}
 .panel.osc .knob{--knob-ind:var(--accent2);}
+/* Knob grande (el mando principal de su sección: Cutoff) y pequeño (bancos:
+   LFOs, matriz, operadores FM4). Mismo knob, otra caja: se reescalan las
+   piezas del disco (muesca, punto) para que no se salgan. */
+.knob.big{width:56px;height:56px;--knob-ring-r:15px;--knob-dot:6px;--knob-dot-top:11px;--knob-line-top:6px;}
+.ks{flex-direction:row;width:auto;gap:4px;}
+.ks .knob{width:24px;height:24px;flex:none;--knob-disc-inset:2px;--knob-edge-w:1px;--knob-ring-r:5px;--knob-dot:3px;--knob-dot-top:4px;
+  --knob-line:6px;--knob-line-top:2px;--knob-arc:2px;--knob-arc-gap:1px;--knob-shadow:0 2px 4px rgba(0,0,0,.5);}
+.ks .val{font-size:9px;min-height:0;width:46px;white-space:nowrap;overflow:hidden;}
+.ks .th{width:34px;}
 
 .slider{display:flex;flex-direction:column;gap:4px;width:100%;}
 .slider .head{display:flex;justify-content:space-between;font-size:10px;}
@@ -311,6 +333,20 @@ input[type=range]:active::-webkit-slider-thumb{
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid color-mix(in srgb,var(--accent) 30%,black);border-radius:50%;
   background:var(--thumb-face);cursor:pointer;
   box-shadow:0 2px 5px rgba(0,0,0,.55), 0 0 9px color-mix(in srgb,var(--accent) 40%,transparent), inset 0 1px 1px rgba(255,255,255,.45);}
+/* Fader vertical (envolventes, como en Juno/Jupiter): el mismo <input range>
+   de sliders.js puesto de pie con writing-mode (Chrome 124+: abajo = mínimo
+   con direction:rtl). Carril relleno desde abajo hasta la tapa (--pos) y tapa
+   rectangular de fader con su raya de índice. */
+.slider.fader{width:34px;align-items:center;gap:3px;}
+.slider.fader .lab,.slider.fader .val{font-size:10px;text-align:center;white-space:nowrap;}
+.slider.fader .lab{color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.slider.fader .val{color:var(--ink);min-height:12px;}
+.slider.fader input[type=range]{writing-mode:vertical-lr;direction:rtl;width:6px;height:96px;margin:0 0 4px;
+  background:linear-gradient(var(--track-fill),var(--track-fill)) 0 100% / 100% calc(var(--pos,0) * (100% - 12px) + 6px) no-repeat,var(--track-face);}
+.slider.fader input[type=range]::-webkit-slider-thumb{width:24px;height:12px;border-radius:3px;
+  background:linear-gradient(transparent 5px,var(--accent) 5px 6px,transparent 6px),var(--btn-face-hi);
+  border:1px solid var(--edge-hi);box-shadow:0 2px 3px rgba(0,0,0,.55);}
+.slider.fader input[type=range]:active::-webkit-slider-thumb{filter:brightness(1.15);box-shadow:0 1px 2px rgba(0,0,0,.6),0 0 8px color-mix(in srgb,var(--accent) 50%,transparent);}
 
 .seg{display:flex;border:1px solid var(--edge);border-radius:var(--r-ctl);overflow:hidden;   /* radio de control, no píldora: sus botones son estrechos (flex:1, sin aire) y una píldora se comería el texto */
   background:var(--well);box-shadow:0 2px 4px rgba(0,0,0,.35);}
@@ -326,6 +362,32 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.waves button{font-size:9px;padding:5px 1px;}
 .panel:not(.osc) .seg button.active{background:var(--seg-on);color:var(--ink-on-accent);
   box-shadow:inset 0 2px 4px rgba(0,0,0,.35), inset 0 -1px 1px rgba(255,255,255,.3);}
+/* Selector giratorio (ui/rotary.js): el .seg pierde su caja y sus botones
+   pasan a ser las posiciones serigrafiadas alrededor de un knob central (la
+   JS pone left/top de cada botón y crea el knob). Sin arco de valor: un
+   selector señala, no «llena»; lleva rayita en todos los temas. */
+.seg.rot{display:block;position:relative;width:104px;height:80px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
+.seg.rot button,.seg.rot button + button,.panel:not(.osc) .seg.rot button{position:absolute;transform:translate(-50%,-50%);flex:none;
+  padding:1px 2px;border:none;background:none;box-shadow:none;font-size:9px;line-height:1;color:var(--dim);white-space:nowrap;}
+.seg.rot button:hover{color:var(--ink);background:none;}
+.seg.rot button.active,.panel:not(.osc) .seg.rot button.active{background:none;box-shadow:none;text-shadow:none;font-weight:700;color:var(--accent);}
+.panel.osc .seg.rot button.active{color:var(--accent2);}
+.seg.rot button svg{display:block;width:13px;height:10px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+.seg.rot .knob{position:absolute;left:30px;top:20px;--knob-arc:0px;--knob-line:9px;--knob-line-top:6px;--knob-dot:0px;}
+.ctl.rotc{width:auto;gap:0;}
+.ctl.rotc .rcap{font-size:9px;color:var(--dim);min-height:11px;margin-top:2px;}
+/* Conmutador con LED: el .seg de 2-3 opciones como lista de LEDs con su
+   rótulo (el Poli/Mono del hardware). Clic en un rótulo = elegirlo. */
+.seg.tog{display:flex;flex-direction:column;gap:4px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
+.seg.tog button,.seg.tog button + button,.panel:not(.osc) .seg.tog button{flex:none;display:flex;align-items:center;gap:6px;padding:1px 0;
+  border:none;background:none;box-shadow:none;font-size:10px;color:var(--dim);text-align:left;white-space:nowrap;}
+.seg.tog button::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;background:var(--knob);border:1px solid var(--line);
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.6);}
+.seg.tog button:hover{color:var(--ink);background:none;}
+.seg.tog button.active,.panel:not(.osc) .seg.tog button.active{background:none;box-shadow:none;text-shadow:none;font-weight:400;color:var(--ink);}
+.seg.tog button.active::before{background:var(--accent);box-shadow:0 0 5px var(--accent);}
+.panel.osc .seg.tog button.active::before{background:var(--accent2);box-shadow:0 0 5px var(--accent2);}
+.togc .fieldlab{margin-bottom:3px;}
 .stepper{display:flex;align-items:center;gap:6px;}
 .stepper button{width:22px;height:22px;border-radius:5px;border:1px solid var(--edge);color:var(--ink);cursor:pointer;font-size:14px;line-height:1;
   background:var(--btn-face);
@@ -333,27 +395,49 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .stepper button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);}
 .stepper .num{min-width:14px;text-align:center;font-size:13px;}
 .fieldlab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);margin-bottom:4px;}
-.lfo-grp{border:1px dashed var(--edge);border-radius:8px;padding:8px 6px 6px;margin-top:14px;position:relative;}
-.lfo-grp .tag{position:absolute;top:-8px;left:8px;background:var(--panel2);padding:0 5px;font-size:9px;color:var(--accent);letter-spacing:1px;}
-.lfoShape{position:absolute;top:-9px;right:8px;background:var(--panel2);border:1px solid var(--edge);
-  border-radius:4px;color:var(--accent2);font-size:9px;padding:1px 6px;cursor:pointer;letter-spacing:1px;line-height:1.2;}
+/* Bancos en tabla (LFOs, operadores FM4): la etiqueta va UNA vez por columna
+   (.th) y una por fila (.rn), como un mezclador. Cada fila del banco de LFOs
+   es un .lfo-row con display:contents (sus celdas son de la rejilla, pero la
+   fila sigue existiendo para el LED y el atenuado). */
+.tbl{display:grid;gap:3px 8px;align-items:center;}
+.th{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.rn{font-size:10px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;}
+.lfo-bank{grid-template-columns:auto 40px auto auto;}
+.fm4ops{grid-template-columns:30px repeat(3,auto);margin-left:4px;}
+.lfo-row{display:contents;}
+.lfoShape,.noshape{background:var(--well);border:1px solid var(--edge);border-radius:4px;color:var(--accent2);font-size:9px;
+  padding:2px 0;text-align:center;letter-spacing:.5px;line-height:1.2;font-family:inherit;}
+.lfoShape{cursor:pointer;}
 .lfoShape:hover{border-color:var(--accent2);}
+.noshape{color:var(--dim);border-style:dashed;}
+.lfo-foot{gap:14px;margin-top:8px;align-items:center;}
+.lfo-foot .seg.tog{gap:2px;}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}
 
 .panel h2{display:flex;align-items:center;}   /* LED · título · «?» · etiqueta «sala» */
 
-#adsrCanvas{display:block;width:100%;height:64px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);margin-bottom:10px;}
-#seqCanvas,#wsCanvas{display:block;width:100%;height:110px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
-  margin:10px 0;touch-action:none;cursor:crosshair;}
-#wsCanvas{height:96px;}   /* 8 frames necesitan menos alto que 37 semitonos */
-#seqPatSel{width:100%;margin-top:2px;}
+#adsrCanvas{display:block;width:250px;height:52px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);margin-bottom:6px;}
+#seqCanvas,#wsCanvas{display:block;width:100%;flex:1;min-height:0;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
+  touch-action:none;cursor:crosshair;}
+.seqlay{align-items:stretch;gap:14px;flex:1;min-height:0;}
+.seqcanvas{flex:none;width:340px;align-items:stretch;}
+#seqPatSel{width:100%;}
+#mxRows{display:flex;flex-direction:column;gap:4px;}
 
-/* Teclado, pegado abajo: siempre a mano aunque el rack haga scroll (sticky:
-   cuando la pagina es corta se queda en su sitio natural, sin tapar nada) */
-#kbWrap{position:sticky;bottom:0;z-index:5;margin:14px -14px 0;padding:10px 14px 12px;
-  background:var(--bg);box-shadow:0 -10px 24px rgba(0,0,0,.35);}
-body.midi-learn #kbWrap{padding-bottom:70px;}   /* deja sitio a la barra de MIDI learn (fija abajo) */
-#keyboard{height:160px;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
+/* Salida: la pantalla del instrumento (ui/display.js) + osciloscopio y espectro del máster (ui/scope.js) */
+#salida{min-width:420px;}
+.readout{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;padding:6px 12px;min-height:46px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+.readout .who{font-size:10px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.readout .why{grid-row:2;font-size:10px;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.readout .why:empty{display:none;}
+.readout .v{grid-column:2;grid-row:1 / span 2;min-width:0;overflow:hidden;text-overflow:ellipsis;font:600 24px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;color:var(--accent);white-space:nowrap;
+  text-shadow:0 0 10px color-mix(in srgb,var(--accent) 40%,transparent);}
+.vizrow{display:flex;gap:8px;margin-top:8px;flex:1;min-height:0;}
+.vizrow canvas{flex:1;min-width:0;height:100%;display:block;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+
+/* Teclado: parte del instrumento, se escala con él */
+#kbWrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
+#keyboard{flex:1;min-height:0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
   border-radius:8px;padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6);}
 #kbKeys{position:relative;height:100%;display:flex;}
 #kbKeys::before{ /* fieltro rojo tras las teclas */
@@ -388,7 +472,7 @@ body.midi-learn #kbWrap{padding-bottom:70px;}   /* deja sitio a la barra de MIDI
 .kname{pointer-events:none;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--dim);}
 .wkey.on .kname{color:var(--ink-on-accent);}
 /* Bajo el teclado: la octava con ratón (− / + y el rango visible); lo demás vive en el tooltip */
-#kbBar{display:flex;align-items:center;gap:8px;margin-top:8px;}
+#kbBar{flex:none;display:flex;align-items:center;gap:8px;}
 #kbBar .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 #kbBar .num{min-width:52px;}
 
@@ -435,7 +519,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
 /* Editor de ondas (tabla «usuario») */
-#weCanvas{width:100%;height:84px;background:var(--screen);border:1px solid var(--edge);
+#weCanvas{width:100%;flex:1;min-height:0;min-width:300px;background:var(--screen);border:1px solid var(--edge);
   border-radius:8px;margin-top:8px;cursor:crosshair;touch-action:none;display:block;}
 
 /* Ayuda por módulo: el texto vive oculto (.help) y sale en el tooltip del «?» */
@@ -453,42 +537,41 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .seg.waves button svg{display:block;margin:0 auto;width:17px;height:12px;
   stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 
-/* Módulo apagado: su condición de uso no se cumple (FM sin osc «Seno»,
-   LFO PWM sin osc «Cuad.») — atenuado y sin puntero, salvo el h2 */
-.panel.mod-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
-.panel.mod-off h2{opacity:.6;}
+/* Apagado (ui/deps.js): lo que NO hace nada con la configuración actual —
+   una sección entera o un control suelto. Atenuado EN SU SITIO pero tocable
+   (preparar un ajuste antes de encender lo que lo activa, como en el
+   hardware); el motivo va en data-off (tooltip y pantalla Salida). Una sección
+   apagada atenúa todo menos su título; lo que está dentro de algo ya apagado
+   no se atenúa dos veces. */
+.dep-off:not(.panel){opacity:.35;filter:saturate(.35);}
+.panel.dep-off > :not(h2){opacity:.35;filter:saturate(.35);}
+.panel.dep-off h2{opacity:.6;}
+.dep-off .dep-off,.panel.dep-off .dep-off{opacity:1;filter:none;}
 
 /* LEDs de actividad (ui/activity.js): la sección está HACIENDO algo.
-   En el h2 sobreviven al plegado del panel; versión mini en los tags de LFO. */
+   En el h2 de cada sección; versión mini en las filas del banco de LFOs. */
 .led{width:7px;height:7px;border-radius:50%;background:var(--knob);border:1px solid var(--line);
   box-shadow:inset 0 1px 1px rgba(0,0,0,.6);display:inline-block;margin-right:7px;flex:none;
   transition:background .15s,box-shadow .15s;}
 .led.on{background:var(--accent);box-shadow:0 0 6px var(--accent),inset 0 1px 1px rgba(255,255,255,.25);}
 .panel.osc .led.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2),inset 0 1px 1px rgba(255,255,255,.25);}
-.lfo-grp .tag .led{width:5px;height:5px;margin-right:4px;vertical-align:1px;}
+.lfo-row .rn .led{width:5px;height:5px;margin-right:5px;}
 /* Knobs de "cantidad" (act en PARAMS) en su valor inerte: indicador apagado, sin halo */
 .knob.off,.panel.osc .knob.off{--knob-ind:var(--edge-hi);--knob-glow:transparent;}
 
 /* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
-.mx-row{display:flex;align-items:center;gap:5px;margin-top:6px;}
-.mx-row select{flex:1;padding:4px 5px;font-size:11px;}   /* tres por fila en una columna de 250 px: más apretados que el resto */
-.mx-arrow{color:var(--dim);font-size:11px;flex:none;}
-.mx-row .ctl{width:auto;flex:none;gap:1px;}
-.mx-row .val{font-size:9px;min-height:10px;}
+.mx-row{display:grid;grid-template-columns:1fr 12px 1fr 76px;align-items:center;gap:6px;}
+.mx-row select{min-width:0;padding:4px 6px;font-size:11px;}
+.mx-arrow{color:var(--dim);font-size:11px;text-align:center;}
 
-/* Pantallas (13a): tres vistas por funcion sobre el MISMO rack. Cada modulo
-   declara en que pestanas vive (data-screens="diseno secuenciacion presets")
-   y aqui se oculta lo que no toca: filtros, no copias. body[data-screen] lo
-   pone ui/screens.js. !important: #presetBar{display:flex} (un id) ganaria. */
+/* Pestañas de pantalla (ui/screens.js): cada una enseña SU panel fijo */
 #screenTabs{margin-left:4px;border-radius:var(--r-btn);}   /* las pestañas sí son píldora: tienen aire */
-#screenTabs button{flex:none;padding:6px 16px;font-size:11px;letter-spacing:var(--title-space);text-transform:var(--title-case);}
-body[data-screen="diseno"] [data-screens]:not([data-screens~="diseno"]),
-body[data-screen="secuenciacion"] [data-screens]:not([data-screens~="secuenciacion"]),
-body[data-screen="presets"] [data-screens]:not([data-screens~="presets"]){display:none !important;}
+#screenTabs button{flex:none;padding:6px 14px;font-size:11px;letter-spacing:var(--title-space);text-transform:var(--title-case);}
 
 /* Pantalla Presets: la biblioteca por secciones, en columnas (ui/libraryScreen.js) */
-#library{grid-column:1 / -1;}
-#presetList{columns:220px;column-gap:16px;}
+#library{overflow-y:auto;}   /* la biblioteca es lo único que hace scroll (vertical): las columnas se equilibran a lo alto */
+#library .lib-bar{position:sticky;top:-8px;z-index:2;background:var(--panel-face);padding:6px 0;margin:-6px 0 4px;}
+#presetList{columns:220px;column-gap:16px;flex:none;}
 .pl-sec{break-inside:avoid;margin-bottom:12px;}
 .pl-sec.big{break-inside:auto;}   /* una sección de 70 ítems no debe ser una columna kilométrica */
 .pl-head{font-size:10px;color:var(--accent);text-transform:var(--title-case);letter-spacing:1px;margin:0 0 4px;

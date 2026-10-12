@@ -102,67 +102,161 @@ variable `CHROME` si no es la habitual).
   **Coro robótico** (Re hirajoshi, 66 bpm, armonía por funciones: todo el
   módulo Vocal — madrigal, voz glotal, robot parlante y percusión «ka»).
 
-## Pantallas y cabecera
+## Panel fijo, pantallas y cabecera
 
-El rack tiene ya ~35 módulos: en un monitor grande cabe todo pero apabulla, y
-en uno pequeño no cabe. Tres pestañas enseñan solo lo que toca a cada tarea.
-El rack es el MISMO: las pantallas son filtros, no copias. Cada `.panel`
-declara en qué pantallas vive (`data-screens="diseno secuenciacion"`) y el
-CSS oculta el resto (`body[data-screen]` lo pone `ui/screens.js`), así que
-los ids, los LEDs, el MIDI learn y el motor no se enteran, y un módulo puede
-estar en varias. Los módulos van en GRUPOS por función, cada grupo con su
-propia rejilla y su título: así el relleno «dense» de la rejilla no saca un
-módulo de su grupo, y un grupo sin módulos en la pantalla se oculta entero.
-Las filas crecen con su módulo más alto (ya no hay alturas fijas de 2U, que
-dejaban una fila casi vacía debajo de FM4 o de la matriz).
+El synth es un **instrumento de tamaño fijo**, como uno físico: un objeto de
+1920 × 1000 px (`#inst`) que se escala ENTERO para caber en la ventana —
+`zoom = min(ancho/1920, alto/1000)` (`ui/frame.js`). Nada refluye: cada
+módulo está siempre en el mismo sitio, la resolución solo cambia el tamaño
+(en una pantalla 4K al 150 % sale al 130 %; en un portátil de 1366 × 650, al
+65 %). Por debajo del 60 % no encoge más (los knobs dejarían de poder
+tocarse) y aparece el scroll. Se usa CSS `zoom` (estandarizado en Chrome
+128), que hace el layout a tamaño real: texto y bordes nítidos.
+`getBoundingClientRect` da el tamaño en pantalla y `clientWidth` el de
+diseño, así que los canvas dibujan en px de diseño con un backing store de
+dpr × zoom (`fitCanvas`) y los punteros pasan de pantalla a diseño
+dividiendo por `uiZoom()`. Y ningún canvas aporta tamaño propio (`contain: size`):
+si su caja tomara el backing store como ancho natural, cada redibujado lo
+agrandaría ×dpr×zoom hasta reventar — pasó con el secuenciador en una 4K al
+150 % (×1,95 por redibujado) y lo vigila el check «canvas», que triplica el
+backing store de cada canvas visible y exige que su caja no se mueva.
 
-- **Diseño** — crear un sonido, en cuatro grupos: **Osciladores** (Osc A/B,
-  mezcla, unison, LFO PWM, FM, FM4, tabla de ondas y su editor, vocal),
-  **Filtro** (filtro, carácter, env de filtro, LFO cutoff y reso),
-  **Amplitud y modulación** (ADSR, voz/master, LFO trémolo y vibrato, matriz)
-  y **Efectos** (distorsión/flanger, chorus, delay, reverb, espacio). La
-  barra rápida de presets vive aquí (y en Presets: guardar, borrar,
-  exportar e importar son sus botones).
-- **Secuenciación** — que la música se haga sola: **Secuencia y escena**
-  (arpegiador, secuenciador, tabla · secuencia y, con ▦ Partes, mezclador,
-  armonía, jugador y arreglo) y debajo **Efectos** con Delay y Reverb en su
-  papel de sala compartida (etiqueta «sala»). Son el MISMO módulo que en
-  Diseño: con Partes encendidas sus tiempos (tamaño, damping, tempo y
-  realimentación del eco) son de la escena y solo los envíos de cada parte
-  son del preset; están aquí para ajustar la sala sin cambiar de pestaña.
-- **Presets** — la biblioteca entera a la vista y en la mano
-  (`ui/libraryScreen.js`): secciones en columnas, un clic carga (un preset en
-  la parte que edita el rack; una escena enciende las Partes) y el teclado
-  sirve para probar; ★, renombrar en línea, arrastrar, borrar, buscar sin
-  acentos y «solo ★». Las escenas llevan **▶**: carga la escena, enciende las
-  Partes y arranca el director; el icono pasa a **⏹** (solo una escena suena
-  a la vez) y ⏹ la para sin apagar las Partes. Detalle en «Grabación,
-  presets y arpegiador».
+Antes era una rejilla `auto-fill` + `dense`: el número de columnas salía
+del ancho de la ventana y cada módulo caía en la casilla que le tocaba por
+orden, así que cambiaba de sitio con la resolución; y cada fila medía lo que
+su módulo más alto (FM4, la matriz), con mucho panel vacío y scroll.
 
-La **cabecera** es un módulo fijo, pegado arriba: título, pestañas, botones,
-el **osciloscopio y el espectro** del máster (globales como el teclado: lo
-que suena, en todas las pantallas, a resolución física del monitor) y el
-estado: dos símbolos, audio y MIDI (el color cuenta el estado; el
-tooltip lo explica). El **teclado** está en las tres,
-pegado al borde inferior (`position: sticky`): si el rack hace scroll sigue
-a mano; si la página es corta se queda en su sitio. La pestaña elegida se
-recuerda (`subsdj.screen.v1` en localStorage). Al cambiar de pestaña se
-dispara un `resize` porque los canvas de un módulo oculto medían 0. El
-plegado de módulos (clic en el título) se quitó: en una rejilla de unidades
-no liberaba sitio.
+**Cómo está ordenado.** Cada pestaña es un panel fijo propio
+(`<div class="screen" data-screen-body="…">`) hecho de BANDAS de alto fijo,
+con secciones separadas por una línea de serigrafía. Las secciones miden lo
+que su contenido y `.grow` reparte lo que sobra: sin celdas vacías
+estiradas. En **Diseño** las bandas siguen la señal de izquierda a derecha y
+de arriba abajo:
 
-Las **secciones** se pliegan con un clic en su título (la sección entera
-desaparece y deja su sitio: para centrarse en una) y un doble clic deja SOLO
-esa abierta; el estado se recuerda (`subsdj.groups.v1`). Pendiente para
-cuando haga falta: ver el osciloscopio y el espectro en grande.
+- **Fuente** — Osc A · Osc B · Mezcla · Unison · FM · FM4 · Tabla de ondas ·
+  Editor de ondas. Los motores que no aplican a la onda elegida (FM sin
+  «Seno», FM4 sin «FM4», la tabla sin «Tabla») se atenúan EN SU SITIO: nada
+  aparece ni desaparece moviendo a los demás.
+- **Voz** — Vocal → Resonador → Filtro (con su carácter: tipo, pendiente,
+  keytrack, drive) → Env filtro → Env amp → Voz · Master → **Salida**.
+- **Modulación | efectos** — el banco de LFOs y la Matriz; después los
+  efectos en el orden real de la cadena: Dist · Flanger → Chorus → Delay →
+  Reverb → Cinta → Espacio.
 
-Evidencia: check «pantallas» del selftest (ningún módulo huérfano y ninguna
-pantalla vacía; cada pestaña muestra EXACTAMENTE sus módulos, por estilo
-computado, y oculta los grupos sin módulos; la pestaña se marca y se
-recuerda; la barra rápida está en Diseño y Presets y no en Secuenciación; la
-lista de Presets refleja la biblioteca y un clic carga y queda marcado) y
-capturas con `node tools/shot.mjs "pantalla:secuenciacion" out.png` (el
-cuarto argumento, `"@fichero.js"`, evalúa una sonda antes de capturar).
+Lo que vivía en módulos de LFO sin ser LFO volvió a su sitio natural: P.Width
+a Mezcla, Amplitud y ±Cents a Voz · Master, Width a Espacio (y el autopan es
+la fila Pan del banco). **Secuenciación**: Arpegiador · Secuenciador · Tabla ·
+secuencia · Salida; Mezclador · Delay · Reverb · Cinta (la sala); Armonía ·
+Jugador · Arreglo. Con las Partes apagadas sus módulos siguen en su sitio,
+atenuados, y el mezclador vacío dice cómo encenderlas. **Presets**: la
+biblioteca entera (`ui/libraryScreen.js`): secciones en columnas con su
+propio scroll, un clic carga, ★, renombrar, arrastrar, borrar, buscar sin
+acentos, «solo ★» y ▶/⏹ en las escenas (carga, enciende las Partes y
+arranca; una sola a la vez).
+
+**Compartidos.** Salida, Delay, Reverb y Cinta están en Diseño (efecto del
+preset) y en Secuenciación (la sala de la escena: con Partes llevan la
+etiqueta «sala» y solo los envíos son de cada parte). No se copian: llevan
+`data-slot` y cada pantalla declara su hueco (`data-slot-host`); al cambiar
+de pestaña `ui/screens.js` MUEVE el mismo nodo al hueco de la que se ve
+(controles, canvas y escuchadores intactos).
+
+**Mandos de hardware.** Además del knob (y su versión grande, el Cutoff, y
+pequeña, la de los bancos) hay tres:
+
+- **Selector giratorio** (`.seg.rot`, `ui/rotary.js`) para todo lo que tiene
+  tres o más posiciones: onda, Octava (en pies, como el RANGE del Minimoog:
+  32' 16' 8' 4' 2'), Apiladas, voces del unison, algoritmo FM4 (con su grafo
+  debajo), tipo de filtro, sync del delay, intervalo del shimmer, modos y
+  divisiones del arpegiador, los secuenciadores y el jugador. Clic en una
+  posición = elegirla; arrastrar el knob = recorrerlas; clic en el knob = la
+  siguiente.
+- **Conmutador con LED** (`.seg.tog`) para lo de dos estados: Poli/Mono,
+  12/24 dB, Chorus/Ensemble, Sala/Placa, tiempos de la env de filtro, fase de
+  los LFO, Off/On de los secuenciadores…
+- **Fader vertical** (`.slider.fader`) para las dos envolventes, como en
+  Juno o Jupiter: son barras de tiempo y en vertical ocupan la cuarta parte de
+  ancho. Es el mismo `<input range>` de `ui/sliders.js` puesto de pie con
+  `writing-mode`: guarda el valor exacto.
+
+Selector y conmutador son los `<button data-…>` de un `.seg` de siempre con
+otra cara: `bindSeg`, el registro, MIDI learn (zonas) y los presets no se
+enteran. Octava y Apiladas pasaron de stepper a selector y `bindSeg` aprendió
+a guardar números (`num`): los presets siguen llevando `octA: -1`, no `"-1"`.
+Los **bancos** (LFOs, operadores FM4) llevan la etiqueta una vez por columna
+y una por fila, como un mezclador: misma columna = mismo mando; cada fila
+del banco de LFOs tiene su LED, y la de PWM se atenúa sin ondas cuadradas.
+
+**Lo que no hace nada, apagado** (`ui/deps.js`). Una sección entera o un
+control suelto que, con la configuración actual, NO HACE NADA se atenúa en
+su sitio — y sigue tocable: se puede preparar un ajuste antes de encender lo
+que lo activa, como en el hardware (el knob gira igual). Es una tabla de
+reglas [qué, cuándo]: qué = una sección (por su h2), un control del registro
+o un selector; cuándo = una función del estado que devuelve null (vivo) o el
+MOTIVO, que sale en el tooltip y, al tocarlo, en la pantalla Salida («sin
+efecto: Index a 0: no hay modulador»). Las reglas salen de leer el motor:
+
+- **Qué suena**: A llega a la salida si Mix < 1 o Ring > 0; B si Mix > 0 o
+  Ring > 0 (con Reset, el B entero está apagado). Lo que depende de una ONDA
+  cuenta solo las de osciladores que suenan.
+- **Por onda**: la Súper ignora Phase (fases al azar) y el Unison (ya lo es);
+  Spread solo la abre a ella; P.Width y el LFO de PWM solo mueven la
+  Cuadrada; FM: Ratio e Index solo en Seno, y sin índice (ni «FM índice» en
+  la matriz) Ratio y Feedback no hacen nada — pero el Feedback vive también en
+  el op. 4 de FM4; FM4: un operador con nivel 0 ni suena ni modula (su Ratio
+  y su Decay, fuera); Tabla de ondas y Tabla · secuencia, solo con algún
+  oscilador en Tabla; el Editor de ondas, además, solo con la tabla «usuario».
+- **Llaves dentro de un módulo**: Vocal y Resonador (todo cuelga de su
+  Mix/Mezcla), Color del ruido (Ruido), Detune del unison (más de 1 voz),
+  Low↔Hi (solo en LP↔HP), pendiente (no en Notch), env de filtro (Amount ≠ 0
+  o la fuente «Env filtro» en la matriz; sus tiempos, solo en «propios»),
+  Hueco del flam (más de un golpe), P.Env Dec (P.Env Amt ≠ 0), Fl.Speed,
+  Chorus, arpegiador y secuenciadores (su modo / estado).
+- **Modulación**: Speed y forma de un LFO importan si su Level > 0 o si la
+  matriz lo usa crudo; Fade solo con vibrato o PWM en uso; la fase por voz
+  solo con algún LFO de cutoff/reso/vibrato/PWM/pan en uso; «deriva» solo si
+  un slot usa «Deriva (voz)». Un slot de la matriz sin fuente, con cantidad 0
+  o hacia un destino que no puede moverse (Wavetable sin Tabla, Pulse width
+  sin Cuadrada, FM índice sin Seno, Vocal con su Mix a 0) se apaga entero.
+- **Sala**: sin envío (Amount / Mix a 0; con Partes, de NINGUNA parte) los
+  tiempos del delay y de la reverb no suenan; Time no cuenta si el delay va
+  sincronizado; el intervalo del shimmer, solo con Shimmer; el BPM, solo si
+  algo va a tempo (delay sincronizado, arpegiador, secuenciadores, Partes).
+- **Escena**: la progresión no cuenta en «Funciones»; el Ciclo, sin Vaivén;
+  el arreglo de la parte, con el jugador en Off; la Cantidad, sin Deriva.
+
+Evidencia: check «dependencias» (cada regla apunta a algo que existe —
+renombrar un h2 o un control la dejaría muda sin avisar— y 27 casos por el
+camino de los controles, desde Reset, con el motivo esperado o «vivo»; un
+control apagado sigue tocable).
+
+**Salida** es la pantalla del instrumento (`ui/display.js`): en grande, el
+último parámetro que TOCAS — con el ratón o con un mando MIDI (`ctl-touch`
+de midimap) — y su valor ya formateado; al cargar un preset, su nombre.
+Todo se lee del propio control (su etiqueta o `data-lab`, su `.val`, el
+botón activo, la opción elegida) y de su sección: no hay otra tabla de
+nombres. Debajo, el osciloscopio y el espectro del máster, ahora grandes.
+
+La **cabecera** es una sola fila: título, pestañas, presets (‹ selector ›,
+nombre, Guardar y **Archivo ▾** con Borrar, Exportar, Importar y SFZ — los
+mismos botones, plegados), MIDI map, Reset, Pánico, Grabar, Partes, tema y
+estado (dos símbolos: audio y MIDI; el color cuenta el estado y el tooltip
+lo explica). Los avisos del banco salen flotando bajo la cabecera y se
+apagan solos. El **teclado** es parte del instrumento: se escala con él y
+está en las tres pestañas. La pestaña elegida se recuerda
+(`subsdj.screen.v1`); al cambiar se dispara un `resize` porque los canvas
+de una pantalla oculta medían 0.
+
+Evidencia: check «pantallas» del selftest (cada pestaña es un `.screen` en
+el orden de las pestañas y todo módulo vive en uno; cambiar enseña
+EXACTAMENTE su cuerpo, marca la pestaña y se recuerda; los compartidos están
+en el hueco de la pantalla que se ve; la cabecera con los presets en todas;
+**nada recortado**: ni el instrumento ni ninguna banda desbordan su caja —
+como las bandas ocultan lo que sobra, un mando de más quedaría escondido en
+silencio; la lista de Presets refleja la biblioteca y un clic carga y queda
+marcado) y capturas con `node tools/shot.mjs "pantalla:secuenciacion" out.png
+[ancho]` (`H=alto` en el entorno para el alto de la ventana; el cuarto
+argumento, `"@fichero.js"`, evalúa una sonda antes de capturar).
 
 ## Piel: temas
 
@@ -189,9 +283,100 @@ recuerda en localStorage; `?theme=id` lo aplica sin recordarlo (capturas:
   cubren todo: se reproduce solo con tokens (capturas antes/después a
   ≤ 5 niveles de 255).
 
-El tamaño no es cosa del tema: knob y unidad de rack van acoplados, y la
-escala es el zoom del navegador. El selftest vigila que no haya colores a
+El tamaño no es cosa del tema: el instrumento mide siempre 1920 × 1000 y la
+escala la pone la ventana (`ui/frame.js`). El selftest vigila que no haya colores a
 fuego fuera de los bloques de tokens (check «piel»).
+
+## Rendimiento: CPU por voz y presupuesto común
+
+Origen (Sergio, 2026-10-12): con «Coro humano», muchas teclas a la vez
+saturaban el audio y lo cortaban. Medido (render offline en su PC; el
+directo necesita además margen, porque cada bloque de 2,7 ms tiene que estar
+a tiempo): 10 notas costaban el 48 % de un núcleo, y **10 notas sobre las 10
+colas de release del acorde anterior, el 85 %** — en directo, cortes. Además
+el limitador recibía +5,8 dB con 12 notas y recortaba hasta 6 dB.
+
+**Dónde estaba el coste.** No en la matemática de los osciladores (una copia
+de unison o una Súper apenas suman) sino en el NÚMERO DE NODOS de cada voz y,
+sobre todo, en los filtros que recalculaban coeficientes en CADA muestra:
+cualquier conexión a un AudioParam de un biquad —aunque traiga ceros— obliga
+al navegador a hacerlo por muestra en vez de una vez por bloque. Medido con 12
+voces: el filtro de la voz con la env, los LFO y la macro conectados a 0
+costaba más del doble que quieto; el banco del Vocal con la Vida a audio-rate,
+cuatro veces lo que cuesta en k-rate.
+
+**Qué se hizo** (sin cambiar el sonido salvo redondeo; comprobado renderizando
+lo mismo con el código anterior y el nuevo: bit a bit idéntico con el filtro
+quieto, en 24 dB/BP con env, con LFO por voz y con la matriz al cutoff;
+diferencias de 10⁻¹⁰ al combinar env + LFOs + drive —el orden de las sumas— y
+de 10⁻⁷ en el Vocal):
+
+- La env de filtro, los LFO de cutoff y reso y la **macro de apertura** de
+  Partes se conectan al filtro solo cuando mueven algo (`ensureFenv`,
+  `ensureCutLfo`, `ensureResLfo`, `ensureMacro`, también en vivo). La
+  macro estaba conectada a todas las voces incluso sin Partes.
+- El wet del **drive** (un WaveShaper sobremuestreado ×2) solo existe con
+  Drive > 0.
+- **Vocal**: sus 5 biquads en k-rate (la Vida, el knob y el Golpe van mucho
+  más despacio que un bloque); a-rate solo si la matriz mueve la vocal. Y sin
+  matriz ni Golpe, los formantes se fijan con el valor de las curvas
+  (`Voice._shape`, la misma interpolación que un WaveShaper) en vez de con 10
+  WaveShapers a audio-rate.
+
+Resultado: una voz de «Coro humano» pasa de ~3,9 % a ~2,4 % de un núcleo;
+los acordes encadenados, de 85 % a 67 % (offline, sin tope).
+
+**Presupuesto común** (`AudioEngine`, `VOICE_BUDGET` = 30 «voces simples»):
+todos los motores de un MISMO contexto —las cuatro partes de una escena— se
+reparten un solo hilo de audio, así que el tope es total-total: se lleva por
+contexto, no por motor. Cada voz pesa lo que cuesta lo que lleva encendido
+(`Voice.cost`, pesos medidos: dos sierras con el filtro quieto = 1; FM4 ≈ +0,47
+por oscilador y copia; Vocal +0,25…). Al pasarse se libera de lo que menos se
+oye a lo que más: la cola de release más vieja de cualquier parte (fundida en
+350 ms) y, si no quedan colas, la voz pulsada más vieja de la parte que pide la
+nota — nunca la nota sostenida de otro instrumento. Offline (selftest, SFZ) no
+hay plazos y no hay tope. Evidencia: check «presupuesto de voces» (escena de 4
+partes simulando el directo: nunca pasa del tope, caen primero las 3 colas más
+viejas, sin colas roba a la parte que pide y no a la que sostiene; offline sin
+tope).
+
+**Escenas en capa** (Sergio, mismo día: «Capa: el teclado toca todas», tocando
+rápido o con muchas teclas, «clipea bastante pronto», con cualquier escena).
+Medido con las cuatro escenas del repo: la salida NO pasaba de 0 dBFS (no era
+un clip digital), pero (1) la CPU se disparaba — con capa cada tecla son cuatro
+voces, y tocando rápido el render offline costaba del 107 al 209 % de un
+núcleo: en directo, cortes y chasquidos que suenan a clip — y (2) el limitador
+recibía hasta +8,6 dB y recortaba 9 dB, áspero. Además cada motor, sin notas,
+ya costaba ~4 % (y en Partes hay cinco: las cuatro partes y el único, callado
+debajo), y eso el presupuesto no lo contaba.
+
+- **Efectos de inserción bajo demanda** (`AudioEngine._ensureDist / _ensureFl /
+  _ensureCh / _ensureEns`): de cada efecto existe siempre solo el camino seco;
+  el wet (WaveShaper ×2, líneas de retardo moduladas, 9 LFO) nace al subir su
+  cantidad. Un motor sin efectos pasa de 3,8 a 2,5 % (con su sala).
+- **El presupuesto cuenta los motores** (`engineCost`, medido: 1 voz simple
+  de base + lo de cada efecto encendido, 0,14–0,37). Comprobado EN DIRECTO
+  (escena coro-robótico en capa, 24 notas a 8/s): uso máximo 28,4 de 30, 13
+  voces vivas como mucho (sin tope, hasta ~96 colas solapadas).
+- **Limitador nuevo** (`worklets/limiter-processor.js`, en lugar del
+  DynamicsCompressorNode): brickwall con 6 ms de lookahead — la señal sale
+  retrasada 6 ms (lo mismo que el de antes) y la bajada de ganancia se reparte
+  en ese tiempo, así que nada pasa del techo (−1 dBFS) y no hay aspereza.
+  Debajo del techo es lineal con +1,71 dB, la ganancia fija («makeup»
+  automático) que sumaba el de Chrome — medido: −30 y −6 dBFS salen idénticos
+  (−28,29 / −4,29) y con el mismo retraso (289 muestras). Apretado: un seno a
+  +12 dBFS salía a −0,10 dBFS con 0,62 % de distorsión; ahora a −1,00 con
+  0,00 %. En las escenas en capa, los picos se quedan en −4,1 dBFS (techo menos
+  el máster de la escena) en vez de subir a −2,1: lo muy apretado suena un poco
+  más bajo y limpio; lo que no llega al limitador, igual.
+
+**El Master sigue detrás del limitador.** Se probó delante (para que bajarlo le
+quitara trabajo al limitador): por debajo del umbral es idéntico, pero el pico
+que el limitador de entonces dejaba pasar (ataque de 2 ms) ya no quedaba
+atenuado y «16 notas + robo de voz» clipeaba (+0,3 dB). Con el limitador nuevo
+eso ya no podría pasar, pero no hace falta. Queda, **pendiente de escucharlo**,
+el reparto de ganancia por número de voces (hoy no compensa hasta la 5.ª nota
+de cada parte, y en capa las cuatro partes suman).
 
 ## Teclado
 
@@ -238,7 +423,7 @@ formas de LFO, octavas): el recorrido del mando se parte en N zonas.
 ## Estructura
 
 ```
-index.html                     maqueta y paneles (knobs/sliders declarados en HTML)
+index.html                     el instrumento: cabecera, un panel fijo por pestaña (bandas de secciones) y teclado
 css/style.css                  hoja única; ARRANCA con el bloque de TOKENS de piel (color, caras, sombra, forma, letra)
 js/main.js                     entrada: enlaza la UI y arranca el motor
 js/selftest.js                 autotest offline (?selftest=1)
@@ -258,6 +443,7 @@ js/engine/
   library.js                   la BIBLIOTECA: secciones e ítems (preset/escena), semilla, ★, búsqueda, export/import (sin DOM)
   worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
+  worklets/limiter-processor.js limitador de salida de la Sala: brickwall con lookahead de 6 ms, techo −1 dBFS
 js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   theme.js                     piel: token()/tint()/hue() sirven los tokens CSS a los canvas; selector de tema (lee los temas de las hojas)
@@ -266,8 +452,12 @@ js/ui/
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
-  screens.js                   pestañas Diseño / Secuenciación / Presets: filtros (data-screens) sobre el mismo rack; grupos
-  groups.js                    secciones plegables del rack (clic: plegar; doble clic: solo esta); estado en localStorage
+  frame.js                     el instrumento de tamaño fijo escalado a la ventana (zoom); fitCanvas/uiZoom para los canvas
+  screens.js                   pestañas Diseño / Secuenciación / Presets: un panel fijo cada una; mueve los compartidos (data-slot)
+  rotary.js                    selector giratorio: un .seg.rot con sus botones en arco alrededor de un knob
+  display.js                   pantalla Salida (último parámetro tocado y, si está apagado, por qué), menú Archivo y avisos del banco
+  (engine) Voice.cost + AudioEngine.VOICE_BUDGET   presupuesto de CPU común a las partes (ver «Rendimiento»)
+  deps.js                      dependencias: apaga (atenuado, tocable) lo que no hace nada con la configuración actual, con su motivo
   libraryScreen.js             pantalla Presets: la biblioteca (secciones, ★, renombrar, arrastrar, buscar, escenas)
   knobs.js sliders.js oscControls.js   controles (rangos y defaults viven aquí)
   midi.js                      entrada Web MIDI (notas, bend, sustain; CCs → midimap)
@@ -1261,3 +1451,35 @@ phasing de Reich, los bucles de longitudes distintas de Eno). Candidato: un
 módulo de **Pasos** (carriles con longitud, división y valor por paso, como
 fuentes de la matriz). **Pendiente de que Sergio lo vea claro** antes de
 planificar nada.
+
+## Panel fijo (2026-10-12)
+
+Propuesto por Sergio: «cuesta mucho encontrar los módulos… en un synth físico
+estarían anclados en un rack y siempre en la misma posición». El rack que
+refluía (rejilla `auto-fill` + `dense`, grupos plegables) pasa a ser un
+**instrumento de tamaño fijo escalado a la ventana**, con Diseño entero a la
+vista y sin scroll — antes, a 1500 px de ancho, se veía menos de un tercio
+del rack cada vez. Primero se validó con una maqueta estática (aprobada tal
+cual: «me gusta todo lo que veo»); luego se construyó en la rama
+`ui-panel`. Nuevos: `ui/frame.js`, `ui/rotary.js` (selector giratorio),
+`ui/display.js` (pantalla Salida), conmutador con LED y faders verticales
+(solo CSS sobre los segs y sliders de siempre), banco de LFOs, tabla de
+operadores FM4, matriz en filas compactas, módulos compartidos que se mueven
+entre pantallas. Fuera: `ui/groups.js` y los filtros `data-screens`. El
+motor no se toca y todos los `id` / `data-knob` se conservan: presets, MIDI
+learn y snapshots siguen igual. Detalle en «Panel fijo, pantallas y
+cabecera». Check «pantallas» reescrito con la invariante «nada recortado» y
+check «canvas» (el tamaño lo pone el CSS: el secuenciador reventaba al tocarlo
+a zoom 1,3 × dpr 1,5); 170/170.
+
+**Dependencias** *(2026-10-12, pedido por Sergio: «si un módulo, o una parte
+de un módulo, no está en uso o no puede usarse con la configuración actual,
+que esté apagado»)* — `ui/deps.js`: tabla de reglas leídas del motor (qué
+suena, por onda, llaves dentro de cada módulo, modulación, sala, escena);
+apagado = atenuado en su sitio pero tocable, con el motivo en el tooltip y en
+la pantalla Salida. Sustituye al atenuado anterior (solo FM, FM4 y la fila PWM,
+y bloqueado). Check «dependencias»; 171/171. Visto de paso: el check del
+resonador («Decay estrecha los modos») es inestable de por sí — excita un modo
+de Q 600 (0,4 Hz de ancho) con ruido blanco aleatorio y lo mide en 1,1 s; la
+razón salió 90,5 · 30,9 · 7,3 en tres pasadas y una vez cayó bajo el umbral
+(×4). No lo toca este cambio; pendiente de hacerlo determinista.

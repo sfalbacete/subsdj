@@ -10,6 +10,7 @@ import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { WS_MAX_STEPS, WS_TOP, parseWsPattern } from '../engine/WaveSeq.js';
 import { token, tint } from './theme.js';
+import { fitCanvas, uiZoom } from './frame.js';
 
 const tokensOf = () => part().S.wsPat.trim().split(/\s+/).filter(Boolean).slice(0, WS_MAX_STEPS);
 
@@ -37,12 +38,13 @@ function initWsEditor(canvas) {
   if (!canvas) return;
   const g = canvas.getContext('2d');
   const PAD = 8;
-  const fit = () => { canvas.width = canvas.clientWidth || 220; canvas.height = canvas.clientHeight || 96; };
-  const yOf = fr => (canvas.height - PAD) - (fr / WS_TOP) * (canvas.height - 2 * PAD);
+  let W = 220, H = 96;                              // tamaño en px de diseño (fitCanvas: backing store a dpr × zoom)
+  const fit = () => { ({ w: W, h: H } = fitCanvas(canvas, g, 220, 96)); };
+  const yOf = fr => (H - PAD) - (fr / WS_TOP) * (H - 2 * PAD);
 
   function draw() {
     fit();
-    const w = canvas.width, h = canvas.height, steps = parseWsPattern(part().S.wsPat);
+    const w = W, h = H, steps = parseWsPattern(part().S.wsPat);
     const play = part().ready ? part().wseq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
@@ -88,8 +90,8 @@ function initWsEditor(canvas) {
     const toks = tokensOf();
     if (!toks.length) return;
     const rect = canvas.getBoundingClientRect();
-    const cw = (canvas.width - 2 * PAD) / toks.length;
-    const step = Math.max(0, Math.min(toks.length - 1, Math.floor((e.clientX - rect.left - PAD) / cw)));
+    const cw = (W - 2 * PAD) / toks.length;
+    const step = Math.max(0, Math.min(toks.length - 1, Math.floor(((e.clientX - rect.left) / uiZoom() - PAD) / cw)));
     const st = parseWsPattern(part().S.wsPat)[step];
     drag = { step, startY: e.clientY, startFr: st !== null ? st : 0, wasHold: st === null, moved: false };
     canvas.setPointerCapture(e.pointerId);
@@ -97,10 +99,10 @@ function initWsEditor(canvas) {
   });
   canvas.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dy = drag.startY - e.clientY;
+    const dy = (drag.startY - e.clientY) / uiZoom();
     if (Math.abs(dy) > 3) drag.moved = true;
     if (!drag.moved) return;
-    const pxPerFr = (canvas.height - 2 * PAD) / WS_TOP;
+    const pxPerFr = (H - 2 * PAD) / WS_TOP;
     const fr = Math.max(0, Math.min(WS_TOP, Math.round(drag.startFr + dy / pxPerFr)));
     const toks = tokensOf();
     if (toks[drag.step] === String(fr)) return;        // solo al cambiar de frame

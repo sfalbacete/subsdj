@@ -146,6 +146,7 @@ function flash(el) {
   el.classList.add('midi-hit');
   clearTimeout(el._mmT);
   el._mmT = setTimeout(() => el.classList.remove('midi-hit'), 180);
+  document.dispatchEvent(new CustomEvent('ctl-touch', { detail: { el } }));   // la pantalla Salida enseña el mando que giras
 }
 const targetOf = id => CONTROLS[id] || ACTIONS[id];   // ambos llevan .el
 

@@ -7,6 +7,7 @@ import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq } from '../engine/Seq.js';
 import { token, tint } from './theme.js';
+import { fitCanvas, uiZoom } from './frame.js';
 
 const tokensOf = () => part().S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
@@ -99,12 +100,13 @@ function initSeqEditor(canvas) {
   if (!canvas) return;
   const g = canvas.getContext('2d');
   const PAD = 8, SPAN = SEQ_OFF_MAX - SEQ_OFF_MIN;
-  const fit = () => { canvas.width = canvas.clientWidth || 220; canvas.height = canvas.clientHeight || 110; };
-  const yOf = off => (canvas.height - PAD) - ((off - SEQ_OFF_MIN) / SPAN) * (canvas.height - 2 * PAD);
+  let W = 220, H = 110;                              // tamaño en px de diseño (fitCanvas: backing store a dpr × zoom)
+  const fit = () => { ({ w: W, h: H } = fitCanvas(canvas, g, 220, 110)); };
+  const yOf = off => (H - PAD) - ((off - SEQ_OFF_MIN) / SPAN) * (H - 2 * PAD);
 
   function draw() {
     fit();
-    const w = canvas.width, h = canvas.height, steps = parsePattern(part().S.seqPat);
+    const w = W, h = H, steps = parsePattern(part().S.seqPat);
     const play = part().ready && part().seq.timer ? part().seq.playingStep() : -1;
     g.clearRect(0, 0, w, h);
     g.lineWidth = 1;
@@ -157,8 +159,8 @@ function initSeqEditor(canvas) {
     const toks = tokensOf();
     if (!toks.length) return;
     const rect = canvas.getBoundingClientRect();
-    const cw = (canvas.width - 2 * PAD) / toks.length;
-    const step = Math.max(0, Math.min(toks.length - 1, Math.floor((e.clientX - rect.left - PAD) / cw)));
+    const cw = (W - 2 * PAD) / toks.length;
+    const step = Math.max(0, Math.min(toks.length - 1, Math.floor(((e.clientX - rect.left) / uiZoom() - PAD) / cw)));
     const st = parsePattern(part().S.seqPat)[step];
     drag = { step, startY: e.clientY, startOff: st ? st.off : 0, wasRest: !st, moved: false };
     canvas.setPointerCapture(e.pointerId);
@@ -166,10 +168,10 @@ function initSeqEditor(canvas) {
   });
   canvas.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dy = drag.startY - e.clientY;
+    const dy = (drag.startY - e.clientY) / uiZoom();
     if (Math.abs(dy) > 3) drag.moved = true;
     if (!drag.moved) return;
-    const pxPerSemi = (canvas.height - 2 * PAD) / SPAN;
+    const pxPerSemi = (H - 2 * PAD) / SPAN;
     const off = Math.max(SEQ_OFF_MIN, Math.min(SEQ_OFF_MAX, Math.round(drag.startOff + dy / pxPerSemi)));
     const toks = tokensOf();
     if (toks[drag.step] === String(off)) return;     // solo al cambiar de semitono

@@ -9,6 +9,7 @@ import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
          espectroDe, puntosDeEspectro, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
 import { token, tint } from './theme.js';
+import { fitCanvas } from './frame.js';
 
 const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff por pulsación de «Suavizar»
 
@@ -20,7 +21,7 @@ export function initWaveEditor() {
   let cur = 0, dragging = false, last = null;
 
   function draw() {
-    const w = cv.width = cv.clientWidth || 300, h = cv.height = 96;
+    const { w, h } = fitCanvas(cv, g, 300, 96);   // px de diseño; backing store a dpr × zoom
     g.clearRect(0, 0, w, h);
     g.strokeStyle = tint('--dim', .25); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     const path = (pts, color, width) => {

@@ -18,6 +18,11 @@
    ===================================================================== */
 import { makeIR, mkLFO, setLfoShape } from './nodes.js';
 
+// Limitador de salida (ver worklets/limiter-processor.js): mismo retraso (6 ms) y
+// misma ganancia por debajo del umbral (+1,71 dB, medida) que el DynamicsCompressor
+// al que sustituye; techo de verdad en −1 dBFS; release como el de antes.
+const LIM_LOOKAHEAD = 0.006, LIM_CEIL_DB = -1, LIM_MAKEUP_DB = 1.71, LIM_RELEASE = 0.1;
+
 export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
                                   'tapeSat', 'tapeWow']);
@@ -179,9 +184,12 @@ export class Sala {
     this.dlyToRev = ctx.createGain(); this.dlyToRev.gain.value = dlyToRev;   // eco → reverb (los ecos viven en la sala)
 
     // --- Limitador de salida -> máster -> analizador ---
-    this.comp = ctx.createDynamicsCompressor();
-    this.comp.threshold.value = -3; this.comp.knee.value = 0; this.comp.ratio.value = 20;
-    this.comp.attack.value = 0.002; this.comp.release.value = 0.1;
+    // Brickwall con 6 ms de lookahead (worklets/limiter-processor.js): nunca deja
+    // pasar nada por encima de LIM_CEIL_DB y reparte la bajada de ganancia en el
+    // lookahead (sin la aspereza del DynamicsCompressor de antes al apretarlo).
+    // Por debajo del techo es lineal con +1,71 dB: lo mismo que sumaba aquel.
+    this.comp = new AudioWorkletNode(ctx, 'limiter-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      processorOptions: { lookahead: LIM_LOOKAHEAD, ceilingDb: LIM_CEIL_DB, makeupDb: LIM_MAKEUP_DB, release: LIM_RELEASE } });
     this.master = ctx.createGain(); this.master.gain.value = master;
     this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.8;
 
@@ -223,7 +231,10 @@ export class Sala {
     if (S.reverbType === 'placa') { this._ensurePlate(); this.revPre.connect(this.plate); }
     else this.revPre.connect(this.convA);
     this.revRet.connect(this.sum);
-    // suma → cinta (saturación → wow) → limitador → máster → analizador
+    // suma → cinta (saturación → wow) → limitador → máster → analizador. El máster va
+    // DETRÁS del limitador a propósito: se probó delante (2026-10-12, para que bajarlo
+    // le quitara trabajo al limitador) y el pico que este limitador deja pasar (ataque
+    // de 2 ms) ya no quedaba atenuado: «16 notas + robo de voz» clipeaba (+0,3 dB).
     this.sum.connect(this.tapeIn);
     this.tapeIn.connect(this.satDry); this.satDry.connect(this.satOut);
     this.tapeIn.connect(this.satPre); this.satPre.connect(this.satShaper); this.satShaper.connect(this.satPost);
@@ -383,6 +394,7 @@ export class Sala {
     for (const n of [this.tapeIn, this.satDry, this.satPre, this.satShaper, this.satPost, this.satLP, this.satWet, this.satOut,
                      this.wowDry, this.wowWet, this.tapeDelay, this.tapeOut]) { try { n.disconnect(); } catch (e) {} }
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
+    try { this.comp.port.postMessage('stop'); } catch (e) {}   // el limitador es un worklet: que deje de procesar
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,
                      this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.irMix, this.plateMix,

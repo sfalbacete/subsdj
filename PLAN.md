@@ -82,6 +82,24 @@ visual, capturas CDP; commit por hito; README y este plan al día.
 
 ## Hecho fuera del plan (2026-09-26/27)
 
+- **Panel fijo** (propuesto por Sergio, 2026-10-12; rama `ui-panel`): el rack que refluía pasa a ser un
+  instrumento de 1920 × 1000 escalado a la ventana (`ui/frame.js`), Diseño entero a la vista sin scroll
+  (bandas Fuente / Voz / Modulación-efectos en el orden de la señal), selectores giratorios
+  (`ui/rotary.js`), conmutadores con LED, faders en las envolventes, banco de LFOs, pantalla Salida
+  (`ui/display.js`); fuera `ui/groups.js` y los filtros `data-screens`. Check «pantallas» con «nada
+  recortado» y check «canvas»; 170/170. Detalle en el README («Panel fijo, pantallas y cabecera»).
+- **Dependencias** (2026-10-12, misma rama): `ui/deps.js` apaga (atenuado, tocable, con motivo en tooltip y en
+  la pantalla Salida) lo que no hace nada con la configuración actual; check «dependencias»; 171/171.
+  PENDIENTE: el check del resonador es inestable (ruido aleatorio sobre un modo de Q 600): hacerlo determinista.
+- **Rendimiento** (2026-10-12, misma rama; «Coro humano» con muchas teclas se cortaba): filtro sin modulación
+  conectada si no la usa, drive bajo demanda, Vocal en k-rate y sin WaveShapers si la vocal no se mueve
+  (voz −40 %; acordes encadenados 85 % → 67 %) y presupuesto de CPU común a las partes (colas primero, nunca
+  la nota sostenida de otra parte); check «presupuesto de voces»; 172/172. El Master se probó delante del
+  limitador y se dejó detrás (clipeaba). PENDIENTE de escuchar: compensación de ganancia desde 2 notas.
+- **Escenas en capa** (2026-10-12, misma rama; «clipea bastante pronto»): efectos de inserción bajo demanda
+  (motor en reposo 3,8 → 2,5 %), el presupuesto cuenta el coste fijo de los motores (en directo: 28,4 de 30,
+  13 voces vivas como mucho) y limitador nuevo en worklet (brickwall con lookahead de 6 ms, techo −1 dBFS,
+  lineal +1,71 dB debajo como el de Chrome: idéntico en nivel y retraso; apretado, sin aspereza). 172/172.
 - **Revisión tras el bloque 13** (sugerencias del usuario, 2026-09-27): cabecera como módulo fijo con
   osciloscopio y espectro (globales, como el teclado); Diseño en grupos por función con título
   (Osciladores / Filtro / Amplitud y modulación / Efectos), cada grupo con su rejilla, plegables

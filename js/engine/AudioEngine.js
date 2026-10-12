@@ -27,6 +27,24 @@ const MAX_TAILS = 16;   // colas de release vivas; por encima, fundido de la má
 // cuando le toca irse, y un corte de 10 ms se oye como un clic de pad. 350 ms
 // entre 16 colas y la reverb no se distingue de la propia caída.
 const TAIL_FADE = 0.35;
+// Presupuesto de CPU de audio (solo en directo). Todos los motores de un MISMO
+// contexto — las 4 partes de una escena — se renderizan en el mismo hilo de
+// audio, así que el tope es COMÚN: se lleva por contexto (budgetOf), no por
+// motor. Cada voz pesa lo que cuesta lo que lleva encendido (Voice.cost, en
+// «voces simples»: dos sierras con el filtro quieto = 1). Al pasarse, se libera
+// de lo que menos se oye a lo que más: (1) la cola de release más vieja de
+// CUALQUIER parte, fundida en TAIL_FADE; (2) la voz pulsada más vieja de la
+// parte que pide la nota — nunca la nota sostenida de otro instrumento.
+// VOICE_BUDGET: 30 voces simples ≈ 47 % de un núcleo en el PC de referencia,
+// más los efectos y la sala (4-15 %): el hilo queda por debajo de ~60 %, con
+// margen para los picos (crear voces a ráfagas). Offline (selftest, SFZ) no
+// hay plazos y no hay tope.
+export const VOICE_BUDGET = 30;
+// Coste fijo de un motor sin notas, en las mismas «voces simples» (medido: 2,5 %
+// de un núcleo con su sala y sin efectos; cada efecto, lo que suma encendido).
+const ENGINE_COST = { base: 1, dist: 0.17, fl: 0.14, ch: 0.22, ens: 0.37 };
+const budgets = new WeakMap();
+const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
 // Fuentes de ejecución (rueda, aftertouch, expresión): suavizado de los saltos de 1/127 del MIDI
 const PERF_TAU = 0.02;
 
@@ -39,7 +57,7 @@ const WK_V = '?v=10';  // v10: shift-processor (shimmer) + decay de la placa has
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
-  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor']
+  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor', 'limiter-processor']
     .map(n => ctx.audioWorklet.addModule(new URL('./worklets/' + n + '.js' + WK_V, import.meta.url))));
   workletsLoaded.add(ctx);
 }
@@ -71,6 +89,7 @@ export class AudioEngine {
     // de pared, así que los temporizadores de las colas no valen (y matarían
     // voces a destiempo, de forma NO determinista). Sin tope de colas offline.
     this.offline = typeof ctx.startRendering === 'function';
+    this.budget = budgetOf(ctx); this.budget.add(this);   // presupuesto de CPU común a los motores de este contexto
     this.noiseBuffer = makeNoise(ctx);
     this.wanderBuffer = makeWander(ctx);   // deriva lenta compartida (Vocal · Vida)
 
@@ -81,52 +100,23 @@ export class AudioEngine {
     this.voicesBus = ctx.createGain(); this.voicesBus.gain.value = 1;
     this.amp = ctx.createGain(); this.amp.gain.value = S.amplitude;
 
+    // EFECTOS DE INSERCIÓN BAJO DEMANDA. De cada efecto existe siempre solo el
+    // camino SECO (una ganancia); el wet — el WaveShaper ×2 de la distorsión, las
+    // líneas de retardo moduladas del flanger, el chorus y el ensemble, y sus 9
+    // LFO — nace la primera vez que su cantidad sube de 0 (_ensureDist, _ensureFl,
+    // _ensureCh, _ensureEns) y se queda. A 0 la salida es la misma (sumaba 0),
+    // pero un motor sin notas costaba ~4 % de un núcleo con todo a 0 — y en
+    // Partes hay cinco motores (las 4 partes y el único, callado debajo).
     // Distorsión (dry/wet: a 0 es TRANSPARENTE). Un WaveShaper recorta a ±1 cualquier
     // pico >1 que le entre, así que tenerlo siempre en serie saturaba con politonía.
-    // Ahora sólo se mezcla la parte "wet" según el drive; a 0 pasa todo seco.
+    // Sólo se mezcla la parte "wet" según el drive; a 0 pasa todo seco.
     this.distDry = ctx.createGain(); this.distDry.gain.value = 1 - S.dist;
-    this.distPre = ctx.createGain(); this.distPre.gain.value = 1 + S.dist * 6;
-    this.shaper = ctx.createWaveShaper(); this.shaper.curve = makeDistCurve(); this.shaper.oversample = '2x';
-    this.distPost = ctx.createGain(); this.distPost.gain.value = 1 / (1 + S.dist);
-    this.distWet = ctx.createGain(); this.distWet.gain.value = S.dist;
     this.distOut = ctx.createGain();
-
-    // Flanger
-    this.flDry = ctx.createGain();
-    this.flDelay = ctx.createDelay(0.05); this.flDelay.delayTime.value = 0.003;
-    this.flFb = ctx.createGain(); this.flFb.gain.value = 0.35;
-    this.flWet = ctx.createGain(); this.flWet.gain.value = S.flAmt;
-    this.flOut = ctx.createGain();
-
-    // Chorus estéreo: dos líneas cortas moduladas por LFOs a distinta
-    // velocidad (descorrela L/R), sin feedback. A 0 es transparente (solo dry).
-    this.chDry = ctx.createGain();
-    this.chSend = ctx.createGain(); this.chSend.channelCount = 1; this.chSend.channelCountMode = 'explicit';
-    this.chD1 = ctx.createDelay(0.06); this.chD1.delayTime.value = 0.020;
-    this.chD2 = ctx.createDelay(0.06); this.chD2.delayTime.value = 0.028;
-    this.chMerge = ctx.createChannelMerger(2);
-    this.chWet = ctx.createGain(); this.chWet.gain.value = S.chMode === 'chorus' ? S.chAmt : 0;
-    this.chOut = ctx.createGain();
-
-    // Ensemble "máquina de cuerdas" (triple chorus estilo Solina): 3 líneas de
-    // ~5 ms, cada una modulada por la SUMA de un LFO lento (chSpd) y otro
-    // rápido (x10), con las fases repartidas a 120° entre líneas. Línea 1 -> L,
-    // línea 3 -> R, línea 2 al centro. Comparte chAmt/chSpd con el chorus;
-    // chMode decide cuál de los dos wets suena (el otro queda a 0).
-    this.ensSend = ctx.createGain(); this.ensSend.channelCount = 1; this.ensSend.channelCountMode = 'explicit';
-    this.ensL = ctx.createGain(); this.ensR = ctx.createGain();
-    this.ensL.gain.value = this.ensR.gain.value = 0.6;   // 2 líneas por canal ~ nivel del chorus
-    this.ensCtr = ctx.createGain(); this.ensCtr.gain.value = 0.71;
-    this.ensMerge = ctx.createChannelMerger(2);
-    this.ensWet = ctx.createGain(); this.ensWet.gain.value = S.chMode === 'ensemble' ? S.chAmt : 0;
-    this.ensDelays = []; this.ensSlow = []; this.ensFast = [];
-    for (let i = 0; i < 3; i++) {
-      const d = ctx.createDelay(0.03); d.delayTime.value = 0.005;
-      const slow = mkPhasedLFO(ctx, S.chSpd, 0.0022, i * 120);
-      const fast = mkPhasedLFO(ctx, Math.min(12, S.chSpd * 10), 0.00035, i * 120 + 90);
-      slow.depth.connect(d.delayTime); fast.depth.connect(d.delayTime);
-      this.ensDelays.push(d); this.ensSlow.push(slow); this.ensFast.push(fast);
-    }
+    this.flDry = ctx.createGain(); this.flOut = ctx.createGain();     // flanger
+    // Chorus estéreo (dos líneas cortas moduladas a distinta velocidad) y
+    // ensemble (triple chorus estilo Solina): ver _ensureCh / _ensureEns
+    this.chDry = ctx.createGain(); this.chOut = ctx.createGain();
+    this.ensSlow = []; this.ensFast = [];
 
     // --- Salida del motor: nivel → seco + dos ENVÍOS (delay, reverb) → Sala ---
     // La Sala (engine/Sala.js) es el espacio: delay ping-pong de cinta, reverb,
@@ -143,27 +133,11 @@ export class AudioEngine {
     this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // envío al delay
     this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // envío a la reverb
 
-    // Conexiones globales
+    // Conexiones globales (los wets se enganchan al crearse)
     this.voicesBus.connect(this.amp);
     this.amp.connect(this.distDry); this.distDry.connect(this.distOut);
-    this.amp.connect(this.distPre); this.distPre.connect(this.shaper); this.shaper.connect(this.distPost); this.distPost.connect(this.distWet); this.distWet.connect(this.distOut);
     this.distOut.connect(this.flDry); this.flDry.connect(this.flOut);
-    this.distOut.connect(this.flDelay); this.flDelay.connect(this.flWet); this.flWet.connect(this.flOut);
-    this.flDelay.connect(this.flFb); this.flFb.connect(this.flDelay);
-    // Chorus (entre flanger y delay)
     this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
-    this.flOut.connect(this.chSend);
-    this.chSend.connect(this.chD1); this.chSend.connect(this.chD2);
-    this.chD1.connect(this.chMerge, 0, 0); this.chD2.connect(this.chMerge, 0, 1);
-    this.chMerge.connect(this.chWet); this.chWet.connect(this.chOut);
-    // Ensemble (en paralelo con el chorus; su wet está a 0 si chMode='chorus')
-    this.flOut.connect(this.ensSend);
-    this.ensDelays.forEach(d => this.ensSend.connect(d));
-    this.ensDelays[0].connect(this.ensL);
-    this.ensDelays[2].connect(this.ensR);
-    this.ensDelays[1].connect(this.ensCtr); this.ensCtr.connect(this.ensL); this.ensCtr.connect(this.ensR);
-    this.ensL.connect(this.ensMerge, 0, 0); this.ensR.connect(this.ensMerge, 0, 1);
-    this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
     // Salida: chOut -> nivel -> mute -> [pan -> seco de la Sala] + [envíos]
     this.chOut.connect(this.level); this.level.connect(this.muteG);
     this.muteG.connect(this.partPan); this.partPan.connect(this.sala.dry);
@@ -176,10 +150,10 @@ export class AudioEngine {
     this.resLFO = mkLFO(ctx, S.resLfoSpd, S.resLfoLvl);
     this.freqLFO = mkLFO(ctx, S.freqLfoSpd, S.freqLfoLvl);
     this.pwmLFO = mkLFO(ctx, S.pwmLfoSpd, S.pwmLfoLvl);
-    this.flLFO = mkLFO(ctx, S.flSpd, 0.002); this.flLFO.depth.connect(this.flDelay.delayTime);
-    this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
-    this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
     this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
+    if (S.dist > 0) this._ensureDist();                  // efectos que el estado ya trae encendidos
+    if (S.flAmt > 0) this._ensureFl();
+    if (S.chAmt > 0) { if (S.chMode === 'ensemble') this._ensureEns(); else this._ensureCh(); }
     // formas de onda de los LFOs (el estado puede traerlas de un preset); sin/tri/saw/sqr
     // son el oscilador nativo, S&H y deriva una fuente alternativa (nodes.js)
     setLfoShape(ctx, this.ampLFO, S.ampLfoShape);   setLfoShape(ctx, this.freqLFO, S.freqLfoShape);
@@ -189,8 +163,11 @@ export class AudioEngine {
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
     // Macro de apertura (arreglo de la escena): cents que se SUMAN al detune
     // de los filtros de todas las voces (exponencial, sin cruzar 0 Hz — la
-    // misma ruta que el destino Cutoff de la matriz). A 0 no hace nada.
+    // misma ruta que el destino Cutoff de la matriz). A 0 no hace nada — y no se
+    // conecta a las voces hasta que el arreglo la mueve (_macroOn): conectada,
+    // aunque valga 0, el filtro de cada voz recalcularía coeficientes por muestra.
     this.macroCut = ctx.createConstantSource(); this.macroCut.offset.value = 0; this.macroCut.start();
+    this._macroOn = false;
     // Fuentes de EJECUCIÓN (Roadmap 5.0 · bloque 4): rueda (CC1), aftertouch y
     // expresión (CC11) como ConstantSource 0..1 por motor; la matriz las ofrece
     // como fuentes 'wheel' / 'at' / 'expr' (Voice._mxSrcNode). Llegan por MIDI
@@ -203,7 +180,7 @@ export class AudioEngine {
     this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
-      pitchOffset: this.pitchOffset, macroCut: this.macroCut, perf: this.perf,
+      pitchOffset: this.pitchOffset, macroCut: this.macroCut, macroOn: () => this._macroOn, perf: this.perf,
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
@@ -250,7 +227,10 @@ export class AudioEngine {
       const oldest = this.voices.keys().next().value;      // Map conserva orden de inserción
       if (oldest !== undefined) this._releaseVoice(oldest, 0.02);
     }
+    const cost = Voice.cost(this.S);
+    this._makeRoom(cost);                                  // presupuesto de CPU común (ver VOICE_BUDGET)
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
+    v.cost = cost;
     if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
     this.wseq.attach(v);                 // secuencia de tabla: cada voz arranca su frase en su noteOn
     this.voices.set(id, v);
@@ -279,7 +259,10 @@ export class AudioEngine {
       this.lastFreq = freq;
     } else {
       this._killMono();
+      const cost = Voice.cost(this.S);
+      this._makeRoom(cost);
       const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
+      v.cost = cost;
       if (this._bend) v.ensurePitch();
       this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)
       this.monoVoice = v; this.voices.set('mono', v);
@@ -321,6 +304,7 @@ export class AudioEngine {
   // MAX_TAILS acota el coste de acumular colas largas tocando rápido.
   _scheduleTail(v, rel, when = null) {
     this.tails.add(v);
+    v._relAt = when !== null ? when : this.ctx.currentTime;   // edad de la cola: el presupuesto funde primero la más vieja
     const end = v.release(rel, when);
     if (this.offline) return;                     // offline: la cola vive hasta el final del render
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
@@ -329,11 +313,111 @@ export class AudioEngine {
   }
   _fadeKill(v) {            // fundido TAIL_FADE y liberar (ver arriba)
     if (!v) return;
+    v._going = true;
     this.tails.delete(v);
     if (v._timer) clearTimeout(v._timer);
     if (v.disposed) return;
     v.fadeOut(TAIL_FADE);
     v._timer = setTimeout(() => this._dispose(v), TAIL_FADE * 1000 + 60);
+  }
+  // ---------- efectos de inserción bajo demanda (ver init) ----------
+  _ensureDist() {
+    if (this.shaper) return;
+    const ctx = this.ctx, S = this.S;
+    this.distPre = ctx.createGain(); this.distPre.gain.value = 1 + S.dist * 6;
+    this.shaper = ctx.createWaveShaper(); this.shaper.curve = makeDistCurve(); this.shaper.oversample = '2x';
+    this.distPost = ctx.createGain(); this.distPost.gain.value = 1 / (1 + S.dist);
+    this.distWet = ctx.createGain(); this.distWet.gain.value = S.dist;
+    this.amp.connect(this.distPre); this.distPre.connect(this.shaper); this.shaper.connect(this.distPost);
+    this.distPost.connect(this.distWet); this.distWet.connect(this.distOut);
+  }
+  _ensureFl() {
+    if (this.flDelay) return;
+    const ctx = this.ctx, S = this.S;
+    this.flDelay = ctx.createDelay(0.05); this.flDelay.delayTime.value = 0.003;
+    this.flFb = ctx.createGain(); this.flFb.gain.value = 0.35;
+    this.flWet = ctx.createGain(); this.flWet.gain.value = S.flAmt;
+    this.distOut.connect(this.flDelay); this.flDelay.connect(this.flWet); this.flWet.connect(this.flOut);
+    this.flDelay.connect(this.flFb); this.flFb.connect(this.flDelay);
+    this.flLFO = mkLFO(ctx, S.flSpd, 0.002); this.flLFO.depth.connect(this.flDelay.delayTime);
+  }
+  // Chorus estéreo: dos líneas cortas moduladas por LFOs a distinta
+  // velocidad (descorrela L/R), sin feedback.
+  _ensureCh() {
+    if (this.chWet) return;
+    const ctx = this.ctx, S = this.S;
+    this.chSend = ctx.createGain(); this.chSend.channelCount = 1; this.chSend.channelCountMode = 'explicit';
+    this.chD1 = ctx.createDelay(0.06); this.chD1.delayTime.value = 0.020;
+    this.chD2 = ctx.createDelay(0.06); this.chD2.delayTime.value = 0.028;
+    this.chMerge = ctx.createChannelMerger(2);
+    this.chWet = ctx.createGain(); this.chWet.gain.value = S.chMode === 'chorus' ? S.chAmt : 0;
+    this.flOut.connect(this.chSend);
+    this.chSend.connect(this.chD1); this.chSend.connect(this.chD2);
+    this.chD1.connect(this.chMerge, 0, 0); this.chD2.connect(this.chMerge, 0, 1);
+    this.chMerge.connect(this.chWet); this.chWet.connect(this.chOut);
+    this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
+    this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
+  }
+  // Ensemble "máquina de cuerdas" (triple chorus estilo Solina): 3 líneas de
+  // ~5 ms, cada una modulada por la SUMA de un LFO lento (chSpd) y otro
+  // rápido (x10), con las fases repartidas a 120° entre líneas. Línea 1 -> L,
+  // línea 3 -> R, línea 2 al centro. Comparte chAmt/chSpd con el chorus;
+  // chMode decide cuál de los dos wets suena (el otro queda a 0).
+  _ensureEns() {
+    if (this.ensWet) return;
+    const ctx = this.ctx, S = this.S;
+    this.ensSend = ctx.createGain(); this.ensSend.channelCount = 1; this.ensSend.channelCountMode = 'explicit';
+    this.ensL = ctx.createGain(); this.ensR = ctx.createGain();
+    this.ensL.gain.value = this.ensR.gain.value = 0.6;   // 2 líneas por canal ~ nivel del chorus
+    this.ensCtr = ctx.createGain(); this.ensCtr.gain.value = 0.71;
+    this.ensMerge = ctx.createChannelMerger(2);
+    this.ensWet = ctx.createGain(); this.ensWet.gain.value = S.chMode === 'ensemble' ? S.chAmt : 0;
+    this.ensDelays = [];
+    for (let i = 0; i < 3; i++) {
+      const d = ctx.createDelay(0.03); d.delayTime.value = 0.005;
+      const slow = mkPhasedLFO(ctx, S.chSpd, 0.0022, i * 120);
+      const fast = mkPhasedLFO(ctx, Math.min(12, S.chSpd * 10), 0.00035, i * 120 + 90);
+      slow.depth.connect(d.delayTime); fast.depth.connect(d.delayTime);
+      this.ensDelays.push(d); this.ensSlow.push(slow); this.ensFast.push(fast);
+    }
+    this.flOut.connect(this.ensSend);
+    this.ensDelays.forEach(d => this.ensSend.connect(d));
+    this.ensDelays[0].connect(this.ensL);
+    this.ensDelays[2].connect(this.ensR);
+    this.ensDelays[1].connect(this.ensCtr); this.ensCtr.connect(this.ensL); this.ensCtr.connect(this.ensR);
+    this.ensL.connect(this.ensMerge, 0, 0); this.ensR.connect(this.ensMerge, 0, 1);
+    this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
+  }
+  // Coste fijo del motor (sin notas) en «voces simples», medido: lo cuenta el
+  // presupuesto común junto con las voces (en Partes hay cinco motores).
+  engineCost() {
+    if (!this.ready) return 0;
+    return ENGINE_COST.base + (this.shaper ? ENGINE_COST.dist : 0) + (this.flDelay ? ENGINE_COST.fl : 0)
+      + (this.chWet ? ENGINE_COST.ch : 0) + (this.ensWet ? ENGINE_COST.ens : 0);
+  }
+  // Presupuesto de CPU (VOICE_BUDGET): hace sitio para una voz de coste `cost`
+  // sumando lo que suenan TODOS los motores de este contexto. Primero funde la
+  // cola más vieja de cualquiera de ellos; si no quedan colas, roba la voz
+  // pulsada más vieja de ESTE motor (la parte que pide la nota). Lo que ya se
+  // está yendo (_going) no cuenta: libera CPU en cuanto termina su fundido.
+  _makeRoom(cost) {
+    if (this.offline) return;
+    const live = v => v && !v.disposed && !v._going;
+    let used = 0;
+    for (const e of this.budget) {
+      used += e.engineCost();
+      for (const v of e.voices.values()) if (live(v)) used += v.cost || 1;
+      for (const v of e.tails) if (live(v)) used += v.cost || 1;
+    }
+    while (used + cost > VOICE_BUDGET + 1e-9) {          // (margen: que el redondeo de la suma no funda una cola de más)
+      let old = null, owner = null;
+      for (const e of this.budget) for (const v of e.tails) if (live(v) && (!old || v._relAt < old._relAt)) { old = v; owner = e; }
+      if (old) { used -= old.cost || 1; owner._fadeKill(old); continue; }
+      const id = [...this.voices.keys()].find(k => live(this.voices.get(k)));
+      if (id === undefined) break;                          // nada más que soltar: la voz entra igual
+      const v = this.voices.get(id);
+      used -= v.cost || 1; this._releaseVoice(id, 0.02); v._going = true;
+    }
   }
   _dispose(v) {             // libera nodos tras la cola de release (NO toca el contador)
     if (v.disposed) return;
@@ -414,9 +498,9 @@ export class AudioEngine {
       case 'freqLfoSpd': setLfoRate(this.freqLFO, value, now); break;
       case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
       case 'pwmLfoSpd': setLfoRate(this.pwmLFO, value, now); break;
-      case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); break;
+      case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureCutLfo()); break;   // conectar al filtro solo al usarlo (Voice)
       case 'cutLfoSpd': setLfoRate(this.cutLFO, value, now); break;
-      case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); break;
+      case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureResLfo()); break;
       case 'resLfoSpd': setLfoRate(this.resLFO, value, now); break;
       case 'panLfoLvl': smooth(this.panLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePan()); break;
       case 'panLfoSpd': smooth(this.panLFO.osc.frequency, value); break;
@@ -429,22 +513,31 @@ export class AudioEngine {
       case 'resLfoShape':  setLfoShape(this.ctx, this.resLFO, value); break;
 
       case 'dist':
-        smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
-        smooth(this.distPost.gain, 1 / (1 + value));
+        if (value > 0) this._ensureDist();
         smooth(this.distDry.gain, 1 - value);   // crossfade: a 0 = todo seco (limpio, sin recorte)
-        smooth(this.distWet.gain, value);
+        if (this.shaper) {
+          smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
+          smooth(this.distPost.gain, 1 / (1 + value));
+          smooth(this.distWet.gain, value);
+        }
         break;
-      case 'flAmt': smooth(this.flWet.gain, value); break;
-      case 'flSpd': smooth(this.flLFO.osc.frequency, value); break;
-      case 'chAmt': smooth(this.S.chMode === 'ensemble' ? this.ensWet.gain : this.chWet.gain, value); break;
+      case 'flAmt': if (value > 0) this._ensureFl(); if (this.flWet) smooth(this.flWet.gain, value); break;
+      case 'flSpd': if (this.flLFO) smooth(this.flLFO.osc.frequency, value); break;
+      case 'chAmt': {
+        const ens = this.S.chMode === 'ensemble';
+        if (value > 0) { if (ens) this._ensureEns(); else this._ensureCh(); }
+        const w = ens ? this.ensWet : this.chWet; if (w) smooth(w.gain, value);
+        break;
+      }
       case 'chSpd':
-        smooth(this.chLFO1.osc.frequency, value); smooth(this.chLFO2.osc.frequency, value * 1.17);
+        if (this.chLFO1) { smooth(this.chLFO1.osc.frequency, value); smooth(this.chLFO2.osc.frequency, value * 1.17); }
         this.ensSlow.forEach(l => smooth(l.osc.frequency, value));
         this.ensFast.forEach(l => smooth(l.osc.frequency, Math.min(12, value * 10)));
         break;
       case 'chMode':          // crossfade suave entre los dos wets (sin clicks)
-        smooth(this.chWet.gain, value === 'chorus' ? this.S.chAmt : 0);
-        smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
+        if (this.S.chAmt > 0) { if (value === 'ensemble') this._ensureEns(); else this._ensureCh(); }
+        if (this.chWet) smooth(this.chWet.gain, value === 'chorus' ? this.S.chAmt : 0);
+        if (this.ensWet) smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
         break;
       // Envíos a la Sala. En modo único la realimentación del eco sigue al
       // Amount y los ecos entran en la reverb según el Mix — como siempre; en
@@ -480,9 +573,17 @@ export class AudioEngine {
 
   // ---------- modo Partes: mute / pan / macro / desmontaje ----------
   setMute(on) { if (this.ready) this.muteG.gain.setTargetAtTime(on ? 0 : 1, this.ctx.currentTime, 0.02); }
-  setMacro(cents, tau = 0.3) { if (this.ready) this.macroCut.offset.setTargetAtTime(cents, this.ctx.currentTime, tau); }
+  setMacro(cents, tau = 0.3) { if (!this.ready) return; if (cents) this._macroConnect(); this.macroCut.offset.setTargetAtTime(cents, this.ctx.currentTime, tau); }
+  // La macro se engancha a los filtros la primera vez que vale algo (en directo
+  // al moverla el arreglo; offline al automatizarla) — voces vivas y colas incluidas.
+  _macroConnect() {
+    if (this._macroOn) return;
+    this._macroOn = true;
+    this._forVoices(v => v.ensureMacro()); this.tails.forEach(v => v.ensureMacro());
+  }
   automateMacro(cents, t, ramp) {     // offline: valor (o rampa hasta) `cents` en t
     if (!this.ready) return;
+    this._macroConnect();
     if (ramp) this.macroCut.offset.linearRampToValueAtTime(cents, t); else this.macroCut.offset.setValueAtTime(cents, t);
   }
   setPan(v)   { if (this.ready) this.partPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), this.ctx.currentTime, 0.02); }
@@ -496,13 +597,14 @@ export class AudioEngine {
     this.tails.clear();
     clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
     const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
-                  this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast];
+                  this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast].filter(Boolean);   // los de los efectos, si llegaron a nacer
     for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } }
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }
     for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
     this.sala.engines = this.sala.engines.filter(e => e !== this);
+    this.budget.delete(this);
     if (this.ownsSala) this.sala.dispose();
     this.ready = false;
   }

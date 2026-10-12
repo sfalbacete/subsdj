@@ -1,14 +1,14 @@
 /* SubSDJ · gráfico de la envolvente ADSR (amp + filtro comparten A/D/S/R) */
 import { part } from '../engine/parts.js';
 import { token, tint } from './theme.js';
+import { fitCanvas } from './frame.js';
 
 export function initADSRGraph(canvas) {
   const ctx = canvas.getContext('2d');
-  const fit = () => { canvas.width = canvas.clientWidth || 220; canvas.height = canvas.clientHeight || 90; };
 
   function draw() {
-    fit();
-    const S = part().S, w = canvas.width, h = canvas.height, pad = 8;
+    const { w, h } = fitCanvas(canvas, ctx, 220, 90);   // px de diseño; backing store a dpr × zoom
+    const S = part().S, pad = 8;
     ctx.clearRect(0, 0, w, h);
 
     const { a, d, s, r } = S;

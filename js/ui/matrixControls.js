@@ -28,7 +28,7 @@ export function bindMatrixControls() {
       `<select id="mx${i}src" title="Fuente de modulación"></select>` +
       `<span class="mx-arrow">→</span>` +
       `<select id="mx${i}dst" title="Destino"></select>` +
-      `<div class="ctl"><div class="knob" data-knob="mx${i}amt" title="Cantidad (±)"><div class="ind"></div></div><div class="val"></div></div>`;
+      `<div class="ctl ks" data-lab="Slot ${i} · cantidad"><div class="knob" data-knob="mx${i}amt" title="Cantidad (±)"><div class="ind"></div></div><div class="val"></div></div>`;
     host.appendChild(row);
     bindSel(row.querySelector(`#mx${i}src`), `mx${i}src`, MX_SOURCES);
     bindSel(row.querySelector(`#mx${i}dst`), `mx${i}dst`, MX_DESTS);

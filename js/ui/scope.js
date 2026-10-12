@@ -1,10 +1,11 @@
 /* SubSDJ · osciloscopio (dominio del tiempo) + analizador de espectro del
-   máster, en la cabecera (globales, como el teclado). Canvas a resolución
-   física (devicePixelRatio) porque son pequeños. */
+   máster, en la pantalla «Salida» (lo que suena: todas las partes). Canvas a
+   resolución física (devicePixelRatio × zoom del instrumento). */
 import { part } from '../engine/parts.js';
 import { token, tint, hue } from './theme.js';
+import { uiZoom } from './frame.js';
 
-const dpr = () => window.devicePixelRatio || 1;
+const dpr = () => (window.devicePixelRatio || 1) * uiZoom();   // px físicos por px de diseño (el instrumento va escalado)
 function fit(c) { c.width = Math.round((c.clientWidth || 170) * dpr()); c.height = Math.round((c.clientHeight || 36) * dpr()); }
 
 export function initScope(scopeCanvas, specCanvas) {

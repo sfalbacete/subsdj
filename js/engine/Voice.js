@@ -43,6 +43,22 @@ const DRIVE_CURVE = (() => {
 // o el decay dejaba la voz colgada. Las rampas se cortan sin problema.
 const ENV_K = 6, ENV_SEG = 12;
 
+// Pesos de Voice.cost, en «voces simples» (dos sierras con el filtro quieto =
+// 1 ≈ 1,6 % de un núcleo en el PC de referencia, render offline). Medidos con
+// 12 voces por variante (2026-10-12). Lo que más pesa es el NÚMERO DE NODOS de
+// la voz, no la matemática del oscilador: una copia más de unison o una Súper
+// apenas suma (copy); lo que va por muestra en JS con senos sí (FM, FM4).
+const COST = {
+  base: 1,            // la voz: ~30 nodos (mezcla, ruido, filtro, VCA, pan) + 2 worklets
+  copy: 0.005,        // cada copia de oscilador (unison, Súper = 7, octavas apiladas): PolyBLEP, barato
+  sine: 0.06, sineFm: 0.18, fm4: 0.47,   // por copia: senos por muestra (FM con índice: dos; FM4: cuatro)
+  filterMod: 0.07, filterMod24: 0.16,     // filtro modulado (env, LFO, matriz): coeficientes por muestra
+  drive: 0.15, vocal: 0.25, reson: 0.24,
+  vocDyn: 0.26,       // Vocal dinámico por el Golpe: 10 WaveShapers (biquads aún en k-rate)
+  vocMx: 0.8,         // Vocal movido por la matriz: WaveShapers + biquads a-rate (medido en «Madrigal»)
+};
+const mxDst = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === d) return true; return false; };
+
 export class Voice {
   constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
     this.ctx = ctx;
@@ -116,17 +132,13 @@ export class Voice {
     const preFilter = ctx.createGain();
     normX.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
 
-    // --- Drive pre-filtro (saturación tanh por voz, dry/wet): a 0 el camino
-    // dry pasa a ganancia 1 y el wet queda a 0 -> transparente ---
-    const dv = S.filterDrive;
-    const dvDry = ctx.createGain(); dvDry.gain.value = 1 - dv;
-    const dvPre = ctx.createGain(); dvPre.gain.value = 1 + dv * 4;
-    const dvShaper = ctx.createWaveShaper(); dvShaper.curve = DRIVE_CURVE; dvShaper.oversample = '2x';
-    const dvPost = ctx.createGain(); dvPost.gain.value = 1 / (1 + dv * 1.5);
-    const dvWet = ctx.createGain(); dvWet.gain.value = dv;
+    // --- Drive pre-filtro (saturación tanh por voz, dry/wet). Solo el camino
+    // seco existe siempre: a 0 pasa a ganancia 1 (transparente EXACTO). El wet
+    // — un WaveShaper sobremuestreado ×2, caro aunque su salida valga 0 — nace
+    // bajo demanda (ensureDrive) cuando el knob sube de 0. ---
+    const dvDry = ctx.createGain(); dvDry.gain.value = 1 - S.filterDrive;
     const dvOut = ctx.createGain();
     preFilter.connect(dvDry); dvDry.connect(dvOut);
-    preFilter.connect(dvPre); dvPre.connect(dvShaper); dvShaper.connect(dvPost); dvPost.connect(dvWet); dvWet.connect(dvOut);
 
     // --- Vocal: banco de formantes dry/wet ANTES del filtro (los formantes
     // enriquecen la fuente; el LP/HP conserva su papel de brillo global).
@@ -184,21 +196,20 @@ export class Voice {
       resOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
     }
 
-    // LFOs -> cutoff (todas las etapas) / Q (solo la etapa con resonancia): el
-    // global del motor (fase única) o el propio de esta voz (lfoPhase 'voz')
-    const cutG = this._lfoGain('cut'), resG = this._lfoGain('res');
-    cutG.connect(lp.frequency); cutG.connect(hp.frequency);
-    if (lp2) { cutG.connect(lp2.frequency); cutG.connect(hp2.frequency); }
-    resG.connect(lp.Q); resG.connect(hp.Q);
-    this.cutG = cutG; this.resG = resG;
-    // macro de apertura del arreglo (cents sobre el detune: exponencial)
-    if (mod.macroCut) [lp, hp, lp2, hp2].forEach(f => { if (f) mod.macroCut.connect(f.detune); });
+    // Modulación del filtro — LFO de cutoff (todas las etapas) y de reso (la
+    // etapa con resonancia), envolvente de filtro y macro de apertura del
+    // arreglo — se CONECTA solo cuando mueve algo (ensureCutLfo, ensureResLfo,
+    // ensureFenv, ensureMacro; también en vivo, al subir su knob). Una conexión
+    // a un AudioParam del biquad, aunque traiga ceros, obliga al navegador a
+    // recalcular los coeficientes en CADA muestra en vez de una vez por bloque:
+    // medido, el filtro de la voz costaba más del doble con todo a 0.
+    // Desconectada, la salida es exactamente la misma (sumaba 0).
 
-    // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff
+    // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff. La fuente
+    // existe siempre: es también la fuente «Env filtro» de la matriz.
     const fenv = ctx.createConstantSource(); fenv.offset.value = 0;
     const fenvGain = ctx.createGain(); fenvGain.gain.value = S.filterEnvAmt;
-    fenv.connect(fenvGain); fenvGain.connect(lp.frequency); fenvGain.connect(hp.frequency);
-    if (lp2) { fenvGain.connect(lp2.frequency); fenvGain.connect(hp2.frequency); }
+    fenv.connect(fenvGain);
     fenv.start(t);
 
     // --- VCA (envolvente de amplitud) + colocación estéreo ---
@@ -238,7 +249,12 @@ export class Voice {
     // guardar refs para updates en vivo y limpieza
     Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
       filterType: ft, lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
-      dvDry, dvPre, dvShaper, dvPost, dvWet, dvOut, vocDry, vocOut, resDry, resOut });
+      preFilter, dvDry, dvOut, vocDry, vocOut, resDry, resOut });
+    if (S.filterDrive > 0) this.ensureDrive();  // el wet del drive (WaveShaper 2x) solo si muerde
+    if (S.cutLfoLvl > 0) this.ensureCutLfo();   // modulación del filtro: solo lo que mueve algo (ver arriba)
+    if (S.resLfoLvl > 0) this.ensureResLfo();
+    if (S.filterEnvAmt) this.ensureFenv();
+    if (mod.macroOn && mod.macroOn()) this.ensureMacro();
     if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
     if (S.vocAmt > 0) this.ensureVocal();       // banco de formantes (también lo crea la matriz vía 'vow')
     if (S.resAmt > 0) this.ensureReson();       // banco modal (necesita vocOut y noiseGain ya asignados)
@@ -250,6 +266,26 @@ export class Voice {
     this.mxSlots = [];                          // slot i -> {src, gain, dst}
     this._mxConsts = {};                        // fuentes escalares por voz (vel/note/rnd), cacheadas
     for (let i = 1; i <= MX_SLOTS; i++) this.mxRewire(i);
+  }
+
+  // Coste estimado de una voz en CPU de audio, en «voces simples» (dos sierras
+  // con el filtro quieto y sin módulos = 1): lo usa el presupuesto común de
+  // AudioEngine (VOICE_BUDGET). Pesos MEDIDOS (render offline de 12 voces por
+  // variante; ver el README): lo caro es lo que se calcula por muestra.
+  static cost(S) {
+    const c = COST;
+    const osc = o => {
+      const copies = (o.wave === 'supersaw' ? 7 : (+S.uniVoices || 1)) * Math.max(1, o.octaves || 1);
+      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : c.copy;
+      return copies * w;
+    };
+    let k = c.base + osc(S.oscA) + osc(S.oscB);
+    const fmod = S.filterEnvAmt || S.cutLfoLvl > 0 || S.resLfoLvl > 0 || mxDst(S, 'cutoff') || mxDst(S, 'reso');
+    if (fmod) k += S.filterSlope === '24' && S.filterType !== 'notch' ? c.filterMod24 : c.filterMod;
+    if (S.filterDrive > 0) k += c.drive;
+    if (S.vocAmt > 0) k += c.vocal + (mxDst(S, 'vow') ? c.vocMx : S.vocAtk > 0 ? c.vocDyn : 0);   // la Vida, medida, no suma
+    if (S.resAmt > 0) k += c.reson;
+    return k;
   }
 
   _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
@@ -414,6 +450,22 @@ export class Voice {
     this.oscs.forEach(o => this.pwmFade.connect(o.pw));
   }
   ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.panG = this._lfoGain('pan'); this.panG.connect(this.panner.pan); }
+  // Modulación del filtro y drive, bajo demanda (el porqué, en el constructor)
+  _filters() { return [this.lp, this.hp, this.lp2, this.hp2].filter(Boolean); }
+  ensureCutLfo() { if (this.cutG || this.disposed) return; this.cutG = this._lfoGain('cut'); this._filters().forEach(f => this.cutG.connect(f.frequency)); }
+  ensureResLfo() { if (this.resG || this.disposed) return; this.resG = this._lfoGain('res'); this.resG.connect(this.lp.Q); this.resG.connect(this.hp.Q); }
+  ensureFenv()   { if (this._connFenv || this.disposed) return; this._connFenv = true; this._filters().forEach(f => this.fenvGain.connect(f.frequency)); }
+  ensureMacro()  { if (this._connMacro || this.disposed || !this.mod.macroCut) return; this._connMacro = true; this._filters().forEach(f => this.mod.macroCut.connect(f.detune)); }
+  ensureDrive() {
+    if (this.dvShaper || this.disposed) return;
+    const ctx = this.ctx, dv = this.S.filterDrive;
+    this.dvPre = ctx.createGain(); this.dvPre.gain.value = 1 + dv * 4;
+    this.dvShaper = ctx.createWaveShaper(); this.dvShaper.curve = DRIVE_CURVE; this.dvShaper.oversample = '2x';
+    this.dvPost = ctx.createGain(); this.dvPost.gain.value = 1 / (1 + dv * 1.5);
+    this.dvWet = ctx.createGain(); this.dvWet.gain.value = dv;
+    this.preFilter.connect(this.dvPre); this.dvPre.connect(this.dvShaper); this.dvShaper.connect(this.dvPost);
+    this.dvPost.connect(this.dvWet); this.dvWet.connect(this.dvOut);
+  }
 
   // ---------- LFOs y deriva POR VOZ (Roadmap 5.0 · bloque 2) ----------
   // _vlfo(k): el LFO propio k ('cut'|'res'|'freq'|'pwm'|'pan'), creado al primer
@@ -449,9 +501,44 @@ export class Voice {
   // de matriz 'vow' SUMAN en la entrada de los WaveShapers; cada shaper mapea
   // control → cents (freqCurve) o → ganancia lineal (gainCurve). OJO WebAudio:
   // la Q del bandpass es LINEAL (f/BW), no en dB como lowpass/highpass.
+  //
+  // DOS MODOS, por coste. ESTÁTICO (el normal: solo el knob mueve la vocal): los
+  // formantes se fijan con el valor de las curvas en el control (Voice._shape,
+  // misma interpolación que un WaveShaper) y se deslizan con setTargetAtTime.
+  // DINÁMICO (Golpe > 0, o un slot de la matriz hacia 'Vocal'): como siempre —
+  // ConstantSource del knob + slots → 10 WaveShapers → cents y ganancias a
+  // audio-rate (_vocGoDynamic; también a mitad de nota si llega un slot).
+  // Y los 5 biquads van en K-RATE (coeficientes una vez por bloque de 128
+  // muestras, 2,7 ms) salvo con la matriz: la Vida (paseo lento), el knob
+  // (~50 ms) y la transición del Golpe (τ 24 ms) son mucho más lentos que un
+  // bloque, y recalcular por muestra era la mitad del CPU de una voz de coro
+  // (medido: banco + Vida a audio-rate ×4 frente a k-rate sin shapers). Un
+  // LFO hacia 'Vocal' sí puede barrer deprisa: con matriz, a-rate.
   ensureVocal() {
     if (this.vocBqs || this.disposed) return;
-    const ctx = this.ctx, S = this.S, bank = getVocalBank(), mul = bwMul(S.vocQ);
+    const ctx = this.ctx, S = this.S, bank = getVocalBank(), mul = bwMul(S.vocQ), x = S.vocVowel * 2 - 1;
+    this.vocWet = ctx.createGain(); this.vocWet.gain.value = S.vocAmt * vocMakeup(S.vocQ);
+    this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrillos = [];
+    bank.forEach((f, i) => {
+      const bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
+      Voice._rate(bq, 'k-rate');
+      bq.frequency.value = f.ref;
+      bq.detune.value = S.vocSize + Voice._shape(f.freqCurve, x);
+      bq.Q.value = f.ref / (f.bw * mul);          // Q constante: el BW escala con el shift (natural)
+      const g = ctx.createGain(); g.gain.value = Voice._shape(f.gainCurve, x) * this._vocBrillo(i, S.vocBrillo);
+      this.dvOut.connect(bq); bq.connect(g); g.connect(this.vocWet);
+      this.vocBqs.push(bq); this.vocGains.push(g);
+    });
+    this.vocWet.connect(this.vocOut);
+    if (S.vocAtk > 0 || this._mxHasVow()) this._vocGoDynamic();
+    // (los slots 'vow' de la matriz no necesitan recableo: mxRewire pasa por
+    // _mxDestParams, que llama aquí ANTES de conectar — el banco siempre llega primero)
+    if (this._needVida) this.ensureVida();
+  }
+  // Paso a modo dinámico: la señal de control y sus 10 WaveShapers (ver arriba).
+  _vocGoDynamic() {
+    if (this.vocCtl || !this.vocBqs || this.disposed) return;
+    const ctx = this.ctx, S = this.S, bank = getVocalBank();
     this.vocCtl = ctx.createConstantSource();
     const vTarget = S.vocVowel * 2 - 1;
     this.vocCtl.offset.value = vTarget;
@@ -464,13 +551,11 @@ export class Voice {
       this.vocCtl.offset.setTargetAtTime(vTarget, this.t0, VOC_ATK_TRANS);
     }
     this.vocCtl.start(this.t0);
-    this.vocWet = ctx.createGain(); this.vocWet.gain.value = S.vocAmt * vocMakeup(S.vocQ);
-    this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrillos = [];
+    if (this._mxHasVow()) this.vocBqs.forEach(bq => Voice._rate(bq, 'a-rate'));   // la matriz puede barrer deprisa
     bank.forEach((f, i) => {
-      const bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
-      bq.frequency.value = f.ref; bq.detune.value = S.vocSize;
-      bq.Q.value = f.ref / (f.bw * mul);          // Q constante: el BW escala con el shift (natural)
-      const g = ctx.createGain(); g.gain.value = 0;   // la ganancia la pone su shaper
+      const bq = this.vocBqs[i], g = this.vocGains[i];
+      bq.detune.cancelScheduledValues(0); bq.detune.value = S.vocSize;   // base: el Tamaño; la vocal la suma su shaper
+      g.gain.cancelScheduledValues(0); g.gain.value = 0;                // la ganancia la pone su shaper
       const shF = ctx.createWaveShaper(); shF.curve = f.freqCurve;
       const shG = ctx.createWaveShaper(); shG.curve = f.gainCurve;
       this.vocCtl.connect(shF); this.vocCtl.connect(shG);
@@ -481,14 +566,21 @@ export class Voice {
         shG.connect(bg); bg.connect(g.gain);
         this.vocBrillos.push(bg);
       } else shG.connect(g.gain);
-      this.dvOut.connect(bq); bq.connect(g); g.connect(this.vocWet);
-      this.vocBqs.push(bq); this.vocGains.push(g); this.vocShapers.push(shF, shG);
+      this.vocShapers.push(shF, shG);
     });
-    this.vocWet.connect(this.vocOut);
-    // (los slots 'vow' de la matriz no necesitan recableo: mxRewire pasa por
-    // _mxDestParams, que llama aquí ANTES de conectar — el banco siempre llega primero)
-    if (this._needVida) this.ensureVida();
   }
+  _vocBrillo(i, b) { return i >= VOC_BRILLO_IX ? brilloMul(b) : 1; }
+  _mxHasVow() { for (let i = 1; i <= MX_SLOTS; i++) if (this.S['mx' + i + 'src'] !== 'off' && this.S['mx' + i + 'dst'] === 'vow') return true; return false; }
+  // Valor de una curva en el control x ∈ [−1, 1] con la interpolación del
+  // WaveShaper (spec: índice (N−1)·(x+1)/2, lineal entre vecinos, recorte en los bordes).
+  static _shape(curve, x) {
+    const N = curve.length, v = (N - 1) * (x + 1) / 2;
+    if (!(v > 0)) return curve[0];
+    if (v >= N - 1) return curve[N - 1];
+    const k = Math.floor(v), f = v - k;
+    return curve[k] + (curve[k + 1] - curve[k]) * f;
+  }
+  static _rate(bq, rate) { for (const p of [bq.frequency, bq.detune, bq.Q, bq.gain]) { try { p.automationRate = rate; } catch (e) { /* navegador sin automationRate: se queda a-rate */ } } }
   // 'Vida': micro-deriva de los formantes — un paseo lento compartido
   // (mod.wanderBuffer) leído desde un offset ALEATORIO por voz (coro
   // descorrelacionado con un solo buffer), sumado en cents al detune de los
@@ -611,7 +703,7 @@ export class Voice {
       // vocal: el slot suma su señal en la ENTRADA de los WaveShapers (junto
       // al ConstantSource del knob) — connect() acepta nodos igual que params.
       // Fuera de [-1,1] el shaper satura: el barrido se queda en u / i.
-      case 'vow':    this.ensureVocal(); return this.vocShapers || [];
+      case 'vow':    this.ensureVocal(); this._vocGoDynamic(); (this.vocBqs || []).forEach(bq => Voice._rate(bq, 'a-rate')); return this.vocShapers || [];
     }
     return [];
   }
@@ -653,10 +745,12 @@ export class Voice {
   setKeytrack(kt, cutoffHz) { this.ktMul = kt ? Math.pow(this.noteFreq / 261.63, kt) : 1; this.setCutoff(cutoffHz); }
   setReso(q)   { const tc = this.ctx.currentTime, v = this.filterType === 'bp' ? q / 2 : q; this.lp.Q.setTargetAtTime(v, tc, 0.02); this.hp.Q.setTargetAtTime(v, tc, 0.02); }
   setMorph(m)  { if (this.filterType !== 'morph') return; const tc = this.ctx.currentTime; this.lpMix.gain.setTargetAtTime(1 - m, tc, 0.02); this.hpMix.gain.setTargetAtTime(m, tc, 0.02); }
-  setFilterEnvAmt(hz) { this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
+  setFilterEnvAmt(hz) { if (hz) this.ensureFenv(); this.fenvGain.gain.setTargetAtTime(hz, this.ctx.currentTime, 0.02); }
   setFilterDrive(v) {
+    if (v > 0) this.ensureDrive();
     const tc = this.ctx.currentTime;
     this.dvDry.gain.setTargetAtTime(1 - v, tc, 0.02);
+    if (!this.dvWet) return;
     this.dvPre.gain.setTargetAtTime(1 + v * 4, tc, 0.02);
     this.dvPost.gain.setTargetAtTime(1 / (1 + v * 1.5), tc, 0.02);
     this.dvWet.gain.setTargetAtTime(v, tc, 0.02);
@@ -678,11 +772,23 @@ export class Voice {
     if (this.vocWet) this.vocWet.gain.setTargetAtTime(v * vocMakeup(this.S.vocQ), tc, 0.02);
   }
   setVocVowel(v) {   // articulación ~50 ms: el knob "pronuncia", no salta
-    if (this.vocCtl) this.vocCtl.offset.setTargetAtTime(v * 2 - 1, this.ctx.currentTime, VOC_SMOOTH);
+    if (this.vocCtl) { this.vocCtl.offset.setTargetAtTime(v * 2 - 1, this.ctx.currentTime, VOC_SMOOTH); return; }
+    this._vocStatic(v * 2 - 1, VOC_SMOOTH);          // modo estático: los formantes, directamente
   }
   setVocSize(ct) {
     const tc = this.ctx.currentTime;
-    if (this.vocBqs) this.vocBqs.forEach(bq => bq.detune.setTargetAtTime(ct, tc, 0.02));
+    if (!this.vocBqs) return;
+    if (this.vocCtl) this.vocBqs.forEach(bq => bq.detune.setTargetAtTime(ct, tc, 0.02));
+    else this._vocStatic(this.S.vocVowel * 2 - 1, 0.02, ct);
+  }
+  // Modo estático: lleva frecuencias (cents) y ganancias al punto x de las curvas
+  _vocStatic(x, tau, size = this.S.vocSize) {
+    if (!this.vocBqs || this.vocCtl) return;
+    const tc = this.ctx.currentTime, bank = getVocalBank();
+    bank.forEach((f, i) => {
+      this.vocBqs[i].detune.setTargetAtTime(size + Voice._shape(f.freqCurve, x), tc, tau);
+      this.vocGains[i].gain.setTargetAtTime(Voice._shape(f.gainCurve, x) * this._vocBrillo(i, this.S.vocBrillo), tc, tau);
+    });
   }
   setVocQ(q) {
     if (!this.vocBqs) return;
@@ -691,7 +797,8 @@ export class Voice {
     this.vocWet.gain.setTargetAtTime(this.S.vocAmt * vocMakeup(q), tc, 0.02);
   }
   setVocBrillo(b) {
-    if (!this.vocBrillos) return;
+    if (!this.vocBqs) return;
+    if (!this.vocCtl) { this._vocStatic(this.S.vocVowel * 2 - 1, 0.02); return; }   // estático: Brillo va en la ganancia de F4-F5
     const tc = this.ctx.currentTime;
     this.vocBrillos.forEach(g => g.gain.setTargetAtTime(brilloMul(b), tc, 0.02));
   }
@@ -772,9 +879,9 @@ export class Voice {
     });
     // (cutG/resG/panG son los gains globales del motor o los propios de la voz: la misma desconexión)
     if (this.panG) { try { this.panG.disconnect(this.panner.pan); } catch (e) {} }
-    [this.lp, this.hp, this.lp2, this.hp2].forEach(f => { if (f) { try { this.cutG.disconnect(f.frequency); } catch (e) {} } });
-    try { this.resG.disconnect(this.lp.Q); } catch (e) {}
-    try { this.resG.disconnect(this.hp.Q); } catch (e) {}
+    if (this.cutG) this._filters().forEach(f => { try { this.cutG.disconnect(f.frequency); } catch (e) {} });
+    if (this.resG) { try { this.resG.disconnect(this.lp.Q); } catch (e) {} try { this.resG.disconnect(this.hp.Q); } catch (e) {} }
+    if (this._connMacro) this._filters().forEach(f => { try { this.mod.macroCut.disconnect(f.detune); } catch (e) {} });   // la macro es del motor: soltar solo lo de esta voz
     // LFOs y deriva propios de la voz: parar sus buffers (un BufferSource en loop no se para solo)
     if (this.vlfo) for (const k in this.vlfo) stopVoiceLFO(this.vlfo[k]);
     stopVoiceLFO(this.drift);

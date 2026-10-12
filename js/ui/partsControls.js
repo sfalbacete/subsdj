@@ -7,7 +7,7 @@
    de la parte), Pan, envíos Delay/Reverb (= Amount del delay y Mix de la
    reverb del preset), M (silenciar); y la columna Sala: máster de la
    escena, realimentación del eco y eco→reverb. Capa: el teclado toca todas.
-   Los módulos Delay y Reverb del rack llevan la etiqueta «sala» en escena:
+   Los módulos Delay, Reverb y Cinta llevan la etiqueta «sala» en escena:
    salvo Amount/Mix (envíos), sus knobs son de la sala compartida.
    ===================================================================== */
 import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer } from '../engine/parts.js';
@@ -15,7 +15,7 @@ import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
 import { panic } from './keyboard.js';
 
-const SALA_PANELS = ['Delay', 'Reverb'];
+const SALA_PANELS = ['Delay', 'Reverb', 'Cinta'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
 const $ = id => document.getElementById(id);
 let strips = [], silent = false, salaPanels = [];
@@ -45,6 +45,7 @@ function buildStrips() {
     const bindSend = (el, key, cfg) => attachKnob(el, { ...cfg, def: S[key] }, v => {
       if (silent) return;
       p.engine.set(key, v);
+      document.dispatchEvent(new Event('deps-refresh'));   // un envío de otra parte enciende o apaga la sala (ui/deps.js)
       if (p.engine === part() && CONTROLS[key] && CONTROLS[key].get() !== v) CONTROLS[key].set(v);
     });
     const st = {
@@ -111,11 +112,14 @@ function choose(i) {
   document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte
 }
 
+// Con las Partes apagadas, sus módulos siguen EN SU SITIO, atenuados (panel
+// fijo: nada aparece ni desaparece moviendo a los demás); el mezclador vacío
+// explica cómo encenderlas (CSS).
 function setUI(on) {
   $('partsBtn').classList.toggle('on', on);
   $('partSel').hidden = !on;
-  $('mixer').hidden = !on;
-  $('harmony').hidden = !on; $('player').hidden = !on; $('arrange').hidden = !on;
+  for (const id of ['mixer', 'harmony', 'player', 'arrange']) $(id).classList.toggle('parts-off', !on);
+  if (!on) { $('mixStrips').innerHTML = ''; strips = []; }
   document.body.classList.toggle('parts', on);
   document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));
   for (const panel of salaPanels) {

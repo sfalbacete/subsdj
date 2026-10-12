@@ -15,7 +15,8 @@
    control->motor (logCut, rangos), no sólo el DSP.
    Resultados: panel en pantalla + console.table + título de la pestaña.
    ===================================================================== */
-import { AudioEngine, engine, loadWorklets } from './engine/AudioEngine.js';
+import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
+import { Voice } from './engine/Voice.js';
 import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain } from './engine/Sala.js';
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
@@ -42,6 +43,7 @@ import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
 import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
+import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 
 const SR = 44100;
@@ -360,42 +362,42 @@ export async function runSelfTest() {
            problems: okA ? [] : ['paso:' + okStep + ' única:' + okOnce + ' flanco:' + okEdge + ' pc:' + okPC] });
   }
   {
-    // pantallas (13a): ningún módulo huérfano (todos en al menos una pestaña
-    // conocida) y ninguna pestaña vacía; cambiar de pestaña muestra EXACTAMENTE
-    // los módulos que la declaran (estilo computado), marca la pestaña y se
-    // recuerda; la barra rápida vive en Diseño y Presets; la lista de la
-    // pantalla Presets refleja el banco y un clic carga por el mismo camino
-    // que el selector y queda marcado como actual.
+    // pantallas (panel fijo): cada pestaña es un .screen propio, en el orden de
+    // SCREENS, y todo .panel vive dentro de uno. Cambiar de pestaña enseña
+    // EXACTAMENTE su cuerpo (estilo computado), marca la pestaña y se recuerda;
+    // los módulos compartidos (data-slot) pasan al hueco de la pantalla que lo
+    // declara y se ven; la cabecera con los presets está en todas. NADA
+    // RECORTADO: el instrumento mide lo que mide (1920 × 1000) y las bandas
+    // ocultan lo que desborda, así que un mando de más quedaría escondido en
+    // silencio — ni el instrumento ni ninguna banda pueden desbordar. La lista
+    // de la pantalla Presets refleja el banco y un clic carga por el mismo
+    // camino que el selector y queda marcado como actual.
     body.appendChild(el('st-cat', 'Pantallas'));
-    const panels = [...document.querySelectorAll('.rack .panel')];
-    const tags = p => (p.dataset.screens || '').split(' ').filter(Boolean);
+    const bodies = [...document.querySelectorAll('.screen')];
     const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();   // sin LED ni «?»
     const probs = [];
-    const orphans = panels.filter(p => !tags(p).some(t => SCREENS.includes(t))).map(title);
-    const unknown = panels.flatMap(p => tags(p).filter(t => !SCREENS.includes(t)));
-    const empty = SCREENS.filter(s => !panels.some(p => tags(p).includes(s)));
-    if (orphans.length) probs.push('huérfanos: ' + orphans.join(', '));
-    if (unknown.length) probs.push('pantallas desconocidas: ' + unknown.join(', '));
-    if (empty.length) probs.push('pantallas vacías: ' + empty.join(', '));
+    if (bodies.map(b => b.dataset.screenBody).join() !== SCREENS.join()) probs.push('cuerpos: ' + bodies.map(b => b.dataset.screenBody).join() + ' ≠ ' + SCREENS.join());
+    const orphans = [...document.querySelectorAll('.panel')].filter(p => !p.closest('.screen')).map(title);
+    if (orphans.length) probs.push('fuera de pantalla: ' + orphans.join(', '));
+    const bar = document.getElementById('presetBar'), inst = document.getElementById('inst');
+    const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
     const before = currentScreen();
     for (const s of SCREENS) {
       showScreen(s);
-      const shown = panels.filter(p => getComputedStyle(p).display !== 'none');
-      const want = panels.filter(p => tags(p).includes(s) && !p.hidden);
-      if (shown.length !== want.length || !shown.every(p => tags(p).includes(s)))
-        probs.push(s + ': visibles ' + shown.length + ' ≠ esperados ' + want.length);
+      const shown = bodies.filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.screenBody);
+      if (shown.join() !== s) probs.push(s + ': se ven ' + (shown.join(', ') || 'ninguna'));
       if (localStorage.getItem('subsdj.screen.v1') !== s) probs.push(s + ': no se recuerda');
       if (!document.querySelector('#screenTabs button.active[data-screen="' + s + '"]')) probs.push(s + ': pestaña sin marcar');
-      for (const g of document.querySelectorAll('.rack-group')) {
-        const has = [...g.querySelectorAll('.panel')].some(p => tags(p).includes(s));
-        if (g.hidden === has) probs.push(s + ': grupo «' + ((g.querySelector('.rack-title') || {}).textContent || '?') + '» ' + (has ? 'oculto con módulos' : 'visible y vacío'));
+      for (const m of document.querySelectorAll('[data-slot]')) {
+        const host = document.querySelector('.screen[data-screen-body="' + s + '"] [data-slot-host="' + m.dataset.slot + '"]');
+        if (host && (m.parentElement !== host || !m.offsetParent)) probs.push(s + ': «' + m.dataset.slot + '» no está en su hueco');
       }
+      if (getComputedStyle(bar).display === 'none') probs.push(s + ': sin barra de presets');
+      if (inst && over(inst)) probs.push(s + ': el instrumento desborda (' + inst.scrollWidth + '×' + inst.scrollHeight + ')');
+      for (const b of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .band'))
+        if (over(b)) probs.push(s + ': banda ' + (b.id || '?') + ' recorta (' + b.scrollWidth + '×' + b.scrollHeight + ' en ' + b.clientWidth + '×' + b.clientHeight + ')');
     }
-    const bar = document.getElementById('presetBar');
-    showScreen('secuenciacion');
-    if (getComputedStyle(bar).display !== 'none') probs.push('la barra de presets sigue en Secuenciación');
     showScreen('presets');
-    if (getComputedStyle(bar).display === 'none') probs.push('la barra de presets falta en Presets');
     const sel = document.getElementById('presetSelect');
     const items = [...document.querySelectorAll('#presetList .pl-item')];
     if (!items.length || items.length !== library.items().length) probs.push('lista: ' + items.length + ' ítems vs ' + library.items().length + ' en la biblioteca');
@@ -406,7 +408,150 @@ export async function runSelfTest() {
       if (sel.value !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + sel.value + ')');
     }
     showScreen(before);
-    push({ name: 'pantallas (huérfanos · filtro · memoria · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'pantallas (panel fijo · huecos · memoria · nada recortado · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // canvas: el tamaño en pantalla lo pone SOLO el CSS. fitCanvas pone el
+    // backing store a tamaño × dpr × zoom; si la caja de un canvas tomara ese
+    // backing store como ancho natural, cada redibujado lo agrandaría otro
+    // ×dpr×zoom hasta reventar (pasó en una 4K al 150 %: zoom 1,3 × dpr 1,5;
+    // aquí, con dpr 1 y zoom ≤ 1, no crece, por eso se prueba la REGLA y no el
+    // síntoma): se triplica el backing store de cada canvas visible, en cada
+    // pantalla, y su caja no puede moverse.
+    const probs = [];
+    const before = currentScreen();
+    for (const s of SCREENS) {
+      showScreen(s);
+      for (const c of document.querySelectorAll('#inst canvas')) {
+        if (!c.offsetParent) continue;
+        const w0 = c.clientWidth, h0 = c.clientHeight, bw = c.width, bh = c.height;
+        c.width = bw * 3 + 7; c.height = bh * 3 + 7;
+        if (c.clientWidth !== w0 || c.clientHeight !== h0) probs.push(s + ': #' + c.id + ' ' + w0 + '×' + h0 + ' → ' + c.clientWidth + '×' + c.clientHeight);
+        c.width = bw; c.height = bh;
+      }
+    }
+    showScreen(before);   // dispara resize: los canvas se redibujan
+    push({ name: 'canvas: el tamaño lo pone el CSS, no el backing store (sin bucle con dpr × zoom)', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // dependencias (ui/deps.js): lo que NO hace nada con la configuración
+    // actual se apaga en su sitio, con su motivo. Cada regla apunta a algo que
+    // existe (renombrar un h2 o un control la dejaría muda sin avisar; las de
+    // la escena apuntan a knobs que nacen con las Partes) y unos casos de
+    // muestra por el camino de los controles: cada uno parte de Reset, toca
+    // lo suyo y mira el motivo (un trozo) o que esté vivo (null). Apagado no
+    // es bloqueado: el control sigue tocable.
+    const probs = [];
+    for (const [what] of RULES) if (!/data-key/.test(what) && !depTargets(what).length) probs.push('regla sin destino: ' + what);
+    const keep = snapshot(), C = CONTROLS;
+    const off = what => { const t = depTargets(what)[0]; return t ? (t.dataset.off || null) : 'SIN DESTINO'; };
+    const caso = (label, setup, checks) => {
+      loadState({}); setup(); refreshDeps();
+      for (const [what, want] of checks) {
+        const got = off(what), ok = want === null ? got === null : !!(got && got.includes(want));
+        if (!ok) probs.push(label + ': ' + what + ' → ' + (got || 'vivo') + ' (esperado ' + (want || 'vivo') + ')');
+      }
+    };
+    caso('Reset', () => {}, [['sec:Osc A', null], ['sec:Osc B', 'Mix'], ['pulseWidth', 'Cuadrada'], ['spread', 'Súper'],
+      ['sec:FM', 'Seno'], ['sec:FM4', 'FM4'], ['sec:Tabla de ondas', 'Tabla'], ['sec:Editor de ondas', 'Tabla'],
+      ['noiseColor', 'Ruido'], ['vocVowel', 'Mix a 0'], ['resMat', 'Mezcla a 0'], ['fa', 'Amount'], ['fenvMode', 'Amount'],
+      ['hitGap', 'golpe'], ['pitchEnvDec', 'Amt'], ['uniDetune', '1 voz'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
+      ['mx1dst', 'libre'], ['mx1amt', 'libre'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
+      ['bpm', 'tempo'], ['reverbSize', 'Mix'], ['shimInt', 'Mix'], ['arpGate', 'Off'], ['seqGate', 'Off'],
+      ['#seqCanvas', 'Off'], ['sec:Tabla · secuencia', 'Tabla'], ['sec:Unison', null], ['mix', null], ['cutoff', null]]);
+    caso('Mix al centro: suena el B (cuadrada)', () => C.mix.set(0.5), [['sec:Osc B', null], ['pulseWidth', null], ['pwmLfoLvl', null], ['pwmLfoSpd', 'Level']]);
+    caso('Ring a tope', () => C.ring.set(1), [['sec:Osc B', null], ['mix', 'Ring']]);
+    caso('Seno sin índice', () => C.waveA.set('sine'), [['sec:FM', null], ['fmIndex', null], ['fmRatio', 'Index'], ['fmFb', 'Index']]);
+    caso('Seno con índice', () => { C.waveA.set('sine'); C.fmIndex.set(2); }, [['fmRatio', null], ['fmFb', null]]);
+    caso('Seno + env → FM índice', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
+      [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Env amp']]);
+    caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Seno'], ['fmIndex', 'Seno'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
+    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'nivel 0'], ['fm4D3', 'nivel 0'], ['fm4R2', null]]);
+    caso('Tabla sin «usuario»', () => C.waveA.set('tabla'), [['sec:Tabla de ondas', null], ['sec:Editor de ondas', 'usuario'], ['sec:Tabla · secuencia', null], ['wsDiv', 'Off']]);
+    caso('Tabla «usuario»', () => { C.waveA.set('tabla'); C.wtSet.set('usuario'); }, [['sec:Editor de ondas', null]]);
+    caso('Súper', () => C.waveA.set('supersaw'), [['phaseA', 'Súper'], ['spread', null], ['sec:Unison', 'Súper']]);
+    caso('Unison', () => C.uniVoices.set('3'), [['uniDetune', null]]);
+    caso('Notch', () => C.filterType.set('notch'), [['morph', 'LP↔HP'], ['filterSlope', 'Notch']]);
+    caso('BP', () => C.filterType.set('bp'), [['morph', 'LP↔HP'], ['filterSlope', null]]);
+    caso('Env de filtro enlazada', () => C.filterEnvAmt.set(2000), [['fenvMode', null], ['fa', 'Env amp']]);
+    caso('Env de filtro propia', () => { C.filterEnvAmt.set(2000); C.fenvMode.set('own'); }, [['fa', null], ['fr', null]]);
+    caso('Vocal y resonador', () => { C.vocAmt.set(0.5); C.resAmt.set(0.5); }, [['vocVowel', null], ['vocAtk', null], ['resDecay', null]]);
+    caso('Matriz a Wavetable sin tabla', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('wt'); C.mx2amt.set(0.5); },
+      [['mx2dst', 'Tabla'], ['mx2amt', 'Tabla'], ['cutLfoSpd', 'Level'], ['lfoPhase', 'ningún']]);
+    caso('LFO crudo en la matriz', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('pan'); C.mx2amt.set(0.5); },
+      [['cutLfoSpd', null], ['cutLfoShape', null], ['lfoPhase', null], ['mx2dst', null]]);
+    caso('Slot con fuente y cantidad 0', () => C.mx3src.set('vel'), [['mx3dst', 'cantidad 0'], ['mx3amt', null]]);
+    caso('Deriva (voz)', () => { C.mx1src.set('drift'); C.mx1amt.set(0.3); }, [['mxDriftSpd', null]]);
+    caso('Vibrato con fade', () => C.freqLfoLvl.set(20), [['freqLfoSpd', null], ['lfoFade', null], ['lfoPhase', null]]);
+    caso('Delay libre', () => C.dlyAmt.set(0.3), [['dlyTime', null], ['dlyDamp', null], ['bpm', 'tempo']]);
+    caso('Delay sincronizado', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'sincronizado'], ['bpm', null]]);
+    caso('Arpegiador', () => C.arpMode.set('up'), [['arpGate', null], ['bpm', null]]);
+    caso('Reverb con shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
+    caso('Flam', () => C.hits.set(3), [['hitGap', null]]);
+    loadState({}); refreshDeps();
+    const fr = depTargets('fmRatio')[0];
+    if (!fr.closest('.dep-off')) probs.push('Reset: FM no aparece atenuado (.dep-off)');
+    if (getComputedStyle(fr).pointerEvents === 'none' || getComputedStyle(fr.querySelector('.knob')).pointerEvents === 'none') probs.push('un control apagado no se puede tocar');
+    loadState(keep); refreshDeps();
+    push({ name: 'dependencias: lo que no hace nada se apaga en su sitio, con su motivo (' + RULES.length + ' reglas)', peak: 0, ok: !probs.length, problems: probs.slice(0, 14) });
+  }
+  {
+    // presupuesto de CPU de voces (AudioEngine.VOICE_BUDGET): COMÚN a los motores
+    // de un mismo contexto — las 4 partes de una escena comparten hilo de audio.
+    // Offline no actúa (no hay plazos), así que se simula el directo sin
+    // renderizar: escena de 4 partes con offline = false. La parte 1 MANTIENE 8
+    // notas; la 2 toca 10 y las suelta (colas); la 3 toca de más. Nunca se pasa
+    // del tope; antes que nada caen las colas, la más vieja primero, de cualquier
+    // parte; luego, la voz pulsada más vieja de la parte que pide la nota — nunca
+    // una nota sostenida de otra parte. Y offline no hay tope.
+    const probs = [];
+    try {
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const st = { waveA: 'sawtooth', waveB: 'sawtooth', mix: 0.5, vocAmt: 0.6 };
+      const sc = await createScene(ctx, [st, st, st, st]);
+      const E = sc.parts.map(p => p.engine);
+      E.forEach(e => { e.offline = false; });
+      const cost = Voice.cost(E[0].S);
+      const live = v => !v.disposed && !v._going;
+      const used = () => E.reduce((a, e) => a + e.engineCost() + [...e.voices.values(), ...e.tails].filter(live).reduce((b, v) => b + v.cost, 0), 0);   // como el motor: coste fijo de cada parte + sus voces
+      let maxUsed = 0;
+      const on = (e, id) => { e.noteOn(id, 220, 0.8); maxUsed = Math.max(maxUsed, used()); };
+      for (let i = 0; i < 8; i++) on(E[0], 'a' + i);                        // parte 1: mantiene 8
+      const held0 = [...E[0].voices.values()];
+      for (let i = 0; i < 10; i++) on(E[1], 'b' + i);                       // parte 2: toca 10…
+      for (let i = 0; i < 10; i++) E[1].noteOff('b' + i);                   // …y las suelta: 10 colas
+      const tails1 = [...E[1].tails];
+      const nRoom = Math.floor((VOICE_BUDGET - used()) / cost + 1e-9);      // lo que cabe sin tocar nada
+      for (let i = 0; i < nRoom + 3; i++) on(E[2], 'c' + i);                // parte 3: tres de más → caen 3 colas
+      const gone1 = tails1.filter(v => v._going).length;
+      if (gone1 !== 3) probs.push('al pasarse 3 voces caen ' + gone1 + ' colas (esperado 3)');
+      if (!tails1.slice(0, gone1).every(v => v._going)) probs.push('no cayeron primero las colas más viejas');
+      if (held0.some(v => v._going || v.disposed) || E[0].voices.size !== 8) probs.push('colas: se tocó una nota sostenida de otra parte');
+      for (const e of E) { e.offline = true; e.allNotesOff(); }
+      // sin colas que fundir: roba a la parte que PIDE la nota, nunca a otra
+      const ctxB = new OfflineAudioContext(2, SR, SR);
+      const caro = { waveA: 'fm4', waveB: 'fm4', mix: 0.5, vocAmt: 0.6 };
+      const scB = await createScene(ctxB, [st, st, caro, st]), EB = scB.parts.map(p => p.engine);
+      EB.forEach(e => { e.offline = false; });
+      const usedB = () => EB.reduce((a, e) => a + e.engineCost() + [...e.voices.values(), ...e.tails].filter(live).reduce((b, v) => b + v.cost, 0), 0);
+      for (let i = 0; i < 8; i++) EB[0].noteOn('a' + i, 220, 0.8);
+      const heldB = [...EB[0].voices.values()];
+      for (let i = 0; i < 10; i++) { EB[2].noteOn('c' + i, 220, 0.8); maxUsed = Math.max(maxUsed, usedB()); }
+      const robadas3 = [...EB[2].tails].filter(v => v._going).length;
+      if (!(robadas3 > 0)) probs.push('sin colas, la parte que pide no cedió su voz más vieja (coste ' + Voice.cost(EB[2].S).toFixed(2) + ')');
+      if (heldB.some(v => v._going || v.disposed) || EB[0].voices.size !== 8) probs.push('sin colas: se robó una nota sostenida de OTRA parte');
+      if (maxUsed > VOICE_BUDGET + 1e-9) probs.push('el uso llegó a ' + maxUsed.toFixed(2) + ' > ' + VOICE_BUDGET);
+      for (const e of EB) { e.offline = true; e.allNotesOff(); }
+      // offline: sin tope
+      const ctx2 = new OfflineAudioContext(2, SR, SR), e2 = new AudioEngine(); e2.S = structuredClone(E[0].S); await e2.init(ctx2);
+      const n = Math.ceil(VOICE_BUDGET / cost) + 5;
+      for (let i = 0; i < Math.min(n, 10); i++) e2.noteOn('o' + i, 220, 0.8);
+      for (let i = 0; i < 10; i++) e2.noteOff('o' + i);
+      for (let i = 0; i < 10; i++) e2.noteOn('p' + i, 220, 0.8);
+      if ([...e2.tails].some(v => v._going)) probs.push('offline también recorta colas');
+      console.log('presupuesto: voz ' + cost.toFixed(2) + ' · tope ' + VOICE_BUDGET + ' · uso máx ' + maxUsed.toFixed(2) + ' · colas fundidas ' + tails1.filter(v => v._going).length + '/10 · robadas a la parte que pide ' + robadas3);
+    } catch (e) { probs.push('excepción: ' + (e.message || e)); }
+    push({ name: 'presupuesto de voces común a las partes (colas primero; nunca la nota sostenida de otra parte; offline sin tope)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {

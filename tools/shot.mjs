@@ -4,12 +4,13 @@
 // El JS previo se evalúa (con await si devuelve promesa) antes de capturar: p. ej. encender
 // las Partes o cargar un preset. Sirve en 8002 para no chocar con el runner ni con el 8000.
 // Variable de entorno THEME=id → captura con ese tema (?theme=, que no se recuerda).
+// H=alto → alto de la ventana (por defecto 1000): el instrumento se escala a min(ancho/1920, alto/1000).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 import os from 'node:os'; import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PORT = 8002;
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const [target, out, widthArg, pre] = process.argv.slice(2); const W = +widthArg || 1500;
-const THEME = process.env.THEME || '';
+const THEME = process.env.THEME || '', H = +process.env.H || 1000;
 if (!target || !out) { console.error('uso: node tools/shot.mjs "<h2 | pantalla:NOMBRE>" salida.png [ancho] ["<JS previo>"]'); process.exit(2); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json' };
@@ -21,7 +22,7 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 const profile = path.join(os.tmpdir(), 'subsdj-cdp-' + Date.now()); fs.mkdirSync(profile, { recursive: true });
 spawn(CHROME, ['--headless=new', '--disable-gpu', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--no-first-run',
-  '--autoplay-policy=no-user-gesture-required', '--window-size=' + W + ',1000', 'about:blank'], { detached: true, stdio: 'ignore' }).unref();
+  '--autoplay-policy=no-user-gesture-required', '--window-size=' + W + ',' + H, 'about:blank'], { detached: true, stdio: 'ignore' }).unref();
 let port = 0; for (let i = 0; i < 150 && !port; i++) { await sleep(200); try { port = +fs.readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0]; } catch {} }
 if (!port) { console.error('sin DevToolsActivePort (¿ruta de Chrome? variable de entorno CHROME)'); process.exit(2); }
 const page = (await (await fetch('http://127.0.0.1:' + port + '/json')).json()).find(t => t.type === 'page');
@@ -32,7 +33,7 @@ ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && pend.has(m.id)
 const send = (method, params = {}) => new Promise(r => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const ev = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value;
 await send('Runtime.enable'); await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: W, height: 1000, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' + (THEME ? '?theme=' + encodeURIComponent(THEME) : '') });
 for (let i = 0; i < 50; i++) { await sleep(200); if (await ev('document.readyState') === 'complete') break; }
 await sleep(800);

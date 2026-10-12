@@ -31,15 +31,17 @@ const KNOBS = {
 const ARR_KNOBS = [['energia', 'Energía', 0, 1], ['vaiven', 'Vaivén', 0, 1], ['ciclo', 'Ciclo', 4, 64, 1],
                    ['apertura', 'Apertura', 0, 1], ['sorpresa', 'Sorpresa', 0, 1]];
 let infoTimer = null, saveTimer = null;
+// los ajustes del director no pasan por el registro: avisan a ui/deps.js (qué está apagado) a mano
+const depsRefresh = () => document.dispatchEvent(new Event('deps-refresh'));
 
 const knobEl = lab => { const ctl = document.createElement('div'); ctl.className = 'ctl';
   ctl.innerHTML = `<div class="knob"><div class="ind"></div></div><div class="lab">${lab}</div><div class="val"></div>`; return ctl; };
 function knobRow(host, specs, cfg, onSet) {
   host.innerHTML = '';
   for (const [key, lab, min, max, isInt] of specs) {
-    const ctl = knobEl(lab); host.appendChild(ctl);
+    const ctl = knobEl(lab); ctl.dataset.key = key; host.appendChild(ctl);
     attachKnob(ctl.querySelector('.knob'), { min, max, def: cfg[key], fmt: isInt ? int : undefined },
-               v => { cfg[key] = isInt ? Math.round(v) : v; if (onSet) onSet(key, cfg[key]); });
+               v => { cfg[key] = isInt ? Math.round(v) : v; if (onSet) onSet(key, cfg[key]); depsRefresh(); });
   }
 }
 function currentPlayer() { const sc = getScene(); return sc ? sc.conductor.players[sc.sel] : null; }
@@ -52,7 +54,7 @@ function buildPlayerUI() {
   knobRow($('playerKnobs'), KNOBS[pl.cfg.mode] || [], pl.cfg);
   // arreglo de la parte: Entra (umbral) · Deriva (parámetro) · Cantidad
   const host = $('playerArr'); host.innerHTML = '';
-  const kU = knobEl('Entra'); host.appendChild(kU);
+  const kU = knobEl('Entra'); kU.dataset.key = 'umbral'; host.appendChild(kU);
   attachKnob(kU.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.umbral }, v => { pl.cfg.umbral = v; });
   const selWrap = document.createElement('div'); selWrap.className = 'ctl'; selWrap.style.width = 'auto';
   selWrap.innerHTML = `<select id="derivaSel" title="Parámetro del preset que pasea despacio"></select><div class="lab">Deriva</div>`;
@@ -60,9 +62,10 @@ function buildPlayerUI() {
   const sel = selWrap.querySelector('select');
   DERIVA_KEYS.forEach(k => sel.add(new Option(k === 'off' ? '—' : k, k)));
   sel.value = pl.cfg.deriva || 'off';
-  sel.addEventListener('change', () => { pl.setDeriva(sel.value); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
-  const kA = knobEl('Cantidad'); host.appendChild(kA);
+  sel.addEventListener('change', () => { pl.setDeriva(sel.value); depsRefresh(); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
+  const kA = knobEl('Cantidad'); kA.dataset.key = 'derivaAmt'; host.appendChild(kA);
   attachKnob(kA.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.derivaAmt, act: true }, v => { pl.cfg.derivaAmt = v; });
+  depsRefresh();
 }
 
 function syncHarmonyUI() {
@@ -74,6 +77,7 @@ function syncHarmonyUI() {
   $('harmSeed').value = c.seed;
   setPlayBtn(c.running);
   knobRow($('arrKnobs'), ARR_KNOBS, c.arr.cfg);
+  depsRefresh();
 }
 function setPlayBtn(on) {
   const b = $('playBtn'); b.textContent = on ? '■ Parar' : '▶ Tocar'; b.classList.toggle('on', on);
@@ -123,6 +127,7 @@ export function initPlayerControls() {
     const c = conductor(); if (!c) return;
     c.harmony.modo = b.dataset.m;
     document.querySelectorAll('#harmModo button').forEach(x => x.classList.toggle('active', x === b));
+    depsRefresh();
   }));
   $('harmSeed').addEventListener('change', () => { const c = conductor(); if (c) c.setSeed(Math.max(1, +$('harmSeed').value | 0)); });
   $('harmDice').addEventListener('click', () => { const c = conductor(); if (!c) return; const s = 1 + Math.floor(Math.random() * 99999); $('harmSeed').value = s; c.setSeed(s); });

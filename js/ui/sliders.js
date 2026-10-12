@@ -1,4 +1,5 @@
-/* SubSDJ · sliders (range). Config en PARAMS (tabla única); el HTML no lleva
+/* SubSDJ · sliders (range): los faders verticales de las dos envolventes
+   (.slider.fader: el mismo <input> de pie, por CSS). Config en PARAMS (tabla única); el HTML no lleva
    min/max/step/value: se fijan aquí. Los params `log` (cutoff, A/D/R) usan el
    slider como posición 0..1, pero CONTROLS get/set hablan SIEMPRE en
    espacio-motor. El valor vive en una variable, no en el <input>: set(v) lo
@@ -21,6 +22,10 @@ const SLIDERS = [
   ['s_d',      'v_d',      'd'],
   ['s_s',      'v_s',      's'],
   ['s_r',      'v_r',      'r'],
+  ['s_fa',     'v_fa',     'fa'],          // envolvente del filtro: faders como la de amplitud
+  ['s_fd',     'v_fd',     'fd'],
+  ['s_fs',     'v_fs',     'fs'],
+  ['s_fr',     'v_fr',     'fr'],
   ['s_master', 'v_master', 'master'],
 ];
 
@@ -34,7 +39,7 @@ export function bindSliders() {
     const update = () => {
       el.style.setProperty('--pos', ((parseFloat(el.value) - el.min) / (el.max - el.min)).toFixed(4));
       applyTarget(p.t || name, value);
-      if (vEl) vEl.textContent = p.fmt ? p.fmt(value) : String(value);
+      if (vEl) vEl.textContent = p.fmt ? p.fmt(value) : (+value).toFixed(2);
     };
     el.addEventListener('input', () => { value = posToVal(p, parseFloat(el.value)); update(); });   // arrastre: el valor sale de la posición
     el.addEventListener('pointerdown', () => part().resume());

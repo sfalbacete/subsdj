@@ -1,28 +1,32 @@
-/* SubSDJ · selectores de onda + steppers de octavas + segmentos (modo de voz,
-   envolvente de filtro) + selector de tabla de ondas. Defaults desde PARAMS
-   (el HTML no marca .active). */
+/* SubSDJ · selectores de onda, octava y apiladas + segmentos (modo de voz,
+   envolvente de filtro…) + selector de tabla de ondas. Defaults desde PARAMS
+   (el HTML no marca .active). Un seg puede verse como botonera, como
+   selector giratorio (.rot, ui/rotary.js) o como conmutador con LED (.tog):
+   para bindSeg es lo mismo, una fila de <button data-KEY>. */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { WT_SETS } from '../engine/wavetable.js';
 import { CONTROLS, applyTarget } from './registry.js';
 
 // Segmento genérico de botones: <button data-KEY="valor">. Registra el control
-// canónico `name` y aplica al target del motor.
-export function bindSeg(segId, key, name, target) {
+// canónico `name` y aplica al target del motor. num: el valor es un número
+// (octava, apiladas): se aplica y se guarda como número, no como texto.
+export function bindSeg(segId, key, name, target, num = false) {
   const seg = document.getElementById(segId);
   if (!seg) return;
+  const val = b => (num ? +b.dataset[key] : b.dataset[key]);
   const select = b => {
     seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    applyTarget(target, b.dataset[key]);
+    applyTarget(target, val(b));
   };
   seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => select(b)));
   CONTROLS[name] = {
-    get: () => seg.querySelector('button.active').dataset[key],
+    get: () => val(seg.querySelector('button.active')),
     set: v => { const b = seg.querySelector('button[data-' + key + '="' + v + '"]'); if (b) select(b); },
     def: PARAMS[name].def,
     el: seg,
-    opts: [...seg.querySelectorAll('button')].map(b => b.dataset[key]),   // zonas para midimap
+    opts: [...seg.querySelectorAll('button')].map(val),   // zonas para midimap
   };
   CONTROLS[name].set(PARAMS[name].def);
 }
@@ -44,23 +48,6 @@ function bindLfoShapes() {
     CONTROLS[name] = { get: () => btn.dataset.cur, set, def: PARAMS[name].def, el: btn, opts: SHAPES };
     set(PARAMS[name].def);
   });
-}
-
-// Steppers del oscilador: «Apiladas» (octaves, 1-4 octavas hacia arriba dentro
-// del oscilador) y «Octava» (oct, transposición −2..+2; −1 = suboscilador).
-function setOctave(which, n) {
-  const p = PARAMS['octaves' + which.slice(3)];
-  n = Math.min(p.max, Math.max(p.min, n));
-  applyTarget(which + '.octaves', n);
-  const el = document.getElementById('oct' + which.slice(3));
-  if (el) el.textContent = n;
-}
-function setTrans(which, n) {
-  const p = PARAMS['oct' + which.slice(3)];
-  n = Math.min(p.max, Math.max(p.min, Math.round(+n || 0)));
-  applyTarget(which + '.oct', n);
-  const el = document.getElementById('tr' + which.slice(3));
-  if (el) el.textContent = n > 0 ? '+' + n : n < 0 ? '−' + (-n) : '0';
 }
 
 // ❄ Freeze de la Sala: gesto de ejecución, no parámetro del preset (una cola
@@ -109,20 +96,10 @@ export function bindOscControls() {
     CONTROLS.wtSet.set(PARAMS.wtSet.def);
   }
 
-  document.querySelectorAll('.stepper button').forEach(b => {
-    b.addEventListener('click', () => {
-      const d = parseInt(b.dataset.d, 10);
-      if (b.dataset.oct) { const which = 'osc' + b.dataset.oct; setOctave(which, part().S[which].octaves + d); }
-      else if (b.dataset.tr) { const which = 'osc' + b.dataset.tr; setTrans(which, (part().S[which].oct || 0) + d); }
-      // otros steppers (p.ej. pasos del seq, octava del teclado) se cablean aparte
-    });
-  });
+  // Octava (oct: transposición −2..+2, en pies: 16' = suboscilador) y Apiladas
+  // (octaves: 1-4 octavas hacia arriba dentro del oscilador): selectores numéricos
   ['A', 'B'].forEach(s => {
-    CONTROLS['octaves' + s] = { get: () => part().S['osc' + s].octaves, set: n => setOctave('osc' + s, n), def: PARAMS['octaves' + s].def,
-      el: document.getElementById('oct' + s).closest('.ctl'), opts: [1, 2, 3, 4] };
-    setOctave('osc' + s, PARAMS['octaves' + s].def);
-    CONTROLS['oct' + s] = { get: () => part().S['osc' + s].oct || 0, set: n => setTrans('osc' + s, n), def: PARAMS['oct' + s].def,
-      el: document.getElementById('tr' + s).closest('.ctl'), opts: [-2, -1, 0, 1, 2] };
-    setTrans('osc' + s, PARAMS['oct' + s].def);
+    bindSeg('osc' + s + 'Oct', 'oct', 'oct' + s, 'osc' + s + '.oct', true);
+    bindSeg('osc' + s + 'Stack', 'stk', 'octaves' + s, 'osc' + s + '.octaves', true);
   });
 }

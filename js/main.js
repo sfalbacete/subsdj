@@ -23,11 +23,15 @@ import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
-import { initGroups } from './ui/groups.js';
+import { initFrame } from './ui/frame.js';
+import { initRotaries } from './ui/rotary.js';
+import { initDisplay } from './ui/display.js';
+import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
 import { setStatus, isStatus } from './ui/status.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
+initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
 bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
@@ -35,6 +39,7 @@ bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no s
 bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 bindWsControls();    // secuencia de tabla (wave sequencing)
+initRotaries();      // selectores giratorios: los .seg.rot ya tienen su posición activa
 initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
@@ -43,13 +48,14 @@ initLibraryScreen(); // pantalla Presets: la biblioteca (secciones, ★, buscar,
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
-initScreens();       // pestañas Diseño / Secuenciación / Presets (filtran el rack; recuerdan la elección)
-initGroups();        // secciones plegables (clic) y «solo esta» (doble clic); estado en localStorage
+initScreens();       // pestañas Diseño / Secuenciación / Presets (un panel fijo cada una; recuerdan la elección)
 initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
 initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
 initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
 initPartsControls(); // modo Partes: selector en la cabecera + mezclador (después de help: etiqueta los h2)
 initPlayerControls(); // armonía + jugadores de la escena (escucha scene-changed / part-changed)
+initDisplay();       // pantalla Salida (último parámetro tocado), menú Archivo y avisos del banco
+initDeps();          // apaga (atenuado, tocable) lo que no hace nada con la configuración actual, con su motivo
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.
