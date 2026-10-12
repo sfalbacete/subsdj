@@ -45,7 +45,9 @@ git push subsdj subsdj-vX.Y.Z:refs/tags/vX.Y.Z
 ```
 
 GitHub Pages sirve con unos 10 minutos de caché: justo después de publicar,
-una recarga normal puede mezclar módulos viejos y nuevos (Ctrl+F5).
+una recarga normal puede mezclar módulos viejos y nuevos (Ctrl+F5). Para
+comprobar la versión publicada, el selftest contra Pages:
+`BASE=https://sfalbacete.github.io/subsdj/ node tools/run-selftest.mjs`.
 
 ## Self-test
 

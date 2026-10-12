@@ -5,11 +5,14 @@
 // lee DevToolsActivePort, navega a ?selftest=1 y espera el ping «done». Imprime título,
 // resumen, pares de demos (diff/picos), filas fallidas con su motivo, logs de medida y
 // errores JS. Chrome se cierra por CDP (Browser.close). Sale con 1 si hay fallos.
+// BASE=https://sfalbacete.github.io/subsdj/ → el selftest de la versión PUBLICADA: los pings se
+// pierden en el servidor ajeno, así que se espera al título final (✓/✗ SELFTEST n/m).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 import os from 'node:os'; import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PORT = 8001;
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const q = process.argv[2] || 'selftest=1';
+const BASE = process.env.BASE || null;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
                '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -49,10 +52,13 @@ ws.onmessage = ev => {
 };
 const send = (method, params = {}) => new Promise(r => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send('Runtime.enable'); await send('Page.enable');
-await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/?${q}` });
-const t0 = Date.now();
-while (!pings.find(p => p.done) && Date.now() - t0 < 300000) await sleep(500);
+await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + q });
 const ev = async expr => (await send('Runtime.evaluate', { expression: expr, returnByValue: true })).result?.value;
+const t0 = Date.now();
+while (Date.now() - t0 < 300000) {
+  if (pings.find(p => p.done) || (BASE && /SELFTEST \d+\/\d+/.test(await ev('document.title') || ''))) break;
+  await sleep(500);
+}
 console.log('title:', await ev('document.title'));
 console.log('done:', JSON.stringify(pings.find(p => p.done) || null), 'en', ((Date.now() - t0) / 1000).toFixed(1), 's');
 for (const p of pings.filter(p => p.demo || p.demo_error))
