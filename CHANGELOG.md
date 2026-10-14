@@ -7,8 +7,8 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## [1.1.0] — 2026-10-14
 
-Ideas de un compañero que lo probó, arreglos que salieron al hacerlas y el
-acorde «sucio».
+Ideas de @tacowars que lo probó, arreglos que salieron al hacerlas y solución a los 
+acordes «sucios».
 
 - **Acordes limpios: margen en el máster.** Un acorde de pad entraba en el
   limitador de salida 4-8 dB por encima de su techo: recortaba todo el
