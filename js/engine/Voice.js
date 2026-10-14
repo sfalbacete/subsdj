@@ -80,6 +80,12 @@ export class Voice {
     const Q = 128 / ctx.sampleRate;
     const t = Math.ceil(((startAt || ctx.currentTime) + (mod.lookahead || 0.005)) / Q - 1e-6) * Q;
     this.t0 = t;                          // referencia para el fade-in de LFOs (lfoFade)
+    // Lo que la voz suena DESPUÉS de su hora musical (look-ahead + frontera de bloque).
+    // Los eventos programados posteriores (note-off, glide) se trasladan lo mismo: así
+    // la puerta dura lo que dice el gate, y un gate más corto que el look-ahead no
+    // cierra el VCA antes de abrirlo (el golpe mudo de los jugadores).
+    this.lag = t - (startAt || ctx.currentTime);
+    this.vel = vel;                       // fija por nota: la leen la matriz (fuente Velocity) y los niveles FM4
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
     // --- Modulación por voz (Roadmap 5.0 · bloque 2) ---
@@ -262,7 +268,6 @@ export class Voice {
     if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // golpe consonántico (evento de arranque)
 
     // matriz de modulación (necesita todas las refs ya asignadas)
-    this.vel = vel;
     this.mxSlots = [];                          // slot i -> {src, gain, dst}
     this._mxConsts = {};                        // fuentes escalares por voz (vel/note/rnd), cacheadas
     for (let i = 1; i <= MX_SLOTS; i++) this.mxRewire(i);
@@ -314,7 +319,7 @@ export class Voice {
     const fmFParam = node.parameters.get('fmFb'); if (fmFParam) fmFParam.value = this.S.fmFb;   // puede faltar (worklet viejo en caché)
     // FM4: algoritmo + ratio/nivel/decay × 4, fijados al nacer y en vivo por nombre (setFm4)
     const fm4P = {};
-    for (const k of FM4_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = +this.S[k]; fm4P[k] = ap; } }
+    for (const k of FM4_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = /^fm4L\d$/.test(k) ? this._fm4Lvl(+k[4]) : +this.S[k]; fm4P[k] = ap; } }
     // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
 
@@ -760,7 +765,15 @@ export class Voice {
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
   setFM(ratio, index, fb = 0) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); if (o.fmF) o.fmF.setTargetAtTime(fb, tc, 0.02); }); }
-  setFm4(key, v) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { const ap = o.fm4P && o.fm4P[key]; if (!ap) return; if (key === 'fm4Alg') ap.setValueAtTime(+v, tc); else ap.setTargetAtTime(+v, tc, 0.02); }); }
+  // Nivel del operador i con su sensibilidad a la velocity (fm4V, la «key velocity
+  // sensitivity» del DX7): a 0 el nivel no depende de cómo pegues; a 1 es
+  // proporcional a la velocity. En un modulador el nivel ES el índice: pegar
+  // más fuerte = más armónicos, no solo más volumen.
+  _fm4Lvl(i) { const s = +this.S['fm4V' + i] || 0; return +this.S['fm4L' + i] * (1 - s + s * this.vel); }
+  setFm4(key, v) {
+    const lv = /^fm4[LV](\d)$/.exec(key);   // Nivel y Vel mueven el mismo param del worklet
+    if (lv) { key = 'fm4L' + lv[1]; v = this._fm4Lvl(+lv[1]); }
+    const tc = this.ctx.currentTime; this.oscs.forEach(o => { const ap = o.fm4P && o.fm4P[key]; if (!ap) return; if (key === 'fm4Alg') ap.setValueAtTime(+v, tc); else ap.setTargetAtTime(+v, tc, 0.02); }); }
   setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt && o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
@@ -808,8 +821,11 @@ export class Voice {
   }
 
   // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.
-  glideTo(freq, time) {
-    const t = this.ctx.currentTime;
+  // `at` (opcional): hora musical de la nota (arp/Seq/jugadores la programan por
+  // adelantado): el cambio cae en su sitio de la rejilla, no al planificarlo.
+  glideTo(freq, time, at = null) {
+    const now = this.ctx.currentTime;
+    const t = at !== null ? Math.max(now, at + this.lag) : now;
     const slide = (p, target) => {
       if (time > 0) {
         if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
@@ -825,10 +841,11 @@ export class Voice {
   }
 
   // ---------- release ----------
+  // `at` (opcional): hora MUSICAL del note-off (la escala de startAt); suena `lag` después.
   release(rel, at = null) {
     rel = Math.max(0.006, rel);
     const now = this.ctx.currentTime;
-    const t = at !== null && at > now ? at : now;   // los jugadores programan el note-off en el reloj de audio
+    const t = at !== null ? Math.max(now, at + this.lag) : now;   // arp/Seq/jugadores programan el note-off en el reloj de audio
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
     // Release con la curva del knob, anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
     // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
@@ -846,14 +863,20 @@ export class Voice {
     param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
     this._relChain(param, t, cur, rel);
   }
-  // Release programado en el FUTURO (jugadores): el valor que tendrá la rampa
-  // en t aún no se puede leer — cancelAndHoldAtTime congela la automatización
-  // en t con ese valor y desde ahí cae el release. (cancelScheduledValues(t)
-  // borraría una rampa de ataque que termine después de t: la nota callaría.)
+  // Release programado en el FUTURO (arp, Seq, jugadores): el valor que tendrá la
+  // rampa en t aún no se puede leer — se calcula. cancelAndHoldAtTime recorta en t
+  // la rampa que lo cruce (cancelScheduledValues(t) la borraría: si es la del
+  // ataque, la nota callaría). Pero OJO: según la especificación solo deja un
+  // evento en t si una rampa lo CRUZA; si la envolvente ya se había posado en el
+  // sostenido, no añade nada y la rampa del release saldría del ÚLTIMO evento (el
+  // fin del decay, en el pasado): la ganancia caería en recta desde allí, de golpe
+  // al programarlo. De ahí el ancla explícita en t.
   _releaseParamAt(param, t, rel, env) {
+    const v = this._envValueAt(env, t);
     if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
-    else { const cur = param.value; param.cancelScheduledValues(t); param.setValueAtTime(cur, t); }
-    this._relChain(param, t, this._envValueAt(env, t), rel);   // el valor en t se calcula: el param aún no lo sabe
+    else param.cancelScheduledValues(t);
+    param.setValueAtTime(v, t);
+    this._relChain(param, t, v, rel);
   }
 
   // Corte rápido sin click (robo de voz / recorte de colas): re-rampa el VCA a cero.

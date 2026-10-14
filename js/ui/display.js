@@ -4,13 +4,43 @@
    su valor ya formateado. Todo se lee del propio control — su etiqueta (.lab
    o data-lab), su .val, el botón activo de un seg, la opción de un select — y
    la sección del h2 de su panel: no hay una segunda tabla de nombres que
-   mantener. Si lo tocado está APAGADO (ui/deps.js), debajo sale por qué. Lo que no viene de un gesto (cargar un preset, cambiar de parte)
+   mantener. Si lo tocado está APAGADO (ui/deps.js), arriba a la derecha sale por qué; si no, qué significa la opción elegida. Lo que no viene de un gesto (cargar un preset, cambiar de parte)
    no la ensucia: entonces enseña el nombre del preset.
    CABECERA: el menú «Archivo ▾» (Borrar, Exportar, Importar, SFZ: los mismos
    botones con sus id, solo que plegados) y #presetMsg como aviso flotante
    (ya no tiene sitio fijo en la fila). */
 const $ = id => document.getElementById(id);
 const TOUCH_MS = 2500;   // tras un gesto, los cambios que lleguen en este margen son «del gesto» (un <select> cambia al soltar)
+// Ajuste a la caja: el valor encoge de VAL_PX hasta MIN_PX (la letra es monoespaciada:
+// el ancho es proporcional al tamaño, basta una regla de tres); si ni así cabe, se
+// desplaza ida y vuelta a SCROLL_PXS px/s con una pausa en cada extremo (CSS .scroll).
+const VAL_PX = 24, MIN_PX = 13, SIDE_PX = 10, SCROLL_PXS = 35;
+
+function fit(box, max, min) {
+  const t = box && box.firstElementChild;
+  if (!t) return;
+  box.classList.remove('scroll'); box.style.fontSize = max + 'px';
+  const w = box.clientWidth;
+  if (!w) return;                                    // oculta (otra pantalla): se ajusta al verse (ResizeObserver)
+  if (t.offsetWidth > w && min < max) box.style.fontSize = Math.max(min, Math.floor(max * w / t.offsetWidth)) + 'px';
+  const over = t.offsetWidth - w;
+  if (over > 0) {
+    box.style.setProperty('--dx', -over + 'px');
+    box.style.setProperty('--t', (1.5 + over / SCROLL_PXS).toFixed(1) + 's');
+    box.classList.add('scroll');
+  }
+}
+
+// Opción de un seg → {val, det}: el valor CORTO (el rótulo del botón, con su leyenda
+// data-cap si la tiene: «3 · 2·3·4→1»; un botón con icono no tiene rótulo y su
+// nombre es el title) y, aparte, lo que significa (el resto del title, sin repetir
+// el rótulo: «Legato: la nota…» → «la nota…»). El title entero no cabe como valor.
+function segValue(b) {
+  const txt = b.textContent.trim(), tit = (b.title || '').trim(), cap = b.dataset.cap || '';
+  if (!txt) { const i = tit.indexOf(':'); return i > 0 ? { val: tit.slice(0, i), det: tit.slice(i + 1).trim() } : { val: tit, det: '' }; }
+  const det = tit.toLowerCase().startsWith(txt.toLowerCase() + ':') ? tit.slice(txt.length + 1).trim() : tit;
+  return { val: cap ? txt + ' · ' + cap : txt, det };
+}
 
 const textOf = h2 => [...(h2?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim();   // sin LED ni «?»
 
@@ -21,20 +51,29 @@ function describe(el) {
   const sec = textOf(panel.querySelector('h2'));
   const row = el.closest('[data-name]');                                  // fila de un banco (LFO PWM…)
   const lab = el.dataset.lab || el.querySelector(':scope > .lab, .head .lab')?.textContent
-           || el.parentElement?.querySelector(':scope > .lab')?.textContent || el.title || '';
-  let val = '';
-  if (el.matches('.seg')) { const b = el.querySelector('button.active'); val = b ? (b.title || b.textContent) : ''; }
+           || el.parentElement?.querySelector(':scope > .lab, :scope > .fieldlab')?.textContent || el.title || '';   // .fieldlab: conmutadores con LED (voz, disparo)
+  let val = '', det = '';
+  if (el.matches('.seg')) { const b = el.querySelector('button.active'); if (b) ({ val, det } = segValue(b)); }
   else if (el.matches('select')) val = el.selectedOptions[0]?.textContent || '';
   else if (el.matches('.lfoShape')) val = el.textContent;
   else val = el.querySelector('.val')?.textContent || '';
   const who = [row ? sec + ' ' + row.dataset.name : sec, lab].filter(Boolean).join(' · ');
   const off = el.closest('[data-off]');   // apagado (ui/deps.js): el control o su sección no hacen nada ahora
-  return { who, val: val.trim(), why: off ? 'sin efecto: ' + off.dataset.off : '' };
+  return { who, val: val.trim(), det, why: off ? 'sin efecto: ' + off.dataset.off : '' };
 }
 
 export function initDisplay() {
-  const who = $('dispWho'), val = $('dispVal'), why = $('dispWhy');
-  const show = (w, v, y = '') => { if (who) who.textContent = w; if (val) val.textContent = v; if (why) why.textContent = y; };
+  const who = $('dispWho'), val = $('dispVal'), side = $('dispWhy');
+  const refit = () => { fit(val, VAL_PX, MIN_PX); fit(side, SIDE_PX, SIDE_PX); };
+  // la línea de arriba a la derecha: por qué no hace nada (manda) o qué significa la opción
+  const show = (w, v, y = '', det = '') => {
+    if (who) who.textContent = w;
+    if (val) val.firstElementChild.textContent = v;
+    if (side) { side.firstElementChild.textContent = y || det; side.classList.toggle('off', !!y); }
+    refit();
+  };
+  const ro = document.querySelector('.readout');
+  if (ro && window.ResizeObserver) new ResizeObserver(refit).observe(ro);   // cambio de pantalla o de zoom
   let touched = null, until = 0, pointer = false, pending = false;
 
   const CTL = '.ctl, .slider, .seg, select, .lfoShape';
@@ -47,7 +86,7 @@ export function initDisplay() {
   const render = () => {
     pending = false;
     const d = touched && describe(touched.matches(CTL) ? touched : touched.closest(CTL) || touched);
-    if (d) show(d.who, d.val, d.why);
+    if (d) show(d.who, d.val, d.why, d.det);
   };
   const later = () => { if (!pending) { pending = true; requestAnimationFrame(render); } };
   document.addEventListener('param-change', () => { if (touched && performance.now() < until) later(); });

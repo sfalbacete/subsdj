@@ -27,6 +27,10 @@ const MAX_TAILS = 16;   // colas de release vivas; por encima, fundido de la má
 // cuando le toca irse, y un corte de 10 ms se oye como un clic de pad. 350 ms
 // entre 16 colas y la reverb no se distingue de la propia caída.
 const TAIL_FADE = 0.35;
+// Mono con Disparo «cada nota»: la voz que suena se funde mientras sube el ataque de
+// la nueva (relevo en el mismo instante, max(MONO_XF, ataque)). Es lo que hace un
+// ADSR analógico al redisparar desde su nivel actual, sin el hueco de volver a 0.
+const MONO_XF = 0.005;
 // Presupuesto de CPU de audio (solo en directo). Todos los motores de un MISMO
 // contexto — las 4 partes de una escena — se renderizan en el mismo hilo de
 // audio, así que el tope es COMÚN: se lleva por contexto (budgetOf), no por
@@ -243,39 +247,54 @@ export class AudioEngine {
     this._releaseVoice(id, this.S.r, when);
   }
   allNotesOff() {
+    this.arp.tie = this.seq.tie = null;   // la nota ligada que esperaba su off cae con las demás (corte rápido abajo)
     this.arp.held = []; this.arp._maybeStop();
     this.seq.held = []; this.seq.latched = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }
 
-  // ---- modo mono / legato (prioridad de última nota) ----
+  // ---- modo mono (prioridad de última nota) ----
+  // Una nota que llega SIN otra pulsada redispara siempre. Si llega con otra aún
+  // pulsada, decide Disparo (monoTrig): 'legato' desliza la voz que suena sin
+  // reiniciar nada; 'retrig' la releva por una voz nueva (envolventes, pitch env
+  // y operadores FM4 desde el principio). «Pulsada» va en tiempo MUSICAL: arp, Seq
+  // y jugadores mandan on y off programados y en orden, así que el solape lo
+  // decide el gate, no cuánto se adelanta el planificador.
   _monoOn(id, freq, vel, when = null) {
     const had = this.heldStack.length > 0;
     this.heldStack = this.heldStack.filter(n => n.id !== id);
     this.heldStack.push({ id, freq, vel });
-    if (had && this.monoVoice && !this.monoVoice.disposed) {
-      this.monoVoice.glideTo(freq, this.S.glide);   // legato: desliza sin reiniciar envolvente
+    const old = had && this.monoVoice && !this.monoVoice.disposed ? this.monoVoice : null;
+    if (old && this.S.monoTrig !== 'retrig') {
+      old.glideTo(freq, this.S.glide, when);   // legato: desliza sin reiniciar envolvente
       this.lastFreq = freq;
-    } else {
-      this._killMono();
-      const cost = Voice.cost(this.S);
-      this._makeRoom(cost);
-      const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
-      v.cost = cost;
-      if (this._bend) v.ensurePitch();
-      this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)
-      this.monoVoice = v; this.voices.set('mono', v);
-      this.lastFreq = freq;
-      this.voiceCount++; this._updateBusGain();
+      return;
     }
+    if (old) { this.voices.delete('mono'); this.monoVoice = null; this.voiceCount = Math.max(0, this.voiceCount - 1); }
+    else this._killMono();
+    const cost = Voice.cost(this.S);
+    this._makeRoom(cost);
+    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
+    v.cost = cost;
+    if (this._bend) v.ensurePitch();
+    this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)
+    this.monoVoice = v; this.voices.set('mono', v);
+    this.lastFreq = freq;
+    this.voiceCount++; this._updateBusGain();
+    // relevo (retrig): la vieja empieza a fundirse justo cuando arranca la nueva
+    // (release(at) suma su lag: v.t0 − old.lag cae exactamente en v.t0)
+    if (old) this._scheduleTail(old, Math.max(MONO_XF, this.S.a), v.t0 - old.lag);
   }
   _monoOff(id, when = null) {
-    if (!this.heldStack.some(n => n.id === id)) return;   // id ajeno (note-off de otra parte): ni re-desliza ni suelta la voz de otro
-    this.heldStack = this.heldStack.filter(n => n.id !== id);
+    const i = this.heldStack.findIndex(n => n.id === id);
+    if (i < 0) return;   // id ajeno (note-off de otra parte): ni re-desliza ni suelta la voz de otro
+    const wasTop = i === this.heldStack.length - 1;
+    this.heldStack.splice(i, 1);
     if (this.heldStack.length) {
+      // se suelta la que sonaba: vuelve a la de debajo deslizando (soltar otra no cambia nada)
       const top = this.heldStack[this.heldStack.length - 1];
-      if (this.monoVoice && !this.monoVoice.disposed) { this.monoVoice.glideTo(top.freq, this.S.glide); this.lastFreq = top.freq; }
+      if (wasTop && this.monoVoice && !this.monoVoice.disposed) { this.monoVoice.glideTo(top.freq, this.S.glide, when); this.lastFreq = top.freq; }
     } else {
       this._releaseMono(this.S.r, when);
     }

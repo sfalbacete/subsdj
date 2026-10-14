@@ -85,7 +85,7 @@ export const RULES = [
   ['fmRatio', S => (!has(S, 'sine') ? 'el ratio solo actúa en Seno' : fmIdle(S) ? 'Index a 0: no hay modulador' : null)],
   ['fmFb', S => (has(S, 'fm4') || !has(S, 'sine') ? null : fmIdle(S) ? 'Index a 0: no hay modulador que realimentar' : null)],
   ['sec:FM4', S => (has(S, 'fm4') ? null : NO('FM4'))],
-  ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' con nivel 0: ni suena ni modula')),
+  ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i, 'fm4V' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' con nivel 0: ni suena ni modula')),
   ['sec:Tabla de ondas', S => (has(S, 'tabla') ? null : NO('Tabla'))],
   ['sec:Editor de ondas', S => (!has(S, 'tabla') ? NO('Tabla')
     : S.wtSet !== 'usuario' ? 'dibuja la tabla «usuario»: elígela en Tabla de ondas' : null)],
@@ -100,6 +100,7 @@ export const RULES = [
     : S.fenvMode !== 'own' ? 'sigue a Env amp: estos tiempos no se usan' : null)),
   ['hitGap', S => (Math.round(S.hits) > 1 ? null : 'un solo golpe: no hay hueco entre golpes')],
   ['pitchEnvDec', S => (S.pitchEnvAmt ? null : 'P.Env Amt a 0: no hay caída de tono')],
+  ['monoTrig', S => (S.mode === 'mono' ? null : 'solo en Mono: en Poli cada nota tiene su voz y siempre arranca de cero')],
 
   // ---------- Modulación ----------
   ['pwmLfoLvl', S => (has(S, 'square') ? null : 'el PWM solo mueve la Cuadrada: ' + NO('Cuadrada'))],

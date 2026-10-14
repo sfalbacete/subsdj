@@ -13,6 +13,7 @@
 import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer } from '../engine/parts.js';
 import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
+import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
 
 const SALA_PANELS = ['Delay', 'Reverb', 'Cinta'];
@@ -50,7 +51,7 @@ function buildStrips() {
     });
     const st = {
       div,
-      level: bindSend(kLevel, 'master', { min: 0, max: 1 }),
+      level: bindSend(kLevel, 'master', { ...PARAMS.master }),   // mismo recorrido que el knob del rack (hasta +12 dB)
       dly:   bindSend(kDly, 'dlyAmt', { min: 0, max: 0.9, act: true }),
       rev:   bindSend(kRev, 'reverbMix', { min: 0, max: 0.6, act: true }),
       pan:   attachKnob(kPan, { min: -1, max: 1, def: p.pan, fmt: panFmt }, v => { if (!silent) setPartPan(i, v); }),
@@ -71,7 +72,7 @@ function buildStrips() {
     `<label class="chk"><input type="checkbox" id="layerChk"> Capa: el teclado toca todas</label>`;
   host.appendChild(sala);
   const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
-  attachKnob(kM, { min: 0, max: 1, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
+  attachKnob(kM, { ...PARAMS.master, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
   attachKnob(kFb, { min: 0, max: 0.85, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });
   attachKnob(kToRev, { min: 0, max: 1, def: sc.salaCfg.dlyToRev, act: true }, v => { sc.salaCfg.dlyToRev = v; sc.sala.setDlyToRev(v); });
   $('layerChk').addEventListener('change', e => setLayer(e.target.checked));

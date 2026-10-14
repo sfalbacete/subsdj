@@ -299,12 +299,15 @@ cabecera se llena leyendo las hojas: añadir un tema es añadir CSS. Se
 recuerda en localStorage; `?theme=id` lo aplica sin recordarlo (capturas:
 `THEME=id node tools/shot.mjs …`; runner: `"selftest=1&theme=id"`).
 
-- **Cinescapes** (por defecto) — carbón plano, cian para el rack y violeta
+- **Carbón** (por defecto; se llamó «Cinescapes» hasta la 1.0.1, el id interno lo sigue siendo) — carbón plano, cian para el rack y violeta
   para los osciladores, knobs con punto, bisel con la luz arriba y arco de
   valor separado del disco (la caja del knob mide siempre 44 px; el disco se
   encoge `--knob-disc-inset` para que el arco quepa dentro: fuera no hay sitio
   en las filas de cinco knobs), sliders con carril relleno, botones píldora,
-  etiquetas en minúsculas. Inspirado en la UI de Cinescapes Pro.
+  etiquetas en minúsculas. Inspirado en la UI de Cinescapes Pro; se renombró
+  porque el nombre chocaba con la categoría de presets «Cinescape» y no decía
+  nada del aspecto (medido al renombrar: el contraste de texto es el mismo en
+  los dos temas, 11,9:1 frente a 11,5:1; las diferencias son de estilo).
 - **Clásico** — el look original: verde y cian, degradados y relieve, rayita
   en el knob, MAYÚSCULAS espaciadas. Es también la prueba de que los tokens
   cubren todo: se reproduce solo con tokens (capturas antes/después a
@@ -1519,3 +1522,180 @@ resonador («Decay estrecha los modos») es inestable de por sí — excita un m
 de Q 600 (0,4 Hz de ancho) con ruido blanco aleatorio y lo mide en 1,1 s; la
 razón salió 90,5 · 30,9 · 7,3 en tres pasadas y una vez cayó bajo el umbral
 (×4). No lo toca este cambio; pendiente de hacerlo determinista.
+
+## Opiniones de un compañero (2026-10-14) · 1.1.0
+
+Tras publicar la 1.0, Pat (compañero de trabajo, conoce bien la FM de Yamaha)
+lo probó y dejó cuatro ideas. Se analizaron contra el código antes de tocar
+nada:
+
+- **«El arpegiador en mono debería redisparar la envolvente»** — era un bug,
+  no una preferencia. El arp programa cada note-on ~100 ms antes (look-ahead
+  de 120 ms en ticks de 25 ms) pero soltaba el paso anterior con un
+  `setTimeout` al acabar su gate. Si el hueco `dur·(1−gate)` era menor que
+  esa antelación (1/16 a 120 BPM con gate 0,5: 62 ms), la nota anterior seguía
+  «pulsada» cuando llegaba la nueva y `_monoOn` lo tomaba por legato: solo
+  deslizaba, y además el deslizamiento caía ~100 ms antes de la rejilla
+  (`glideTo` usaba `currentTime`). El resultado dependía del tempo y del
+  gate. Con FM4 se notaba más: los decays de los operadores no se
+  reiniciaban y el pluck sonaba solo en el primer paso. Arreglo: Arp y Seq
+  emiten el note-off PROGRAMADO (`_directOff(id, t)`) justo después del on, en
+  orden, así que el solape lo decide el gate; con gate 1 el off se emite tras
+  el on siguiente (ligadura). `glideTo(freq, time, at)` cae en su sitio.
+  Encima, el parámetro **Disparo** (`monoTrig`: legato | retrig) decide qué
+  pasa cuando las notas SÍ se solapan (teclado tocado ligado, gate 1): el
+  single / multi trigger de los Moog y los ARP. En retrig la voz vieja se
+  funde en max(5 ms, ataque) empezando exactamente en el t0 de la nueva: un
+  ADSR analógico redispara desde su nivel, sin volver a 0.
+- **Desfase del look-ahead en los note-off** (el «golpe mudo» de los
+  jugadores, visto el 2026-10-02): la voz suena `lag` = t0 − startAt después de
+  su hora musical (look-ahead + frontera de bloque), pero el note-off
+  programado no se trasladaba: la puerta real era gate − look-ahead y, por
+  debajo, muda. `Voice.lag` y `release(rel, at)` / `glideTo` suman `lag`.
+- **Hallazgo al medir el relevo**: `_releaseParamAt` confiaba en que
+  `cancelAndHoldAtTime(t)` deja un ancla en t. La especificación solo inserta
+  un evento si una rampa CRUZA t; con la envolvente posada en el sostenido no
+  añade nada y la rampa del release sale del último evento (el fin del
+  decay, en el pasado): la ganancia caía en recta desde allí, de golpe al
+  programarlo. Afectaba a todos los note-off programados de los jugadores
+  desde C2 (sus notas largas se iban apagando solas). Ancla explícita
+  `setValueAtTime(v, t)` con el valor calculado. Las escenas suenan algo
+  distinto (la cola del check «partes» pasa de −45,3 a −40,6 dB).
+- **«Liga la velocity a los niveles de los operadores»** — cierto, y el
+  hueco estaba justo en FM4: la matriz ya tenía vel→índice para el FM de 2
+  operadores (preset «E-piano DX»), pero FM4 solo respondía a la velocity con
+  amplitud y filtro. Columna **vel** (`fm4V1-4`): nivel × (1 − v + v·velocity),
+  calculado al nacer la voz (la velocity es fija por nota) y en vivo por
+  `setFm4`. En un modulador el nivel es el índice. Medido: modulador con vel,
+  brillo fuerte/flojo ×12,4; sin vel ×1,00; portadora con vel: brillo ×1,00 y
+  nivel ×11,1 (frente a ×3,3 solo del VCA).
+- **«Los algoritmos, mejor con el grafo de Yamaha que con el knob»** — el
+  knob se queda (MIDI learn y presets no cambian) y la leyenda de texto
+  «4→3→2→1» pasa a ser el diagrama de cajas del DX7, generado de una COPIA de
+  `FM4_ALGS` en `ui/fm4Graph.js` (un worklet no se importa desde la página;
+  el selftest compara las dos tablas leyendo el fuente del worklet).
+  Colocación automática: fila = altura sobre la salida, columna = media de las
+  de sus destinos, en abanico si coinciden.
+- **«Me gusta más la piel Clásico»** — medido: el contraste de texto es el
+  mismo (11,9:1 frente a 11,5:1; rótulos 4,8:1 frente a 4,9:1); lo que cambia
+  es estilo (rayita frente a punto y arco, MAYÚSCULAS, volumen). Se queda
+  como está; la base se renombra **Carbón** (chocaba con la categoría
+  «Cinescape»).
+
+Checks nuevos: «grafo FM4», «Disparo mono» (simula el planificador real
+suspendiendo el render cada 25 ms y llamando a `_tick()`; cuenta ataques de un
+pluck: arp/Seq con gate < 1 → 8 de 8, gate 1 legato → 1, cada nota → 8;
+relevo sin hueco con look-ahead de 45 ms; gate de 30 ms con look-ahead de 45 ms
+suena; sostenido intacto hasta un off programado) y «Velocity en FM4»; 177/177.
+La sonda de demos acepta `"velocidad": {prefijo: v}` en el banco (los pares
+FMV solo se distinguen tocando flojo). Visto de paso: el check «vocal 2.0»
+(transición del Golpe) es inestable — falló 1 de 9 pasadas de hoy sin pasar por nada
+de esto.
+
+**Pantalla Salida en dos líneas** (mismo día, pedido de Sergio: «a veces
+intenta meter un texto demasiado grande y no cabe»). Un seg enseñaba como
+valor el title entero de su botón — una explicación, no un valor — y la
+columna del valor, de ancho `auto`, se comía la del nombre: no se veía ni qué
+parámetro era. Ahora: arriba el parámetro y, a su derecha, qué significa la
+opción (el title sin repetir el rótulo) o por qué no hace nada (manda); abajo
+el valor CORTO (rótulo del botón + su `data-cap`: «3 · 2·3·4→1»). Lo que no
+cabe encoge la letra de 24 a 13 px (monoespaciada: una regla de tres) y, si
+ni así, se desplaza ida y vuelta a 35 px/s con pausa en los extremos. A
+propósito sin `prefers-reduced-motion`, como el logo: Sergio tiene los
+efectos de animación de Windows apagados y el texto se quedaría cortado.
+Check «pantalla Salida»; 178/178.
+
+**Acordes limpios: margen en el máster** (mismo día; Sergio: «tocando un
+acorde suena como con altibajos en volumen, como si algo controlara la
+amplitud total y recortara»). Medido antes de tocar nada: acorde Do-Mi-Sol con
+cada preset de fábrica, limitador puenteado y su algoritmo simulado sobre la
+señal. Casi todos los pads entraban 4-8 dB por encima del techo y el limitador
+recortaba 5-7 dB todo el sostenido, con un VAIVÉN de 4-6 dB (10 en Pad PWM
+unison): su ganancia seguía los picos del batido de las sierras desafinadas.
+Sin distorsión ni saturación de cinta en los pads: era el limitador, pensado
+como red de seguridad y trabajando sin parar. Causa de fondo: sin margen (una
+nota sola ya rozaba el techo; algunas lo pasaban) y el Master DETRÁS del
+limitador, así que bajarlo no le quitaba trabajo. Sergio escuchó pares A/B
+(hoy / con 9 dB de margen, mismo pico): «los A suenan como te intenté
+describir, y los B suenan muy limpios».
+
+Arreglo (Sala.js): `suma → cinta → margen (HEADROOM_DB = −9) → Master →
+limitador`. La cinta queda antes del margen (su saturación ve el nivel de
+siempre). El Master delante se había probado y revertido el 2026-10-12 con el
+DynamicsCompressor, que dejaba pasar picos; el limitador de ahora es
+brickwall: 16 notas con el Master a 1 dan −1,8 dB. Calibración (103 presets,
+dB sobre el techo con el Master del preset, sin margen): 1 nota mediana −3,9 /
+p90 −1,1 / máx +2,0; 3 notas +1,8 / +5,7 / +10,7; 4 notas en abierto (Do-Sol-
+Do-Mi) +3,5 / +8,5 / +12,0. Con −9, el p90 de cuatro notas queda por debajo
+del techo; los seis que aún lo pasaban (cuadradas y PWM: Pad PWM unison,
+Órgano trémolo, Melodía de LFO, Bajo camaleón, Ensemble PWM, Tabla, filtro y
+puerta) eran también los más fuertes con una nota y bajan su Master −3 dB.
+Coste: todo sonaba 9 dB más bajo — resuelto con la sonoridad igualada (abajo). No se usó la compensación por número de voces desde 2
+notas: las notas sostenidas cambiarían de volumen al tocar o soltar otras.
+Check «margen» (4 notas con seis pads: pico < −1,3 dBFS = el limitador no
+llegó a actuar; 16 notas con Master a tope bajo el techo); los umbrales
+absolutos de nivel del selftest llevan el margen dentro (`HR`); 179/179.
+Lección de la sonda: cientos de OfflineAudioContext en una sola página
+tumban el renderer headless (la captura se queda esperando para siempre):
+por tandas, un navegador por tanda.
+
+**Sonoridad igualada en los presets de fábrica** (mismo día; Sergio, tras
+probar el margen: «suena finísimo y limpio, pero hay presets que suenan
+bajito, sobre todo los que no están pensados para acordes, como los bajos»).
+El margen es para acordes y se aplicaba igual a un bajo que nunca toca más de
+una nota; antes, el limitador «inflaba» todo y tapaba las diferencias. Sonda
+de sonoridad (K-weighting de BS.1770, máximo de bloques de 400 ms ≈ momentary
+max) por preset con una nota y con acorde: medianas en su uso de −23,9 LUFS
+(bajos) a −19,8 (pads con acorde) y −28 (plucks, voz, stabs); 40 de 116
+dentro de ±2 dB de la mediana. Regla: cada preset sube o baja hacia un mismo
+objetivo EN SU USO PREVISTO (una nota: bajos, leads, percusión, efectos y
+todo lo mono; un acorde de tres: lo demás) con la condición de que ese uso no
+llegue al limitador (pico del acorde abierto de cuatro, o de una nota + 3 dB
+por si se ligan dos, por debajo de −2 dBFS). La percusión sube en bloque (la
+mediana, recortada por el pico de cada golpe) para no romper el equilibrio
+del kit. «Init» se queda en `{}` (Reset neutro). Resultado medido después:
+mediana −15,6 (antes −21,1), p10 −19,5 (antes −27,5), 82 de 116 dentro de
+±2 dB; a la salida, con el makeup del limitador, unos −14 LUFS. Los que se
+quedan cortos tienen un golpe muy por encima del cuerpo (plucks, percusión):
+tan fuertes como deja sonar limpio. Para eso el **Master** llega a ×4
+(+12 dB), en log desde 0,01 (0,7 cae en el 71 % del giro, como antes) y se
+lee en dB; los faders de nivel del mezclador de Partes y el máster de la
+escena usan el mismo recorrido. Los presets guardados del usuario conservan
+su Master. Se descartaron: compensar por número de voces (las sostenidas
+cambiarían de volumen) y un nivelador automático lento (aplana los
+crescendos). Checks: «sonoridad de fábrica» (una nota de Slide bass y Lead
+brillante frente a un acorde de Supersaw pad, DX e-piano y Strings ensemble:
+−14 ± 3 LUFS y menos de 3,5 dB entre ellos; medido 1,3) y «margen» rehecho:
+lo que se oye no es que un pico roce el techo (con fases y derivas
+aleatorias el pico de un acorde varía ±1 dB entre pasadas) sino que el
+limitador trabaje todo el rato, así que mide el % de bloques de 10 ms
+recortados (0 % ahora; 20-32 % con el margen quitado, comprobado). 180/180.
+
+**Segunda opinión sobre el limitador** (mismo día: Sergio le enseñó
+`limiter-processor.js` a otra IA, que solo vio ese fichero). Su diagnóstico
+de fondo — un limitador de picos no iguala sonoridades; hace falta un ajuste
+por preset medido en LUFS (BS.1770) con una secuencia de referencia, y el
+limitador solo como protección final — es lo que ya se había hecho (margen +
+Master medido por uso). Lo que aportó y se aplicó:
+- Su aviso «si un preset pide +12 dB, sospecha» destapó un fallo de la
+  normalización: la sonda mantenía las notas 2 s y diez presets tardan más en
+  llegar a su nivel (Pad glaciar, ataque de 12 s, recibió el tope de +12 dB;
+  con el ataque completo su acorde daba −5,9 LUFS y pasaba el techo 6,4 dB).
+  Re-medidos con ataque + decay + 1,5 s de sostenido y recalculados con la
+  misma regla (glaciar −9,1 dB, cuatro vientos −6, drone de sótano −3…).
+  LECCIÓN: medir el sostenido de verdad, no una ventana fija.
+- Check «limitador» con señales de prueba: transparente bajo el techo
+  (|Δ| 1,5·10⁻⁸ frente a la entrada retrasada 6 ms × makeup), una ráfaga a
+  +12 dB — y otra solo en R — no deja ninguna muestra por encima de −1 dBFS,
+  sin NaN, y la ganancia vuelve tras el silencio; pico REAL entre muestras
+  (×4, sinc enventanado) en el peor caso musical — 16 notas brillantes con el
+  Master a +12 dB — −0,5 dBTP: el techo de muestra a −1 dBFS deja el margen
+  que pedía su objeción de dBTP; no hace falta detector de true peak. 181/181.
+Lo que no se aplicó, y por qué: un «control dinámico maestro» entre la
+normalización y el limitador (un compresor que siga la interpretación es lo
+que hacía respirar los acordes; ella misma desaconseja normalizar nota a
+nota); un `outputTrimDb` separado del Master (con el Master ya guardado en el
+preset y delante del limitador es la misma ganancia; separarlo solo cambiaría
+qué enseña el knob); y el makeup de +1,71 dB del limitador es un resto de
+cuando sustituyó al DynamicsCompressor (lineal, se podría plegar en el margen
+sin cambiar una muestra).

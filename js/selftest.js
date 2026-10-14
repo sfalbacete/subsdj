@@ -17,7 +17,8 @@
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
 import { Voice } from './engine/Voice.js';
-import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain } from './engine/Sala.js';
+import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Sala.js';
+const HR = Math.pow(10, HEADROOM_DB / 20);   // margen fijo del máster (1.1.0): los umbrales ABSOLUTOS de nivel lo llevan dentro
 import { Arp } from './engine/Arp.js';
 import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
@@ -46,6 +47,7 @@ import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION } from './version.js';
+import { FM4_ALGS, layout as fm4Layout, svgFor as fm4Svg } from './ui/fm4Graph.js';
 
 const SR = 44100;
 const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
@@ -67,14 +69,14 @@ function analyze(buf) {
   return { peak, bad };
 }
 
-async function renderBuf(state) {
+async function renderBuf(state, vel = 1) {
   const dur = Math.min(6, 1.0 + (state.r || 0.3) + 0.3);   // 1 s de nota + cola de release
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * dur), SR);
   const eng = new AudioEngine();
   eng.S = state;
   await eng.init(ctx);
-  eng.noteOn('t1', NOTE1);
-  ctx.suspend(0.5).then(() => { eng.noteOn('t2', NOTE2); ctx.resume(); });
+  eng.noteOn('t1', NOTE1, vel);
+  ctx.suspend(0.5).then(() => { eng.noteOn('t2', NOTE2, vel); ctx.resume(); });
   ctx.suspend(1.0).then(() => { eng.noteOff('t1'); eng.noteOff('t2'); ctx.resume(); });
   return ctx.startRendering();
 }
@@ -456,7 +458,7 @@ export async function runSelfTest() {
     caso('Reset', () => {}, [['sec:Osc A', null], ['sec:Osc B', 'Mix'], ['pulseWidth', 'Cuadrada'], ['spread', 'Súper'],
       ['sec:FM', 'Seno'], ['sec:FM4', 'FM4'], ['sec:Tabla de ondas', 'Tabla'], ['sec:Editor de ondas', 'Tabla'],
       ['noiseColor', 'Ruido'], ['vocVowel', 'Mix a 0'], ['resMat', 'Mezcla a 0'], ['fa', 'Amount'], ['fenvMode', 'Amount'],
-      ['hitGap', 'golpe'], ['pitchEnvDec', 'Amt'], ['uniDetune', '1 voz'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
+      ['hitGap', 'golpe'], ['pitchEnvDec', 'Amt'], ['monoTrig', 'Mono'], ['uniDetune', '1 voz'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
       ['mx1dst', 'libre'], ['mx1amt', 'libre'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
       ['bpm', 'tempo'], ['reverbSize', 'Mix'], ['shimInt', 'Mix'], ['arpGate', 'Off'], ['seqGate', 'Off'],
       ['#seqCanvas', 'Off'], ['sec:Tabla · secuencia', 'Tabla'], ['sec:Unison', null], ['mix', null], ['cutoff', null]]);
@@ -467,7 +469,8 @@ export async function runSelfTest() {
     caso('Seno + env → FM índice', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
       [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Env amp']]);
     caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Seno'], ['fmIndex', 'Seno'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
-    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'nivel 0'], ['fm4D3', 'nivel 0'], ['fm4R2', null]]);
+    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'nivel 0'], ['fm4D3', 'nivel 0'], ['fm4V3', 'nivel 0'], ['fm4R2', null], ['fm4V2', null]]);
+    caso('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
     caso('Tabla sin «usuario»', () => C.waveA.set('tabla'), [['sec:Tabla de ondas', null], ['sec:Editor de ondas', 'usuario'], ['sec:Tabla · secuencia', null], ['wsDiv', 'Off']]);
     caso('Tabla «usuario»', () => { C.waveA.set('tabla'); C.wtSet.set('usuario'); }, [['sec:Editor de ondas', null]]);
     caso('Súper', () => C.waveA.set('supersaw'), [['phaseA', 'Súper'], ['spread', null], ['sec:Unison', 'Súper']]);
@@ -495,6 +498,62 @@ export async function runSelfTest() {
     if (getComputedStyle(fr).pointerEvents === 'none' || getComputedStyle(fr.querySelector('.knob')).pointerEvents === 'none') probs.push('un control apagado no se puede tocar');
     loadState(keep); refreshDeps();
     push({ name: 'dependencias: lo que no hace nada se apaga en su sitio, con su motivo (' + RULES.length + ' reglas)', peak: 0, ok: !probs.length, problems: probs.slice(0, 14) });
+  }
+  {
+    // grafo del algoritmo FM4 (ui/fm4Graph.js): su tabla es COPIA de la del
+    // worklet (no se puede importar un worklet desde la página) — si se
+    // separan, el dibujo mentiría sobre el sonido. Y la colocación se lee como
+    // en los Yamaha: cada operador en su sitio, portadoras en la fila de abajo,
+    // cada modulador por encima de a quién modula. En la página, el grafo
+    // sigue al selector (alg 5 = un modulador para tres portadoras).
+    const probs = [];
+    try {
+      const src = await (await fetch('js/engine/worklets/pulse-processor.js', { cache: 'no-store' })).text();
+      const m = /const FM4_ALGS = (\[[\s\S]*?\n\]);/.exec(src);
+      const wk = m ? new Function('return ' + m[1])() : null;
+      if (!wk) probs.push('no encuentro FM4_ALGS en el worklet');
+      else if (JSON.stringify(wk) !== JSON.stringify(FM4_ALGS)) probs.push('la tabla del grafo y la del worklet difieren');
+    } catch (e2) { probs.push('worklet: ' + ((e2 && e2.message) || e2)); }
+    FM4_ALGS.forEach((alg, i) => {
+      const pos = fm4Layout(alg), n = 'alg ' + (i + 1) + ': ';
+      if (new Set(pos.map(p => p.col + ',' + p.row)).size !== 4) probs.push(n + 'operadores uno encima de otro');
+      alg.car.forEach(c => { if (pos[c].row !== 0) probs.push(n + 'la portadora ' + (c + 1) + ' no está abajo'); });
+      alg.mods.forEach((ms, t) => ms.forEach(mm => { if (!(pos[mm].row > pos[t].row)) probs.push(n + 'el ' + (mm + 1) + ' no está encima del ' + (t + 1)); }));
+      if (/NaN|Infinity/.test(fm4Svg(i))) probs.push(n + 'coordenadas no finitas');
+    });
+    const keep = snapshot();
+    loadState({ waveA: 'fm4', fm4Alg: '4' });
+    const g = document.querySelector('#fm4Graph svg');
+    if (!g || g.querySelectorAll('g.op.car').length !== 3) probs.push('el grafo de la página no sigue al selector (alg 5 → 3 portadoras)');
+    loadState({ waveA: 'fm4', fmFb: 0.5 });
+    if (!document.querySelector('#fm4Graph path.fb.on')) probs.push('el lazo de feedback no se enciende con Feedback > 0');
+    loadState(keep);
+    push({ name: 'grafo FM4 a la Yamaha: misma tabla que el worklet, portadoras abajo, moduladores encima', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // pantalla Salida (ui/display.js): lo que no cabe encoge la letra hasta su
+    // mínimo y, si ni así, se desplaza; el nombre del parámetro no desaparece
+    // nunca (antes el title entero de un botón se comía la caja). Un seg enseña
+    // su valor CORTO y lo que significa va en la línea de arriba.
+    const probs = [], keep = snapshot(), scr = currentScreen();
+    showScreen('diseno');
+    const v = document.getElementById('dispVal'), who = document.getElementById('dispWho'), side = document.getElementById('dispWhy');
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: 'Pad de ejecución (rueda, aftertouch, pedal) — un nombre que no cabe ni encogido' } }));
+    await frame();
+    if (!v.clientWidth) probs.push('la pantalla Salida no se ve en Diseño');
+    else {
+      if (!v.classList.contains('scroll')) probs.push('un valor que no cabe ni a la letra mínima no se desplaza');
+      if (!(who.clientWidth > 20)) probs.push('el nombre del parámetro desaparece con un valor largo');
+    }
+    const b = document.querySelector('#fm4AlgSel button[data-alg="2"]');
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    await frame();
+    if (v.textContent !== '3 · 2·3·4→1') probs.push('algoritmo FM4: valor «' + v.textContent + '» (esperado el corto «3 · 2·3·4→1»)');
+    if (v.clientWidth && v.classList.contains('scroll')) probs.push('el valor corto del algoritmo no cabe');
+    if (!side.textContent) probs.push('la línea de arriba no dice nada (ni qué significa ni por qué no hace nada)');
+    loadState(keep); showScreen(scr);
+    push({ name: 'pantalla Salida: lo largo encoge o se desplaza, el parámetro siempre se ve', peak: 0, ok: !probs.length, problems: probs });
   }
   {
     // presupuesto de CPU de voces (AudioEngine.VOICE_BUDGET): COMÚN a los motores
@@ -1040,7 +1099,7 @@ export async function runSelfTest() {
       const T_ECO = 0.22;
       const tDir = tilt(b0, 0, 0.2), tEco0 = tilt(b0, T_ECO, end), tEco1 = tilt(b1, T_ECO, end);
       const rEco0 = rms(b0, T_ECO, end), rEco1 = rms(b1, T_ECO, end);
-      if (!(rEco0 > 1e-3)) probs.push('sin ecos en la ventana de cola (rms ' + dB(rEco0) + ')');
+      if (!(rEco0 > 1e-3 * HR)) probs.push('sin ecos en la ventana de cola (rms ' + dB(rEco0) + ')');
       const transp = tEco0 / Math.max(1e-12, tDir);
       if (!(transp > 0.8 && transp < 1.25)) probs.push('a Damp 0 los ecos no son copias (tilt ecos/directo ' + transp.toFixed(3) + ')');
       if (!(tEco1 < 0.5 * tEco0)) probs.push('Damp 1 no oscurece los ecos (tilt ' + tEco1.toExponential(2) + ' vs ' + tEco0.toExponential(2) + ')');
@@ -1153,7 +1212,7 @@ export async function runSelfTest() {
       [0, 2, 3].forEach(i => { if (!(lv[i] > SILENCE)) probs.push('la parte ' + (i + 1) + ' no suena (' + dB(lv[i]) + ')'); });
       if (!(lv[1] < SILENCE * 0.3)) probs.push('la parte 2 silenciada suena (' + dB(lv[1]) + ')');
       const tail = rmsW(2.75, 3.2);  // parte 4: nota 1.9-2.15 s, VCA cerrado en ~2.4 s (r 0.15) → solo queda la cola de la reverb compartida
-      if (!(tail > 1e-3)) probs.push('sin cola de reverb de la parte 4 en la sala (' + dB(tail) + ')');
+      if (!(tail > 1e-3 * HR)) probs.push('sin cola de reverb de la parte 4 en la sala (' + dB(tail) + ')');
       console.log('partes: niveles', lv.map(v => dB(v)).join(' · '), '· cola', dB(tail), '· pico', dB(a.peak));
       r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
@@ -1421,7 +1480,7 @@ export async function runSelfTest() {
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
       const env = [...Array(9)].map((_, i) => rmsW(big, 0, 0.25 * i + 0.25, 0.25 * i + 0.5));   // 0,25 … 2,5 s
       for (let i = 1; i < env.length; i++) if (env[i] > env[i - 1] * 1.1) { probs.push('la cola no decae (ventana ' + i + ': ' + dB(env[i]) + ' tras ' + dB(env[i - 1]) + ')'); break; }
-      if (!(env[3] > 1e-4)) probs.push('Size 3: cola muerta a 1 s (' + dB(env[3]) + ')');
+      if (!(env[3] > 1e-4 * HR)) probs.push('Size 3: cola muerta a 1 s (' + dB(env[3]) + ')');
       const tailS = rmsW(small, 0, 1.0, 1.25);
       if (!(env[3] > 5 * tailS)) probs.push('el Size no gobierna el RT (' + dB(env[3]) + ' vs ' + dB(tailS) + ')');
       let corr = 0;
@@ -1921,7 +1980,7 @@ export async function runSelfTest() {
           const b20 = await renderOne(structuredClone(engine.S), { secs: 4, offAt: 0.1 });
           const c20 = rmsW(b20, 3.5, 4), c4 = rmsW(b4, 3.5, 4);
           colas[type] = [c20, c4];
-          if (!(c20 > 1e-3)) probs.push(type + ': Size 20 sin cola audible a los 3,5 s (' + dB(c20) + ')');
+          if (!(c20 > 1e-3 * HR)) probs.push(type + ': Size 20 sin cola audible a los 3,5 s (' + dB(c20) + ')');
           if (!(c20 > 3 * c4)) probs.push(type + ': la cola de Size 20 a los 3,5 s no es ≫ que la de Size 4 (' + dB(c20) + ' vs ' + dB(c4) + ')');
           if (analyze(b20).bad) probs.push(type + ': NaN/Inf con Size 20');
         }
@@ -2082,7 +2141,7 @@ export async function runSelfTest() {
           const t0 = tiltW(b0, 3, 4), t1 = tiltW(b1, 3, 4), e0 = rmsW(b0, 3, 4), e1 = rmsW(b1, 3, 4);
           const crece = rmsW(b1, 7, 8) / Math.max(1e-9, rmsW(b1, 2, 3));
           med[type] = { t0, t1, e0, e1, crece };
-          if (!(e1 > 1e-3)) probs.push(type + ': sin cola con shimmer (' + dB(e1) + ')');
+          if (!(e1 > 1e-3 * HR)) probs.push(type + ': sin cola con shimmer (' + dB(e1) + ')');
           if (!(t1 > 1.5 * t0)) probs.push(type + ': el shimmer no aclara la cola (tilt ' + t1.toExponential(2) + ' vs ' + t0.toExponential(2) + ')');
           if (!(e1 > 3 * e0)) probs.push(type + ': el shimmer no llena la cola (rms ' + dB(e1) + ' vs ' + dB(e0) + ')');
           if (!(crece < 1)) probs.push(type + ': la cola CRECE con el bucle a tope (×' + crece.toFixed(2) + ' entre 2 s y 7 s)');
@@ -2302,6 +2361,274 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // Disparo en mono (monoTrig) y note-off PROGRAMADOS del arp/Seq. Se simula
+    // el planificador real sobre el reloj de audio: el render se suspende cada
+    // 25 ms y llama a _tick() (el setInterval del directo), con su look-ahead
+    // de 120 ms. Un pluck (sustain 0) hace audible cada redisparo: se cuentan
+    // los ataques. Antes, a 1/16 los note-off (por temporizador) llegaban
+    // DESPUÉS del on siguiente: el motor lo tomaba por legato y solo sonaba el
+    // primer paso — que el solape dependiera del tempo y no del gate era el bug.
+    // Además: el teclado en «Cada nota» redispara sin hueco (relevo en el
+    // mismo instante), y un gate más corto que el look-ahead SUENA (antes el
+    // note-off caía antes que el arranque: el golpe mudo de los jugadores).
+    body.appendChild(el('st-cat', 'Disparo mono'));
+    let r;
+    try {
+      const probs = [], log = [], keep = snapshot();
+      // RMS en ventanas de 8 ms cada 2 ms: la ventana tiene que abarcar un periodo
+      // entero de C3 (7,6 ms); con 2 ms el RMS de la sierra oscila ×5 dentro de la nota
+      const HOP = 0.002, env = buf => {
+        const d = buf.getChannelData(0), W = Math.round(SR * 0.008), H = Math.round(SR * HOP), out = [];
+        for (let i = 0; i + W <= d.length; i += H) { let s = 0; for (let k = i; k < i + W; k++) s += d[k] * d[k]; out.push(Math.sqrt(s / W)); }
+        return out;
+      };
+      const attacks = buf => {                   // cruces hacia arriba de −20 dB del pico (histéresis a −26 dB)
+        const e = env(buf), top = Math.max(...e), t = [];
+        let up = false;
+        e.forEach((v, i) => { if (!up && v > top * 0.1) { up = true; t.push(i * HOP); } else if (up && v < top * 0.05) up = false; });
+        return t;
+      };
+      const pluck = { mode: 'mono', waveA: 'sawtooth', mix: 0, cutoff: 20000, reso: 0.7, a: 0.001, d: 0.04, s: 0, r: 0.03, width: 0, bpm: 120 };
+      loadState(pluck);
+      const P = structuredClone(engine.S);
+      // arp o Seq con una tecla; 1/16 a 120 BPM = pasos de 125 ms → 8 pasos de 0,03 s a 0,905 s
+      const sched = async (over, kind) => {
+        const S = { ...structuredClone(P), ...over };
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 1.4), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+        const q = kind === 'seq' ? eng.seq : eng.arp;
+        q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q.idx = 0; q.nextT = 0.03; q.timer = 'sim';
+        for (let i = 1; i * 0.025 < 0.9; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });
+        c.suspend(0.95).then(() => { q.held = []; q._maybeStop(); c.resume(); });
+        return c.startRendering();
+      };
+      const cases = [
+        ['arp · legato · gate 0,5', { arpMode: 'up', arpDiv: '1/16', arpGate: 0.5, monoTrig: 'legato' }, 'arp', 8],
+        ['arp · legato · gate 1 (liga)', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'legato' }, 'arp', 1],
+        ['arp · cada nota · gate 1', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'retrig' }, 'arp', 8],
+        ['Seq · legato · gate 0,6', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 0.6, monoTrig: 'legato' }, 'seq', 8],
+        ['Seq · legato · gate 1 (liga)', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 1, monoTrig: 'legato' }, 'seq', 1],
+      ];
+      let gaps = [];
+      for (const [label, over, kind, want] of cases) {
+        const b = await sched(over, kind), at = attacks(b);
+        log.push(label + ' ' + at.length);
+        if (at.length !== want) probs.push(label + ': ' + at.length + ' ataques (esperados ' + want + ')');
+        if (want === 8 && at.length === 8 && !gaps.length) gaps = at.slice(1).map((t, i) => t - at[i]);
+      }
+      if (gaps.some(g => Math.abs(g - 0.125) > 0.003)) probs.push('pasos fuera de rejilla: ' + gaps.map(g => (g * 1000).toFixed(1)).join(' ') + ' ms');
+      // teclado: k2 llega con k1 pulsada
+      const keys = async (over, look = 0) => {
+        const S = { ...structuredClone(P), ...over };
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+        if (look) eng.mod.lookahead = look;     // el del directo: un relevo desalineado dejaría ~40 ms de hueco
+        eng.noteOn('k1', NOTE1);
+        c.suspend(0.3).then(() => { eng.noteOn('k2', NOTE1 * 1.5); c.resume(); });
+        c.suspend(0.6).then(() => { eng.noteOff('k1'); eng.noteOff('k2'); c.resume(); });
+        return c.startRendering();
+      };
+      const kL = attacks(await keys({ monoTrig: 'legato' })).length, kR = attacks(await keys({ monoTrig: 'retrig' })).length;
+      if (kL !== 1) probs.push('teclado legato: ' + kL + ' ataques (esperado 1)');
+      if (kR !== 2) probs.push('teclado cada nota: ' + kR + ' ataques (esperados 2)');
+      const eS = env(await keys({ monoTrig: 'retrig', s: 1 }, 0.045)), w = t => eS[Math.round(t / HOP)];
+      let hole = Infinity; for (let t = 0.28; t < 0.4; t += HOP) hole = Math.min(hole, w(t));
+      const holeR = hole / Math.max(1e-9, w(0.25));
+      if (!(holeR > 0.6)) probs.push('cada nota con sustain: hueco en el relevo (' + holeR.toFixed(2) + ' del nivel)');
+      // gate (30 ms) más corto que el look-ahead (45 ms): tiene que sonar
+      const c = new OfflineAudioContext(2, Math.ceil(SR * 0.5), SR);
+      const eng = new AudioEngine(); eng.S = { ...structuredClone(P), mode: 'poly', s: 1 }; await eng.init(c);
+      eng.mod.lookahead = 0.045;
+      eng._directOn('x', NOTE1, 1, 0.1); eng._directOff('x', 0.13);
+      const short = analyze(await c.startRendering());
+      if (!(short.peak > 0.03)) probs.push('gate 30 ms con look-ahead 45 ms: mudo (' + dB(short.peak) + ')');
+      // note-off programado con la envolvente ya en el sostenido: el sostenido
+      // aguanta hasta el off (cancelAndHold no ancla si ninguna rampa cruza t;
+      // sin el ancla explícita la ganancia caía en recta desde el fin del decay)
+      const c2 = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
+      const e2 = new AudioEngine(); e2.S = { ...structuredClone(P), mode: 'poly', s: 1 }; await e2.init(c2);
+      e2._directOn('y', NOTE1, 1, 0.05); e2._directOff('y', 0.7);
+      const eY = env(await c2.startRendering()), sus = eY[Math.round(0.6 / HOP)] / Math.max(1e-9, eY[Math.round(0.15 / HOP)]);
+      if (!(sus > 0.9 && sus < 1.1)) probs.push('note-off programado: el sostenido no aguanta hasta el off (×' + sus.toFixed(2) + ' a 0,6 s)');
+      console.log('disparo: ataques', log.join(' · '), '· teclado legato/cada nota', kL, kR, '· relevo', holeR.toFixed(2), '· gate corto', dB(short.peak), '· sostenido hasta el off ×' + sus.toFixed(2));
+      loadState(keep);
+      r = { name: 'Disparo mono (legato / cada nota) · arp y Seq redisparan por el gate · gate < look-ahead suena', peak: short.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'Disparo mono (legato / cada nota) · arp y Seq redisparan por el gate · gate < look-ahead suena', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Velocity en FM4 (fm4V, la «key velocity sensitivity» del DX7): con
+    // sensibilidad en el MODULADOR, pegar flojo da menos índice → menos
+    // armónicos (tilt espectral, que no depende del nivel). Sin sensibilidad,
+    // flojo y fuerte tienen el mismo timbre (el VCA ya escala el volumen). Con
+    // sensibilidad en la PORTADORA, cambia el nivel y no el timbre.
+    body.appendChild(el('st-cat', 'Velocity en FM4'));
+    let r;
+    try {
+      const probs = [], keep = snapshot();
+      loadState({ waveA: 'fm4', mix: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.3, s: 0.8, r: 0.1, width: 0, fm4Alg: '0',
+                  fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 2, fm4L2: 0.6, fm4D2: 4, fm4L3: 0, fm4L4: 0 });
+      const P = structuredClone(engine.S);
+      const one = async (over, vel) => renderOne({ ...structuredClone(P), ...over }, { secs: 0.6, offAt: 0.5, vel });
+      const rms = (b, t0, t1) => { const d = b.getChannelData(0); let s = 0, n = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) { s += d[i] * d[i]; n++; } return Math.sqrt(s / n); };
+      const pair = async over => { const hi = await one(over, 1), lo = await one(over, 0.3);
+        return { tilt: tiltW(hi, 0.1, 0.4) / Math.max(1e-12, tiltW(lo, 0.1, 0.4)), lvl: rms(hi, 0.1, 0.4) / Math.max(1e-12, rms(lo, 0.1, 0.4)), peak: analyze(hi).peak }; };
+      const mod = await pair({ fm4V2: 1 }), ctl = await pair({}), car = await pair({ fm4V1: 1 });
+      if (!(mod.tilt > 2)) probs.push('modulador con vel: fuerte/flojo apenas cambia el brillo (×' + mod.tilt.toFixed(2) + ')');
+      if (!(ctl.tilt > 0.8 && ctl.tilt < 1.25)) probs.push('control sin vel: el brillo cambia con la velocity (×' + ctl.tilt.toFixed(2) + ')');
+      if (!(car.tilt > 0.8 && car.tilt < 1.25)) probs.push('portadora con vel: cambia el brillo (×' + car.tilt.toFixed(2) + '), debería solo el nivel');
+      if (!(car.lvl > ctl.lvl * 2)) probs.push('portadora con vel: el nivel no escala (×' + car.lvl.toFixed(2) + ' vs ×' + ctl.lvl.toFixed(2) + ' sin vel)');
+      if (mod.peak > 1) probs.push('clipping');
+      console.log('fm4 vel: brillo fuerte/flojo modulador', mod.tilt.toFixed(2), 'control', ctl.tilt.toFixed(2), 'portadora', car.tilt.toFixed(2), '· nivel portadora', car.lvl.toFixed(2), 'control', ctl.lvl.toFixed(2));
+      loadState(keep);
+      r = { name: 'Velocity en FM4: en el modulador cambia el timbre, en la portadora el nivel', peak: mod.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'Velocity en FM4: en el modulador cambia el timbre, en la portadora el nivel', peak: 0, ok: false,
+            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Margen del máster (1.1.0): un acorde abierto de cuatro notas con los pads de
+    // fábrica no hace TRABAJAR al limitador. Lo que se oye no es que un pico roce el
+    // techo un instante (con fases y derivas aleatorias el pico de un acorde varía
+    // ±1 dB de una pasada a otra), sino que recorte todo el rato: antes los pads
+    // entraban 4-8 dB por encima con TRES notas y el 100 % de los bloques de 10 ms
+    // del sostenido iban recortados, con la ganancia subiendo y bajando con el batido
+    // (el acorde «sucio, con altibajos»). Bloque recortado = su pico pasa de −1,3 dBFS
+    // (el limitador lo clava en −1). Y el Master, ahora DELANTE del limitador, a tope
+    // con 16 notas no pasa del techo.
+    body.appendChild(el('st-cat', 'Margen del máster'));
+    let r;
+    try {
+      const probs = [], keep = snapshot(), CH4 = [130.81, 196.0, 261.63, 329.63];
+      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
+      const peaks = [];
+      for (const n of ['Supersaw pad', 'Strings ensemble', 'Pad cálido', 'Solina strings', 'Pad de placa', 'Coro humano']) {
+        loadState(find(n));
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
+        CH4.forEach((f, i) => eng.noteOn('n' + i, f, 1));
+        c.suspend(1.8).then(() => { CH4.forEach((f, i) => eng.noteOff('n' + i)); c.resume(); });
+        const b = await c.startRendering(), a = analyze(b), l = b.getChannelData(0), rr = b.getChannelData(1), W = Math.round(0.01 * SR), TOP = Math.pow(10, -1.3 / 20);
+        let hot = 0, n10 = 0;
+        for (let i = 0; i + W <= Math.floor(1.8 * SR); i += W, n10++) { let p = 0; for (let k = i; k < i + W; k++) p = Math.max(p, Math.abs(l[k]), Math.abs(rr[k])); if (p > TOP) hot++; }
+        const pct = 100 * hot / n10;
+        peaks.push(n + ' ' + dB(a.peak) + ' (' + pct.toFixed(1) + ' %)');
+        if (!(pct < 3)) probs.push(n + ': el limitador trabaja el ' + pct.toFixed(0) + ' % del acorde (pico ' + dB(a.peak) + ')');
+        if (a.peak <= SILENCE) probs.push(n + ': en silencio');
+      }
+      loadState({ master: 1 });
+      const st = await renderStress(structuredClone(engine.S));   // (ya devuelve el análisis)
+      if (st.peak <= SILENCE) probs.push('16 notas con Master a tope: silencio');
+      if (st.peak > Math.pow(10, -0.9 / 20)) probs.push('16 notas con Master a tope pasan del techo (' + dB(st.peak) + ')');
+      console.log('margen: picos con 4 notas', peaks.join(' · '), '· 16 notas Master 1', dB(st.peak));
+      loadState(keep);
+      r = { name: 'margen: con un acorde de pad el limitador no trabaja; el Master a tope no pasa del techo', peak: st.peak, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'margen: con un acorde de pad el limitador no trabaja; el Master a tope no pasa del techo', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Sonoridad de fábrica (1.1.0): cada preset trae un Master medido para sonar a
+    // unos −14 LUFS a la salida en su USO PREVISTO (una nota en bajos y leads, un acorde de tres en
+    // pads y teclas) sin que ese uso llegue al limitador. Sonoridad percibida =
+    // K-weighting de BS.1770, máximo de bloques de 400 ms. Antes del ajuste, con el
+    // margen del máster, los bajos sonaban 8-9 dB por debajo de los pads.
+    body.appendChild(el('st-cat', 'Sonoridad de fábrica'));
+    let r;
+    try {
+      const probs = [], keep = snapshot(), meds = [];
+      const biq = (b0, b1, b2, a1, a2) => x => { const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+      const kShelf = (() => { const A = Math.pow(10, 4 / 40), w = 2 * Math.PI * 1681.97 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7072), sA = 2 * Math.sqrt(A) * al, a0 = (A + 1) - (A - 1) * c + sA;
+        return biq(A * ((A + 1) + (A - 1) * c + sA) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - sA) / a0, 2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - sA) / a0); })();
+      const kHp = (() => { const w = 2 * Math.PI * 38.135 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.5003), a0 = 1 + al; return biq((1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - al) / a0); })();
+      const lufs = b => { const l = kHp(kShelf(b.getChannelData(0))), rr = kHp(kShelf(b.getChannelData(1))), B = Math.round(0.4 * SR), H = Math.round(0.1 * SR);
+        let best = 0; for (let i = 0; i + B <= l.length; i += H) { let s = 0; for (let k = i; k < i + B; k++) s += l[k] * l[k] + rr[k] * rr[k]; best = Math.max(best, s / B); }
+        return best > 0 ? -0.691 + 10 * Math.log10(best) : -99; };
+      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
+      for (const [n, notes] of [['Slide bass', [130.81]], ['Lead brillante', [130.81]], ['Supersaw pad', [130.81, 164.81, 196.0]], ['DX e-piano', [130.81, 164.81, 196.0]], ['Strings ensemble', [130.81, 164.81, 196.0]]]) {
+        loadState(find(n));
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
+        notes.forEach((f, i) => eng.noteOn('n' + i, f, 1));
+        c.suspend(2.0).then(() => { notes.forEach((f, i) => eng.noteOff('n' + i)); c.resume(); });
+        const L = lufs(await c.startRendering());
+        meds.push([n, L]);
+        if (!(L > -17 && L < -11)) probs.push(n + ' (' + (notes.length > 1 ? 'acorde' : 'una nota') + '): ' + L.toFixed(1) + ' LUFS, fuera de −14 ± 3');
+      }
+      const Ls = meds.map(m => m[1]), spread = Math.max(...Ls) - Math.min(...Ls);
+      if (!(spread < 3.5)) probs.push('de la nota suelta al acorde hay ' + spread.toFixed(1) + ' dB de diferencia');
+      console.log('sonoridad en su uso:', meds.map(([n, L]) => n + ' ' + L.toFixed(1)).join(' · '), '· diferencia', spread.toFixed(1), 'dB');
+      loadState(keep);
+      r = { name: 'sonoridad de fábrica: una nota de bajo o lead suena como un acorde de pad (−14 LUFS ± 3)', peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'sonoridad de fábrica: una nota de bajo o lead suena como un acorde de pad (−14 LUFS ± 3)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // Limitador del máster con señales de prueba (worklets/limiter-processor.js):
+    // (1) por debajo del techo es TRANSPARENTE: la salida es la entrada retrasada el
+    // lookahead y con el makeup, muestra a muestra; (2) una ráfaga a +12 dB — y otra
+    // solo en el canal derecho — no deja NINGUNA muestra por encima del techo, sin
+    // NaN, y tras el silencio la ganancia vuelve (el seno final sale como el del
+    // principio); (3) pico REAL entre muestras (dBTP, sobremuestreo ×4 con sinc
+    // enventanado): el techo es de muestra (−1 dBFS) y deja 1 dB para lo que el
+    // conversor reconstruye entre muestras; se mide en el peor caso musical (16
+    // notas brillantes con el Master a +12 dB, el limitador apretando a fondo).
+    body.appendChild(el('st-cat', 'Limitador'));
+    let r;
+    try {
+      const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), MK = Math.pow(10, LIM_MAKEUP_DB / 20), L = Math.round(LIM_LOOKAHEAD * SR);
+      const N = Math.ceil(SR * 1.6), ctx = new OfflineAudioContext(2, N, SR);
+      await loadWorklets(ctx);
+      const sala = new Sala(ctx, makeDefaultState(), { master: 1 });
+      const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
+      const lo = Math.pow(10, -12 / 20), seg = (t0, t1, f) => { for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) f(i, i / SR); };
+      seg(0.0, 0.3, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (1) seno a −12 dBFS
+      seg(0.4, 0.6, (i, t) => { const v = 4 * ((t * 220) % 1 * 2 - 1); xl[i] = v; xr[i] = -v; });                // (2) sierra a +12 dB
+      seg(0.7, 0.8, (i, t) => { xr[i] = 4 * Math.sin(2 * Math.PI * 3000 * t); });                                // (2) solo en R
+      seg(1.3, 1.6, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (2) seno tras el silencio
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
+      const out = await ctx.startRendering(), yl = out.getChannelData(0), yr = out.getChannelData(1);
+      let dT = 0; for (let i = L + 100; i < Math.floor(0.3 * SR); i++) dT = Math.max(dT, Math.abs(yl[i] - xl[i - L] * MK), Math.abs(yr[i] - xr[i - L] * MK));
+      if (!(dT < 1e-5)) probs.push('por debajo del techo no es transparente (|Δ| máx ' + dT.toExponential(2) + ')');
+      let pk = 0, bad = 0; for (let i = 0; i < N; i++) { if (!Number.isFinite(yl[i]) || !Number.isFinite(yr[i])) bad++; else pk = Math.max(pk, Math.abs(yl[i]), Math.abs(yr[i])); }
+      if (bad) probs.push(bad + ' muestras NaN/Inf');
+      if (pk > CEIL * 1.0001) probs.push('una muestra pasa del techo (' + dB(pk) + ')');
+      let dR = 0; for (let i = Math.floor(1.45 * SR); i < Math.floor(1.55 * SR); i++) dR = Math.max(dR, Math.abs(yl[i] - xl[i - L] * MK));
+      if (!(dR < 1e-3)) probs.push('tras el silencio la ganancia no vuelve (|Δ| ' + dR.toExponential(2) + ')');
+      // pico real: interpolación ×4 con sinc enventanado (Hann, 16 muestras a cada lado)
+      const truePeak = (a, b) => { let p = 0; const H = 16, ph = [0.25, 0.5, 0.75].map(f => { const w = []; for (let k = -H + 1; k <= H; k++) { const x = k - f; w.push(Math.sin(Math.PI * x) / (Math.PI * x) * (0.5 + 0.5 * Math.cos(Math.PI * x / H))); } return w; });
+        for (const d of [a, b]) for (let i = H; i < d.length - H; i++) { p = Math.max(p, Math.abs(d[i])); for (const w of ph) { let s = 0; for (let k = 0; k < w.length; k++) s += w[k] * d[i - H + 1 + k]; p = Math.max(p, Math.abs(s)); } }
+        return p; };
+      const keep = snapshot();
+      loadState({ waveA: 'supersaw', waveB: 'square', mix: 0.5, cutoff: 20000, reso: 0.7, master: 4 });
+      const c2 = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
+      const e2 = new AudioEngine(); e2.S = structuredClone(engine.S); await e2.init(c2);
+      for (let i = 0; i < 16; i++) e2.noteOn('s' + i, 220 * Math.pow(2, i / 12));
+      const m2 = await c2.startRendering(), tp = truePeak(m2.getChannelData(0), m2.getChannelData(1)), sp = analyze(m2).peak;
+      if (!(tp < 1)) probs.push('pico real por encima de 0 dBTP (' + dB(tp) + '; de muestra ' + dB(sp) + ')');
+      loadState(keep);
+      console.log('limitador: transparente |Δ| ' + dT.toExponential(1) + ' · pico de muestra con +12 dB ' + dB(pk) + ' · recuperación |Δ| ' + dR.toExponential(1) + ' · peor caso musical: muestra ' + dB(sp) + ', real ' + dB(tp));
+      r = { name: 'limitador: transparente bajo el techo, ninguna muestra lo pasa, se recupera; pico real < 0 dBTP', peak: pk, ok: !probs.length, problems: probs };
+    } catch (e2) {
+      r = { name: 'limitador: transparente bajo el techo, ninguna muestra lo pasa, se recupera; pico real < 0 dBTP', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
   // Reset neutro (oct-2026): {} deja el oscilador A a solas y ningún módulo
   // toca la señal (todo param `act` a 0, filtro abierto y plano, puerta); un
   // preset NO vacío va sobre PRESET_BASE (los defaults de antes) y suena como siempre
@@ -2408,10 +2735,12 @@ export async function runSelfTest() {
     try {
       const bank = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
       const names = Object.keys(bank.presets).filter(n => n.startsWith(demosPrefix));
+      // «velocidad»: {prefijo: v} — pares que solo se distinguen tocando flojo (sensibilidad a la velocity)
+      const velOf = n => { for (const [p, v] of Object.entries(bank.velocidad || {})) if (n.startsWith(p)) return v; return 1; };
       const bufs = {};
       for (const n of names) {
         loadState(bank.presets[n]);
-        bufs[n] = await renderBuf(structuredClone(engine.S));
+        bufs[n] = await renderBuf(structuredClone(engine.S), velOf(n));
       }
       for (let i = 0; i + 1 < names.length; i += 2) {
         const A = names[i], B = names[i + 1];

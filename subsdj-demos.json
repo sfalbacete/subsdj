@@ -1,8 +1,22 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v24 (+ resonador modal, 2026-10)",
-  "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase).",
+  "banco": "SubSDJ · demos de mejoras — v25 (+ disparo mono y velocity en FM4, 2026-10)",
+  "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase). Los Disparo: toca LIGADO (la segunda tecla antes de soltar la primera) — en Legato la nota desliza, en Cada nota redispara. Los FMV: con teclado MIDI, suave y fuerte; a velocity 1 suenan igual (la sonda los renderiza a 0,4, ver «velocidad»).",
+  "velocidad": { "FMV": 0.4 },
   "presets": {
+
+    "Disparo 1 · lead mono, legato": { "mode": "mono", "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.3, "cutoff": 900, "reso": 6, "filterEnvAmt": 3200,
+      "a": 0.004, "d": 0.35, "s": 0.3, "r": 0.25, "glide": 0.07, "width": 0.2, "dlyAmt": 0.15, "reverbMix": 0.15, "master": 0.7, "monoTrig": "legato" },
+    "Disparo 2 · mismo, cada nota": { "mode": "mono", "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "mix": 0.3, "cutoff": 900, "reso": 6, "filterEnvAmt": 3200,
+      "a": 0.004, "d": 0.35, "s": 0.3, "r": 0.25, "glide": 0.07, "width": 0.2, "dlyAmt": 0.15, "reverbMix": 0.15, "master": 0.7, "monoTrig": "retrig" },
+
+    "FMV 1 · e-piano FM4, vel plana": { "waveA": "fm4", "mix": 0, "fm4Alg": "1", "fm4R1": 1, "fm4L1": 1, "fm4D1": 4, "fm4R2": 14, "fm4L2": 0.12, "fm4D2": 0.1,
+      "fm4R3": 1, "fm4L3": 0.7, "fm4D3": 4, "fm4R4": 1, "fm4L4": 0.35, "fm4D4": 0.6, "cutoff": 9000, "a": 0.002, "d": 1.0, "s": 0.2, "r": 0.4,
+      "chAmt": 0.25, "chSpd": 0.5, "width": 0.35, "reverbMix": 0.22 },
+    "FMV 2 · mismo, vel en moduladores": { "waveA": "fm4", "mix": 0, "fm4Alg": "1", "fm4R1": 1, "fm4L1": 1, "fm4D1": 4, "fm4R2": 14, "fm4L2": 0.12, "fm4D2": 0.1,
+      "fm4R3": 1, "fm4L3": 0.7, "fm4D3": 4, "fm4R4": 1, "fm4L4": 0.35, "fm4D4": 0.6, "cutoff": 9000, "a": 0.002, "d": 1.0, "s": 0.2, "r": 0.4,
+      "chAmt": 0.25, "chSpd": 0.5, "width": 0.35, "reverbMix": 0.22,
+      "fm4V2": 0.8, "fm4V4": 0.7 },
 
     "RES 1 · ruido con un seno, sin resonador": { "waveA": "sine", "mix": 0, "noise": 1, "noiseColor": 0.2, "cutoff": 9000, "reso": 0.7, "resAmt": 0,
       "a": 0.3, "d": 1, "s": 1, "r": 3, "width": 0.3, "reverbType": "placa", "reverbMix": 0.4, "reverbSize": 6, "master": 0.6 },

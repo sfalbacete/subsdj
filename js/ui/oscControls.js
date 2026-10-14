@@ -66,7 +66,8 @@ function bindFreeze() {
 export function bindOscControls() {
   bindSeg('waveA', 'w', 'waveA', 'oscA.wave');
   bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
-  bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono (legato)
+  bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono
+  bindSeg('monoTrigSel', 'trig', 'monoTrig', 'monoTrig');  // Disparo en Mono: legato / cada nota
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
   bindSeg('filterSlopeSel', 'slope', 'filterSlope', 'filterSlope');  // 12 / 24 dB por octava
   bindSeg('filterTypeSel', 'ftype', 'filterType', 'filterType');     // LP↔HP / BP / Notch (estructura: por nota)

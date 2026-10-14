@@ -25,6 +25,7 @@ const msFmt = v => (v * 1000).toFixed(0) + ' ms';
 // Tiempos ×10 (Roadmap 5.0 · bloque 1): ms por debajo de 1 s, segundos por encima
 const secFmt = v => v >= 1 ? v.toFixed(2) + ' s' : (v * 1000).toFixed(0) + ' ms';
 // LFOs lentos de verdad (0,005 Hz = un ciclo cada 200 s): tres decimales por debajo de 0,1 Hz
+export const dbFmt = v => (v <= 0 ? '−∞' : (d => (d >= 0.05 ? '+' : '') + d.toFixed(1).replace('-', '−') + ' dB')(20 * Math.log10(v)));   // ganancia lineal → dB
 const hzFmt = v => (v < 0.1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v.toFixed(1)) + ' Hz';
 const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s');   // decay por operador (FM4): tope = plano
 const twoDec = v => v.toFixed(2);
@@ -63,6 +64,8 @@ export const PARAMS = {
   fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R4: { def: 3, min: 0.25, max: 12 }, fm4L4: { def: 0.2, min: 0, max: 1 }, fm4D4: { def: 0.15, min: 0.005, max: 4, log: true, fmt: decFmt },
+  // sensibilidad a la velocity de cada operador: nivel × (1 − v + v·velocity); 0 = como siempre
+  fm4V1: { def: 0, min: 0, max: 1, act: true }, fm4V2: { def: 0, min: 0, max: 1, act: true }, fm4V3: { def: 0, min: 0, max: 1, act: true }, fm4V4: { def: 0, min: 0, max: 1, act: true },
   wtSet:    { def: 'analógica' },                   // tabla de ondas (oscs en modo 'Tabla'; global A+B)
   wtPos:    { def: 0, min: 0, max: 1 },             // morph: posición entre los frames de la tabla
   wtUser:   { def: '' },                            // receta de la tabla 'usuario' DENTRO del preset ('' = respeta la dibujada)
@@ -172,6 +175,7 @@ export const PARAMS = {
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
   pitchEnvDec: { def: 0.08, min: 0.005, max: 10, log: true, fmt: secFmt },  // hasta 10 s: risers y caídas lentas
   mode:   { def: 'poly' },
+  monoTrig: { def: 'legato' },                      // Disparo en Mono, si las notas se SOLAPAN: legato (desliza sin redisparar) | retrig (cada nota redispara)
   arpMode: { def: 'off' },                          // off | up | down | updown | random
   arpDiv:  { def: '1/16' },                         // división musical del paso (usa bpm)
   arpOct:  { def: '1' },                            // octavas del patrón (1..3, seg de botones)
@@ -187,7 +191,9 @@ export const PARAMS = {
   wsDiv:  { def: '1/16' },                          // división musical del paso (usa bpm)
   wsMode: { def: 'loop' },                          // loop | 1shot (una pasada: envolvente de timbre)
   wsXf:   { def: 0.25, min: 0, max: 1, fmt: v => (v * 100).toFixed(0) + '%' },  // fundido: fracción del paso (1 = glissando)
-  master: { def: 0.7, min: 0, max: 1, step: 0.01, fmt: twoDec },
+  // Master: DELANTE del limitador (1.1.0) y hasta ×4 (+12 dB): los presets de una nota (bajos, leads)
+  // necesitan subir lo que el margen del máster quita para los acordes. Log: 0,7 cae donde siempre (71 %).
+  master: { def: 0.7, min: 0, max: 4, log: true, lmin: 0.01, fmt: dbFmt },
 };
 
 /* --- Matriz de modulación: MX_SLOTS filas fuente → destino × cantidad. ---

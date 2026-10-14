@@ -31,7 +31,7 @@ export function initRotaries(root = document) {
     knob.innerHTML = '<div class="ind"></div>';
     seg.appendChild(knob);
 
-    const cap = seg.parentElement.querySelector('.rcap');   // leyenda opcional de la posición (data-cap), p. ej. el grafo del algoritmo FM4
+    const cap = seg.parentElement.querySelector('.rcap');   // leyenda opcional de la posición (data-cap); el FM4 dibuja su grafo aparte (fm4Graph.js) y su data-cap es el valor corto de la pantalla Salida
     const cur = () => btns.findIndex(b => b.classList.contains('active'));
     const paint = () => {
       const i = cur();

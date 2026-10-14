@@ -10,7 +10,7 @@
    pulgar, teclas) resuelven sus var(--accent) donde se declaran.
    ===================================================================== */
 :root{
-  --theme-id:"cinescapes"; --theme-name:"Cinescapes";   /* el bloque base ES el tema por defecto (theme.js lo lista) */
+  --theme-id:"cinescapes"; --theme-name:"Carbón";   /* el bloque base ES el tema por defecto (theme.js lo lista); el id es el de siempre: no se pierde la elección recordada */
   /* superficies, de fuera adentro: carbón plano, sin halo */
   --bg:#15171c;          /* página */
   --bg-glow:var(--bg);   /* halo radial en lo alto del fondo (aquí ninguno: plano) */
@@ -376,6 +376,16 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.rot .knob{position:absolute;left:30px;top:20px;--knob-arc:0px;--knob-line:9px;--knob-line-top:6px;--knob-dot:0px;}
 .ctl.rotc{width:auto;gap:0;}
 .ctl.rotc .rcap{font-size:9px;color:var(--dim);min-height:11px;margin-top:2px;}
+/* Grafo del algoritmo FM4 (ui/fm4Graph.js): portadoras con el acento del módulo, moduladores apagados */
+.fm4g{margin-top:4px;line-height:0;}
+.fm4g svg{display:block;overflow:visible;}
+.fm4g rect{fill:var(--well);stroke:var(--dim);stroke-width:1;}
+.fm4g .car rect{stroke:var(--accent2);}
+.fm4g text{fill:var(--ink);font-size:8px;text-anchor:middle;dominant-baseline:central;}
+.fm4g path{fill:none;stroke:var(--dim);stroke-width:1;}
+.fm4g path.o{stroke:var(--accent2);}
+.fm4g path.fb{stroke:var(--edge-hi);stroke-dasharray:2 2;}
+.fm4g path.fb.on{stroke:var(--accent2);stroke-dasharray:none;}
 /* Conmutador con LED: el .seg de 2-3 opciones como lista de LEDs con su
    rótulo (el Poli/Mono del hardware). Clic en un rótulo = elegirlo. */
 .seg.tog{display:flex;flex-direction:column;gap:4px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
@@ -403,7 +413,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .th{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .rn{font-size:10px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;}
 .lfo-bank{grid-template-columns:auto 40px auto auto;}
-.fm4ops{grid-template-columns:30px repeat(3,auto);margin-left:4px;}
+.fm4ops{grid-template-columns:28px repeat(4,auto);gap:3px 4px;margin-left:4px;}
+.fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: con 4 columnas no caben 46 px por valor */
 .lfo-row{display:contents;}
 .lfoShape,.noshape{background:var(--well);border:1px solid var(--edge);border-radius:4px;color:var(--accent2);font-size:9px;
   padding:2px 0;text-align:center;letter-spacing:.5px;line-height:1.2;font-family:inherit;}
@@ -426,12 +437,19 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 
 /* Salida: la pantalla del instrumento (ui/display.js) + osciloscopio y espectro del máster (ui/scope.js) */
 #salida{min-width:420px;}
-.readout{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;padding:6px 12px;min-height:46px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
-.readout .who{font-size:10px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.readout .why{grid-row:2;font-size:10px;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.readout .why:empty{display:none;}
-.readout .v{grid-column:2;grid-row:1 / span 2;min-width:0;overflow:hidden;text-overflow:ellipsis;font:600 24px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;color:var(--accent);white-space:nowrap;
+/* Dos líneas, como el LCD de un sinte: arriba el parámetro y, a su derecha, qué significa la opción
+   (o por qué no hace nada: .off); abajo, en grande, el valor. Lo que no cabe encoge la letra y, si
+   ni así, se desplaza ida y vuelta (.scroll; ui/display.js calcula --dx y --t). */
+.readout{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px;row-gap:3px;padding:5px 12px;min-height:46px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+.readout .who{max-width:220px;font-size:10px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.readout .side{min-width:0;font-size:10px;color:var(--dim);text-align:right;white-space:nowrap;overflow:hidden;}
+.readout .side.off{color:var(--accent2);}
+.readout .v{grid-column:1 / -1;min-width:0;overflow:hidden;text-align:right;font:600 24px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;color:var(--accent);white-space:nowrap;
   text-shadow:0 0 10px color-mix(in srgb,var(--accent) 40%,transparent);}
+.readout .v > span,.readout .side > span{display:inline-block;}
+.readout .scroll{text-align:left;}
+.readout .scroll > span{animation:lcdScroll var(--t,6s) ease-in-out infinite alternate;}
+@keyframes lcdScroll{0%,12%{transform:translateX(0);}88%,100%{transform:translateX(var(--dx,0));}}
 .vizrow{display:flex;gap:8px;margin-top:8px;flex:1;min-height:0;}
 .vizrow canvas{flex:1;min-width:0;height:100%;display:block;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
 

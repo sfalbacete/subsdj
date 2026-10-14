@@ -21,7 +21,14 @@ import { makeIR, mkLFO, setLfoShape } from './nodes.js';
 // Limitador de salida (ver worklets/limiter-processor.js): mismo retraso (6 ms) y
 // misma ganancia por debajo del umbral (+1,71 dB, medida) que el DynamicsCompressor
 // al que sustituye; techo de verdad en −1 dBFS; release como el de antes.
-const LIM_LOOKAHEAD = 0.006, LIM_CEIL_DB = -1, LIM_MAKEUP_DB = 1.71, LIM_RELEASE = 0.1;
+export const LIM_LOOKAHEAD = 0.006, LIM_CEIL_DB = -1, LIM_MAKEUP_DB = 1.71, LIM_RELEASE = 0.1;
+// Margen fijo delante del limitador (1.1.0). Antes cada voz iba tan fuerte que una
+// nota sola ya rozaba el techo, y un acorde de pad lo pisaba 4-8 dB: el limitador
+// recortaba todo el sostenido y su ganancia subía y bajaba con los picos del batido
+// de las sierras desafinadas (el acorde «sucio, con altibajos» que oyó Sergio).
+// Con este margen un acorde de cuatro notas de un pad no lo toca: el limitador
+// vuelve a ser red de seguridad. Calibrado midiendo los presets de fábrica.
+export const HEADROOM_DB = -9;
 
 export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
@@ -190,6 +197,7 @@ export class Sala {
     // Por debajo del techo es lineal con +1,71 dB: lo mismo que sumaba aquel.
     this.comp = new AudioWorkletNode(ctx, 'limiter-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
       processorOptions: { lookahead: LIM_LOOKAHEAD, ceilingDb: LIM_CEIL_DB, makeupDb: LIM_MAKEUP_DB, release: LIM_RELEASE } });
+    this.headroom = ctx.createGain(); this.headroom.gain.value = Math.pow(10, HEADROOM_DB / 20);
     this.master = ctx.createGain(); this.master.gain.value = master;
     this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.8;
 
@@ -231,18 +239,20 @@ export class Sala {
     if (S.reverbType === 'placa') { this._ensurePlate(); this.revPre.connect(this.plate); }
     else this.revPre.connect(this.convA);
     this.revRet.connect(this.sum);
-    // suma → cinta (saturación → wow) → limitador → máster → analizador. El máster va
-    // DETRÁS del limitador a propósito: se probó delante (2026-10-12, para que bajarlo
-    // le quitara trabajo al limitador) y el pico que este limitador deja pasar (ataque
-    // de 2 ms) ya no quedaba atenuado: «16 notas + robo de voz» clipeaba (+0,3 dB).
+    // suma → cinta (saturación → wow) → margen → máster → limitador → analizador. El
+    // máster va DELANTE del limitador (1.1.0): bajarlo le quita trabajo (limpio) y
+    // subirlo lo aprieta (más fuerte, comprimido). Se probó así el 2026-10-12 y se
+    // revirtió porque el DynamicsCompressor de entonces dejaba pasar picos («16 notas»
+    // clipeaba +0,3 dB); el limitador de ahora es brickwall con lookahead: |y| ≤ techo.
+    // La cinta queda antes del margen: su saturación ve el mismo nivel de siempre.
     this.sum.connect(this.tapeIn);
     this.tapeIn.connect(this.satDry); this.satDry.connect(this.satOut);
     this.tapeIn.connect(this.satPre); this.satPre.connect(this.satShaper); this.satShaper.connect(this.satPost);
     this.satPost.connect(this.satLP); this.satLP.connect(this.satWet); this.satWet.connect(this.satOut);
     this.satOut.connect(this.wowDry); this.wowDry.connect(this.tapeOut);
     this.satOut.connect(this.tapeDelay); this.tapeDelay.connect(this.wowWet); this.wowWet.connect(this.tapeOut);
-    this.tapeOut.connect(this.comp); this.comp.connect(this.master);
-    this.master.connect(this.analyser); this.analyser.connect(dest);
+    this.tapeOut.connect(this.headroom); this.headroom.connect(this.master); this.master.connect(this.comp);
+    this.comp.connect(this.analyser); this.analyser.connect(dest);
 
     // --- Shimmer (bajo demanda: el caso común shimAmt = 0 no paga el worklet) y freeze ---
     this.shim = null; this.frozen = false;
@@ -398,6 +408,6 @@ export class Sala {
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,
                      this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.irMix, this.plateMix,
-                     this.revRet, this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }
+                     this.revRet, this.headroom, this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }
   }
 }

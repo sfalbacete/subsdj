@@ -25,6 +25,7 @@ import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
 import { initRotaries } from './ui/rotary.js';
+import { initFm4Graph } from './ui/fm4Graph.js';
 import { initDisplay } from './ui/display.js';
 import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
@@ -42,6 +43,7 @@ bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 bindWsControls();    // secuencia de tabla (wave sequencing)
 initRotaries();      // selectores giratorios: los .seg.rot ya tienen su posición activa
+initFm4Graph();      // grafo del algoritmo FM4 bajo su selector (sigue a fm4Alg y al Feedback)
 initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap

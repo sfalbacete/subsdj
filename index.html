@@ -187,28 +187,32 @@
         <button data-alg="5" data-cap="3→2→1 + 4" title="Pila de tres + portadora 4 sola (cama de seno)">6</button>
         <button data-alg="6" data-cap="2→1 + 3 + 4" title="Par 2→1 + dos portadoras puras">7</button>
         <button data-alg="7" data-cap="1+2+3+4" title="Aditivo: las cuatro suenan; con feedback el 4 se vuelve sierra">8</button>
-      </div><div class="lab">Algoritmo</div><div class="val rcap"></div></div>
+      </div><div class="lab">Algoritmo</div><div class="fm4g" id="fm4Graph"></div></div>
       <div class="tbl fm4ops">
-        <span></span><span class="th">ratio</span><span class="th">nivel</span><span class="th">decay</span>
+        <span></span><span class="th">ratio</span><span class="th">nivel</span><span class="th">decay</span><span class="th" title="Sensibilidad a la velocity: cuánto escala el nivel con la fuerza de la nota">vel</span>
         <span class="rn">Op 1</span>
         <div class="ctl ks" data-lab="Op 1 · ratio"><div class="knob" data-knob="fm4R1"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 1 · nivel"><div class="knob" data-knob="fm4L1"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 1 · decay"><div class="knob" data-knob="fm4D1"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Op 1 · vel"><div class="knob" data-knob="fm4V1"><div class="ind"></div></div><div class="val"></div></div>
         <span class="rn">Op 2</span>
         <div class="ctl ks" data-lab="Op 2 · ratio"><div class="knob" data-knob="fm4R2"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 2 · nivel"><div class="knob" data-knob="fm4L2"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 2 · decay"><div class="knob" data-knob="fm4D2"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Op 2 · vel"><div class="knob" data-knob="fm4V2"><div class="ind"></div></div><div class="val"></div></div>
         <span class="rn">Op 3</span>
         <div class="ctl ks" data-lab="Op 3 · ratio"><div class="knob" data-knob="fm4R3"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 3 · nivel"><div class="knob" data-knob="fm4L3"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 3 · decay"><div class="knob" data-knob="fm4D3"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Op 3 · vel"><div class="knob" data-knob="fm4V3"><div class="ind"></div></div><div class="val"></div></div>
         <span class="rn">Op 4</span>
         <div class="ctl ks" data-lab="Op 4 · ratio"><div class="knob" data-knob="fm4R4"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 4 · nivel"><div class="knob" data-knob="fm4L4"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 4 · decay"><div class="knob" data-knob="fm4D4"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Op 4 · vel"><div class="knob" data-knob="fm4V4"><div class="ind"></div></div><div class="val"></div></div>
       </div>
     </div>
-    <div class="help"><b>FM de 4 operadores</b> (onda «FM4» en Osc A/B; el módulo se atenúa si ninguno la usa). Un algoritmo es un grafo de quién modula a quién: las flechas van del modulador a la portadora, y lo que no modula a nadie suena (el grafo sale bajo el selector). Cada operador: Ratio = múltiplo de la nota (entero = armónico, no entero = campana), Nivel = cuánto modula (o cuánto suena, si es portadora), Decay = su nivel cae con e^(−t/decay); a tope (∞) es constante. La receta del DX7: modulador con decay corto = ataque brillante que se apaga. El Feedback del módulo FM realimenta el op. 4.</div>
+    <div class="help"><b>FM de 4 operadores</b> (onda «FM4» en Osc A/B; el módulo se atenúa si ninguno la usa). Un algoritmo es un grafo de quién modula a quién, y bajo el selector se dibuja como en los Yamaha: las <b>portadoras</b> (lo que suena) abajo, sobre la línea de salida; cada <b>modulador</b> encima del operador al que modula, unido por su cable; el lazo sobre el op 4 es el feedback (se enciende con el Feedback del módulo FM). Cada operador: Ratio = múltiplo de la nota (entero = armónico, no entero = campana), Nivel = cuánto modula (o cuánto suena, si es portadora), Decay = su nivel cae con e^(−t/decay); a tope (∞) es constante. La receta del DX7: modulador con decay corto = ataque brillante que se apaga. <b>Vel</b> = sensibilidad a la velocity (la «key velocity sensitivity» del DX7): el nivel del operador se multiplica por 1 − vel + vel·velocity; a 0 da igual cómo pegues, a 1 es proporcional. En una PORTADORA eso es volumen; en un MODULADOR el nivel es el índice de modulación, así que pegar más fuerte abre armónicos: el timbre cambia con el tacto, que en sustractiva solo se consigue con el filtro. Hace falta un teclado MIDI (el del ordenador manda siempre velocity 1). El Feedback del módulo FM realimenta el op. 4.</div>
   </div>
   <div class="panel osc">
     <h2>Tabla de ondas</h2>
@@ -316,22 +320,23 @@
   <div class="panel">
     <h2>Voz · Master</h2>
     <div class="g" style="--c:4">
-      <div class="togc" style="align-self:center"><div class="fieldlab">voz</div><div class="seg tog" id="modeSel"><button data-mode="poly">Poli</button><button data-mode="mono" title="Mono (legato): prioridad de última nota">Mono</button></div></div>
+      <div class="togc" style="align-self:center"><div class="fieldlab">voz</div><div class="seg tog" id="modeSel"><button data-mode="poly">Poli</button><button data-mode="mono" title="Mono: una sola voz, prioridad de última nota">Mono</button></div></div>
       <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pitchEnvAmt"><div class="ind"></div></div><div class="lab">P.Env Amt</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">P.Env Dec</div><div class="val"></div></div>
+      <div class="togc" style="align-self:center"><div class="fieldlab">disparo</div><div class="seg tog" id="monoTrigSel"><button data-trig="legato" title="Legato: la nota que llega con otra pulsada desliza la voz sin redisparar (glide 303, trinos)">Legato</button><button data-trig="retrig" title="Cada nota: toda nota redispara envolventes, pitch env y operadores FM4, aunque se solape con la anterior">Cada nota</button></div></div>
       <div class="ctl"><div class="knob" data-knob="freqCents"><div class="ind"></div></div><div class="lab">±Cents</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="amplitude"><div class="ind"></div></div><div class="lab">Amplitud</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="master"><div class="ind"></div></div><div class="lab">Master</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Voz.</b> Poli / Mono (legato, prioridad de última nota); Glide = portamento (hasta 10 s: drones que resbalan) · Pitch env: la nota arranca desviada Amount cents y cae al tono en Dec (bombos, toms, zaps; hasta 10 s = risers) · <b>±Cents</b> desplaza la afinación de TODO el synth (también lo mueve el pitch bend MIDI) · <b>Amplitud</b> = ganancia global antes de los efectos (la que modula el trémolo) · Master = volumen de salida.</div>
+    <div class="help"><b>Voz.</b> Poli / Mono (una voz, prioridad de última nota). <b>Disparo</b> (solo Mono) decide qué pasa cuando una nota llega con otra aún pulsada: <b>Legato</b> desliza la voz que suena sin redisparar nada (trinos, el glide del 303); <b>Cada nota</b> redispara siempre: envolventes, pitch env y operadores FM4 arrancan de nuevo, y la nota vieja se funde mientras sube el ataque de la nueva (como un ADSR analógico que redispara desde su nivel). Notas separadas redisparan en los dos. Con arpegiador o secuenciador, «solapar» lo decide el Gate: por debajo de 1 cada paso es una nota nueva; a 1 los pasos se tocan y ligan en Legato. Glide = portamento (hasta 10 s: drones que resbalan) · Pitch env: la nota arranca desviada Amount cents y cae al tono en Dec (bombos, toms, zaps; hasta 10 s = risers) · <b>±Cents</b> desplaza la afinación de TODO el synth (también lo mueve el pitch bend MIDI) · <b>Amplitud</b> = ganancia global antes de los efectos (la que modula el trémolo) · <b>Master</b> = volumen de salida (en dB, hasta +12), DELANTE del limitador del máster. El máster deja un margen de −9 dB para que un acorde de cuatro notas de un pad no llegue al limitador y suene limpio; cada preset de fábrica trae su Master medido para sonar igual de fuerte en su uso (una nota en un bajo o un lead, un acorde en un pad). Subirlo de más aprieta el limitador: más fuerte, pero comprimido (el volumen sube y baja con el batido de los osciladores).</div>
   </div>
   <div class="slot" data-slot-host="salida">
     <div class="panel grow" id="salida" data-slot="salida">
       <h2>Salida</h2>
-      <div class="readout"><span class="who" id="dispWho">Preset</span><span class="v" id="dispVal">—</span><span class="why" id="dispWhy"></span></div>
+      <div class="readout"><span class="who" id="dispWho">Preset</span><span class="side" id="dispWhy"><span></span></span><span class="v" id="dispVal"><span>—</span></span></div>
       <div class="vizrow"><canvas id="scope"></canvas><canvas id="spectrum"></canvas></div>
-      <div class="help"><b>Salida.</b> La pantalla del instrumento: arriba, en grande, el último parámetro que tocas (con el ratón o con un mando MIDI) y su valor — y, si ahora mismo no hace nada (está atenuado), por qué; al cargar un preset, su nombre. Abajo, el osciloscopio y el espectro de lo que suena en el máster (todas las partes).</div>
+      <div class="help"><b>Salida.</b> La pantalla del instrumento: el último parámetro que tocas (con el ratón o con un mando MIDI) y, en grande, su valor; en la línea de arriba, qué significa la opción elegida o, si ahora mismo no hace nada (está atenuado), por qué. Al cargar un preset, su nombre. Lo que no cabe encoge la letra y, si ni así, se desplaza despacio de un lado a otro, como el LCD de un sinte. Abajo, el osciloscopio y el espectro de lo que suena en el máster (todas las partes).</div>
     </div>
   </div>
 </div>
@@ -474,7 +479,7 @@
       </div><div class="lab">Octavas</div></div>
       <div class="ctl"><div class="knob" data-knob="arpGate"><div class="ind"></div></div><div class="lab">Gate</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Arpegiador.</b> Mantén notas pulsadas y las secuencia al BPM (knob en Delay). Gate = duración de cada paso. Los pasos entran con precisión de reloj de audio.</div>
+    <div class="help"><b>Arpegiador.</b> Mantén notas pulsadas y las secuencia al BPM (knob en Delay). Gate = duración de cada paso: en Mono, por debajo de 1 cada paso redispara; a 1 los pasos se tocan y, con Disparo en Legato, ligan deslizando. Los pasos (y sus note-off) entran con precisión de reloj de audio.</div>
   </div>
   <div class="panel">
     <h2>Secuenciador</h2>
@@ -496,7 +501,7 @@
         <canvas id="seqCanvas"></canvas>
       </div>
     </div>
-    <div class="help"><b>Secuenciador de pasos.</b> La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · Latch: la frase sigue al soltar · Retrig: si la frase YA suena (Latch o legato), la tecla nueva la reinicia en rejilla; con Off solo cambia la raíz. Arrancar desde parado siempre empieza en el paso 1 · en mono con Gate 1 los pasos ligan (glide).</div>
+    <div class="help"><b>Secuenciador de pasos.</b> La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · Latch: la frase sigue al soltar · Retrig: si la frase YA suena (Latch o legato), la tecla nueva la reinicia en rejilla; con Off solo cambia la raíz. Arrancar desde parado siempre empieza en el paso 1 · en mono con Gate 1 los pasos ligan (glide) si Disparo está en Legato.</div>
   </div>
   <div class="panel osc">
     <h2>Tabla · secuencia</h2>

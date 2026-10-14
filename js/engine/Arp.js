@@ -3,7 +3,8 @@
    Cuando arpMode != 'off', noteOn/noteOff del engine desvían aquí las
    notas (hold/unhold). Un setInterval de 25 ms solo DESPIERTA al
    planificador: el timing fino lo pone el look-ahead de 120 ms sobre el
-   reloj de audio (cada paso entra con startAt exacto en la voz).
+   reloj de audio (cada paso entra con startAt exacto en la voz, y su
+   note-off también va programado: ver _off).
    División musical sobre S.bpm (compartido con el delay sincado).
    ===================================================================== */
 export class Arp {
@@ -13,6 +14,7 @@ export class Arp {
     this.idx = 0;
     this.timer = null;
     this.nextT = 0;
+    this.tie = null;         // {id, t}: off de la nota ligada (gate 1), pendiente del on siguiente
   }
 
   hold(id, freq, vel) {
@@ -27,7 +29,14 @@ export class Arp {
     this.held = this.held.filter(h => h.id !== id);
     this._maybeStop();
   }
-  _maybeStop() { if (this.timer && !this.held.length) { clearInterval(this.timer); this.timer = null; } }
+  _maybeStop() { if (this.timer && !this.held.length) { clearInterval(this.timer); this.timer = null; this._flushTie(); } }
+  // Note-off programado en el reloj de audio y emitido YA, en orden con los on:
+  // así el motor sabe si dos pasos se solapan por el gate (en mono: legato o
+  // redisparo), no por cuánto se adelanta el planificador. Con gate 1 la nota
+  // toca a la siguiente: su off se emite DESPUÉS del on siguiente (ligadura).
+  _off(id, t, tie) { if (tie) this.tie = { id, t }; else this.e._directOff(id, t); }
+  _flushTie() { const p = this.tie; if (p) { this.tie = null; this.e._directOff(p.id, p.t); } }
+
   stop() { this.held = []; this._maybeStop(); this.e.allNotesOff(); }
 
   // Secuencia: notas retenidas ordenadas por altura, repetidas por octavas
@@ -55,9 +64,9 @@ export class Arp {
       const dur = (60 / S.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.arpDiv] || 0.25);
       const id = 'arp' + (this.idx % 8);                      // ids rotatorios (gate<=1 => sin solapes)
       this.e._directOn(id, note.freq, note.vel, this.nextT);
+      this._flushTie();                                       // la ligada del paso anterior se suelta tras este on
       const gate = Math.max(0.05, Math.min(1, S.arpGate));
-      const offMs = Math.max(10, (this.nextT - ctx.currentTime + dur * gate) * 1000);
-      setTimeout(() => this.e._directOff(id), offMs);
+      this._off(id, this.nextT + dur * gate, gate >= 1);
       this.idx++;
       this.nextT += dur;
     }
