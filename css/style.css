@@ -236,6 +236,12 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);width:150px;
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 #presetBar select{width:230px;}
+/* ● modificado (ui/history.js): lo que suena ya no es el preset guardado. Apagado, apenas se ve */
+#modDot{font-size:11px;line-height:1;color:var(--edge);margin:0 -4px;transition:color .15s;cursor:default;}
+#modDot.on{color:var(--accent2);}
+/* deshacer · rehacer · comparar */
+#editBar{display:flex;align-items:center;gap:4px;margin-left:4px;}
+.btn:disabled{opacity:.35;cursor:default;pointer-events:none;}
 .menuWrap{position:relative;}
 .menu{position:absolute;top:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px;min-width:190px;
   background:var(--well);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:var(--shadow-pop);}
@@ -275,6 +281,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .row.tight{gap:2px;}   /* filas de knobs generadas (mezclador): los .ctl reparten el ancho */
 .row.tight .ctl{flex:1 1 0;width:auto;min-width:46px;}
 .ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:58px;}
+.hrow.narrow .ctl{width:52px;}   /* fila densa (Filtro: morph, keytrack y el grupo del drive) */
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
 
@@ -412,10 +419,20 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .tbl{display:grid;gap:3px 8px;align-items:center;}
 .th{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .rn{font-size:10px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;}
-.lfo-bank{grid-template-columns:auto 40px auto auto;}
+.lfo-bank{grid-template-columns:auto 40px auto auto auto;}
+.lfo-bank select,.lfo-foot select{font-size:9px;line-height:1.2;padding:2px 3px;letter-spacing:.3px;}   /* a la escala de los botones de forma */
 .fm4ops{grid-template-columns:28px repeat(4,auto);gap:3px 4px;margin-left:4px;}
 .fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: con 4 columnas no caben 46 px por valor */
 .lfo-row{display:contents;}
+/* Pasos (Roadmap 7.0 · 2.3): una fila por carril; canvas de ancho FIJO (32 pasos) */
+.ps-grid{grid-template-columns:12px 384px auto auto auto auto auto;gap:2px 8px;}
+.ps-row{display:contents;}
+.ps-canvas{width:384px;height:32px;display:block;cursor:crosshair;touch-action:none;}
+.ps-grid select{font-size:9px;line-height:1.2;padding:2px 3px;}
+.ps-grid .stepper .num{min-width:16px;}
+.ps-head{gap:8px;align-items:center;margin-bottom:6px;}
+.ps-head select{font-size:10px;padding:2px 4px;}
+.ps-head .note{margin:0;}
 .lfoShape,.noshape{background:var(--well);border:1px solid var(--edge);border-radius:4px;color:var(--accent2);font-size:9px;
   padding:2px 0;text-align:center;letter-spacing:.5px;line-height:1.2;font-family:inherit;}
 .lfoShape{cursor:pointer;}
@@ -457,7 +474,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #kbWrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
 #keyboard{flex:1;min-height:0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
   border-radius:8px;padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6);}
-#kbKeys{position:relative;height:100%;display:flex;}
+#kbKeys{position:relative;height:100%;display:flex;touch-action:none;}   /* un dedo en las teclas toca, no desplaza ni hace zoom */
 #kbKeys::before{ /* fieltro rojo tras las teclas */
   content:'';position:absolute;left:0;right:0;top:0;height:4px;z-index:4;pointer-events:none;
   background:linear-gradient(180deg,var(--felt),color-mix(in srgb,var(--felt) 60%,black));}
@@ -470,7 +487,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .wkey:hover{filter:brightness(.95);}
 .wkey.on{transform:translateY(2px);
   background:var(--key-w-on);
-  box-shadow:inset 0 4px 8px rgba(0,0,0,.28), 0 0 14px color-mix(in srgb,var(--accent) 35%,transparent);}
+  box-shadow:inset 0 4px 8px rgba(0,0,0,.28), 0 0 14px color-mix(in srgb,var(--accent) calc(var(--vel,1) * 35%),transparent);}
 .bkey{position:absolute;top:0;height:62%;z-index:3;cursor:pointer;
   display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;
   border:1px solid var(--key-b-edge);border-top:none;border-radius:0 0 4px 4px;
@@ -480,7 +497,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .bkey:hover{filter:brightness(1.25);}
 .bkey.on{transform:translateY(2px);
   background:var(--key-b-on);
-  box-shadow:inset 0 3px 6px rgba(0,0,0,.5), 0 0 14px color-mix(in srgb,var(--accent2) 40%,transparent);}
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.5), 0 0 14px color-mix(in srgb,var(--accent2) calc(var(--vel,1) * 40%),transparent);}
 .klab{pointer-events:none;min-width:14px;padding:2px 3px;border-radius:3px;text-align:center;
   font-size:9px;font-weight:600;line-height:1;}
 .wkey .klab{color:var(--key-w-ink);background:rgba(255,255,255,.55);border:1px solid color-mix(in srgb,var(--key-w-edge) 69%,white);}

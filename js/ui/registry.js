@@ -15,6 +15,7 @@
 import { part, sceneOn } from '../engine/parts.js';
 import { SALA_KEYS } from '../engine/Sala.js';
 import { toControls, withPresetBase } from '../engine/state.js';
+import { PARAMS } from '../engine/params.js';
 
 export const CONTROLS = {};
 let syncing = false;   // mientras syncControls vuelca, los set() de los controles no llegan al motor
@@ -26,6 +27,18 @@ export function applyTarget(target, value) {
     else e.set(target, value);
   }
   document.dispatchEvent(new CustomEvent('param-change', { detail: { target, value } }));
+}
+
+// Un <select> como control del registro: options = [{id, label}]; `opts` = zonas para MIDI learn.
+export function bindSelect(sel, name, options) {
+  for (const o of options) sel.add(new Option(o.label, o.id));
+  const set = v => {
+    if ([...sel.options].some(x => x.value === v)) sel.value = v;   // valor desconocido: se queda como está
+    applyTarget(name, sel.value);
+  };
+  sel.addEventListener('change', () => { part().resume(); applyTarget(name, sel.value); });
+  CONTROLS[name] = { get: () => sel.value, set, def: PARAMS[name].def, el: sel, opts: options.map(o => o.id) };
+  set(PARAMS[name].def);
 }
 
 const salaKey = k => sceneOn() && SALA_KEYS.has(k);   // en modo Partes la sala no es del preset

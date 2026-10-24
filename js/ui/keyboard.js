@@ -4,31 +4,48 @@ import { setStatus } from './status.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // Layout estilo tracker (FastTracker/Impulse): dos filas de notas, semitonos desde la octava base.
+// Por POSICIÓN física (e.code), no por letra: Shift no cambia la tecla (con e.key, Shift+2 = «"»
+// y la nota se quedaba colgada al soltar) y en AZERTY o Dvorak el piano queda en el mismo sitio.
 const KEYMAP = {
   // fila inferior = octava base
-  z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 10, m: 11,
-  ',': 12, l: 13, '.': 14,
+  KeyZ: 0, KeyS: 1, KeyX: 2, KeyD: 3, KeyC: 4, KeyV: 5, KeyG: 6, KeyB: 7, KeyH: 8, KeyN: 9, KeyJ: 10, KeyM: 11,
+  Comma: 12, KeyL: 13, Period: 14,
   // fila superior = una octava por encima (incluye la fila de números)
-  q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17, '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23,
-  i: 24, '9': 25, o: 26, '0': 27, p: 28,
+  KeyQ: 12, Digit2: 13, KeyW: 14, Digit3: 15, KeyE: 16, KeyR: 17, Digit5: 18, KeyT: 19, Digit6: 20, KeyY: 21, Digit7: 22, KeyU: 23,
+  KeyI: 24, Digit9: 25, KeyO: 26, Digit0: 27, KeyP: 28,
 };
+// Rótulo de una tecla física: el de un teclado US; con la Keyboard API (Chrome), el que lleva
+// impreso TU teclado en esa posición (AZERTY: KeyQ = A). Se carga en initKeyboard.
+const usLabel = c => c.startsWith('Key') ? c.slice(3) : c.startsWith('Digit') ? c.slice(5) : ({ Comma: ',', Period: '.' })[c] || c;
+let keyLabel = usLabel;
 
 const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
 
-// Semitono (desde la octava base) -> tecla del PC para pintarla sobre la tecla.
-// OJO: Object.entries enumera primero las claves numéricas ('2','3',…), así que
-// en los solapes fila baja/alta (12-14) fijamos la fila alta a mano.
+// Velocity con el ratón: la ALTURA a la que pulsas la tecla, como en un piano (se
+// pega fuerte en el borde delantero). Arriba, junto al fieltro, VEL_MIN; crece en
+// línea recta hasta VEL_FULL del largo de la tecla, y de ahí al borde va a tope.
+// El QWERTY no sabe de fuerza: sigue a 1. El MIDI trae la suya.
+const VEL_MIN = 0.2;    // arriba del todo: −14 dB en el VCA (y menos filtro / FM donde la velocity los mueve). Más bajo casi no se oye
+const VEL_FULL = 0.85;  // el 15 % del borde da 1: un clic abajo suena como antes de haber velocity
+export const velFromY = f => VEL_MIN + (1 - VEL_MIN) * Math.min(1, Math.max(0, f) / VEL_FULL);
+
+// Semitono (desde la octava base) -> tecla del PC para pintarla sobre la tecla. En los
+// solapes fila baja/alta (12-14) gana la fila alta: va después en KEYMAP y la pisa.
 const HINTS = {};
-for (const [k, off] of Object.entries(KEYMAP)) HINTS[off] = k;
-Object.assign(HINTS, { 12: 'q', 13: '2', 14: 'w' });
-const hintChip = off => off in HINTS ? `<span class="klab">${HINTS[off].toUpperCase()}</span>` : '';
+for (const [code, off] of Object.entries(KEYMAP)) HINTS[off] = code;
+const hintChip = off => off in HINTS ? `<span class="klab">${keyLabel(HINTS[off]).toUpperCase()}</span>` : '';
 
 let baseOctave = 4;
 let numOctaves = 2;
 let octaveTouched = false;  // el usuario fijó octava con RePág/AvPág → no re-centrar al redimensionar
 let kb;
-const active = new Map();   // midi -> element|null
-const held = new Set();
+const active = new Map();   // midi -> element|null: lo que SUENA
+// Quién sostiene cada nota: 'k:KeyZ' (tecla del PC), 'p:<pointerId>' (ratón o un dedo), 'midi'.
+// La nota se suelta cuando la suelta el ÚLTIMO: el ratón no corta la que mantiene el QWERTY,
+// ni un dedo la de otro dedo sobre la misma tecla.
+const holders = new Map();  // midi -> Set de fuentes
+const held = new Map();     // e.code -> midi (la nota que dio esa tecla al pulsarla)
+const pointers = new Map(); // pointerId -> midi
 
 // Octavas que caben en el ancho disponible: ~38px por tecla blanca, 1..6.
 const KEY_PX = 38;
@@ -93,7 +110,7 @@ function press(midi, vel = 1) {
   if (active.has(midi)) return;
   playOn('m' + midi, midiToFreq(midi), vel);
   const el = kb.querySelector(`[data-midi="${midi}"]`);
-  if (el) el.classList.add('on');
+  if (el) { el.classList.add('on'); el.style.setProperty('--vel', vel.toFixed(2)); }   // el brillo de la tecla sigue a la fuerza
   active.set(midi, el || null);
   setStatus('powerInfo', 'on', 'audio activo');
 }
@@ -103,13 +120,38 @@ function release(midi) {
   const el = active.get(midi); if (el) el.classList.remove('on');
   active.delete(midi);
 }
+// Sostener / soltar por FUENTE: suena con el primero que la pulsa, se calla con el último que la suelta.
+function hold(midi, src, vel = 1) {
+  const h = holders.get(midi);
+  if (h) { h.add(src); return; }                     // ya suena: una fuente más la sostiene
+  holders.set(midi, new Set([src]));
+  press(midi, vel);
+}
+function unhold(midi, src) {
+  const h = holders.get(midi);
+  if (!h || !h.delete(src) || h.size) return;
+  holders.delete(midi);
+  release(midi);
+}
 function bindKeyEl(el, midi) {
-  el.addEventListener('pointerdown', e => { part().resume(); press(midi); el.setPointerCapture(e.pointerId); });
-  el.addEventListener('pointerup', () => release(midi));
-  el.addEventListener('pointerleave', e => { if (e.buttons) release(midi); });
+  el.addEventListener('pointerdown', e => {
+    part().resume();
+    const r = el.getBoundingClientRect(), vel = velFromY((e.clientY - r.top) / r.height);
+    pointers.set(e.pointerId, midi);
+    hold(midi, 'p:' + e.pointerId, vel);
+    // a la pantalla Salida: solo lo tocado con el ratón (el MIDI y el QWERTY no le pisan el knob que giras)
+    document.dispatchEvent(new CustomEvent('kb-note', { detail: { name: NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1), vel } }));
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}   // un puntero sintético (el selftest) no se puede capturar
+  });
+  // Soltar: al levantar, si el sistema CANCELA el toque (un gesto, una llamada…) o si se pierde la
+  // captura (la ventana pierde el foco con el botón pulsado). Sin los dos últimos, la nota colgaba.
+  const lift = e => { if (pointers.get(e.pointerId) !== midi) return; pointers.delete(e.pointerId); unhold(midi, 'p:' + e.pointerId); };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, lift);
+  el.addEventListener('pointerleave', e => { if (e.buttons) lift(e); });
 }
 export function panic() {
-  held.clear(); eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear();
+  held.clear(); holders.clear(); pointers.clear();
+  eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear();
   // y suelta la reverb congelada (❄ Freeze de la Sala): «cortar todo» también es eso
   const s = part().sala;
   if (s && s.frozen) { s.setFreeze(false); document.dispatchEvent(new CustomEvent('freeze-changed')); }
@@ -118,7 +160,7 @@ export function panic() {
 // foco de la ventana los keyup se pierden. Antes se llamaba a panic(), que
 // cortaba TODAS las voces de todas las partes — con la escena tocando, los pads
 // y drones de los jugadores desaparecían hasta el siguiente acorde.
-function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); }
+function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); holders.clear(); pointers.clear(); }
 // Octava arriba/abajo (RePág/AvPág y los botones − / + bajo el teclado): suelta
 // lo que sostiene este teclado (sus notas cambiarían de tecla) y reconstruye.
 function shiftOctave(d) {
@@ -129,8 +171,8 @@ function shiftOctave(d) {
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
 // así QWERTY y MIDI comparten estado visual y no se doble-disparan.
-export function pressNote(midi, vel = 1) { press(midi, vel); }
-export function releaseNote(midi) { release(midi); }
+export function pressNote(midi, vel = 1) { hold(midi, 'midi', vel); }
+export function releaseNote(midi) { unhold(midi, 'midi'); }
 
 export function initKeyboard() {
   kb = document.getElementById('keyboard');
@@ -166,11 +208,14 @@ export function initKeyboard() {
     // Sólo el campo de TEXTO de presets bloquea el teclado; los sliders (input range) no.
     if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
     const k = e.key.toLowerCase();
+    // Con Ctrl, Alt o Meta es un ATAJO (Ctrl+Z, Ctrl+C…), no una nota: antes Ctrl+Z tocaba un Do.
+    // (AltGr cuenta como Ctrl+Alt en Windows: tampoco toca.) Shift sí deja tocar: con e.code no cambia la tecla.
+    const note = e.code in KEYMAP && !(e.ctrlKey || e.altKey || e.metaKey);
     // Un combo puede quedarse con el foco sin que se note (se cerró sin elegir,
     // o eligió la misma opción) y entonces "roba" las letras para navegar sus
     // opciones. Si la tecla es del piano y su desplegable está CERRADO, se la
     // quitamos antes de que la vea (captura + stopPropagation) y sigue el piano.
-    if (e.target.tagName === 'SELECT' && (k in KEYMAP || k === 'pageup' || k === 'pagedown')) {
+    if (e.target.tagName === 'SELECT' && (note || k === 'pageup' || k === 'pagedown')) {
       let open = false;
       try { open = e.target.matches(':open'); } catch (_) {}
       if (open) return;                              // desplegable abierto de verdad: respétalo
@@ -180,17 +225,25 @@ export function initKeyboard() {
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
       e.preventDefault(); shiftOctave(k === 'pageup' ? 1 : -1); return;
     }
-    if (!(k in KEYMAP)) return;
-    if (held.has(k) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
+    if (!note) return;
+    if (held.has(e.code) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
     e.preventDefault();                              // evita atajos del navegador con '/', ',', etc.
-    held.add(k); part().resume();
-    press((baseOctave + 1) * 12 + KEYMAP[k]);
+    const midi = (baseOctave + 1) * 12 + KEYMAP[e.code];
+    held.set(e.code, midi); part().resume();
+    hold(midi, 'k:' + e.code);
   }, true);   // fase de CAPTURA: corre antes de que un combo enfocado procese la tecla
   window.addEventListener('keyup', e => {
-    const k = e.key.toLowerCase();
-    if (!(k in KEYMAP)) return;
-    held.delete(k);
-    release((baseOctave + 1) * 12 + KEYMAP[k]);
+    // suelta la nota que DIO esa tecla (aunque entre medias haya cambiado un modificador)
+    const midi = held.get(e.code);
+    if (midi === undefined) return;
+    held.delete(e.code);
+    unhold(midi, 'k:' + e.code);
   });
   window.addEventListener('blur', releaseHeldKeys);
+
+  // Rótulos de las teclas: los que lleva impresos el teclado de verdad (Keyboard API, Chrome).
+  // Sin ella (u otro navegador), los de un teclado US.
+  try {
+    navigator.keyboard?.getLayoutMap?.().then(m => { keyLabel = c => m.get(c) || usLabel(c); buildKeyboard(); }).catch(() => {});
+  } catch (_) {}
 }

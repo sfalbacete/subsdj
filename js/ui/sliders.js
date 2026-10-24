@@ -26,6 +26,10 @@ const SLIDERS = [
   ['s_fd',     'v_fd',     'fd'],
   ['s_fs',     'v_fs',     'fs'],
   ['s_fr',     'v_fr',     'fr'],
+  ['s_ema',    'v_ema',    'envmA'],       // Env mod (Secuenciación)
+  ['s_emd',    'v_emd',    'envmD'],
+  ['s_ems',    'v_ems',    'envmS'],
+  ['s_emr',    'v_emr',    'envmR'],
   ['s_master', 'v_master', 'master'],
 ];
 

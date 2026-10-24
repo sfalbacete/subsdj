@@ -27,7 +27,7 @@ const anyWave = (S, w) => S.oscA.wave === w || S.oscB.wave === w;
 // siempre existen; el LED marca movimiento). Cada fila del banco de LFOs
 // lleva además su LED.
 const PANELES = {
-  'Mezcla':          S => S.ring > 0 || S.noise > 0 || S.drift > 0,
+  'Mezcla':          S => S.ring > 0 || S.noise > 0 || S.drift > 0 || ['lvlA', 'lvlB', 'lvlRing', 'lvlNoise'].some(d => dstUsed(S, d)),
   'FM':              S => S.fmIndex > 0 || dstUsed(S, 'fm'),
   'FM4':             S => anyWave(S, 'fm4'),
   'Unison':          S => +S.uniVoices > 1,
@@ -36,6 +36,8 @@ const PANELES = {
   'Resonador':       S => S.resAmt > 0,
   'Filtro':          S => dstUsed(S, 'cutoff') || dstUsed(S, 'reso') || S.filterDrive > 0 || S.keytrack > 0,
   'Env filtro':      S => S.filterEnvAmt !== 0,
+  'Env mod':         S => srcUsed(S, 'envm'),
+  'Pasos':           S => [1, 2, 3, 4].some(i => srcUsed(S, 'st' + i) || srcUsed(S, 'st' + i + 'n')),
   'Voz · Master':    S => S.pitchEnvAmt !== 0 || S.glide > 0 || S.freqCents !== 0,
   'LFOs':            S => Object.values(LFOS).some(f => f(S)),
   'Matriz':          mxAny,

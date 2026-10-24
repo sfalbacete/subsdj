@@ -1,7 +1,7 @@
 /* =====================================================================
    SubSDJ · Voice — una nota polifónica.
    Cadena por voz:
-     osc A/B (worklet; cada uno a freq·2^oct — Octava ±2) + ruido --mezcla/ring--> preFilter --> drive(tanh, dry/wet)
+     osc A/B (worklet; cada uno a freq·2^oct — Octava ±2), A×B, ruido --mezclador (un nivel cada uno)--> preFilter --> drive(tanh | pliegue, sesgo, dry/wet)
         --> VOCAL (banco de formantes, dry/wet; el ruido ya sumado = aliento)
         --> RESONADOR (banco modal afinado a la nota, dry/wet; engine/reson.js)
         --> filtro LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + envFiltro + LFO)
@@ -15,8 +15,8 @@
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN, FM4_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
-import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase } from './nodes.js';
-import { resRatios, resQ, resGains, resNoiseGain } from './reson.js';
+import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
+import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
 import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
          VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
          VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
@@ -28,6 +28,41 @@ const DRIVE_CURVE = (() => {
   for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
   return c;
 })();
+// Carácter «plegado» (Roadmap 7.0 · 3.1): pliegue senoidal y = sin(π/2·x) para x en
+// ±FOLD_R (la curva del WaveShaper cubre [−1, 1]: dvPre divide la entrada por FOLD_R).
+// Con ganancia 1 es una saturación suave; a 10 la onda se dobla varias veces por
+// semiciclo y los armónicos suben y BAJAN con el Drive (Bessel): un barrido que no se
+// parece al de un filtro. Puntos impares: la entrada 0 cae en el centro y sale 0 exacto.
+const FOLD_R = 24;
+const FOLD_CURVE = (() => {
+  const n = 8193, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) c[i] = Math.sin(Math.PI / 2 * FOLD_R * ((i / (n - 1)) * 2 - 1));
+  return c;
+})();
+// Ganancia de entrada a Drive 1 (1 + G·v) y sesgo a Asimetría 1, en unidades de la
+// entrada x (medidos con un seno a 0,6): en el tanh, 2.º armónico de −31 dB (sesgo
+// 0,05) a −16 dB (0,3); en el pliegue, sesgo 1 = un cuarto de onda: la curva queda
+// PAR y solo salen armónicos pares (la octava). El plegado suena ~3 dB por debajo
+// del tanh al mismo Drive (su nivel no crece al apretar): DRV_FOLD_MK lo iguala.
+const DRV_GAIN = { suave: 4, plegado: 9 }, DRV_BIAS = { suave: 0.3, plegado: 1 }, DRV_FOLD_MK = 1.4;
+const DRV_DC_HZ = 5;   // bloqueo de continua del camino saturado: el sesgo crea continua con la señal
+// Valor de la curva en u, interpolado como lo hace el WaveShaper (lo usa la compensación del sesgo)
+const curveAt = (c, u) => { const x = (c.length - 1) * (Math.max(-1, Math.min(1, u)) + 1) / 2, i = Math.min(c.length - 2, Math.floor(x)); return c[i] + (c[i + 1] - c[i]) * (x - i); };
+
+// Env mod en bucle: UN ciclo (ataque 0 → 1 en la fracción fa, caída 1 → 0 en el resto, con la
+// curva RC si la hay) en un buffer de 4096 muestras a 8 kHz; la voz lo lee en loop con
+// playbackRate = duración/(A + D), así el periodo es A + D exacto. Cacheado por contexto y forma.
+const ENVM_N = 4096, ENVM_SR = 8000, envmCache = new WeakMap();
+function envmCycle(ctx, fa, curve) {
+  let m = envmCache.get(ctx); if (!m) { m = new Map(); envmCache.set(ctx, m); }
+  const key = fa.toFixed(4) + '|' + curve.toFixed(3);
+  let b = m.get(key); if (b) return b;
+  b = ctx.createBuffer(1, ENVM_N, ENVM_SR);
+  const d = b.getChannelData(0), k = ENV_K * curve, den = 1 - Math.exp(-k), rc = u => (k > 0 ? (1 - Math.exp(-k * u)) / den : u);
+  for (let i = 0; i < ENVM_N; i++) { const x = i / ENVM_N; d[i] = x < fa ? rc(x / fa) : 1 - rc((x - fa) / Math.max(1e-9, 1 - fa)); }
+  m.set(key, b);
+  return b;
+}
 
 // Curva de la envolvente (envCurve 0..1): 0 = rampas LINEALES (como siempre);
 // > 0 = tramos exponenciales tipo RC, como en un ADSR analógico (el condensador
@@ -53,7 +88,7 @@ const COST = {
   copy: 0.005,        // cada copia de oscilador (unison, Súper = 7, octavas apiladas): PolyBLEP, barato
   sine: 0.06, sineFm: 0.18, fm4: 0.47,   // por copia: senos por muestra (FM con índice: dos; FM4: cuatro)
   filterMod: 0.07, filterMod24: 0.16,     // filtro modulado (env, LFO, matriz): coeficientes por muestra
-  drive: 0.15, vocal: 0.25, reson: 0.24,
+  drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: lo que suma el plegado (sobremuestreo 4x; medido 2026-10-20, la Asimetría no suma)
   vocDyn: 0.26,       // Vocal dinámico por el Golpe: 10 WaveShapers (biquads aún en k-rate)
   vocMx: 0.8,         // Vocal movido por la matriz: WaveShapers + biquads a-rate (medido en «Madrigal»)
 };
@@ -92,7 +127,10 @@ export class Voice {
     // Fase de esta voz (secuencia de Weyl, nodes.js): la usan sus LFO propios
     // (lfoPhase 'voz', creados bajo demanda en _vlfo) y su deriva (fuente 'drift').
     this.phase = nextVoicePhase(ctx);
-    this.vlfo = S.lfoPhase === 'voz' ? {} : null;   // k -> LFO propio (null = los globales del motor)
+    this.rnd = ctxRandom(ctx);            // azar de la voz: Math.random en directo, con semilla offline (7.1)
+    // k -> LFO propio (null = los globales del motor): 'voz' los arranca en la fase de la voz,
+    // 'reinicio' y 'una' en fase 0 con la nota ('una': un solo ciclo, Roadmap 7.0 · 2.2)
+    this.vlfo = ['voz', 'reinicio', 'una'].includes(S.lfoPhase) ? {} : null;
     this.drift = null;                              // fuente «Deriva (voz)» de la matriz, si algún slot la usa
 
     // --- Osciladores (worklet) ---
@@ -106,21 +144,19 @@ export class Voice {
     if (S.freqLfoLvl) this.ensureVib();
     if (S.pwmLfoLvl) this.ensurePwm();
 
-    // --- Mezcla A<->B ---
-    const gA = ctx.createGain(); gA.gain.value = 1 - S.mix;
-    const gB = ctx.createGain(); gB.gain.value = S.mix;
+    // --- Mezclador a la Minimoog: cada fuente con SU nivel (A, B, ring, ruido),
+    // sumadas en preFilter. Subir una no baja las otras: A y B a tope suman
+    // (+3 dB desafinados, +6 dB en fase) y con Drive saturan más, como el
+    // truco de subir el mezclador del Minimoog para apretar el filtro. ---
+    const gA = ctx.createGain(); gA.gain.value = S.levelA;
+    const gB = ctx.createGain(); gB.gain.value = S.levelB;
     busA.connect(gA); busB.connect(gB);
-    const normMix = ctx.createGain();
-    gA.connect(normMix); gB.connect(normMix);
 
-    // --- Ring mod: A * B ---
+    // --- Ring mod: A * B (la ganancia a 0 + B en su AudioParam = el producto) ---
     const ring = ctx.createGain(); ring.gain.value = 0;
     busA.connect(ring); busB.connect(ring.gain);
-
-    // --- Crossfade normal <-> ring ---
-    const normX = ctx.createGain(); normX.gain.value = 1 - S.ring;
     const ringX = ctx.createGain(); ringX.gain.value = S.ring;
-    normMix.connect(normX); ring.connect(ringX);
+    ring.connect(ringX);
 
     // --- Ruido con color: LP+HP en serie (color<0 cierra el LP = oscuro/viento;
     // color>0 sube el HP = "aire"; a 0 ambos abiertos = blanco). Q a -3 dB
@@ -136,7 +172,7 @@ export class Voice {
 
     // --- Suma pre-filtro ---
     const preFilter = ctx.createGain();
-    normX.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
+    gA.connect(preFilter); gB.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
 
     // --- Drive pre-filtro (saturación tanh por voz, dry/wet). Solo el camino
     // seco existe siempre: a 0 pasa a ganancia 1 (transparente EXACTO). El wet
@@ -253,7 +289,7 @@ export class Voice {
     this._envFil = { t, peak: vel, sus: FS * vel, a: FA, d: FD };
 
     // guardar refs para updates en vivo y limpieza
-    Object.assign(this, { busA, busB, gA, gB, normX, ringX, noiseGain, noiseSrc, nLP, nHP,
+    Object.assign(this, { busA, busB, gA, gB, ringX, noiseGain, noiseSrc, nLP, nHP,
       filterType: ft, lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
       preFilter, dvDry, dvOut, vocDry, vocOut, resDry, resOut });
     if (S.filterDrive > 0) this.ensureDrive();  // el wet del drive (WaveShaper 2x) solo si muerde
@@ -287,7 +323,7 @@ export class Voice {
     let k = c.base + osc(S.oscA) + osc(S.oscB);
     const fmod = S.filterEnvAmt || S.cutLfoLvl > 0 || S.resLfoLvl > 0 || mxDst(S, 'cutoff') || mxDst(S, 'reso');
     if (fmod) k += S.filterSlope === '24' && S.filterType !== 'notch' ? c.filterMod24 : c.filterMod;
-    if (S.filterDrive > 0) k += c.drive;
+    if (S.filterDrive > 0) k += c.drive + (S.driveChar === 'plegado' ? c.fold : 0);
     if (S.vocAmt > 0) k += c.vocal + (mxDst(S, 'vow') ? c.vocMx : S.vocAtk > 0 ? c.vocDyn : 0);   // la Vida, medida, no suma
     if (S.resAmt > 0) k += c.reson;
     return k;
@@ -301,7 +337,8 @@ export class Voice {
       processorOptions: {
         type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves,
         t0: t,                                 // arranque de la nota: las envolventes por operador (FM4) cuentan desde aquí
-        // tablas mip (clonadas por el postMessage de opciones, ~170 KB por nodo)
+        seed: (this.rnd() * 4294967296) >>> 0,  // semilla del azar del worklet (fases libres, deriva): repetible offline
+        // tablas mip (clonadas por el postMessage de opciones, ~290 KB por nodo: 0,3 ms)
         ...(cfg.wave === 'tabla' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
     });
@@ -356,8 +393,8 @@ export class Voice {
 
   // Ataque y decay de una envolvente: lineales (envCurve 0: bit-idéntico a
   // siempre) o con curva RC (envCurve > 0) aproximada por ENV_SEG rampas por tramo.
-  _envSegs(p, from, peak, sus, t, a, d) {
-    const k = ENV_K * (this.S.envCurve || 0);
+  _envSegs(p, from, peak, sus, t, a, d, curve = this.S.envCurve) {
+    const k = ENV_K * (curve || 0);
     // Ataque 0 = ESCALÓN (percusión): el «golpe» de un parche es ese escalón — una
     // rampa, aunque sea de 1 ms, se come el primer milisegundo del transitorio, que
     // es donde vive el crack (lo cazó el usuario: el bombo solo golpeaba cuando, por
@@ -396,7 +433,7 @@ export class Voice {
   // futuro por los jugadores: el AudioParam aún no lo sabe). Misma curva que _envSegs.
   _envValueAt(e, t) {
     if (!e) return 0;
-    const k = ENV_K * (this.S.envCurve || 0), den = 1 - Math.exp(-k);
+    const k = ENV_K * ((e.curve !== undefined ? e.curve : this.S.envCurve) || 0), den = 1 - Math.exp(-k);
     const rc = x => (k > 0 ? (1 - Math.exp(-k * x)) / den : x);
     const x = t - e.t;
     if (x <= 0) return 0;
@@ -406,8 +443,8 @@ export class Voice {
   }
   // Release desde cur hasta 0 en rel segundos con la curva del knob: lineal (k = 0) o RC
   // como cadena de ENV_SEG rampas (cae deprisa y se posa). Llega a 0 EXACTO en t + rel.
-  _relChain(p, t, cur, rel) {
-    const k = ENV_K * (this.S.envCurve || 0);
+  _relChain(p, t, cur, rel, curve = this.S.envCurve) {
+    const k = ENV_K * (curve || 0);
     if (!(k > 0) || !(cur > 0)) { p.linearRampToValueAtTime(0, t + rel); return; }
     const den = 1 - Math.exp(-k);
     for (let i = 1; i <= ENV_SEG; i++) {
@@ -461,24 +498,55 @@ export class Voice {
   ensureResLfo() { if (this.resG || this.disposed) return; this.resG = this._lfoGain('res'); this.resG.connect(this.lp.Q); this.resG.connect(this.hp.Q); }
   ensureFenv()   { if (this._connFenv || this.disposed) return; this._connFenv = true; this._filters().forEach(f => this.fenvGain.connect(f.frequency)); }
   ensureMacro()  { if (this._connMacro || this.disposed || !this.mod.macroCut) return; this._connMacro = true; this._filters().forEach(f => this.mod.macroCut.connect(f.detune)); }
+  // Drive con carácter: la entrada de la curva es u = pre·x + sesgo, y la salida
+  // post·(f(u) − f(sesgo)) — en silencio, 0 exacto (y = f(g·x + b) − f(b)). Sesgo y
+  // compensación son ConstantSources: Asimetría se mueve sin regenerar curvas.
+  _driveCfg() {
+    const S = this.S, v = S.filterDrive, ch = S.driveChar === 'plegado' ? 'plegado' : 'suave';
+    const R = ch === 'plegado' ? FOLD_R : 1, curve = ch === 'plegado' ? FOLD_CURVE : DRIVE_CURVE;
+    const bias = (S.driveAsym || 0) * DRV_BIAS[ch] / R;
+    return { ch, curve, os: ch === 'plegado' ? '4x' : '2x', bias, comp: -curveAt(curve, bias),
+             pre: (1 + DRV_GAIN[ch] * v) / R, mod: DRV_GAIN[ch] / R, post: (ch === 'plegado' ? DRV_FOLD_MK : 1) / (1 + v * 1.5) };
+  }
   ensureDrive() {
     if (this.dvShaper || this.disposed) return;
-    const ctx = this.ctx, dv = this.S.filterDrive;
-    this.dvPre = ctx.createGain(); this.dvPre.gain.value = 1 + dv * 4;
-    this.dvShaper = ctx.createWaveShaper(); this.dvShaper.curve = DRIVE_CURVE; this.dvShaper.oversample = '2x';
-    this.dvPost = ctx.createGain(); this.dvPost.gain.value = 1 / (1 + dv * 1.5);
-    this.dvWet = ctx.createGain(); this.dvWet.gain.value = dv;
-    this.preFilter.connect(this.dvPre); this.dvPre.connect(this.dvShaper); this.dvShaper.connect(this.dvPost);
-    this.dvPost.connect(this.dvWet); this.dvWet.connect(this.dvOut);
+    const ctx = this.ctx, c = this._driveCfg(), now = ctx.currentTime;
+    this.dvPre = ctx.createGain(); this.dvPre.gain.value = c.pre;
+    this.dvShaper = ctx.createWaveShaper(); this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvChar = c.ch;
+    this.dvBias = ctx.createConstantSource(); this.dvBias.offset.value = c.bias; this.dvBias.start(now);
+    this.dvComp = ctx.createConstantSource(); this.dvComp.offset.value = c.comp; this.dvComp.start(now);
+    this.dvPost = ctx.createGain(); this.dvPost.gain.value = c.post;
+    this.dvDC = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * DRV_DC_HZ / ctx.sampleRate)]);   // 1er orden: −0,1 dB a 40 Hz
+    this.dvWet = ctx.createGain(); this.dvWet.gain.value = this.S.filterDrive;
+    this.preFilter.connect(this.dvPre); this.dvPre.connect(this.dvShaper); this.dvBias.connect(this.dvShaper);
+    this.dvShaper.connect(this.dvPost); this.dvComp.connect(this.dvPost);
+    this.dvPost.connect(this.dvDC); this.dvDC.connect(this.dvWet); this.dvWet.connect(this.dvOut);
+    // matriz (destino Drive): el slot entra por dvMod — su ganancia es el recorrido del
+    // knob en unidades de la curva — a la ganancia de entrada (barridos de plegado)
+    this.dvMod = ctx.createGain(); this.dvMod.gain.value = c.mod; this.dvMod.connect(this.dvPre.gain);
   }
+  _driveApply(tau = 0.02) {
+    if (!this.dvShaper) return;
+    const c = this._driveCfg(), tc = this.ctx.currentTime;
+    if (this.dvChar !== c.ch) { this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvChar = c.ch; }   // cambio de carácter (la curva salta: un clic, como cambiar de onda)
+    this.dvPre.gain.setTargetAtTime(c.pre, tc, tau);
+    this.dvPost.gain.setTargetAtTime(c.post, tc, tau);
+    this.dvMod.gain.setTargetAtTime(c.mod, tc, tau);
+    this.dvBias.offset.setTargetAtTime(c.bias, tc, tau);
+    this.dvComp.offset.setTargetAtTime(c.comp, tc, tau);
+  }
+  setDriveChar() { this._driveApply(); }
+  setDriveAsym() { this._driveApply(); }
 
   // ---------- LFOs y deriva POR VOZ (Roadmap 5.0 · bloque 2) ----------
   // _vlfo(k): el LFO propio k ('cut'|'res'|'freq'|'pwm'|'pan'), creado al primer
-  // uso leyendo el estado (forma, Speed, Level) y arrancado en la fase de la voz.
+  // uso leyendo el estado (forma, velocidad, Level) y arrancado en la fase que toca.
   // _lfoGain(k): la ganancia de profundidad que hay que conectar al destino —
   // la del LFO propio con lfoPhase 'voz', la global del motor si no.
   _vlfo(k) {
-    if (!this.vlfo[k]) this.vlfo[k] = mkVoiceLFO(this.ctx, this.S[k + 'LfoShape'] || 'sine', this.S[k + 'LfoSpd'], this.S[k + 'LfoLvl'], this.t0, this.phase);
+    const S = this.S;
+    if (!this.vlfo[k]) this.vlfo[k] = mkVoiceLFO(this.ctx, S[k + 'LfoShape'] || 'sine', this.mod.lfoHz(k), S[k + 'LfoLvl'], this.t0,
+      S.lfoPhase === 'voz' ? this.phase : 0, S.lfoPhase === 'una');   // la velocidad efectiva: a tempo, la división al BPM
     return this.vlfo[k];
   }
   _lfoGain(k) { return this.vlfo ? this._vlfo(k).depth : this.mod[k + 'LFOGain']; }
@@ -601,7 +669,7 @@ export class Voice {
     this.vocWanderGain.gain.value = this.S.vocVida * VOC_VIDA_CENTS;
     this.vocWander.connect(this.vocWanderGain);
     this.vocBqs.forEach(bq => this.vocWanderGain.connect(bq.detune));
-    this.vocWander.start(this.t0, Math.random() * buf.duration);
+    this.vocWander.start(this.t0, this.rnd() * buf.duration);
   }
   // 'Golpe' parte 2 — burst de ruido de una sola vez por un paso-banda ANCHO
   // centrado en el F2 de la vocal actual (punto de articulación: «ka» ≠ «ku»);
@@ -620,7 +688,7 @@ export class Voice {
     const bp = this.ctx.createBiquadFilter();
     bp.type = 'bandpass'; bp.frequency.value = hz; bp.Q.value = VOC_ATK_Q;
     src.connect(g); g.connect(bp); bp.connect(this.vocOut);
-    src.start(t, Math.random() * 1.5);        // offset aleatorio: cada consonante es distinta
+    src.start(t, this.rnd() * 1.5);           // offset aleatorio: cada consonante es distinta
     src.stop(t + 0.25);                       // a ~16·τ el burst está a -140 dB: liberar
     src.onended = () => { try { src.disconnect(); } catch (e) {} try { g.disconnect(); } catch (e) {} try { bp.disconnect(); } catch (e) {} };
     this.vocBurstSrc = src; this.vocBurstGain = g; this.vocBurstBp = bp;
@@ -665,6 +733,17 @@ export class Voice {
     if (this.resWet) this.resWet.gain.setTargetAtTime(v, tc, 0.02);
   }
   setResMat(m)    { if (!this.resBqs) return; this.resRatios = resRatios(m); this._resRetune(); }
+  // Material por la matriz: el knob interpola el LOG de las razones (cuerda → barra),
+  // así que en cents es lineal y cada modo se mueve lo que separa sus dos razones
+  // (0, 555, 1019, 1391, 1699, 1962 ct): la afinación suma al knob sin aproximar. Los PESOS
+  // de los modos (resGains, que dependen de las razones) siguen los del knob: reafina, no cambia de material entero.
+  _resMatMods() {
+    if (!this.resBqs) return [];
+    if (!this.resMatG) this.resMatG = this.resBqs.map((bq, i) => {
+      const g = this.ctx.createGain(); g.gain.value = 1200 * Math.log2(RES_BAR[i] / RES_HARM[i]); g.connect(bq.detune); return g;
+    });
+    return this.resMatG;
+  }
   setResBrillo()  { this._resRetune(); }
   setResDecay(d) {
     if (!this.resBqs) return;
@@ -685,10 +764,17 @@ export class Voice {
     if (src === 'drift') return this._driftSrc();
     if (this.mod.perf && this.mod.perf[src]) return this.mod.perf[src];   // rueda / aftertouch / expresión (0..1, del motor)
     if (src === 'env') return this.fenv;
+    if (src === 'envm') return this._envmSrc();
     if (this._mxConsts[src]) return this._mxConsts[src];
+    const st = /^st(\d)(n?)$/.exec(src);              // Pasos (Roadmap 7.0 · 2.3)
+    if (st && !st[2]) return this.mod.stepSrc(+st[1], this.t0);   // continuo: la fuente del motor
+    if (st) {                                          // · nota: el valor del paso en que empieza la nota, fijo
+      const c = this.ctx.createConstantSource(); c.offset.value = this.mod.stepVal(+st[1], this.t0); c.start(this.t0);
+      return this._mxConsts[src] = c;
+    }
     const val = src === 'vel' ? this.vel
       : src === 'note' ? Math.max(-1, Math.min(1, Math.log2(this.noteFreq / 261.63) / 2))
-      : src === 'rnd' ? Math.random() * 2 - 1 : null;
+      : src === 'rnd' ? this.rnd() * 2 - 1 : null;
     if (val === null) return null;
     const c = this.ctx.createConstantSource(); c.offset.value = val; c.start(this.t0);
     return this._mxConsts[src] = c;
@@ -705,6 +791,14 @@ export class Voice {
       case 'pan':    return [this.panner.pan];
       case 'wt':     return this.oscs.map(o => o.wt).filter(Boolean);
       case 'fm':     return this.oscs.map(o => o.fmI);           // índice FM (k-rate; su min 0 recorta)
+      // Roadmap 7.0 · 2.4 — mezclador: la ganancia de cada fuente (bajo 0, fase invertida)
+      case 'lvlA':   return [this.gA.gain];
+      case 'lvlB':   return [this.gB.gain];
+      case 'lvlRing':return [this.ringX.gain];
+      case 'lvlNoise': return [this.noiseGain.gain];
+      case 'pitchA': return [this.oscs[0].detune];               // solo el A (oscs[0]): el barrido del sync
+      case 'drive':  this.ensureDrive(); return [this.dvMod];    // ganancia de entrada de la curva (suena con Drive > 0)
+      case 'resMat': this.ensureReson(); return this._resMatMods();
       // vocal: el slot suma su señal en la ENTRADA de los WaveShapers (junto
       // al ConstantSource del knob) — connect() acepta nodos igual que params.
       // Fuera de [-1,1] el shaper satura: el barrido se queda en u / i.
@@ -736,8 +830,8 @@ export class Voice {
   }
 
   // ---------- updates en vivo (los llama el engine al girar knobs) ----------
-  setMix(mix)  { const tc = this.ctx.currentTime; this.gA.gain.setTargetAtTime(1 - mix, tc, 0.02); this.gB.gain.setTargetAtTime(mix, tc, 0.02); }
-  setRing(r)   { const tc = this.ctx.currentTime; this.normX.gain.setTargetAtTime(1 - r, tc, 0.02); this.ringX.gain.setTargetAtTime(r, tc, 0.02); }
+  setLevel(o, v) { (o === 'A' ? this.gA : this.gB).gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
+  setRing(r)   { this.ringX.gain.setTargetAtTime(r, this.ctx.currentTime, 0.02); }
   setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n * Voice._noiseColorCfg(this.S.noiseColor).mk, this.ctx.currentTime, 0.02); }
   setNoiseColor(c) {
     const tc = this.ctx.currentTime, nf = Voice._noiseColorCfg(c);
@@ -756,8 +850,7 @@ export class Voice {
     const tc = this.ctx.currentTime;
     this.dvDry.gain.setTargetAtTime(1 - v, tc, 0.02);
     if (!this.dvWet) return;
-    this.dvPre.gain.setTargetAtTime(1 + v * 4, tc, 0.02);
-    this.dvPost.gain.setTargetAtTime(1 / (1 + v * 1.5), tc, 0.02);
+    this._driveApply();
     this.dvWet.gain.setTargetAtTime(v, tc, 0.02);
   }
   setPulseWidth(pw)   { const tc = this.ctx.currentTime, v = this._clampPW(pw); this.oscs.forEach(o => o.pw.setTargetAtTime(v, tc, 0.02)); }
@@ -840,6 +933,53 @@ export class Voice {
     if (this.resBqs) { const nyq = this.ctx.sampleRate * 0.45; this.resFreq = freq; this.resBqs.forEach((bq, i) => slide(bq.frequency, Math.min(nyq, freq * this.resRatios[i]))); }
   }
 
+  // ---------- Env mod (Roadmap 7.0 · 2.1): la envolvente libre de la matriz ----------
+  // Nace bajo demanda (un slot con fuente «Env mod»), 0..1 y sin velocity, con su
+  // curva. normal = ADSR (como la de filtro); disparo = A → D → R seguidos, el
+  // note-off no la toca; bucle = A (0 → 1) + D (1 → 0) repetidos mientras dura la
+  // nota: UN ciclo en un buffer en loop arrancado en t0 — exacto a la muestra y sin
+  // nodos por repetición —; al soltar, el buffer para y una ConstantSource sigue
+  // desde el valor que tenía (calculado: la forma es conocida) con el release.
+  _envmSrc() {
+    if (this.envm) return this.envm.out;
+    const ctx = this.ctx, S = this.S, now = ctx.currentTime, t0 = this.t0;
+    const A = Math.max(0.001, S.envmA), D = Math.max(0.001, S.envmD), mode = S.envmMode, curve = S.envmCurve || 0;
+    const out = ctx.createGain(), c = ctx.createConstantSource(); c.offset.value = 0; c.connect(out); c.start(Math.min(now, t0));
+    const e = { out, c, mode, A, D, sus: S.envmS, R: Math.max(0.006, S.envmR), curve, t0, loop: null };
+    if (mode === 'bucle') {
+      const T = A + D, cyc = envmCycle(ctx, A / T, curve), src = ctx.createBufferSource();
+      src.buffer = cyc; src.loop = true; src.playbackRate.value = cyc.duration / T;
+      src.connect(out);
+      if (t0 >= now) src.start(t0); else src.start(now, (((now - t0) % T) / T) * cyc.duration);   // nacido a mitad de nota (la matriz cambió)
+      e.loop = src; e.T = T;
+    } else {
+      const p = c.offset;
+      p.setValueAtTime(0, t0);
+      this._envSegs(p, 0, 1, e.sus, t0, A, D, curve);
+      if (mode === 'disparo') this._relChain(p, t0 + A + D, e.sus, e.R, curve);
+      e.env = { t: t0, peak: 1, sus: e.sus, a: A, d: D, curve };
+    }
+    this.envm = e;
+    return out;
+  }
+  // Valor del bucle en t (la forma del ciclo: ataque y caída con la curva)
+  _envmLoopAt(t) {
+    const e = this.envm, x = (((t - e.t0) % e.T) + e.T) % e.T, fa = e.A / e.T, k = ENV_K * e.curve, den = 1 - Math.exp(-k);
+    const rc = u => (k > 0 ? (1 - Math.exp(-k * u)) / den : u);
+    return x < e.A ? rc(x / e.A) : 1 - rc((x - e.A) / e.D);
+  }
+  _envmRelease(t) {
+    const e = this.envm, now = this.ctx.currentTime;
+    if (e.mode === 'disparo') return;                 // ignora el note-off: la curva sigue entera
+    if (e.mode === 'bucle') {
+      const v = this._envmLoopAt(t), p = e.c.offset;
+      try { e.loop.stop(t); } catch (err) {}
+      p.setValueAtTime(v, t); this._relChain(p, t, v, e.R, e.curve);
+      return;
+    }
+    if (t > now) this._releaseParamAt(e.c.offset, t, e.R, e.env); else this._releaseParam(e.c.offset, t, e.R, e.curve);
+  }
+
   // ---------- release ----------
   // `at` (opcional): hora MUSICAL del note-off (la escala de startAt); suena `lag` después.
   release(rel, at = null) {
@@ -854,14 +994,15 @@ export class Voice {
     // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
     if (t > now) { this._releaseParamAt(this.vca.gain, t, rel, this._envAmp); this._releaseParamAt(this.fenv.offset, t, fRel, this._envFil); }
     else { this._releaseParam(this.vca.gain, t, rel); this._releaseParam(this.fenv.offset, t, fRel); }
+    if (this.envm) this._envmRelease(t);
     return t + rel + 0.03;  // la cadena llega a 0 exacto en t + rel: liberar los nodos ahí es inaudible
                             // (manda el release de amplitud: con el VCA cerrado el filtro no suena)
   }
-  _releaseParam(param, t, rel) {
+  _releaseParam(param, t, rel, curve) {
     const cur = param.value;            // refleja el valor de la rampa en curso
     param.cancelScheduledValues(t);
     param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
-    this._relChain(param, t, cur, rel);
+    this._relChain(param, t, cur, rel, curve);
   }
   // Release programado en el FUTURO (arp, Seq, jugadores): el valor que tendrá la
   // rampa en t aún no se puede leer — se calcula. cancelAndHoldAtTime recorta en t
@@ -876,7 +1017,7 @@ export class Voice {
     if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
     else param.cancelScheduledValues(t);
     param.setValueAtTime(v, t);
-    this._relChain(param, t, v, rel);
+    this._relChain(param, t, v, rel, env.curve);
   }
 
   // Corte rápido sin click (robo de voz / recorte de colas): re-rampa el VCA a cero.
@@ -919,9 +1060,9 @@ export class Voice {
       try { this._mxConsts[k].stop(); } catch (e) {}
       try { this._mxConsts[k].disconnect(); } catch (e) {}
     }
-    [this.busA, this.busB, this.gA, this.gB, this.normX, this.ringX, this.noiseGain, this.nLP, this.nHP,
+    [this.busA, this.busB, this.gA, this.gB, this.ringX, this.noiseGain, this.nLP, this.nHP,
      this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.ampMod, this.panner,
-     this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut,
+     this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut, this.dvBias, this.dvComp, this.dvDC, this.dvMod, ...(this.resMatG || []),
      this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain, this.vocBurstGain, this.vocBurstBp,
      ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || []),
      ...(this.vocBrillos || []),
@@ -930,6 +1071,8 @@ export class Voice {
     });
     try { this.noiseSrc.stop(); } catch (e) {}
     try { this.fenv.stop(); } catch (e) {}
+    if (this.envm) { const m = this.envm; try { m.c.stop(); } catch (e) {} if (m.loop) { try { m.loop.stop(); } catch (e) {} try { m.loop.disconnect(); } catch (e) {} } try { m.c.disconnect(); } catch (e) {} try { m.out.disconnect(); } catch (e) {} }
+    if (this.dvBias) { try { this.dvBias.stop(); } catch (e) {} try { this.dvComp.stop(); } catch (e) {} }
     if (this.vocCtl) { try { this.vocCtl.stop(); } catch (e) {} }
     if (this.vocWander) { try { this.vocWander.stop(); } catch (e) {} try { this.vocWander.disconnect(); } catch (e) {} }
     if (this.vocBurstSrc) { try { this.vocBurstSrc.stop(); } catch (e) {} try { this.vocBurstSrc.disconnect(); } catch (e) {} }

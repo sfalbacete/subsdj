@@ -49,7 +49,7 @@ export class WaveSeq {
   }
   _dur() {
     const S = this.e.S;
-    return (60 / S.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.wsDiv] || 0.25);
+    return (60 / this.e.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.wsDiv] || 0.25);   // el BPM de la sala (en Partes, el de todas)
   }
 
   // Engancha una voz recién creada (la llaman los dos `new Voice` del engine).

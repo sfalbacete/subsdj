@@ -3,20 +3,8 @@
    el HTML solo aporta el contenedor #mxRows. OJO al orden de arranque: esto
    crea los .knob de cantidad, así que en main.js va ANTES de bindKnobs().
    Los selects se registran en CONTROLS con `opts` (zonas para MIDI learn). */
-import { part } from '../engine/parts.js';
-import { PARAMS, MX_SLOTS, MX_SOURCES, MX_DESTS } from '../engine/params.js';
-import { CONTROLS, applyTarget } from './registry.js';
-
-function bindSel(sel, name, options) {
-  for (const o of options) sel.add(new Option(o.label, o.id));
-  const set = v => {
-    if ([...sel.options].some(x => x.value === v)) sel.value = v;   // valor desconocido: se queda como está
-    applyTarget(name, sel.value);
-  };
-  sel.addEventListener('change', () => { part().resume(); applyTarget(name, sel.value); });
-  CONTROLS[name] = { get: () => sel.value, set, def: PARAMS[name].def, el: sel, opts: options.map(o => o.id) };
-  set(PARAMS[name].def);
-}
+import { MX_SLOTS, MX_SOURCES, MX_DESTS } from '../engine/params.js';
+import { bindSelect as bindSel } from './registry.js';
 
 export function bindMatrixControls() {
   const host = document.getElementById('mxRows');

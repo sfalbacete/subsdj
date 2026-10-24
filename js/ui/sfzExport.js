@@ -10,11 +10,13 @@
    - Reverb y delay NO se hornean (sus ecos/colas quedan pegados a cada
      nota en un sampler; se añaden en el DAW). El resto de la cadena
      (drive, filtro, unison, chorus/ensemble, width…) es timbre y va.
-   - 2 capas de velocidad solo si filterEnvAmt ≠ 0 (la velocity cambia
-     el timbre); la parte de VOLUMEN de la velocity se compensa (×1/vel)
-     al nivel de la capa dura, y el volumen continuo lo pone el sampler
-     (amp_veltrack=100 por defecto en SFZ). Con env de filtro a 0 la
-     velocity solo es volumen: basta 1 capa.
+   - Capas de velocidad MEDIDAS (velocityLayers): la nota de referencia a
+     velocity suave y a tope; si el BRILLO cambia, la velocity cambia el
+     timbre (env de filtro, matriz → filtro o FM, operadores FM4… lo que
+     sea, sin lista que mantener) y van 2 o 3 capas; si solo cambia el
+     volumen, basta 1. Cada capa se iguala al NIVEL medido de la dura (no
+     ×1/vel: la velocity puede mover más que el VCA) y el volumen continuo
+     lo pone el sampler (amp_veltrack=100 por defecto en SFZ).
    - Sin loop points (v1): samples largos (hold + release completo) y
      ampeg_release = release del preset para que soltar la nota en el
      sampler suene como en el synth.
@@ -39,6 +41,79 @@ async function renderNote(state, midi, vel, hold, maxDur) {
   eng.noteOn('sfz', midiHz(midi), vel);
   ctx.suspend(Math.min(hold, dur - 0.1)).then(() => { eng.noteOff('sfz'); ctx.resume(); });
   return ctx.startRendering();
+}
+
+// ¿Cambia el TIMBRE con la velocity? La nota de referencia a VEL_SOFT y a 1,
+// cada una como ESPECTRO por bandas de tercio de octava (FFT promediada; en dB
+// respecto a su total: el nivel no cuenta). Timbre = la banda que más se mueve,
+// entre las que suenan (BAND_FLOOR): si pasa de VEL_DB → 2 capas; de VEL_DB3 → 3.
+// El azar del preset (fases libres, ruido, S&H por nota, deriva) no confunde la
+// medida: los renders offline llevan semilla (Roadmap 7.0 · 7.1), así que las dos
+// notas comparten la misma tirada y solo difieren en la velocity. (Antes, un
+// segundo render a velocity 1 medía ese azar y la velocity tenía que superarlo.)
+// Cada capa se iguala al NIVEL de la dura (RMS medido).
+// Medido en los 117 de fábrica (2026-10-20, ya con semilla): 2 capas o más en 45, 21 de ellos con 3
+// (antes de 0.2, 30, por la env de filtro), con la velocity por la matriz, FM4 y la distorsión
+// (una nota floja satura menos) bien vistas. Con el azar fuera de la medida aparecen los que
+// lo tapaba: «Pluck lotería (S&H)» pasa de 1 capa a 3 (su env de filtro sigue a la velocity:
+// 15 dB en la banda que más se mueve; antes el S&H por nota lo escondía).
+const VEL_REF = 60, VEL_SOFT = 0.3;
+const VEL_DB = 2;     // una banda que se mueve 2 dB: otro timbre, no solo más flojo (un falso «sí» solo engorda el zip)
+const VEL_DB3 = 10;   // 10 dB: una capa intermedia evita el salto entre las dos
+const BAND_FLOOR = -30; // solo las bandas que SUENAN (a menos de 30 dB del total): las más débiles no se oyen y su medida es ruido
+const FFT_N = 4096;
+function fft(re, im) {                               // radix-2 en sitio
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let b = n >> 1; for (; j & b; b >>= 1) j ^= b; j ^= b;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const a = -2 * Math.PI / len, wr = Math.cos(a), wi = Math.sin(a);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const p = i + k, q = p + len / 2, tr = re[q] * cr - im[q] * ci, ti = re[q] * ci + im[q] * cr;
+        re[q] = re[p] - tr; im[q] = im[p] - ti; re[p] += tr; im[p] += ti;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+}
+// Bandas de tercio de octava de 100 Hz a 16 kHz, en dB respecto al total (Welch: Hann, 50 %)
+function thirdOctaves(d, n) {
+  const pow = new Float64Array(FFT_N / 2), re = new Float64Array(FFT_N), im = new Float64Array(FFT_N);
+  for (let s = 0; s + FFT_N <= n; s += FFT_N / 2) {
+    for (let i = 0; i < FFT_N; i++) { re[i] = d[s + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FFT_N - 1))); im[i] = 0; }
+    fft(re, im);
+    for (let k = 0; k < FFT_N / 2; k++) pow[k] += re[k] * re[k] + im[k] * im[k];
+  }
+  const bands = [];
+  let tot = 0;
+  for (let f = 100; f < 16000; f *= Math.pow(2, 1 / 3)) {
+    const k0 = Math.floor(f * FFT_N / SR), k1 = Math.floor(f * Math.pow(2, 1 / 3) * FFT_N / SR);
+    let e = 0; for (let k = k0; k < k1; k++) e += pow[k];
+    bands.push(e); tot += e;
+  }
+  return bands.map(e => 10 * Math.log10(e / Math.max(1e-30, tot) + 1e-30));
+}
+const bandDev = (a, b) => a.reduce((m, x, i) => (Math.max(x, b[i]) > BAND_FLOOR ? Math.max(m, Math.abs(x - b[i])) : m), 0);
+export async function velocityLayers(S, hold) {
+  const m = async vel => {
+    const d = (await renderNote(structuredClone(S), VEL_REF, vel, hold, hold + 0.2)).getChannelData(0);
+    const n = Math.min(d.length, Math.floor(SR * hold));
+    let e = 0; for (let i = 0; i < n; i++) e += d[i] * d[i];
+    return { rms: Math.sqrt(e / n), bands: thirdOctaves(d, n) };
+  };
+  const hard = await m(1), soft = await m(VEL_SOFT);
+  const dev = bandDev(hard.bands, soft.bands);
+  const one = [{ vel: 1, lovel: 0, hivel: 127, gain: 1 }];
+  if (!(dev > VEL_DB) || hard.rms < 1e-6 || soft.rms < 1e-6) return { layers: one, timbre: dev };
+  const vels = dev > VEL_DB3 ? [[0.35, 0, 42], [0.7, 43, 84], [1, 85, 127]] : [[0.5, 0, 63], [1, 64, 127]];
+  const layers = [];
+  for (const [vel, lovel, hivel] of vels)
+    layers.push({ vel, lovel, hivel, gain: vel === 1 ? 1 : hard.rms / Math.max(1e-9, (await m(vel)).rms) });
+  return { layers, timbre: dev };
 }
 
 // Recorta el silencio (< −70 dBFS) de los extremos y funde los últimos 15 ms
@@ -69,9 +144,7 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
   S.mode = 'poly';                         // notas sueltas; mono/glide no aplica a un render aislado
   S.reverbMix = 0; S.dlyAmt = 0;           // espacio fuera del horneado (se añade en el DAW)
   const hold = Math.max(o.hold, (S.a || 0) + 1.2);     // que el ataque quepa entero
-  const layers = S.filterEnvAmt
-    ? [{ vel: 0.5, lovel: 0, hivel: 63 }, { vel: 1, lovel: 64, hivel: 127 }]
-    : [{ vel: 1, lovel: 0, hivel: 127 }];
+  const { layers, timbre } = await velocityLayers(S, Math.min(hold, 1.5));
   const keys = [];
   for (let m = o.lo; m <= o.hi; m += o.step) keys.push(m);
   if (keys[keys.length - 1] !== o.hi) keys.push(o.hi);
@@ -83,8 +156,8 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
     for (const midi of keys) {
       const buf = await renderNote(structuredClone(S), midi, layers[li].vel, hold, o.maxDur);
       const { l, r } = trimBuffer(buf);
-      if (layers[li].vel !== 1) {          // compensa el VCA lineal: capas al mismo nivel;
-        const g = 1 / layers[li].vel;      // el volumen por velocity lo pone amp_veltrack
+      if (layers[li].gain !== 1) {         // capas al nivel de la dura (medido);
+        const g = layers[li].gain;         // el volumen por velocity lo pone amp_veltrack
         for (let i = 0; i < l.length; i++) { l[i] *= g; r[i] *= g; }
       }
       rendered.push({ midi, li, l, r });
@@ -138,7 +211,7 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
       lines.push('<region> sample=' + fname + ' lokey=' + lokey + ' hikey=' + hikey + ' pitch_keycenter=' + k);
     });
   });
-  return { slug, sfz: lines.join('\n') + '\n', samples, layers: layers.length, keys };
+  return { slug, sfz: lines.join('\n') + '\n', samples, layers: layers.length, timbre, keys };
 }
 
 // --- ZIP con entradas almacenadas (método STORE: el WAV apenas comprime

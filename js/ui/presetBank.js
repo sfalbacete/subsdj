@@ -8,6 +8,7 @@
 import { library, SEC_MIOS } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
+import { record, markSaved } from './history.js';
 
 let selEl, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
@@ -38,7 +39,8 @@ export function navOptions() { return [...selEl.options].filter(o => !o.dataset.
 function loadCurrent() {
   const it = library.item(selEl.value);
   if (!it || it.tipo !== 'preset') return;
-  loadState(it.datos); msg('Cargado: ' + it.nombre);
+  record('Preset «' + it.nombre + '»', () => loadState(it.datos), { saved: true });   // deshacer devuelve el sonido de antes
+  msg('Cargado: ' + it.nombre);
   document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.nombre, value: it.id } }));   // el mezclador etiqueta la parte
 }
 export function loadPresetId(id) { if (!library.item(id)) return false; selEl.value = id; loadCurrent(); return true; }
@@ -84,6 +86,7 @@ export function initPresetBank() {
     if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Actualizado «' + name + '».'); }
     else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Guardado «' + name + '» en ' + SEC_MIOS + ' (este navegador).'); }
     selEl.value = id; inp.value = '';
+    markSaved();                                  // lo que suena ES ahora el preset guardado: ● se apaga
   });
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = library.item(selEl.value);
@@ -91,7 +94,7 @@ export function initPresetBank() {
     if (!confirm('¿Borrar «' + it.nombre + '» de la biblioteca?' + (it.origen === 'fabrica' ? ' (⟲ Traer de fábrica lo devuelve)' : ''))) return;
     library.borrar(it.id); msg('Borrado «' + it.nombre + '».');
   });
-  document.getElementById('resetBtn').addEventListener('click', () => { loadState({}); msg('Valores por defecto.'); });
+  document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Valores por defecto.'); });
 
   // ---- exportar / importar la biblioteca entera (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {

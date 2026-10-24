@@ -9,6 +9,7 @@ import { bindMatrixControls } from './ui/matrixControls.js';
 import { initWaveEditor } from './ui/waveEditor.js';
 import { bindSeqControls } from './ui/seqControls.js';
 import { bindWsControls } from './ui/wsControls.js';
+import { bindStepsControls } from './ui/stepsControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
@@ -29,6 +30,7 @@ import { initFm4Graph } from './ui/fm4Graph.js';
 import { initDisplay } from './ui/display.js';
 import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
+import { initHistory } from './ui/history.js';
 import { setStatus, isStatus } from './ui/status.js';
 import { VERSION } from './version.js';
 
@@ -42,6 +44,7 @@ bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no s
 bindOscControls();
 bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
 bindWsControls();    // secuencia de tabla (wave sequencing)
+bindStepsControls(); // Pasos: cuatro carriles para la matriz (Roadmap 7.0 · 2.3)
 initRotaries();      // selectores giratorios: los .seg.rot ya tienen su posición activa
 initFm4Graph();      // grafo del algoritmo FM4 bajo su selector (sigue a fm4Alg y al Feedback)
 initKeyboard();
@@ -60,6 +63,7 @@ initPartsControls(); // modo Partes: selector en la cabecera + mezclador (despu�
 initPlayerControls(); // armonía + jugadores de la escena (escucha scene-changed / part-changed)
 initDisplay();       // pantalla Salida (último parámetro tocado), menú Archivo y avisos del banco
 initDeps();          // apaga (atenuado, tocable) lo que no hace nada con la configuración actual, con su motivo
+initHistory();       // deshacer / rehacer por gestos (Ctrl+Z · Ctrl+Y) y comparar con el preset guardado
 
 // Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
 // siguen navegando el desplegable por primera letra y cambian la selección.

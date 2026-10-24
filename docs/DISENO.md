@@ -223,8 +223,8 @@ o un selector; cuándo = una función del estado que devuelve null (vivo) o el
 MOTIVO, que sale en el tooltip y, al tocarlo, en la pantalla Salida («sin
 efecto: Index a 0: no hay modulador»). Las reglas salen de leer el motor:
 
-- **Qué suena**: A llega a la salida si Mix < 1 o Ring > 0; B si Mix > 0 o
-  Ring > 0 (con Reset, el B entero está apagado). Lo que depende de una ONDA
+- **Qué suena**: A llega a la salida si su nivel (Mezcla · Osc A) > 0 o
+  Ring > 0; B igual (con Reset, el B entero está apagado). Lo que depende de una ONDA
   cuenta solo las de osciladores que suenan.
 - **Por onda**: la Súper ignora Phase (fases al azar) y el Unison (ya lo es);
   Spread solo la abre a ella; P.Width y el LFO de PWM solo mueven la
@@ -463,7 +463,7 @@ js/engine/
   AudioEngine.js               grafo de UN instrumento (LFOs, inserciones) + gestión de voces
   Sala.js                      el espacio: delay de cinta, reverb, limitador, máster (por envíos; compartida en Partes)
   parts.js                     modo Partes: 4 motores sobre un contexto + Sala compartida; part() = el que edita el rack
-  nodes.js                     nodos auxiliares: ruido, deriva, IR de reverb, curva de distorsión, LFOs
+  nodes.js                     nodos auxiliares: azar por contexto (semilla offline), ruido, deriva, IR de reverb, curva de distorsión, LFOs
   Harmony.js                   armonía de la escena: escalas, progresión / paseo de funciones, acordes, PRNG con semilla
   Player.js                    jugador por parte: pulso euclídeo, acorde, melodía, raíz (dedos virtuales)
   Conductor.js                 reloj maestro en beats: ticker + look-ahead; scheduleAll() para el render offline; toJSON/fromJSON
@@ -471,7 +471,7 @@ js/engine/
   Voice.js                     cadena por nota: osc (worklet) → filtro LP/HP → VCA → pan
   presets.js                   banco de FÁBRICA (semilla de la biblioteca) + migración v1→v2 del localStorage antiguo
   library.js                   la BIBLIOTECA: secciones e ítems (preset/escena), semilla, ★, búsqueda, export/import (sin DOM)
-  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos)
+  worklets/pulse-processor.js  oscilador PolyBLEP (saw/square/sine/tri/supersaw/tabla/fm4; FM 2-op + feedback; FM4 4 op con algoritmos; tabla con Hermite)
   worklets/plate-processor.js  reverb de placa algorítmica (Dattorro): difusores + tanque modulado, 100 % wet
   worklets/limiter-processor.js limitador de salida de la Sala: brickwall con lookahead de 6 ms, techo −1 dBFS
 js/ui/
@@ -503,12 +503,12 @@ entran en la biblioteca («★ Míos») la primera vez, migrados; las copias ant
 se conservan como respaldo.
 
 **Reset es neutro** (y así arranca el synth, desde 2026-10-05): el oscilador A a
-solas (Mix 0, B sin desafinar), el filtro abierto y plano (20 kHz con Reso −3 dB,
+solas (nivel A 1 y B 0, B sin desafinar), el filtro abierto y plano (20 kHz con Reso −3 dB,
 el Butterworth sin pico: ±0,02 dB hasta 12 kHz), la envolvente en puerta (A 2 ms ·
 S 1 · R 20 ms, lo justo contra el clic) y todos los módulos a 0: suena la onda
 pura. Los presets, en cambio, se guardan como **diferencias** y van sobre la
 **base de los presets** (`PRESET_BASE` en `params.js`: los defaults de antes —
-B a +7 ct mezclado al 0,4, LP a 6 kHz con 2 dB, ADSR 10 ms / 0,7 / 300 ms), así
+B a +7 ct mezclado al 0,4 — hoy niveles A 0,6 · B 0,4 —, LP a 6 kHz con 2 dB, ADSR 10 ms / 0,7 / 300 ms), así
 que los de fábrica, los bancos del repo, las escenas y los importados suenan
 exactamente igual que antes (verificado: los 560 estados efectivos, idénticos);
 los guardados con Guardar llevan todas las claves y la base no les cambia nada.
@@ -1699,3 +1699,397 @@ preset y delante del limitador es la misma ganancia; separarlo solo cambiaría
 qué enseña el knob); y el makeup de +1,71 dB del limitador es un resto de
 cuando sustituyó al DynamicsCompressor (lineal, se podría plegar en el margen
 sin cambiar una muestra).
+
+## Mezclador a la Minimoog (2026-10-17)
+
+Lo apuntado al cerrar la 1.1.0: el Mix A↔B era un crossfade, y al centro
+perdía 3,5 dB con los osciladores desafinados. La voz sumaba
+`(1−ring)·[(1−mix)·A + mix·B] + ring·A×B`: subir B bajaba A, y subir el Ring
+bajaba los dos. Al centro cada oscilador va a 0,5 (−6 dB), y dos señales sin
+correlación (desafinadas) suman POTENCIAS, no amplitudes: 0,5² + 0,5² = 0,5,
+o sea −3 dB frente a uno solo. Ahora es un mezclador como el del Minimoog:
+`levelA·A + levelB·B + ring·A×B + ruido·N`, cada fuente con su nivel
+(Mezcla: Osc A · Osc B · Ring M. · Ruido, lineales, leídos en dB). El Ring
+pasa a ser una fuente más, como en el ARP Odyssey (decisión de Sergio): ya
+no se come a A ni a B. En `Voice.js` desaparecen `normMix` y el crossfade
+`normX`: dos nodos menos por voz.
+
+**Migración exacta.** Mismos coeficientes: `levelA = (1−ring)(1−mix)`,
+`levelB = (1−ring)·mix`, `ring` igual. Todos los caminos por los que entra un
+preset (`loadState`, `applyPreset` de las partes, `applySceneJSON`) pasan por
+`withPresetBase`, y ahí la hace `state.migrateMix`. Es PERMANENTE, no de una
+vez: la biblioteca guarda copias de los presets en localStorage, todas con
+`mix`. Un preset sin `levelA`/`levelB` es de antes; si lleva Mix o Ring > 0 se
+traduce, y si no, hereda la base (`PRESET_BASE` lleva ya A 0,6 · B 0,4, el
+Mix 0,4 de entonces). La trampa: un preset NUEVO escrito a mano con Ring y
+sin niveles se leería como de antes. Por eso los de fábrica con Ring llevan
+sus niveles, y el check lo vigila. La fábrica (116), las demos (116) y el
+banco 2.0 (36) se reescribieron con un script de texto (conserva formato y
+finales de línea). La deriva de los jugadores `mix` pasa a `levelB` (el B
+entra y sale sobre el A; `Conductor.fromJSON` traduce las escenas), y un CC
+de MIDI learn ligado a `mix` pasa a mover `levelB` (`RENAMED` en `midimap.js`).
+
+**El precio de sumar.** Medido: A y B a tope suenan **+6,02 dB** sobre A solo
+si son la misma onda en fase (suman amplitudes: ×2) y **+2,88 dB** desafinados
+50 ct (potencias: ×√2). Respecto al Mix al centro de antes son +6 dB
+desafinados. Los presets de fábrica no cambian ni un decibelio (la traducción
+es exacta), pero subir los dos osciladores de un pad se come el margen del
+máster: Pad cálido con un acorde de cuatro pasa de un limitador que no trabaja
+(0 %) a recortar el 19-21 % de los bloques de 10 ms. Es lo mismo que subir el
+Master 3-6 dB, y se arregla igual: bajándolo. No se compensó automáticamente,
+porque dividir por la suma de niveles devolvería el crossfade (subir uno
+bajaría los otros). Tiene premio: el Drive del filtro (pre-ganancia
+1 + 4·drive delante de la tanh) recibe la suma, así que subir el mezclador
+satura más. Es el truco del Minimoog de abrir el mezclador para apretar la
+entrada del filtro.
+
+Check «mezclador» (categoría propia): superposición (mezcla a 0,3 · 0,5 · 0,2
+frente a la suma de A, B y A×B renderizados por separado: −133 dB), en fase
++6,02 ± 0,1, desafinados entre +2,5 y +3,5 (a 50 ct la fundamental bate a
+3,9 Hz y caben 5 batidos en la ventana; con 7 ct haría falta un batido de 2 s)
+y un preset de antes frente a su traducción. Este último no puede compararse bit
+a bit: dos renders del MISMO estado ya difieren ~1·10⁻⁸ (−125 dB del pico),
+así que el umbral es −100 dB. Check estático «migración del mezclador» (los
+casos de la fórmula, `{}` sigue siendo Reset, ninguna fábrica con `mix`, todo
+Ring con sus niveles). En «MIDI learn», el renombrado; en «dependencias»,
+solo B, solo Ring. Pares MEZ 1-4 en el banco de demos (ring en crossfade
+frente a sumado; drive con el mezclador a medias frente a tope). 183/183.
+
+## Checks fiables y velocity del teclado de pantalla (2026-10-17)
+
+**Dos checks que fallaban de vez en cuando**, medidos antes de tocarlos (una
+sonda que repite las medidas del check 20 veces, por `tools/shot.mjs` con el
+JS previo en un fichero):
+- **«vocal 2.0» (la transición del Golpe)**: de 6,3 a 238 con el umbral en 5.
+  El sin-Golpe es determinista (0,253 siempre). Lo que bailaba era el burst:
+  arranca en un punto AL AZAR del ruido (cada consonante distinta, a propósito)
+  y se suma DESPUÉS del banco de formantes. Un Goertzel de un bin sobre ruido es
+  un sorteo, y el check dividía un sorteo entre otro: la misma enfermedad que
+  tuvo el resonador. La transición en sí (el eje vocálico cae 1,5 y vuelve con
+  τ = 24 ms) es determinista. Arreglo: no quitar el azar, PROMEDIARLO: ocho
+  golpes en un render (notas cada 206 bloques, release corto) y las potencias
+  sumadas antes de dividir (2·8 grados de libertad en vez de 2). Medido: 15-38
+  en 20 repeticiones. Sin la transición, el burst solo (centrado en F2) daría
+  menos de 1, así que el umbral sigue discriminando.
+- **«resonador»**: el rediseño del 2026-10-12 (medir la cola libre de los
+  modos, no el ruido) aguanta; lo que rozaba era el NIVEL del cuenco, de −30,0 a
+  −27,1 dB con el umbral en −30. Ese umbral absoluto se quedó sin ajustar al
+  meter el margen de −9 dB del máster en la 1.1.0 (los demás llevan `HR`
+  dentro). Ahora se mide sin el margen: −19 dB. Cinco pasadas seguidas del
+  selftest completo en verde.
+
+**Velocity con el ratón.** El teclado de pantalla tocaba todo a 1. Ahora la
+velocity sale de la ALTURA a la que pulsas la tecla, como en un piano (se pega
+fuerte en el borde delantero): arriba, junto al fieltro, 0,2 (−14 dB en el VCA,
+y menos filtro o FM donde la velocity los mueve); sube en recta hasta el 85 %
+del largo; el 15 % del borde da 1, así que un clic abajo suena como antes
+(`velFromY` y sus dos constantes al principio de `ui/keyboard.js`). El QWERTY
+no sabe de fuerza y sigue a 1; el MIDI trae la suya. La tecla pulsada brilla
+según la velocity (`--vel` en el CSS) y la pantalla Salida enseña «Teclado · C4
+/ vel 0.48», solo con el ratón (el MIDI y el QWERTY no pisan el knob que se
+está girando). Probado con ratón REAL por CDP con el panel a zoom 1,3 (la
+pantalla de Sergio): `getBoundingClientRect` y `clientY` hablan el mismo
+espacio y las alturas 5/30/60/97 % dan 0,25/0,48/0,76/1,00, lo esperado. Check
+«teclado de pantalla: velocity» (la curva, y un pointerdown de verdad sobre una
+tecla: voz, `--vel` y pantalla). 184/184.
+
+## Roadmap 7.0 «el instrumento» (2026-10-17)
+
+Rumbo fijado por Sergio: SubSDJ es un instrumento de diseño y generación de
+sonido, no un DAW; más capaz, expresivo y sorprendente, abierto a otros
+generadores; los sonidos se exportan (SFZ, WAV). Los presets no son una
+restricción: si una mejora rompe el banco, se rehace desde cero (y de paso,
+bilingüe). Plan completo en PLAN.md.
+
+**0.1 · Teclado sin notas colgadas.** Tres fallos del teclado del PC y del
+táctil: (1) el `keydown` no miraba Ctrl/Alt/Meta, así que Ctrl+Z tocaba un Do;
+(2) la nota se archivaba por `e.key`, y con Shift pulsado entre medias la tecla
+soltada llegaba como otra (Shift+2 = «"» en el teclado español): la nota colgaba
+hasta el pánico; (3) ni `pointercancel` (el sistema cancela un toque) ni
+`lostpointercapture`. Arreglo: el mapa tracker por POSICIÓN física (`e.code`:
+`KeyZ`, `Digit2`, `Comma`…), que además deja el piano en su sitio en AZERTY o
+Dvorak; los rótulos de las teclas se leen del teclado real con la Keyboard API
+(`navigator.keyboard.getLayoutMap`, Chrome) y, sin ella, los de un US; con Ctrl,
+Alt o Meta la tecla es un atajo (AltGr también: es Ctrl+Alt en Windows). Y cada
+nota sabe QUIÉN la sostiene (`'k:KeyZ'`, `'p:<pointerId>'`, `'midi'`): suena con el
+primero y se calla con el último, así el ratón no corta la que mantiene el QWERTY
+ni un dedo la de otro; `pointercancel` y `lostpointercapture` sueltan;
+`touch-action: none` en las teclas. Check «teclado sin notas colgadas» (eventos
+de verdad: Shift entre pulsar y soltar, Ctrl+Z, toque cancelado, dos dedos).
+
+**0.2 · SFZ con las capas de velocity reales.** El exportador hacía 2 capas solo
+si `filterEnvAmt ≠ 0`: un preset con velocity → FM por la matriz, → filtro por la
+matriz o con sensibilidad en los operadores de FM4 salía con UNA capa y perdía el
+tacto; y la capa suave se compensaba ×1/vel, como si la velocity solo moviera el
+VCA. Ahora se MIDE (`velocityLayers`): la nota de referencia (Do4) a velocity 0,3
+y 1 como espectro por bandas de tercio de octava (FFT promediada, Hann al 50 %),
+en dB respecto a su total; timbre = la banda que más se mueve entre las que
+suenan (a menos de 30 dB del total). Un segundo render a velocity 1 da el AZAR
+del propio preset (fases libres, ruido, S&H por nota, deriva), y la velocity
+tiene que pasarlo en 2 dB (→ 2 capas) o en 10 (→ 3). Cada capa se iguala al nivel
+medido de la dura. Por el camino, dos estimadores descartados por medida: el
+«brillo» (energía de la 1ª diferencia / energía) lo domina la fundamental y no
+veía «Teclas al tacto (vel→filtro)» (×1,01: el filtro mueve armónicos débiles);
+y el máximo sobre bandas de hasta −50 dB, o con el azar como factor ×2, daba
+falsos positivos en presets con azar y perdía DX bass (Δ 14 dB con azar de 8).
+Resultado en la fábrica: 44 de 116 con capas (17 con tres), antes 30; bien
+vistas la velocity por la matriz, FM4 y la DISTORSIÓN (una nota floja satura
+menos: Reese, Hoover, Wobble); los de S&H por nota se quedan en una (lo suyo es
+azar: round robin, Roadmap 7.0 · 6.1). Visto de paso: varios presets FM difieren
+hasta 10 dB de un render a otro; con el azar con semilla en offline (7.1) esta
+medida será exacta. Check: Reset → 1 capa; «E-piano DX (vel→FM)» → 3 (Δ 43 dB),
+la suave subida ×3 (más que el ×2,9 de 1/vel: la FM también cambia el nivel).
+185/185.
+
+**1.1 · Deshacer y rehacer.** `ui/history.js`. Se guardan GESTOS, no cambios
+sueltos: al empezar a tocar un control (pulsar dentro de las pantallas, una
+tecla sobre un control, un mando MIDI) se hace una foto del estado; el gesto
+acaba al soltar y tras 450 ms sin cambios (rueda, flechas, mando MIDI; en un
+selector, al elegir, porque cambia DESPUÉS de soltar), y se guarda solo lo que
+cambió entre medias, con su antes y su después. Por qué gestos y no «todo
+cambio que pase por los controles»: en modo Partes la deriva de los jugadores
+mueve knobs desde el código y llenaría el historial de pasos que nadie hizo.
+Cargar un preset y Reset son un paso cada uno (`record`, envuelve la acción).
+Deshacer aplica solo esas claves, control a control: no corta las notas que
+suenan (loadState sí, con allNotesOff), y vuelve a la pantalla donde se hizo el
+cambio; la pantalla Salida dice qué se deshizo («Deshacer · Filtro · Cutoff»).
+Una pila de 100 pasos por parte. Ctrl+Z, Ctrl+Y y Ctrl+Mayús+Z (en un campo de
+texto, el deshacer del propio campo); ↶ ↷ en la cabecera con lo que harían en el
+título. Fuera, por ahora: la tabla dibujada del Editor de ondas (vive fuera de
+CONTROLS) y los gestos de ejecución (teclas, rueda, bend).
+
+**1.2 · Comparar con el guardado.** El «Compare» de los synths de hardware. ●
+junto al preset: se enciende si lo que suena ya no es el preset cargado (o
+guardado), calculado COMPARANDO estados con una tolerancia de 1e-4 del rango de
+cada parámetro (un knob devuelto «a su sitio» con el ratón no cae en el mismo
+float): si lo devuelves, se apaga. Comparar alterna entre el guardado y tu
+edición; tocar cualquier control mientras compara vuelve antes a tu edición (lo
+que tocas se suma a ella: nunca se pierde nada). Por parte, como el historial;
+cargar una escena olvida los guardados. Check «deshacer · rehacer · comparar»
+(gesto = paso, la deriva no; deshacer no corta una nota; preset = paso; ● y
+Comparar; Ctrl+Z deshace y no toca un Do). 186/186.
+
+**7.1 · Azar con semilla en los renders offline.** Todo el azar del motor sale
+ahora de `ctxRandom(ctx)` (nodes.js): en directo es `Math.random`, como siempre;
+en un `OfflineAudioContext`, un mulberry32 con semilla (uno por contexto;
+`seedRender(ctx, s)` antes de crear el motor elige otra tirada, pensado para el
+round robin de 6.1). Lo usan el ruido, el IR de la reverb, la Vida y el Golpe del
+Vocal, el S&H por nota, el Arp aleatorio y — por una semilla que la voz pasa a
+cada oscilador en `processorOptions` — las fases libres y la deriva del worklet
+(que lleva su propia copia de mulberry32: los worklets no importan el motor).
+Resultado: dos renders iguales difieren 6e-8 (el orden en que Chrome suma las
+entradas de un nodo), otra semilla 0,3. El check de escenas ya no siembra
+`Math.random` a mano (y ya no exige «presets sin azar en el worklet»); check
+nuevo «azar con semilla» con un estado que lleva TODO el azar a la vez.
+
+De dónde salían los 10 dB entre renders que se vieron al medir 0.2: sonda sobre
+los 117 de fábrica, tres renders de Do4 con el azar del hilo principal ya
+sembrado (queda solo el del worklet). Supersaw, unison y deriva mueven el nivel
+hasta 2,6 dB (el batido de copias desafinadas: carácter analógico, se queda). Lo
+gordo era la **fase del modulador FM 2-op**, sorteada en cada nota: con ratios
+enteros la fase relativa reparte la energía entre armónicos de otra manera, y
+tras el filtro «DX bass» variaba 6 dB. No era solo cosa de los renders: en
+directo, una frase de seis Do4 iguales salía de −21,7 a −29,4 dB (7,7 dB) en
+«DX bass» y de −19,7 a −27,8 en «Bajo FM»; en Do2, ±1 dB. **Key sync**: la copia
+0 del modulador arranca ahora en la fase de la portadora (la del knob Phase),
+como el FM4 y como el DX7 por defecto; las copias del unison siguen al azar.
+Cada nota es idéntica. Con la fase del DX7 el «Bajo FM» queda en Do4 más oscuro
+que su media vieja (−32,4 frente a −24,5 dB); en su registro (Do2) igual.
+
+Con renders repetibles, el exportador SFZ ya no hace un segundo render a
+velocity 1 para medir el azar del preset (era el suelo que la velocity tenía que
+superar): las dos notas comparten la tirada y solo difieren en la velocity.
+Fábrica: 45 de 117 con capas (21 con tres); aparece lo que el azar tapaba:
+«Pluck lotería (S&H)» pasa de 1 capa a 3 (su env de filtro sigue a la velocity).
+187/187.
+
+**0.3 · Tablas de onda sin ruido de interpolación.** Medido primero, y la
+hipótesis del plan (aspereza en los graves) era al revés. Método: el oscilador
+solo, sin ventana, a f0 = k·SR/N para que cada armónico caiga EXACTO en un bin
+(con Blackman-Harris la fuga de 512 armónicos sumada en miles de bins no deja
+ver nada por debajo de −50 dB); todo lo que no es múltiplo de k es error. Con la
+lineal y tablas de 4 muestras por armónico: −52 dB en Do1, −49 en Do2, −46 en
+Do3, −43 en Do4 (pico −57 hacia 2,2 kHz), −61 en Do6. Sube 3 dB por octava
+porque las tablas se acortan (cada mip mide 4× su tope de armónicos), hasta que
+el suelo de 256 muestras las vuelve a sobremuestrear. (La sierra PolyBLEP:
+−50…−35 dB, pero su aliasing cae junto a Nyquist.) Alternativas medidas: 4× +
+Hermite, −49 en Do4 (el cuello es el sobremuestreo, no el interpolador); 16× +
+lineal, −61,5 en el peor nivel con memoria ×3,2; **8× + Hermite: de −76 a −85
+dB en todas las notas**, memoria ×1,7 (~290 KB por set), +5 % de CPU en la Tabla
+y crear un nodo 0,28 → 0,31 ms. Elegida. Hermite (Catmull-Rom) sobre la mezcla
+de los dos frames del morph (es lineal: mezclar antes da lo mismo). De paso
+desaparece la caída de la lineal en agudos (−1,6 dB a 16 kHz → −0,03). Check
+«tabla limpia» (frame 4 de 'analógica', sierra + cuadrada de banda completa):
+Do2 −77 · Do4 −70,9 · Do6 −83,5 dB, umbral −65. 188/188.
+
+**3.1 · Drive con carácter.** Dos curvas y un sesgo en vez de los tres modos que
+proponía el plan: «carácter» **suave** (el tanh de siempre) o **plegado** (pliegue
+senoidal y = sin(π/2·x) sobre ±24, en una curva de 8193 puntos: con ganancia 1 es
+una saturación suave, a 10 la onda se dobla varias veces por semiciclo), y un knob
+**Asimetría** que vale para los dos: es el sesgo b de y = f(g·x + b) − f(b).
+«Suave + Asimetría» es el asimétrico del plan; «plegado + Asimetría», la simetría
+del wavefolder — un tercer modo «asimétrico» habría sido el suave con un sesgo fijo.
+Cuentas previas en Node (seno a 0,6): en el tanh el 2.º armónico va de −31 dB (sesgo
+0,05) a −16 dB (0,3), con muchísima continua (−6 dB bajo la fundamental); en el
+pliegue el brillo sube y BAJA con el Drive (centroide 5,47 → 5,26 → 5,61 en 0,7 / 0,8
+/ 0,9) y el nivel apenas se mueve (±1,5 dB), ~3 dB por debajo del tanh (DRV_FOLD_MK
+1,4 lo iguala); con simetría 1 (un cuarto de onda) la curva queda par y la
+fundamental desaparece: suena la octava. Cómo: el sesgo y su compensación son
+ConstantSources (a la entrada y a la salida de la curva: el knob se mueve sin
+regenerar curvas, y −f(b) se calcula interpolando la curva como el WaveShaper), y un
+bloqueo de continua de 1er orden a 5 Hz (IIRFilterNode) en el camino saturado (−0,1
+dB a 40 Hz; el suave sin sesgo no cambia de forma audible). Plegado sobremuestreado
+4x (suma 0,13 «voces simples» al coste, medido; la Asimetría, nada). El carácter
+cambia en vivo (la curva salta: un clic, como cambiar de onda). Check «drive con
+carácter» con f0 = SR/336 y una ventana de 60 periodos (cada armónico en su bin, la
+media = la continua de verdad): asimétrico H2 −13 dB y continua −∞; silencio exacto
+con todo el sesgo en los dos caracteres; brillo del plegado barriendo el Drive por la
+matriz (velocity → Drive) 1,00 … 2,98 → 2,82 … 5,32 → 4,75, el suave siempre
+subiendo; simetría a tope: fundamental −∞. UI: el grupo del drive (Drive ·
+Asimetría · carácter) en la fila de abajo del Filtro y la pendiente arriba, junto a
+Tipo (la estructura del filtro); esa fila a 52 px por control para caber en la banda.
+
+**2.4 · Más destinos en la matriz.** Niveles A, B, Ring y ruido (las ganancias del
+mezclador), Drive, Pitch A y Material. Un nivel que baja de 0 invierte la fase y
+suena: se deja así (AM por cero; con bases razonables, 0,5 ± 0,5, no pasa, y
+recortarlo costaría un WaveShaper por voz y slot). Drive: el slot entra por una
+ganancia propia de la voz (el recorrido del knob en unidades de la curva: 4 en el
+suave, 9/24 en el plegado) a la ganancia de entrada; solo suena con Drive > 0 (la
+regla lo dice). Pitch A: el detune del oscilador A solo (para el barrido del sync,
+3.2). Material: el knob interpola el LOG de las razones, así que en cents es lineal
+y cada modo se mueve lo que separa cuerda de barra (0, 555, 1019, 1391, 1699, 1962
+ct): exacto; pero los PESOS de los modos (ganancias ∝ r^−e normalizadas) siguen los
+del knob, así que «knob 0 + matriz +1» no suena igual que «knob 1» (13 % de
+diferencia): reafina, no cambia de material entero. Decay NO entra: la Q del biquad
+es lineal y el knob va en log, y el ruido entra al banco con una ganancia ∝ √Q que
+habría que mover a la vez. Check «matriz · destinos nuevos» (niveles a 0 callan,
+ruido y ring aparecen, Pitch A sube el A una octava y deja el B) y, en el del
+resonador, la cola libre con Material por la matriz canta en 2,756·f0 (94 dB sobre
+2·f0). Pares DRV 1-8 (asimetría, plegado, LFO al Drive, simetría) y VEC 1-2 (morph
+vectorial con un LFO). 190/190.
+
+**0.4 · Un reloj común.** `engine/Clock.js`, uno por contexto (las partes de una
+escena comparten contexto): el ORIGEN (instante de audio del pulso 0) y el BPM;
+`nextGrid(t, div)`, `stepAt`, `beatAt`, `timeAt`. Antes cada Arp y cada Seq
+arrancaban su reloj al pulsar (ahora + 30 ms) y sumaban duraciones; el director
+llevaba otro (pos, posT); y un jugador que tocaba una parte con Arp o Seq le daba
+la tecla por un `setTimeout`, así que el arpegio arrancaba donde cayera el
+temporizador. Ahora: el director ANCLA el origen al arrancar (su pulso 0); sin él,
+el primero que va a tempo lo fija en su primera nota (+30 ms de la tecla, sin
+retraso añadido) y los que se suman van a la rejilla; el origen se conserva
+mientras alguien siga a tempo. Arp y Seq guardan el paso siguiente en PULSOS
+(`clock.begin / sync / advance`): un BPM nuevo reancla en el pulso de ahora y los
+pasos que faltan se remapean sin saltos; si el origen se fija de nuevo (el
+director arranca con un arpegio sonando), cada uno se reubica en el primer punto
+de la rejilla nueva («época» del reloj). Cambiar la división en marcha salta al
+siguiente múltiplo de la nueva. La tecla de un jugador llega ya, con su instante
+(`noteOn(id, f, vel, when)`): entra en el arpegio, o es raíz del Seq, a partir de
+ese paso (`from`), y el Retrig del Seq se aplica en ese paso; el note-off sigue
+por temporizador y `clearPending` retira del Arp/Seq lo que aún no empezó. El
+primer paso se planifica en el acto (no espera al primer `setInterval`). La
+secuencia de tabla sigue por voz desde su noteOn (un acorde arpegiado deja las
+voces desfasadas en la misma frase: es su gracia). Check «reloj común» (cuentas
+del reloj + tiempo real con dos motores y el `_directOn` interceptado: a mano
++30,0 ms; Arp 1/16 y Seq 1/8 que entra 130 ms después, en la rejilla a 0,000
+muestras; tecla con instante en el pulso 2 de un origen anclado, Δ 0; tras 120 →
+90 BPM, en la rejilla nueva y con los huecos de 90). El check «disparo» simula el
+Arp offline: ahora arranca con `_begin(0,03)`, como una tecla. Pendiente: Arp y
+Seq OFFLINE (van por `setInterval`), necesario para exportar a WAV lo que suena
+en ellos (6.2). 191/191.
+De paso, un fallo viejo de Partes: el knob BPM solo llega al `S` de la parte
+elegida (y a la sala, compartida); el Arp, el Seq y la secuencia de tabla de las
+DEMÁS partes leían su `S.bpm` viejo — con el reloj común habría sido peor (al
+unirse, una parte podía imponer su tempo viejo a todas). Ahora el tempo bueno es
+`engine.bpm` = el de la sala, y el reloj se sincroniza con él en cada paso,
+venga el cambio de donde venga (knob, cargar una escena, el director).
+
+**2.2 · LFO a tempo, con reinicio y de una vez.** Cada LFO del banco con su
+**sync** (un selector por fila): libre (Speed en Hz) o una división — 4 c … 1/32,
+con puntillos (×1,5) y tresillos (×2/3) — y entonces su velocidad sale del BPM y
+Speed se apaga (la regla lo dice). Cómo cae en la rejilla: un OscillatorNode no
+admite fase de arranque, así que un LFO global a tempo se lee de un BUFFER de un
+periodo en loop (los mismos que los LFO por voz) arrancado con la fase que le
+toca en el reloj común (fase 0 en el pulso 0 del origen); el oscilador pasa por
+una puerta y el relevo se programa 20 ms por delante, exacto a la muestra. El
+reloj AVISA (`clock.listen`) al cambiar el BPM o el origen y el motor rehace sus
+LFO a tempo y la velocidad de los de cada voz. La **fase** pasa de dos a cuatro
+modos, uno para todos los LFO que pueden ir por voz (cutoff, reso, vibrato, PWM,
+pan; el trémolo va siempre tras la mezcla, global): global · por voz (Weyl) ·
+**reinicio** (cada nota los arranca en fase 0: el LFO atado a la nota) · **una
+vez** (un ciclo desde la nota, el buffer SIN loop, y se calla en su final: sin,
+tri y saw acaban en 0; S&H y deriva no tienen final y van como en reinicio). La
+fase por voz ya no se envuelve (`phaseNow`): en «una vez», 1 = terminado.
+
+Hallazgo por el camino, medido: **los LFO «globales» se quedaban congelados
+entre notas.** Chrome no procesa un nodo que no llega al destino, y un
+oscilador sin procesar no avanza su fase; el LFO global solo llega al destino
+a través de las voces que lo usan, así que en silencio se paraba y, al
+engancharlo la nota siguiente, seguía donde se había quedado — en la práctica,
+casi un «reinicio» (dos notas a 0 y a 0,37 s se movían igual, 0,0000 de
+diferencia). Con sincro habría salido 100,8 ms fuera de la rejilla (medido
+quitando el arreglo). Arreglo: cada LFO global enganchado al destino por una
+ganancia 0 — corre libre de verdad, como decía su diseño. Cambia, de paso, la
+fase con que arrancan las notas en los presets con LFO global: ahora depende de
+cuándo tocas, como en un sinte de hardware (quien quiera lo de antes tiene
+«reinicio»). Y el arranque del motor releva la fuente en el acto (no 20 ms
+después: no hay nada sonando que relevar). Check «LFO a tempo» (1/8 a 120 BPM =
+4,000 Hz a 0,000 ms de la rejilla de un origen anclado, enganchado a la salida a
+mitad del render; tras 90 BPM, 3,000 Hz en la rejilla nueva; reinicio 0,0000
+frente a global 0,468; una vez ×3 en su ciclo y ×1,0000 después). Pares LFOT 1-6 y
+FASE 3-6. 192/192.
+
+**2.1 · Env mod: envolvente de modulación con bucle.** Una envolvente LIBRE, solo
+para la matriz (fuente «Env mod», 0..1, sin velocity), con A/D/S/R, su curva y
+tres modos. Panel en la pantalla **Secuenciación** (decisión de Sergio: la banda
+Voz de Diseño estaba llena; es, además, la pantalla del movimiento), delante
+del Mezclador, que cede el sitio. **normal** = ADSR, como la de filtro;
+**disparo** = A → D → R seguidos, el note-off no la toca (la curva entera aunque
+la nota dure 20 ms); **bucle** = A (0 → 1) + D (1 → 0) repetidos mientras dura la
+nota — el sostenido no cuenta (si el bucle volviera al sostenido, saltaría de S a
+0 en cada vuelta) —: UN ciclo en un buffer de 4096 muestras a 8 kHz (la fracción
+de ataque y la curva; cacheado por forma) leído en loop con playbackRate =
+duración/(A + D), así el periodo es A + D EXACTO y no cuesta un nodo por
+repetición. Al soltar, el buffer para en t y una ConstantSource sigue desde el
+valor que tenía — calculado, porque la forma es conocida, también para los
+note-off programados de los jugadores — con el release y la curva. Nace bajo
+demanda (un slot que la usa); si la matriz la pide a mitad de nota, el bucle
+arranca en la fase que le toca. Las tres ayudas de envolvente
+(`_envSegs`, `_relChain`, `_envValueAt`) aceptan ahora la curva como argumento.
+Check «Env mod» con su salida cruda en un canal aparte: bucle A 10 ms + D 90 ms
+periódico a 0,1 s con error 2,4e-7, de 0,000 a 1,000; al soltar, salto 0,0003 y 0
+tras R; disparo con 20 ms de nota: 0,500 en A + D y 0 tras R (en normal, la misma
+nota ya va por 0,344); normal sostiene en 0,500. Pares ENVM 1-4. 193/193.
+
+**2.3 · Pasos (polimetría).** `engine/Steps.js` (uno por motor) y
+`ui/stepsControls.js`. Cuatro carriles de valores −1…+1 (hasta 32; claves planas
+st{i}Pat como wsPat), cada uno con división (1/32 … 1 compás, tresillos),
+suavizado, rotación y deriva de la rotación (+1 cada N compases: el desfase de
+Reich), y un reinicio común. Panel en la banda de abajo de **Secuenciación**,
+entre Armonía y Jugador (decisión de Sergio; el Jugador encoge y la banda deja
+de ser solo de Partes). Lo central: el paso de un carril en t se CALCULA del reloj
+común — k = `stepAt(t, división)`, índice = (k + rotación + deriva) mod longitud
+— sin planificar nada; así «Pasos i · nota» (el valor del paso en que arranca la
+nota, fijo toda la nota: arpegios, plucks, polifonía) es exacto también offline,
+y todo cae en la rejilla del Arp, el Seq y el director. El sabor continuo
+(«Pasos i»: el escalón mueve también una nota sostenida) es una ConstantSource
+por carril y motor programada en el look-ahead (offline, todo de golpe hasta el
+final del render): un paso = `setValueAtTime` + rampa de 4 ms (escalón sin clic)
+hasta el paso entero (suavizado 1: un glide que llega al final del paso).
+Reinicio «al tocar»: los Pasos se unen al reloj con la primera nota tras el
+silencio — si nadie más va a tempo, esa nota es el paso 0 — y lo SUELTAN cuando
+el motor se queda sin voces ni colas (si no, un Arp que empezase después tendría
+que esperar a su rejilla en vez de sonar a +30 ms); «nunca» = siguen el origen
+del reloj; «cada N compases» = vuelven al 0. El planificador en tiempo real se
+para al callar. El rótulo calcula cuánto tarda en repetirse lo que suena (en
+ticks de 1/96 de pulso: enteros para todas las divisiones): 16 · 12 · 5 en
+semicorcheas = 240 = 15 compases (el plan decía 30: mal); con deriva, la vuelta de
+la rotación cuenta (5 pasos + 1 cada 2 c = 10 compases). Un trance gate es un
+carril sobre Amplitud. Detalle de nombres: las clases CSS van con `ps-` porque
+`st-row` ya era del panel del selftest (y lo descolocaba entero). Check «Pasos»
+(escalera exacta a 0 de error a mitad de paso; salto máximo 0,0113 por muestra
+de −1 a +1 = la rampa de 4 ms; suavizado 1 a mitad = 0; rotación y deriva; ciclo
+15 y 10; por nota 1 / 0,5; tras el silencio, «al tocar» vuelve al paso 0 y
+«nunca» sigue — el arranque de la voz cae 5 ms después de la tecla, en el paso
+11). Probado también en tiempo real (el valor de la fuente sigue al paso
+calculado con error 0; el planificador se para al callar). Pares PASOS 1-6.
+194/194.

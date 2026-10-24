@@ -24,15 +24,16 @@
    periodos primos y fases de la semilla (no consume el azar de las notas).
    Los note-off van programados en el reloj de audio (Voice.release(rel, at))
    — así el selftest puede renderlo todo offline y determinista. Si la parte
-   tiene Arp/Seq activos, las notas entran por noteOn/noteOff (ellos
-   secuencian) con un temporizador al instante justo.
+   tiene Arp/Seq activos, las notas entran por noteOn con su instante (ellos
+   secuencian, en la rejilla del reloj común) y el note-off, por temporizador.
    ===================================================================== */
 import { mulberry32 } from './Harmony.js';
 import { PARAMS } from './params.js';
 
 export const PLAYER_MODES = ['off', 'pulso', 'acorde', 'melodia', 'raiz'];
 export const MODE_OCT = { pulso: 2, acorde: 4, melodia: 5, raiz: 2 };   // octava por defecto al elegir el modo
-export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'mix', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
+// levelB: el B entra y sale sobre el A (sustituye a 'mix' desde el mezclador; Conductor.fromJSON traduce las escenas)
+export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
 export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
   k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, acento: 0.3,     // pulso
@@ -62,7 +63,7 @@ export class Player {
     this.cfg = { ...PLAYER_DEF };
     this.log = null;            // [] para registrar los eventos (selftest)
     this.derivaKey = 'off'; this.derivaBase = undefined;
-    this.pending = new Map();   // id → {timer, when}: note-on por temporizador aún sin disparar (partes con Arp/Seq)
+    this.pending = new Map();   // id → {when}: tecla ya dada al Arp/Seq de la parte que aún no ha empezado (o sin note-off)
     this.reset();
   }
   reset() {
@@ -88,10 +89,10 @@ export class Player {
   }
   stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
   releaseHeld(when) { for (const id of this.held) this._off(id, when); this.held = []; }
-  // Cancela los note-on por temporizador que aún no han sonado: si no, tras
-  // parar (o cambiar de modo) llegarían DESPUÉS de su note-off y la nota se
-  // quedaría colgada en el Arp/Seq de la parte — el «sonido residente».
-  clearPending() { for (const p of this.pending.values()) clearTimeout(p.timer); this.pending.clear(); }
+  // Retira del Arp/Seq de la parte las teclas dadas que aún no tienen note-off
+  // (las que todavía no han empezado y las sostenidas): si no, tras parar (o
+  // cambiar de modo) se quedarían en él — el «sonido residente».
+  clearPending() { const e = this.part.engine; for (const id of this.pending.keys()) e.noteOff(id); this.pending.clear(); }
 
   _id() { return 'p' + this.i + '_' + (this.seq++); }
   // ¿Sigue viva en el motor la nota con este id? (voz poli, pila mono, o retenida
@@ -105,10 +106,8 @@ export class Player {
     if (this.log) this.log.push([+when.toFixed(4), 'on', midi, +vel.toFixed(2)]);
     if (this.c.dry) return;
     const e = this.part.engine, f = 440 * Math.pow(2, (midi - 69) / 12);
-    if (this._routed()) {
-      const timer = setTimeout(() => { this.pending.delete(id); e.noteOn(id, f, vel); }, Math.max(0, (when - e.ctx.currentTime) * 1000));
-      this.pending.set(id, { timer, when });
-    } else e._directOn(id, f, vel, when);
+    if (this._routed()) { e.noteOn(id, f, vel, when); this.pending.set(id, { when }); }
+    else e._directOn(id, f, vel, when);
   }
   _off(id, when) {
     if (this.log) this.log.push([+when.toFixed(4), 'off']);
@@ -116,7 +115,8 @@ export class Player {
     const e = this.part.engine;
     if (this._routed()) {
       const p = this.pending.get(id);
-      if (p && when <= p.when + 1e-6) { clearTimeout(p.timer); this.pending.delete(id); return; }   // aún no había empezado: no empieza
+      this.pending.delete(id);
+      if (p && when <= p.when + 1e-6) { e.noteOff(id); return; }   // aún no había empezado: no empieza (se retira del Arp/Seq ya)
       const ms = (when - e.ctx.currentTime) * 1000;
       if (ms < 1) e.noteOff(id); else setTimeout(() => e.noteOff(id), ms);   // «ya» es síncrono: stop() limpia el latch del Seq justo después
     } else e._directOff(id, when);

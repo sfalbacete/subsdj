@@ -3,7 +3,8 @@
 Sintetizador para el navegador hecho con la **Web Audio API**, sin dependencias
 ni paso de build. Empezó como recreación del viejo SubSDJ, un soft-synth
 sustractivo que hice en VB.Net, y ha crecido hasta incluir FM, tablas de
-ondas, formantes, resonadores, efectos, partes y música generativa.
+ondas, formantes, resonadores, modulación a tempo y por pasos, efectos,
+partes y música generativa.
 
 *A browser synthesizer built on the Web Audio API, with no dependencies and no
 build step. The interface and the docs are in Spanish.*
@@ -15,8 +16,10 @@ build step. The interface and the docs are in Spanish.*
 ## Cómo se toca
 
 - **Teclado del ordenador**, al estilo tracker: fila baja `Z S X D C V G B H N J M`,
-  fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`; la octava, con `RePág` / `AvPág`.
-  También se toca con el ratón sobre el teclado en pantalla.
+  fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`; la octava, con `RePág` / `AvPág`. Va por
+  la posición de las teclas, así que el piano queda en su sitio también en
+  AZERTY o Dvorak. Con el ratón sobre el teclado en pantalla, la altura a la
+  que pulsas la tecla es la fuerza (velocity).
 - **Teclado MIDI**: se conecta solo al aceptar el permiso del navegador
   (velocity, pitch bend, sustain y Program Change). **MIDI map** liga
   cualquier mando físico a cualquier control.
@@ -24,7 +27,11 @@ build step. The interface and the docs are in Spanish.*
   dejan sonar una página antes.
 - `Escape` o **Pánico** cortan todas las notas.
 - Tres pantallas: **Diseño** (el sonido), **Secuenciación** (arpegiador,
-  secuenciador, partes y escenas) y **Presets** (la biblioteca).
+  secuenciador, la envolvente en bucle, los Pasos, partes y escenas) y
+  **Presets** (la biblioteca).
+- `Ctrl+Z` / `Ctrl+Y` deshacen y rehacen. El ● junto al nombre del preset
+  avisa de que has cambiado algo, y **Comparar** alterna entre lo guardado y
+  tu edición.
 - Cada módulo tiene su **?** con la explicación. Un control atenuado no hace
   nada con la configuración actual, y su tooltip dice por qué.
 
@@ -60,6 +67,11 @@ o sin ventana con `node tools/run-selftest.mjs` (Node ≥ 22 y Chrome).
   las medidas que lo validan. Es el diario de desarrollo.
 - [docs/PLAN.md](docs/PLAN.md): planes y pendientes.
 - [CHANGELOG.md](CHANGELOG.md): los cambios de cada versión.
+
+## Agradecimientos
+
+A [@tacowars](https://github.com/tacowars), que lo probó a fondo: varias
+mejoras de la 1.1.0 y la 1.2.0 salen de sus ideas y comentarios.
 
 ## Licencia
 

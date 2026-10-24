@@ -51,6 +51,7 @@
   <div id="presetBar">
     <button class="btn nav" id="prevBtn" title="Preset anterior">‹</button>
     <select id="presetSelect"></select>
+    <span id="modDot" title="Modificado: lo que suena ya no es el preset guardado (si lo devuelves a como estaba, se apaga)">●</span>
     <button class="btn nav" id="nextBtn" title="Preset siguiente">›</button>
     <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
     <button class="btn" id="saveBtn" title="Guardar el sonido actual con ese nombre: en «★ Míos», o encima del preset cargado si el nombre es el suyo">Guardar</button>
@@ -63,6 +64,11 @@
         <input type="file" id="impFile" accept="application/json,.json" style="display:none">
         <button class="btn" id="sfzBtn" title="Congelar el preset actual como instrumento multisample: zip con samples WAV + .sfz (Sforzando, Renoise…)">Exportar SFZ</button>
       </div>
+    </span>
+    <span id="editBar">
+      <button class="btn nav" id="undoBtn" title="Nada que deshacer" disabled>↶</button>
+      <button class="btn nav" id="redoBtn" title="Nada que rehacer" disabled>↷</button>
+      <button class="btn" id="cmpBtn" title="Sin cambios respecto al preset guardado" disabled>Comparar</button>
     </span>
     <span id="presetMsg"></span>
   </div>
@@ -141,12 +147,13 @@
         <button data-stk="1" title="Una octava (sin apilar)">1</button><button data-stk="2" title="2 octavas apiladas">2</button><button data-stk="3" title="3 octavas apiladas">3</button><button data-stk="4" title="4 octavas apiladas">4</button>
       </div><div class="lab">Apiladas</div></div>
     </div>
-    <div class="help"><b>Oscilador B.</b> Igual que A; con Mix al centro suenan los dos. Detúnalos entre sí (±cents) para el grosor clásico de dos osciladores; B a 16' con un seno = el suboscilador que ancla el grave.</div>
+    <div class="help"><b>Oscilador B.</b> Igual que A; su nivel está en Mezcla (Osc B). Detúnalos entre sí (±cents) para el grosor clásico de dos osciladores; B a 16' con un seno = el suboscilador que ancla el grave.</div>
   </div>
   <div class="panel osc">
     <h2>Mezcla</h2>
     <div class="g" style="--c:4">
-      <div class="ctl"><div class="knob" data-knob="mix"><div class="ind"></div></div><div class="lab">Mix A↔B</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="levelA"><div class="ind"></div></div><div class="lab">Osc A</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="levelB"><div class="ind"></div></div><div class="lab">Osc B</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="ring"><div class="ind"></div></div><div class="lab">Ring M.</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="noise"><div class="ind"></div></div><div class="lab">Ruido</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="noiseColor"><div class="ind"></div></div><div class="lab">Color</div><div class="val"></div></div>
@@ -154,7 +161,7 @@
       <div class="ctl"><div class="knob" data-knob="drift"><div class="ind"></div></div><div class="lab">Drift</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pulseWidth"><div class="ind"></div></div><div class="lab">P.Width</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Mezcla y carácter.</b> Ring M. multiplica A×B (metálico) · Color del ruido: − oscuro · 0 blanco · + «aire» · Spread = anchura del «Súper» · Drift = deriva analógica lenta e independiente por oscilador (cents) · <b>P.Width</b> = ancho de pulso de los osciladores en «Cuadrada» (50 % = cuadrada pura); su LFO (el PWM clásico de strings) es la fila PWM del banco de LFOs.</div>
+    <div class="help"><b>Mezcla y carácter.</b> Mezclador como el del Minimoog: <b>Osc A</b>, <b>Osc B</b>, <b>Ring M.</b> (A×B, metálico) y <b>Ruido</b> tienen cada uno su nivel y se suman antes del filtro; subir uno no baja los demás. A y B a tope suenan +3 dB más que uno solo si están desafinados (+6 dB si van en fase), y con Drive en el filtro la suma satura más: el truco de abrir el mezclador del Minimoog · Color del ruido: − oscuro · 0 blanco · + «aire» · Spread = anchura del «Súper» · Drift = deriva analógica lenta e independiente por oscilador (cents) · <b>P.Width</b> = ancho de pulso de los osciladores en «Cuadrada» (50 % = cuadrada pura); su LFO (el PWM clásico de strings) es la fila PWM del banco de LFOs.</div>
   </div>
   <div class="panel osc">
     <h2>Unison</h2>
@@ -273,14 +280,19 @@
         <button data-ftype="bp" title="Paso-banda: LP y HP en serie con el mismo corte (la resonancia se reparte entre los dos flancos)">BP</button>
         <button data-ftype="notch" title="Notch: LP + HP en paralelo a ganancia 1 — cero exacto en el corte; la pendiente no aplica">Notch</button>
       </div><div class="lab">Tipo</div></div>
+      <div class="togc"><div class="fieldlab">pendiente</div><div class="seg tog" id="filterSlopeSel"><button data-slope="12">12 dB</button><button data-slope="24">24 dB</button></div></div>
     </div>
-    <div class="hrow">
+    <div class="hrow narrow">
       <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="keytrack"><div class="ind"></div></div><div class="lab">Keytrack</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterDrive"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
-      <div class="togc"><div class="fieldlab">pendiente</div><div class="seg tog" id="filterSlopeSel"><button data-slope="12">12 dB</button><button data-slope="24">24 dB</button></div></div>
+      <div class="ctl"><div class="knob" data-knob="driveAsym"><div class="ind"></div></div><div class="lab">Asimetría</div><div class="val"></div></div>
+      <div class="togc"><div class="fieldlab">carácter</div><div class="seg tog" id="driveCharSel">
+        <button data-dchar="suave" title="Saturación tanh: comprime y redondea; con Asimetría, armónicos pares (válvula)">suave</button>
+        <button data-dchar="plegado" title="Pliegue senoidal (Costa Oeste): al subir el Drive la onda se dobla sobre sí misma y el brillo sube y baja">plegado</button>
+      </div></div>
     </div>
-    <div class="help"><b>Filtro por voz.</b> Cutoff con recorrido logarítmico · Reso en dB. <b>Tipo</b>: LP↔HP (Low↔Hi funde paso-bajo y paso-alto en paralelo), BP (LP y HP en serie: paso-banda) o Notch (LP + HP en paralelo a ganancia 1: cero exacto en el corte; el morph al 50 % ya es ese notch, a −6 dB). Keytrack: el cutoff sigue la altura de la nota (1 = 1:1) · Drive satura ANTES del filtro (tanh por voz) · 24 dB = doble etapa en cascada, más cremoso (no aplica al Notch). Tipo y pendiente son estructura: aplican en la siguiente nota. Sus LFOs son las filas Cutoff y Reso del banco de LFOs; su envolvente, «Env filtro».</div>
+    <div class="help"><b>Filtro por voz.</b> Cutoff con recorrido logarítmico · Reso en dB. <b>Tipo</b>: LP↔HP (Low↔Hi funde paso-bajo y paso-alto en paralelo), BP (LP y HP en serie: paso-banda) o Notch (LP + HP en paralelo a ganancia 1: cero exacto en el corte; el morph al 50 % ya es ese notch, a −6 dB). Keytrack: el cutoff sigue la altura de la nota (1 = 1:1) · 24 dB = doble etapa en cascada, más cremoso (no aplica al Notch). Tipo y pendiente son estructura: aplican en la siguiente nota. <b>Drive</b> satura ANTES del filtro, por voz, con dos caracteres: <b>suave</b> (tanh: comprime y redondea) o <b>plegado</b> (la síntesis de la Costa Oeste: al subir el Drive la onda se dobla sobre sí misma y los armónicos aparecen, suben y vuelven a bajar — un barrido que ningún filtro hace; muévelo con un LFO o una envolvente por la matriz, destino «Drive»). <b>Asimetría</b> desplaza el punto de trabajo de la curva: salen armónicos PARES (el cuerpo «torcido» de una válvula o de un bombo); en el plegado es la simetría del wavefolder — a tope, solo pares: suena la octava. En silencio sale silencio exacto y la continua que crea el sesgo se filtra (5 Hz). Sus LFOs son las filas Cutoff y Reso del banco de LFOs; su envolvente, «Env filtro».</div>
   </div>
   <div class="panel">
     <h2>Env filtro</h2>
@@ -346,40 +358,37 @@
   <div class="panel">
     <h2>LFOs</h2>
     <div class="tbl lfo-bank">
-      <span></span><span class="th">forma</span><span class="th">level</span><span class="th">speed</span>
+      <span></span><span class="th">forma</span><span class="th">level</span><span class="th">speed</span><span class="th">sync</span>
       <div class="lfo-row" data-lfo="pwm" data-name="PWM"><span class="rn">PWM</span><button class="lfoShape" data-shape="pwmLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="pwmLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
       <div class="lfo-row" data-lfo="cut" data-name="Cutoff"><span class="rn">Cutoff</span><button class="lfoShape" data-shape="cutLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="cutLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="cutLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="cutLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
       <div class="lfo-row" data-lfo="res" data-name="Reso"><span class="rn">Reso</span><button class="lfoShape" data-shape="resLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="resLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="resLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="resLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
       <div class="lfo-row" data-lfo="amp" data-name="Trémolo"><span class="rn">Trémolo</span><button class="lfoShape" data-shape="ampLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="ampLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="ampLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="ampLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
       <div class="lfo-row" data-lfo="freq" data-name="Vibrato"><span class="rn">Vibrato</span><button class="lfoShape" data-shape="freqLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="freqLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
       <div class="lfo-row" data-lfo="pan" data-name="Pan"><span class="rn">Pan</span><span class="noshape" title="El autopan va siempre en seno">sin</span>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="panLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="val"></div></div></div>
+        <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="panLfoSync" title="Sincro: libre (Speed en Hz) o una división del BPM — el ciclo cae en la rejilla del reloj común (c = compás · . = puntillo · T = tresillo)"></select></div>
     </div>
     <div class="hrow lfo-foot">
       <div class="ctl ks" data-lab="Fade (vibrato y PWM)"><span class="th">fade</span><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="val"></div></div>
-      <div class="seg tog" id="lfoPhaseSel" title="Fase de los LFO de cutoff, reso, vibrato, PWM y pan">
-        <button data-lph="global" title="Fase global: un LFO por motor, todas las voces se mueven a la vez (el acorde respira en bloque)">fase global</button>
-        <button data-lph="voz" title="Fase por voz: cada voz arranca los suyos en una fase distinta (secuencia de Weyl): el acorde respira voz a voz">por voz</button>
-      </div>
+      <div class="ctl ks" data-lab="Fase de los LFO"><span class="th">fase</span><select id="lfoPhaseSel" title="Fase de los LFO de cutoff, reso, vibrato, PWM y pan (aplica por nota): global = un LFO por motor, el acorde respira en bloque · por voz = cada voz en una fase distinta · reinicio = cada nota los arranca en fase 0 · una vez = un ciclo desde la nota y se quedan"></select></div>
       <div class="ctl ks" data-lab="Deriva (voz) · speed"><span class="th">deriva</span><div class="knob" data-knob="mxDriftSpd"><div class="ind"></div></div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Banco de LFOs</b>: una fila por LFO, como las tiras de un mezclador (misma columna = mismo mando). La forma cicla con un clic (sin/tri/saw/sqr/S&amp;H/deriva; S&amp;H = escalones aleatorios a la velocidad del LFO, deriva = random suave). Destinos fijos: <b>PWM</b> → ancho de pulso de los osciladores en «Cuadrada» (la fila se atenúa si no hay ninguno) · <b>Cutoff</b> → cutoff en Hz (para modulación exponencial, en octavas, usa la matriz: «LFO cutoff» → «Cutoff») · <b>Reso</b> → dB sobre la Q de la etapa final · <b>Trémolo</b> → ganancia (órganos, vibráfonos) · <b>Vibrato</b> → afinación · <b>Pan</b> → autopan por voz. Los Speed van en log desde 0,005 Hz (un ciclo cada 200 s: a esa escala el LFO ya no «oscila», deriva). En la matriz los LFO entran CRUDOS como fuentes (su Level no interviene). <b>Fade</b>: vibrato y PWM entran en rampa tras cada nota, como un intérprete (0 = inmediato; hasta 20 s). <b>Fase</b>: «global» = un LFO por motor, el acorde respira en bloque; «por voz» = cada voz arranca sus LFO de cutoff/reso/vibrato/PWM/pan en una fase distinta (secuencia de Weyl k·φ: determinista y repartida; la primera voz suena como siempre) — aplica por nota. <b>Deriva</b> = velocidad de la fuente «Deriva (voz)» de la matriz (0,05 Hz = un vaivén cada 20 s).</div>
+    <div class="help"><b>Banco de LFOs</b>: una fila por LFO, como las tiras de un mezclador (misma columna = mismo mando). La forma cicla con un clic (sin/tri/saw/sqr/S&amp;H/deriva; S&amp;H = escalones aleatorios a la velocidad del LFO, deriva = random suave). Destinos fijos: <b>PWM</b> → ancho de pulso de los osciladores en «Cuadrada» (la fila se atenúa si no hay ninguno) · <b>Cutoff</b> → cutoff en Hz (para modulación exponencial, en octavas, usa la matriz: «LFO cutoff» → «Cutoff») · <b>Reso</b> → dB sobre la Q de la etapa final · <b>Trémolo</b> → ganancia (órganos, vibráfonos) · <b>Vibrato</b> → afinación · <b>Pan</b> → autopan por voz. Los Speed van en log desde 0,005 Hz (un ciclo cada 200 s: a esa escala el LFO ya no «oscila», deriva). En la matriz los LFO entran CRUDOS como fuentes (su Level no interviene). <b>Fade</b>: vibrato y PWM entran en rampa tras cada nota, como un intérprete (0 = inmediato; hasta 20 s). <b>Sync</b>: «libre» = Speed en Hz; una división (4 c … 1/32; c = compás, «.» = con puntillo, T = tresillo) = el LFO va A TEMPO: su velocidad sale del BPM y su ciclo empieza en la rejilla del reloj común (la del arpegiador, el secuenciador y el director), también al cambiar el BPM. <b>Fase</b> (aplica por nota): «global» = un LFO por motor, el acorde respira en bloque; «por voz» = cada voz arranca sus LFO de cutoff/reso/vibrato/PWM/pan en una fase distinta (secuencia de Weyl k·φ: determinista y repartida; la primera voz suena como siempre); «reinicio» = cada nota los arranca en fase 0 (el LFO atado a la nota: cada pluck se mueve igual); «una vez» = un solo ciclo desde la nota y se quedan en su final — un LFO que hace de envolvente (S&amp;H y deriva no tienen final: van como en reinicio). El trémolo es siempre global. <b>Deriva</b> = velocidad de la fuente «Deriva (voz)» de la matriz (0,05 Hz = un vaivén cada 20 s).</div>
   </div>
   <div class="panel grow">
     <h2>Matriz</h2>
     <div id="mxRows"></div>
-    <div class="help"><b>Matriz de modulación:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity) · <b>«Deriva (voz)»</b> = paseo lento PROPIO de cada voz (velocidad: «deriva» en el banco de LFOs): a cutoff, pan o wavetable, cada nota del acorde evoluciona por su cuenta. <b>Rueda / Aftertouch / Expresión</b> = fuentes de EJECUCIÓN (0..1, 0 = reposo): la rueda bajo el teclado o el CC1, la presión del teclado MIDI y el pedal CC11 — el pad se toca durante la nota (Rueda → Cutoff a 0,5 abre dos octavas; Expresión → Amplitud a −1 apaga al pisar). No se guardan en el preset: son gestos.</div>
+    <div class="help"><b>Matriz de modulación:</b> fuente → destino × cantidad (±, doble clic = 0). Los LFO entran <b>crudos</b> (su Level no interviene) · el Cutoff se modula en octavas: nunca llega a 0 Hz · S&amp;H = valor aleatorio fijo por nota · «Env filtro» es la envolvente del filtro (0..1×velocity) · <b>«Deriva (voz)»</b> = paseo lento PROPIO de cada voz (velocidad: «deriva» en el banco de LFOs): a cutoff, pan o wavetable, cada nota del acorde evoluciona por su cuenta. <b>Rueda / Aftertouch / Expresión</b> = fuentes de EJECUCIÓN (0..1, 0 = reposo): la rueda bajo el teclado o el CC1, la presión del teclado MIDI y el pedal CC11 — el pad se toca durante la nota (Rueda → Cutoff a 0,5 abre dos octavas; Expresión → Amplitud a −1 apaga al pisar). No se guardan en el preset: son gestos. <b>Niveles A, B, Ring y ruido</b> = el mezclador: un LFO lento a «Nivel A» con −0,5 y a «Nivel B» con +0,5 (niveles a 0,5) funde una onda en otra (síntesis vectorial); un nivel llevado por debajo de 0 invierte la fase y vuelve a sonar. <b>Drive</b> mueve la ganancia de entrada de la saturación (±1 = todo el knob; necesita Drive > 0): con el carácter «plegado», un barrido de pliegues. <b>Pitch A</b> = solo el oscilador A. <b>Material</b> reafina los modos del Resonador de cuerda a barra (sus pesos siguen los del knob).</div>
   </div>
   <div class="panel">
     <h2>Dist · Flanger</h2>
@@ -525,6 +534,24 @@
 </div>
 
 <div class="band" id="bandSala">
+  <div class="panel" id="envmPanel">
+    <h2>Env mod</h2>
+    <div class="hrow" style="align-items:flex-end">
+      <div class="vcol" style="margin-right:6px">
+        <div class="togc"><div class="fieldlab">modo</div><div class="seg tog" id="envmModeSel">
+          <button data-envm="normal" title="ADSR: sube, cae al sostenido mientras pulsas y suelta con la nota">normal</button>
+          <button data-envm="bucle" title="Ataque y caída repetidos mientras dura la nota: un LFO con forma de envolvente que arranca con ella (el sostenido no cuenta)">bucle</button>
+          <button data-envm="disparo" title="Ignora el note-off: ataque, caída y release enteros aunque la nota dure 20 ms (percusión)">disparo</button>
+        </div></div>
+        <div class="ctl"><div class="knob" data-knob="envmCurve"><div class="ind"></div></div><div class="lab">Curva</div><div class="val"></div></div>
+      </div>
+      <div class="slider fader"><input type="range" id="s_ema"><span class="lab">A</span><span class="val" id="v_ema"></span></div>
+      <div class="slider fader"><input type="range" id="s_emd"><span class="lab">D</span><span class="val" id="v_emd"></span></div>
+      <div class="slider fader"><input type="range" id="s_ems"><span class="lab">S</span><span class="val" id="v_ems"></span></div>
+      <div class="slider fader"><input type="range" id="s_emr"><span class="lab">R</span><span class="val" id="v_emr"></span></div>
+    </div>
+    <div class="help"><b>Env mod</b> — una envolvente LIBRE para la matriz: elígela como fuente («Env mod», 0..1, no escala con la velocity) y mándala donde quieras (wavetable, Drive, pan, un nivel del mezclador…) sin tocar la del filtro. <b>Modo</b>: «normal» = ADSR; «bucle» = ataque y caída repetidos mientras dura la nota (de 0 a 1 y de vuelta a 0; el sostenido no cuenta): un ritmo de timbre atado a cada nota, sin tempo — A 10 ms + D 90 ms = 10 veces por segundo; al soltar, el release sale del punto en que esté; «disparo» = ignora el note-off: ataque, caída y release enteros aunque la nota dure un instante (percusión, golpes del arpegiador). <b>Curva</b> como la de Env amp: 0 = rampas rectas, 1 = RC (cae deprisa y se posa).</div>
+  </div>
   <div class="panel grow parts-off" id="mixer">
     <h2>Mezclador</h2>
     <div class="mix" id="mixStrips"></div>
@@ -564,6 +591,41 @@
       </div>
     </div>
     <div class="help"><b>Armonía de la escena.</b> Todo lo que tocan los jugadores se cuantiza a la escala y al acorde vigente: por eso lo aleatorio suena musical. Progresión = grados de la escala («1 6 4 5»), cada uno durante N compases; «Funciones» = paseo aleatorio T→S/D→T con las probabilidades del uso común. El tempo es el BPM de la sala (módulo Delay). La semilla fija el azar: misma semilla, misma sesión.</div>
+  </div>
+  <div class="panel" id="stepsPanel">
+    <h2>Pasos</h2>
+    <div class="hrow ps-head">
+      <span class="fieldlab">reinicio</span><select id="stResetSel" title="Reinicio de los cuatro carriles: al tocar (la primera nota tras el silencio es el paso 0) · nunca (siguen el reloj común aunque pares) · cada N compases"></select>
+      <span class="note" id="stCycle"></span>
+    </div>
+    <div class="tbl ps-grid">
+      <span></span><span class="th">pasos · arrastra para dibujar</span><span class="th">long.</span><span class="th">división</span><span class="th">suav.</span><span class="th">rot.</span><span class="th">deriva</span>
+      <div class="ps-row" data-lane="1"><span class="rn">1</span><canvas class="ps-canvas" title="Pasos 1: arrastra para dibujar (arriba +1, abajo −1; cerca del centro, 0)"></canvas>
+        <div class="stepper"><button data-stlen="-">−</button><span class="num">16</span><button data-stlen="+">+</button></div>
+        <select class="ps-div" title="División: lo que dura cada paso (T = tresillo; 1 c = un compás)"></select>
+        <div class="ctl ks" data-lab="Pasos 1 · suavizado"><div class="knob" data-knob="st1Smooth" title="Suavizado: 0 = escalón (con 4 ms contra el clic) … 1 = rampa del paso entero"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Pasos 1 · rotación"><div class="knob" data-knob="st1Rot" title="Rotación: empezar el patrón N pasos más adelante"><div class="ind"></div></div><div class="val"></div></div>
+        <select class="ps-drift" title="Deriva de la rotación: un paso más cada N compases (el desfase de Reich)"></select></div>
+      <div class="ps-row" data-lane="2"><span class="rn">2</span><canvas class="ps-canvas" title="Pasos 2: arrastra para dibujar (arriba +1, abajo −1; cerca del centro, 0)"></canvas>
+        <div class="stepper"><button data-stlen="-">−</button><span class="num">16</span><button data-stlen="+">+</button></div>
+        <select class="ps-div" title="División: lo que dura cada paso (T = tresillo; 1 c = un compás)"></select>
+        <div class="ctl ks" data-lab="Pasos 2 · suavizado"><div class="knob" data-knob="st2Smooth" title="Suavizado: 0 = escalón (con 4 ms contra el clic) … 1 = rampa del paso entero"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Pasos 2 · rotación"><div class="knob" data-knob="st2Rot" title="Rotación: empezar el patrón N pasos más adelante"><div class="ind"></div></div><div class="val"></div></div>
+        <select class="ps-drift" title="Deriva de la rotación: un paso más cada N compases (el desfase de Reich)"></select></div>
+      <div class="ps-row" data-lane="3"><span class="rn">3</span><canvas class="ps-canvas" title="Pasos 3: arrastra para dibujar (arriba +1, abajo −1; cerca del centro, 0)"></canvas>
+        <div class="stepper"><button data-stlen="-">−</button><span class="num">16</span><button data-stlen="+">+</button></div>
+        <select class="ps-div" title="División: lo que dura cada paso (T = tresillo; 1 c = un compás)"></select>
+        <div class="ctl ks" data-lab="Pasos 3 · suavizado"><div class="knob" data-knob="st3Smooth" title="Suavizado: 0 = escalón (con 4 ms contra el clic) … 1 = rampa del paso entero"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Pasos 3 · rotación"><div class="knob" data-knob="st3Rot" title="Rotación: empezar el patrón N pasos más adelante"><div class="ind"></div></div><div class="val"></div></div>
+        <select class="ps-drift" title="Deriva de la rotación: un paso más cada N compases (el desfase de Reich)"></select></div>
+      <div class="ps-row" data-lane="4"><span class="rn">4</span><canvas class="ps-canvas" title="Pasos 4: arrastra para dibujar (arriba +1, abajo −1; cerca del centro, 0)"></canvas>
+        <div class="stepper"><button data-stlen="-">−</button><span class="num">16</span><button data-stlen="+">+</button></div>
+        <select class="ps-div" title="División: lo que dura cada paso (T = tresillo; 1 c = un compás)"></select>
+        <div class="ctl ks" data-lab="Pasos 4 · suavizado"><div class="knob" data-knob="st4Smooth" title="Suavizado: 0 = escalón (con 4 ms contra el clic) … 1 = rampa del paso entero"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Pasos 4 · rotación"><div class="knob" data-knob="st4Rot" title="Rotación: empezar el patrón N pasos más adelante"><div class="ind"></div></div><div class="val"></div></div>
+        <select class="ps-drift" title="Deriva de la rotación: un paso más cada N compases (el desfase de Reich)"></select></div>
+    </div>
+    <div class="help"><b>Pasos</b> — cuatro carriles de valores por paso (−1…+1) que la matriz usa como fuentes: <b>«Pasos i»</b> es una señal continua (el escalón mueve también una nota sostenida: un trance gate es un carril sobre Amplitud; un pad que cambia de timbre por pasos, sobre Cutoff o Wavetable) y <b>«Pasos i · nota»</b> fija el valor del paso en que empieza cada nota y lo mantiene toda la nota (arpegios y plucks: cada nota con su color, sin escalones dentro). Dibuja arrastrando; <b>long.</b> = cuántos pasos (hasta 32); con longitudes distintas los carriles solo vuelven a coincidir tras muchos compases (16 · 12 · 5 → 15 compases): complejo sin dejar de ser rítmico — la línea de arriba dice cuánto. <b>División</b> = lo que dura cada paso, en la rejilla del reloj común (la del arpegiador, el secuenciador y el director). <b>Suav.</b> = de escalón a rampa. <b>Rot.</b> = empezar N pasos más adelante. <b>Deriva</b> = un paso más de rotación cada N compases: el desfase de Reich. <b>Reinicio</b>: al tocar (la primera nota tras el silencio es el paso 0) · nunca · cada N compases.</div>
   </div>
   <div class="panel grow parts-off" id="player">
     <h2>Jugador</h2>
@@ -626,7 +688,7 @@
   <div id="keyboard"></div>
   <div id="kbBar">
     <span class="lab">Octava</span>
-    <div class="stepper" id="kbOct" title="Octava base del teclado (RePág / AvPág también). Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U. Polifónico.">
+    <div class="stepper" id="kbOct" title="Octava base del teclado (RePág / AvPág también). Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U (por posición: en cualquier teclado, las mismas teclas físicas; con Ctrl o Alt no tocan, son atajos). Polifónico. Con el ratón, la altura a la que pulsas es la velocity: arriba de la tecla suave, abajo fuerte (el teclado del PC va siempre a tope).">
       <button data-kbo="-1" title="Octava abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava arriba (RePág)">+</button>
     </div>
     <label class="wheel" title="Rueda de modulación: fuente «Rueda (CC1)» de la matriz (0 = reposo). La rueda de un teclado MIDI (CC1) también la mueve. Doble clic = 0"><span class="lab">Rueda</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>

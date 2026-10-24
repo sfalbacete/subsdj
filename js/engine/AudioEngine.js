@@ -15,9 +15,12 @@ import { Voice } from './Voice.js';
 import { Arp } from './Arp.js';
 import { Seq } from './Seq.js';
 import { WaveSeq } from './WaveSeq.js';
+import { clockOf } from './Clock.js';
+import { Steps } from './Steps.js';
 import { getWtSet } from './wavetable.js';
 
-import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape } from './nodes.js';
+import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
+import { LFO_KEYS, lfoHz, lfoBeats } from './params.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
@@ -57,7 +60,7 @@ const PERF_TAU = 0.02;
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=10';  // v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=11';  // v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -80,6 +83,7 @@ export class AudioEngine {
     this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
     this.seq = new Seq(this);     // secuenciador de pasos (activo cuando S.seqOn == 'on')
     this.wseq = new WaveSeq(this);// secuencia de tabla (activa cuando S.wsOn == 'on')
+    this.steps = new Steps(this); // Pasos: 4 carriles para la matriz (Roadmap 7.0 · 2.3)
     this.perfVal = { wheel: 0, at: 0, expr: 0 };   // fuentes de ejecución (0..1); los nodos nacen en init()
   }
 
@@ -163,6 +167,12 @@ export class AudioEngine {
     setLfoShape(ctx, this.ampLFO, S.ampLfoShape);   setLfoShape(ctx, this.freqLFO, S.freqLfoShape);
     setLfoShape(ctx, this.pwmLFO, S.pwmLfoShape);   setLfoShape(ctx, this.cutLFO, S.cutLfoShape);
     setLfoShape(ctx, this.resLFO, S.resLfoShape);
+    // LFO a tempo (Roadmap 7.0 · 2.2): el reloj común avisa al cambiar el BPM o el
+    // origen, y los LFO sincronizados (globales y propios de cada voz) vuelven a su rejilla
+    const clock = clockOf(ctx);
+    clock.setBpm(this.bpm, ctx.currentTime);
+    this._unlisten = clock.listen(() => this._lfoClock());
+    this._lfoClock();
 
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
     // Macro de apertura (arreglo de la escena): cents que se SUMAN al detune
@@ -185,6 +195,9 @@ export class AudioEngine {
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
       pitchOffset: this.pitchOffset, macroCut: this.macroCut, macroOn: () => this._macroOn, perf: this.perf,
+      lfoHz: k => this._lfoHz(k),        // velocidad efectiva del LFO k (a tempo: la división al BPM)
+      stepSrc: (i, t) => this.steps.source(i, t),   // Pasos i (continuo): la fuente del motor
+      stepVal: (i, t) => this.steps.valueAt(i, t),  // Pasos i · nota: el valor del paso en t
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
@@ -209,13 +222,29 @@ export class AudioEngine {
   }
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+  // El BPM bueno es el de la SALA: en Partes es compartida y solo la parte elegida
+  // recibe el knob (su S.bpm); las demás tendrían el de antes.
+  get bpm() { return (this.sala && this.sala.S.bpm) || this.S.bpm || 120; }
+  _lfoHz(k) { return lfoHz(this.S, k, clockOf(this.ctx).bpm); }   // con sincro, la división al BPM del reloj (= el de la sala)
+  _lfoClock() {
+    if (!this.ctx) return;
+    const clock = clockOf(this.ctx);
+    for (const k of LFO_KEYS) {
+      const beats = lfoBeats(this.S, k), lfo = this[k + 'LFO'];
+      if (!lfo || (!beats && !lfo.sync)) continue;
+      const hz = this._lfoHz(k);
+      setLfoSync(this.ctx, lfo, beats, clock, hz);
+      if (k !== 'amp') this._forVoices(v => v.setLfo(k, 'spd', hz));
+    }
+  }
 
   // ---------- voces ----------
-  noteOn(id, freq, vel = 1) {
+  // when (opcional): instante de audio de la tecla — los jugadores; el Arp/Seq la meten en ese paso de la rejilla
+  noteOn(id, freq, vel = 1, when = null) {
     if (!this.ready) return;
-    if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel);      // la tecla es la raíz de la frase
-    if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel);   // el arp secuencia las notas
-    this._directOn(id, freq, vel);
+    if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel, when);      // la tecla es la raíz de la frase
+    if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel, when);   // el arp secuencia las notas
+    this._directOn(id, freq, vel, when);
   }
   noteOff(id) {
     if (this.S.seqOn === 'on') return this.seq.unhold(id);
@@ -225,6 +254,7 @@ export class AudioEngine {
   // Camino directo (lo usa también el arpegiador, con inicio programado `when`)
   _directOn(id, freq, vel = 1, when = null) {
     if (this.S.mode === 'mono') return this._monoOn(id, freq, vel, when);
+    this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !this.voices.size && !this.tails.size);   // Pasos: ¿empieza a tocar?
     const existing = this.voices.get(id);
     if (existing) { if (existing._timer) clearTimeout(existing._timer); this._dispose(existing); this.voices.delete(id); this.voiceCount = Math.max(0, this.voiceCount - 1); }
     if (this.voiceCount >= MAX_POLY) {                     // robo de voz: la más antigua
@@ -263,6 +293,7 @@ export class AudioEngine {
   // decide el gate, no cuánto se adelanta el planificador.
   _monoOn(id, freq, vel, when = null) {
     const had = this.heldStack.length > 0;
+    this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !had && !this.tails.size && !this.monoVoice);
     this.heldStack = this.heldStack.filter(n => n.id !== id);
     this.heldStack.push({ id, freq, vel });
     const old = had && this.monoVoice && !this.monoVoice.disposed ? this.monoVoice : null;
@@ -327,7 +358,7 @@ export class AudioEngine {
     const end = v.release(rel, when);
     if (this.offline) return;                     // offline: la cola vive hasta el final del render
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
-    v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); }, ms);
+    v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); this._maybeIdle(); }, ms);
     if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
   }
   _fadeKill(v) {            // fundido TAIL_FADE y liberar (ver arriba)
@@ -337,8 +368,10 @@ export class AudioEngine {
     if (v._timer) clearTimeout(v._timer);
     if (v.disposed) return;
     v.fadeOut(TAIL_FADE);
-    v._timer = setTimeout(() => this._dispose(v), TAIL_FADE * 1000 + 60);
+    v._timer = setTimeout(() => { this._dispose(v); this._maybeIdle(); }, TAIL_FADE * 1000 + 60);
   }
+  // Todo callado (ni voces ni colas): los Pasos sueltan el reloj (reinicio «al tocar»)
+  _maybeIdle() { if (!this.voices.size && !this.tails.size) this.steps.idle(); }
   // ---------- efectos de inserción bajo demanda (ver init) ----------
   _ensureDist() {
     if (this.shaper) return;
@@ -458,6 +491,7 @@ export class AudioEngine {
   set(name, value) {
     this.S[name] = value;
     if (!this.ready) return;
+    if (name === 'bpm') clockOf(this.ctx).setBpm(value, this.ctx.currentTime);   // reloj común: el Arp/Seq siguen el tempo nuevo desde el pulso de ahora
     // Matriz de modulación (claves planas mx{1..6}{src,dst,amt}): amt reajusta
     // la ganancia del slot en vivo; src/dst recablean el slot en las voces vivas.
     // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.
@@ -470,13 +504,19 @@ export class AudioEngine {
     if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
     // LFOs por voz (lfoPhase 'voz'): Level/Speed/forma del LFO k también a las
     // copias de cada voz viva; el LFO global del motor sigue cambiando en el switch.
-    const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape)$/.exec(name);
-    if (lf) this._forVoices(v => v.setLfo(lf[1], lf[2].toLowerCase(), value));
+    const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape|Sync)$/.exec(name);
+    if (lf) {
+      const what = lf[2] === 'Sync' ? 'spd' : lf[2].toLowerCase(), val = what === 'spd' ? this._lfoHz(lf[1]) : value;   // Speed y sincro: la velocidad efectiva
+      this._forVoices(v => v.setLfo(lf[1], what, val));
+    }
+    const ls = /^(pwm|cut|res|amp|freq|pan)LfoSync$/.exec(name);
+    if (ls) { const lfo = this[ls[1] + 'LFO']; if (lfo) setLfoSync(this.ctx, lfo, lfoBeats(this.S, ls[1]), clockOf(this.ctx), this._lfoHz(ls[1])); return; }
     const now = this.ctx.currentTime, smooth = (p, val) => p.setTargetAtTime(val, now, 0.02);
     switch (name) {
       case 'mxDriftSpd': this._forVoices(v => v.setMxDriftSpd(value)); break;   // deriva por voz (fuente 'drift' de la matriz)
       // lfoPhase: estructura de la voz (LFO globales o propios): aplica por nota, como filterSlope
-      case 'mix':   this._forVoices(v => v.setMix(value)); break;
+      case 'levelA': this._forVoices(v => v.setLevel('A', value)); break;
+      case 'levelB': this._forVoices(v => v.setLevel('B', value)); break;
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
       case 'noise': this._forVoices(v => v.setNoise(value)); break;
       case 'noiseColor': this._forVoices(v => v.setNoiseColor(value)); break;
@@ -494,6 +534,8 @@ export class AudioEngine {
       case 'morph': this._forVoices(v => v.setMorph(value)); break;
       case 'filterEnvAmt': this._forVoices(v => v.setFilterEnvAmt(value)); break;
       case 'filterDrive': this._forVoices(v => v.setFilterDrive(value)); break;
+      case 'driveChar': this._forVoices(v => v.setDriveChar(value)); break;   // suave (tanh) | plegado
+      case 'driveAsym': this._forVoices(v => v.setDriveAsym(value)); break;
       case 'keytrack': this._forVoices(v => v.setKeytrack(value, this.S.cutoff)); break;
       case 'pulseWidth':   this._forVoices(v => v.setPulseWidth(value)); break;
       case 'vocAmt':   this._forVoices(v => v.setVocAmt(value)); break;
@@ -510,19 +552,19 @@ export class AudioEngine {
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
-      case 'ampLfoSpd': setLfoRate(this.ampLFO, value, now); break;
+      case 'ampLfoSpd': if (!this.ampLFO.sync) setLfoRate(this.ampLFO, value, now); break;   // a tempo manda la división
       // pitch/vibrato/PWM se conectan a los worklets bajo demanda (ver Voice.ensure*)
       case 'freqCents': smooth(this.pitchOffset.offset, value + (this._bend || 0)); if (value) this._forVoices(v => v.ensurePitch()); break;
       case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureVib()); break;
-      case 'freqLfoSpd': setLfoRate(this.freqLFO, value, now); break;
+      case 'freqLfoSpd': if (!this.freqLFO.sync) setLfoRate(this.freqLFO, value, now); break;
       case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
-      case 'pwmLfoSpd': setLfoRate(this.pwmLFO, value, now); break;
+      case 'pwmLfoSpd': if (!this.pwmLFO.sync) setLfoRate(this.pwmLFO, value, now); break;
       case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureCutLfo()); break;   // conectar al filtro solo al usarlo (Voice)
-      case 'cutLfoSpd': setLfoRate(this.cutLFO, value, now); break;
+      case 'cutLfoSpd': if (!this.cutLFO.sync) setLfoRate(this.cutLFO, value, now); break;
       case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureResLfo()); break;
-      case 'resLfoSpd': setLfoRate(this.resLFO, value, now); break;
+      case 'resLfoSpd': if (!this.resLFO.sync) setLfoRate(this.resLFO, value, now); break;
       case 'panLfoLvl': smooth(this.panLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePan()); break;
-      case 'panLfoSpd': smooth(this.panLFO.osc.frequency, value); break;
+      case 'panLfoSpd': if (!this.panLFO.sync) setLfoRate(this.panLFO, value, now); break;
 
       // formas de onda de los LFOs (nativas: cambio instantáneo; S&H/deriva: fuente alternativa)
       case 'ampLfoShape':  setLfoShape(this.ctx, this.ampLFO, value); break;
@@ -617,7 +659,9 @@ export class AudioEngine {
     clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
     const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
                   this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast].filter(Boolean);   // los de los efectos, si llegaron a nacer
-    for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } }
+    for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } if (l.keep) { try { l.keep.disconnect(); } catch (e) {} } }
+    if (this._unlisten) this._unlisten();                     // el reloj común deja de avisar a este motor
+    this.steps._stop(); clockOf(this.ctx).leave(this.steps); this.steps.src.forEach(c => { if (c) { try { c.stop(); c.disconnect(); } catch (e) {} } });
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }

@@ -5,6 +5,9 @@
    DESPIERTA al planificador; cada jugador programa sus notas en el reloj de
    audio con look-ahead de 120 ms. El tempo es el BPM de la sala (S.bpm,
    compartido): si cambia, cambia desde la posición actual sin saltos.
+   La posición vive en el RELOJ COMÚN del contexto (engine/Clock.js): al
+   arrancar, el director ancla su pulso 0 y los Arp/Seq de las partes caen
+   en su rejilla.
    Cada ~100 ms aplica lo lento: la MACRO de apertura (energía del arreglo →
    cents en los filtros de todas las partes) y la deriva de cada jugador.
    Offline (selftest): scheduleAll() planifica todo el tramo de golpe, sin
@@ -16,6 +19,7 @@
 import { Harmony } from './Harmony.js';
 import { Player, PLAYER_DEF } from './Player.js';
 import { Arrangement } from './Arrangement.js';
+import { clockOf } from './Clock.js';
 
 export const BEATS_PER_BAR = 4;
 const LOOKAHEAD = 0.12, TICK_MS = 25, SLOW_S = 0.1;
@@ -28,14 +32,14 @@ export class Conductor {
     this.arr = new Arrangement(this);
     this.players = scene.parts.map((p, i) => new Player(this, p, i));
     this.timer = null; this.running = false; this.dry = false;
-    this.pos = 0; this.posT = 0;        // posición musical (beats) y el instante de audio en que era esa
+    this.clock = clockOf(this.ctx);     // posición musical: origen (pulso 0) y bpm, compartidos con los Arp/Seq
     this._slowT = -1;
     this.onDrift = null;                // (i, key, value) → la UI mueve el knob si es la parte que edita
   }
   get bpm() { return this.scene.S.bpm || 120; }
-  beatLen() { return 60 / this.bpm; }
-  timeAt(beat) { return this.posT + (beat - this.pos) * this.beatLen(); }
-  beatAt(t) { return this.pos + (t - this.posT) / this.beatLen(); }
+  beatLen() { return this.clock.beatLen(); }
+  timeAt(beat) { return this.clock.timeAt(beat); }
+  beatAt(t) { return this.clock.beatAt(t); }
   chordAtBeat(b) { return this.harmony.chordAt(Math.floor(b / BEATS_PER_BAR + 1e-9)); }
   arrangeFor(player, b) { return this.arr.stateAt(Math.floor(b / BEATS_PER_BAR + 1e-9), player.i, player.cfg); }
   barNow() { return Math.max(0, Math.floor(this.beatAt(this.ctx.currentTime) / BEATS_PER_BAR)); }
@@ -44,7 +48,7 @@ export class Conductor {
 
   start() {
     if (this.timer) return;
-    this.pos = 0; this.posT = this.ctx.currentTime + 0.05;
+    this.clock.anchor(this, this.ctx.currentTime + 0.05, this.bpm);
     this.players.forEach(p => p.reset());
     this.running = true; this._slowT = -1;
     this._tick();
@@ -53,6 +57,7 @@ export class Conductor {
   stop() {
     if (!this.timer) return;
     clearInterval(this.timer); this.timer = null; this.running = false;
+    this.clock.leave(this);
     const t = this.ctx.currentTime;
     this.players.forEach(p => {
       p.stop(t); const e = p.part.engine; e.setMacro(0);
@@ -67,7 +72,7 @@ export class Conductor {
   }
   _tick() {
     const now = this.ctx.currentTime;
-    if (now > this.posT) { this.pos = this.beatAt(now); this.posT = now; }   // avanza (con el BPM vigente)
+    this.clock.setBpm(this.bpm, now);                                         // un BPM nuevo reancla en el pulso de ahora: sin saltos
     const until = this.beatAt(now + LOOKAHEAD);
     for (const p of this.players) p.schedule(until);
     if (now - this._slowT >= SLOW_S) {                                        // lo lento: macro de apertura y deriva
@@ -78,7 +83,7 @@ export class Conductor {
   }
   // Offline: `secs` segundos desde t0, todo de golpe (notas + macro por compás)
   scheduleAll(secs, t0 = 0) {
-    this.pos = 0; this.posT = t0;
+    this.clock.anchor(this, t0, this.bpm);
     this.players.forEach(p => p.reset());
     const until = secs / this.beatLen();
     for (const p of this.players) p.schedule(until);
@@ -101,7 +106,11 @@ export class Conductor {
     if (this.running) this.stop();
     if (j.armonia) Object.assign(this.harmony, j.armonia);
     if (j.arreglo) Object.assign(this.arr.cfg, j.arreglo);
-    (j.jugadores || []).forEach((cfg, i) => { const p = this.players[i]; if (!p) return; p.cfg = { ...PLAYER_DEF, ...cfg }; p.derivaKey = 'off'; p.derivaBase = undefined; });
+    (j.jugadores || []).forEach((cfg, i) => {
+      const p = this.players[i]; if (!p) return;
+      p.cfg = { ...PLAYER_DEF, ...cfg }; p.derivaKey = 'off'; p.derivaBase = undefined;
+      if (p.cfg.deriva === 'mix') p.cfg.deriva = 'levelB';   // escenas de antes del mezclador (1.2.0)
+    });
     this.setSeed(+j.seed || 1);         // resetea jugadores y paseo con la semilla guardada
   }
 }

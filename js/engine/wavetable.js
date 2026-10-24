@@ -8,7 +8,7 @@
    encima de Nyquist y no hay aliasing (el equivalente tabulado del PolyBLEP).
    El morph interpola linealmente entre frames: combinación lineal de señales
    band-limited => sigue band-limited. Los niveles bajos usan tablas más
-   cortas (len = 4·armónicos, suelo 256): memoria mínima por nodo.
+   cortas (len = 8·armónicos, suelo 256): ~290 KB por set de 8 frames.
    El pipeline es agnóstico del ORIGEN del espectro: aquí hay sets de fábrica;
    el editor (W2) y las expresiones (W3) solo tienen que producir frames.
    ===================================================================== */
@@ -16,7 +16,12 @@
 export const WT_H = 512;                 // armónicos del nivel 0 (cubre hasta ~38 Hz sin recorte)
 export const WT_FRAMES = 8;              // frames por set (el morph los recorre)
 const CAPS = [512, 256, 128, 64, 32, 16, 8, 4, 2, 1];   // tope de armónicos por nivel (mip)
-const LENS = CAPS.map(c => Math.max(256, 4 * c));       // longitud de tabla por nivel
+// Longitud de tabla por nivel: 8 muestras por armónico del tope. Medido (Roadmap 7.0 · 0.3,
+// sierra, energía fuera de los armónicos bajo la fundamental): con 4× y lineal, −52 dB en Do1
+// y −43 en Do4 (el error sube 3 dB por octava al acortarse la tabla); 4× + Hermite, −49 en
+// Do4; 16× + lineal, −61,5 en el peor nivel (memoria ×3,2); 8× + Hermite, de −76 a −85 en
+// todas las notas con memoria ×1,7 y +5 % de CPU. Crear un nodo: 0,28 → 0,31 ms.
+const LENS = CAPS.map(c => Math.max(256, 8 * c));
 
 // ---------- espectros de fábrica (generadores; n = armónico 1..H) ----------
 const specOf = fn => { const a = new Float32Array(WT_H); for (let n = 1; n <= WT_H; n++) a[n - 1] = fn(n); return a; };

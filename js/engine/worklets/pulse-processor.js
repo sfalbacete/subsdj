@@ -12,7 +12,7 @@
    FM4_MOD ciclos ≈ 7,5 rad de índice. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4.
    TABLA (wavetable): processorOptions.wt = { lens, frames } (mips generados
    en el hilo principal, engine/wavetable.js). Lookup con interpolación
-   lineal de fase + morph lineal entre frames adyacentes (param wtPos);
+   cúbica (Hermite) + morph lineal entre frames adyacentes (param wtPos);
    el nivel (mip) se elige por frecuencia: la tabla leída no tiene parciales
    sobre Nyquist (el equivalente tabulado del PolyBLEP). Ignora pulseWidth,
    spread y FM; unison/octavas/drift funcionan igual que en el resto.
@@ -29,8 +29,21 @@
    cualquier onda salvo supersaw, que ya es unison; nivel 1/sqrt(N); la
    copia 0 conserva la fase configurada -> con N=1 es bit-idéntico al
    oscilador simple; las demás copias arrancan con fase aleatoria).
+   AZAR (fases de las copias y del supersaw, deriva): processorOptions.seed
+   (la manda la voz; offline sale de un generador con semilla: renders
+   repetibles). Sin seed, Math.random.
    Salida mono. Se autodestruye al recibir el mensaje "stop".
    ===================================================================== */
+
+// PRNG con semilla (mulberry32, el de engine/Harmony.js: los worklets no importan módulos del motor)
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
 
 function polyBlep(t, dt) {
   if (t < dt) { t /= dt; return t + t - t * t - 1; }
@@ -93,25 +106,29 @@ class PulseProcessor extends AudioWorkletProcessor {
     this.type = o.type || 'sawtooth';
     this.octaves = Math.max(1, Math.min(4, (o.octaves | 0) || 1));
     const ph = (typeof o.phase === 'number') ? (o.phase % 1 + 1) % 1 : 0;
+    const rnd = this.rnd = (typeof o.seed === 'number') ? mulberry32(o.seed) : Math.random;
     if (this.type === 'supersaw') {
       // 7 fases aleatorias e independientes POR OCTAVA (evita el "peine" de fases alineadas)
       this.phases = new Float32Array(this.octaves * 7);
-      for (let i = 0; i < this.phases.length; i++) this.phases[i] = Math.random();
+      for (let i = 0; i < this.phases.length; i++) this.phases[i] = rnd();
     } else {
       // 7 slots por octava para el unison generalizado (idx = oct*7 + copia):
       // la copia 0 lleva la fase configurada (con uniVoices=1 todo es como antes),
-      // el resto aleatoria. modPhases = moduladores FM (siempre aleatorios).
+      // el resto aleatoria. modPhases = moduladores FM: la copia 0 arranca en la
+      // fase de la portadora (key sync, como el FM4 y el DX7). Antes, al azar: con
+      // ratios enteros la fase relativa reparte la energía entre armónicos y cada
+      // nota salía con otro timbre («DX bass», seis Do4 seguidos: 7,7 dB de diferencia).
       this.phases = new Float32Array(this.octaves * 7);
       this.modPhases = new Float32Array(this.octaves * 7);
       this.fb1 = new Float32Array(this.octaves * 7);   // últimas dos salidas del modulador (feedback)
       this.fb2 = new Float32Array(this.octaves * 7);
       this.fm4Ph = new Float32Array(this.octaves * 7 * 4);   // FM4: 4 fases por copia (la copia 0 arranca en la fase configurada)
       this.fm4Fb = new Float32Array(this.octaves * 7 * 2);   // FM4: memoria de realimentación del op 4
-      for (let i = 0; i < this.octaves * 7; i++) for (let op = 0; op < 4; op++) this.fm4Ph[i * 4 + op] = (i % 7 === 0) ? ph : Math.random();
+      for (let i = 0; i < this.octaves * 7; i++) for (let op = 0; op < 4; op++) this.fm4Ph[i * 4 + op] = (i % 7 === 0) ? ph : rnd();
       this.fm4Out = new Float32Array(4);
       for (let i = 0; i < this.phases.length; i++) {
-        this.phases[i] = (i % 7 === 0) ? ph : Math.random();
-        this.modPhases[i] = Math.random();
+        this.phases[i] = (i % 7 === 0) ? ph : rnd();
+        this.modPhases[i] = (i % 7 === 0) ? ph : rnd();
       }
     }
     this.stopped = false;
@@ -152,7 +169,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     let driftCt = 0;
     const dAmt = params.drift[0];
     if (dAmt > 0) {
-      this.driftZ = this.driftZ * 0.998 + (Math.random() * 2 - 1) * 0.0632;
+      this.driftZ = this.driftZ * 0.998 + (this.rnd() * 2 - 1) * 0.0632;
       const z = this.driftZ < -2.5 ? -2.5 : (this.driftZ > 2.5 ? 2.5 : this.driftZ);
       driftCt = z * dAmt;
     }
@@ -253,10 +270,16 @@ class PulseProcessor extends AudioWorkletProcessor {
           const dt = f / sr, idx = k * 7 + j, amp = lvl * gMix;
           let p = this.phases[idx];
           for (let i = 0; i < N; i++) {
-            const xx = p * len, i0 = xx | 0, w = xx - i0, i1 = i0 + 1 === len ? 0 : i0 + 1;
-            const vA = dA[i0] + (dA[i1] - dA[i0]) * w;
-            const vB = dB[i0] + (dB[i1] - dB[i0]) * w;
-            ch[i] += (vA + (vB - vA) * ff) * amp;
+            // Hermite de 4 puntos (Catmull-Rom) sobre la MEZCLA de los dos frames
+            // (el morph es lineal: mezclar antes de interpolar da lo mismo y la
+            // cúbica se calcula una vez). Con la lineal y tablas 4×, el error caía ENTRE armónicos:
+            // suelo inarmónico de −43 dB en Do4; con Hermite y tablas 8×, −76.
+            const xx = p * len, i1 = xx | 0, w = xx - i1;
+            const i0 = i1 === 0 ? len - 1 : i1 - 1, i2 = i1 + 1 === len ? 0 : i1 + 1, i3 = i2 + 1 === len ? 0 : i2 + 1;
+            const a0 = dA[i0], a1 = dA[i1], a2 = dA[i2], a3 = dA[i3];
+            const y0 = a0 + (dB[i0] - a0) * ff, y1 = a1 + (dB[i1] - a1) * ff, y2 = a2 + (dB[i2] - a2) * ff, y3 = a3 + (dB[i3] - a3) * ff;
+            const c1 = 0.5 * (y2 - y0), c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3, c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
+            ch[i] += (((c3 * w + c2) * w + c1) * w + y1) * amp;
             p += dt; if (p >= 1) p -= 1;
           }
           this.phases[idx] = p;

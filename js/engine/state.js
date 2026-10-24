@@ -5,9 +5,25 @@
    ===================================================================== */
 import { PARAMS, PRESET_BASE } from './params.js';
 
+// Mezclador (1.2.0): antes la voz sumaba (1−ring)·[(1−mix)·A + mix·B] + ring·A×B;
+// ahora levelA·A + levelB·B + ring·A×B. Un preset SIN levelA/levelB es de antes
+// (o hereda los niveles de la base): con Mix o con Ring se traduce EXACTO
+// — mismos coeficientes, mismo sonido —; sin ninguno de los dos, la base ya
+// lleva los niveles del Mix 0,4 de entonces. Las bibliotecas guardan COPIAS de
+// los presets, así que esta traducción es para siempre, no de una vez.
+const LEGACY_MIX = 0.4;                                     // el Mix de la base de antes
+const r6 = x => Math.round(x * 1e6) / 1e6;                  // 0,7·0,5 → 0,35, no 0,35000000000000003
+export function migrateMix(p) {
+  if (!p || 'levelA' in p || 'levelB' in p || !('mix' in p || p.ring > 0)) return p;
+  const { mix = LEGACY_MIX, ...q } = p, ring = p.ring || 0;
+  q.levelA = r6((1 - ring) * (1 - mix));
+  q.levelB = r6((1 - ring) * mix);
+  return q;
+}
+
 // Un preset es una DIFERENCIA sobre PRESET_BASE (params.js), no sobre los
 // defaults neutros: así los de siempre suenan igual. {} = Reset (sin base).
-export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...p } : {});
+export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateMix(p) } : {});
 
 export function makeDefaultState() {
   const S = { oscA: {}, oscB: {} };

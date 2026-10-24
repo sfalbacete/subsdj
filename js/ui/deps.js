@@ -10,8 +10,9 @@
    igual). Un control dentro de una sección apagada no se atenúa dos veces.
    Las reglas salen de leer el motor (Voice.js, worklets/pulse-processor.js,
    Sala.js, AudioEngine.js); si el motor cambia, cambian aquí:
-   · A suena si Mix < 1 o Ring > 0; B si Mix > 0 o Ring > 0 (gA = 1−mix, gB = mix;
-     el ring A×B necesita los dos). Lo que depende de una ONDA cuenta solo las
+   · A suena si su nivel > 0 o Ring > 0; B igual (el mezclador suma
+     levelA·A + levelB·B + ring·A×B; el ring necesita los dos osciladores
+     aunque sus niveles estén a 0). Lo que depende de una ONDA cuenta solo las
      de osciladores que suenan.
    · La Súper ignora Phase (fases al azar) y el unison (ya lo es); Spread solo
      la abre a ella; P.Width solo mueve la Cuadrada; Ratio/Index solo actúan en
@@ -26,7 +27,9 @@ import { MX_SLOTS } from '../engine/params.js';
 import { CONTROLS } from './registry.js';
 
 // --- qué suena -----------------------------------------------------------
-const oscOn = (S, o) => (o === 'A' ? S.mix < 1 : S.mix > 0) || S.ring > 0;
+// un nivel movido por la matriz también hace sonar su oscilador (mirada en crudo: sin dstWhy, que llama aquí)
+const mxRaw = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'amt'] && S['mx' + i + 'dst'] === d) return true; return false; };
+const oscOn = (S, o) => S['level' + o] > 0 || S.ring > 0 || mxRaw(S, 'lvl' + o) || mxRaw(S, 'lvlRing');
 const waves = S => [oscOn(S, 'A') && S.oscA.wave, oscOn(S, 'B') && S.oscB.wave].filter(Boolean);
 const has = (S, w) => waves(S).includes(w);
 // Partes: las claves de la sala (delay, reverb, bpm) son de todos — basta con que UNA parte las use
@@ -40,6 +43,9 @@ const dstWhy = (S, d) =>
   : d === 'wt' ? (has(S, 'tabla') ? null : 'Wavetable: ningún oscilador que suene está en Tabla')
   : d === 'fm' ? (has(S, 'sine') ? null : 'FM índice: solo actúa en osciladores en Seno')
   : d === 'vow' ? (S.vocAmt > 0 ? null : 'Vocal: el módulo Vocal tiene el Mix a 0')
+  : d === 'drive' ? (S.filterDrive > 0 ? null : 'Drive: el knob Drive está a 0 y la señal no pasa por la curva')
+  : d === 'pitchA' ? (oscOn(S, 'A') ? null : 'Pitch A: el oscilador A no suena (nivel A y Ring a 0)')
+  : d === 'resMat' ? (S.resAmt > 0 ? null : 'Material: el Resonador tiene la Mezcla a 0')
   : null;
 const slotOn = (S, i) => S['mx' + i + 'src'] !== 'off' && !!S['mx' + i + 'amt'] && !dstWhy(S, S['mx' + i + 'dst']);
 const mxFrom = (S, src) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] === src && slotOn(S, i)) return true; return false; };
@@ -59,8 +65,10 @@ const lfoLive = (S, k) => k === 'pan' ? S.panLfoLvl > 0
   : ((S[k + 'LfoLvl'] > 0 && (k !== 'pwm' || has(S, 'square'))) || mxFrom(S, LFO_SRC[k]));
 const dlyLive = S => anyPart(S, s => s.dlyAmt > 0);
 const revLive = S => anyPart(S, s => s.reverbMix > 0);
+const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'libre';
 const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'libre') || sceneOn()
-  || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'tabla')));
+  || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'tabla'))
+    || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)));   // un LFO a tempo en uso
 const NO = w => 'ningún oscilador que suene está en ' + w;
 const DLY_IDLE = () => (sceneOn() ? 'ninguna parte envía al delay' : 'Amount a 0: no entra nada en el delay');
 const REV_IDLE = () => (sceneOn() ? 'ninguna parte envía a la reverb' : 'Mix a 0: no entra nada en la reverb');
@@ -70,11 +78,10 @@ const live = (keys, test, why) => all(keys, S => (test(S) ? null : (typeof why =
 
 export const RULES = [
   // ---------- Fuente ----------
-  ['sec:Osc A', S => (oscOn(S, 'A') ? null : 'Mix todo en B y Ring a 0: el A no llega a la salida')],
-  ['sec:Osc B', S => (oscOn(S, 'B') ? null : 'Mix todo en A y Ring a 0: el B no llega a la salida')],
+  ['sec:Osc A', S => (oscOn(S, 'A') ? null : 'nivel A y Ring a 0 en Mezcla: el A no llega a la salida')],
+  ['sec:Osc B', S => (oscOn(S, 'B') ? null : 'nivel B y Ring a 0 en Mezcla: el B no llega a la salida')],
   ['phaseA', S => (S.oscA.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar' : null)],
   ['phaseB', S => (S.oscB.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar' : null)],
-  ['mix', S => (S.ring >= 1 ? 'Ring a tope: solo suena A×B, sin la mezcla' : null)],
   ['noiseColor', S => (S.noise > 0 ? null : 'Ruido a 0')],
   ['spread', S => (has(S, 'supersaw') ? null : 'solo abre la Súper: ' + NO('Súper'))],
   ['pulseWidth', S => (has(S, 'square') ? null : 'solo mueve la Cuadrada: ' + NO('Cuadrada'))],
@@ -94,6 +101,7 @@ export const RULES = [
   ...live(['vocVowel', 'vocSize', 'vocQ', 'vocVida', 'vocBrillo', 'vocAtk'], S => S.vocAmt > 0, 'Mix a 0: el tracto vocal no está en la señal'),
   ...live(['resMat', 'resDecay', 'resBrillo'], S => S.resAmt > 0, 'Mezcla a 0: el resonador no está en la señal'),
   ['morph', S => (S.filterType === 'morph' ? null : 'Low↔Hi solo funde en LP↔HP')],
+  ...live(['driveChar', 'driveAsym'], S => S.filterDrive > 0, 'Drive a 0: la señal no pasa por la curva'),
   ['filterSlope', S => (S.filterType === 'notch' ? 'el Notch no lleva 2ª etapa: no tiene pendiente' : null)],
   ...live(['fenvMode'], fenvUsed, 'Amount a 0 (y la matriz no usa «Env filtro»)'),
   ...all(['fa', 'fd', 'fs', 'fr'], S => (!fenvUsed(S) ? 'Amount a 0 (y la matriz no usa «Env filtro»)'
@@ -104,13 +112,21 @@ export const RULES = [
 
   // ---------- Modulación ----------
   ['pwmLfoLvl', S => (has(S, 'square') ? null : 'el PWM solo mueve la Cuadrada: ' + NO('Cuadrada'))],
-  ...['pwm', 'cut', 'res', 'amp', 'freq'].flatMap(k => live([k + 'LfoSpd', k + 'LfoShape'], S => lfoLive(S, k),
-    k === 'pwm' ? 'sin efecto: Level a 0 (o ninguna Cuadrada) y la matriz no lo usa' : 'Level a 0 y la matriz no lo usa')),
-  ...live(['panLfoSpd'], S => S.panLfoLvl > 0, 'Level a 0'),
+  ...['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].flatMap(k => {
+    const idle = k === 'pwm' ? 'sin efecto: Level a 0 (o ninguna Cuadrada) y la matriz no lo usa' : k === 'pan' ? 'Level a 0' : 'Level a 0 y la matriz no lo usa';
+    return [
+      ...live([k + 'LfoShape', k + 'LfoSync'].filter(x => x !== 'panLfoShape'), S => lfoLive(S, k), idle),
+      [k + 'LfoSpd', S => (!lfoLive(S, k) ? idle : lfoSynced(S, k) ? 'a tempo: manda la división del BPM (sync)' : null)],
+    ];
+  }),
   ...live(['lfoFade'], S => S.freqLfoLvl > 0 || (S.pwmLfoLvl > 0 && has(S, 'square')),   // la rampa va en la ruta del Level, no en la matriz
     'solo hace entrar en rampa el vibrato y el PWM, y ninguno está en uso'),
   ...live(['lfoPhase'], S => ['cut', 'res', 'freq', 'pwm', 'pan'].some(k => lfoLive(S, k)), 'ningún LFO de cutoff, reso, vibrato, PWM o pan en uso'),
   ...live(['mxDriftSpd'], S => mxFrom(S, 'drift'), 'ningún slot de la matriz usa «Deriva (voz)»'),
+  ['sec:Env mod', S => (mxFrom(S, 'envm') ? null : 'ningún slot de la matriz usa «Env mod»: elígela como fuente en la Matriz')],
+  ['sec:Pasos', S => ([1, 2, 3, 4].some(i => mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n')) ? null : 'ningún slot de la matriz usa «Pasos»: elige «Pasos 1…4» como fuente en la Matriz')],
+  ...[1, 2, 3, 4].map(i => ['.ps-row[data-lane="' + i + '"]', S => (mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n') ? null : 'ningún slot de la matriz usa «Pasos ' + i + '»')]),
+  ['envmS', S => (S.envmMode === 'bucle' ? 'en bucle el sostenido no cuenta: ataque y caída se repiten' : null)],
   ...Array.from({ length: MX_SLOTS }, (_, j) => j + 1).flatMap(i => [
     ['mx' + i + 'dst', S => slotWhy(S, i, false)],
     ['mx' + i + 'amt', S => slotWhy(S, i, true)],

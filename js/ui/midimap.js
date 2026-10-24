@@ -56,15 +56,19 @@ export const zoneOf = (opts, x) =>
 const lsKey = () => LS_PREFIX + (device || 'default');
 function save() { try { localStorage.setItem(lsKey(), JSON.stringify(map)); } catch (e) {} }
 
+// Controles que cambiaron de clave: un mapa guardado sigue moviendo su sucesor
+// (el Mix A↔B se partió en dos niveles en 1.2.0: el CC pasa a mover el del B).
+const RENAMED = { mix: 'levelB' };
+
 // Acepta JSON externo o de versiones futuras: filtra ids muertos y CCs imposibles.
 function sanitize(raw) {
   const m = { pickup: !!(raw && raw.pickup), ccs: {} };
   const src = raw && raw.ccs && typeof raw.ccs === 'object' ? raw.ccs : {};
   for (const k in src) {
-    const cc = +k, b = src[k];
-    if (!(cc >= 0 && cc <= 127) || !b || !(b.id in CONTROLS || b.id in ACTIONS)) continue;
+    const cc = +k, b = src[k], id = b && (RENAMED[b.id] || b.id);
+    if (!(cc >= 0 && cc <= 127) || !b || !(id in CONTROLS || id in ACTIONS)) continue;
     m.ccs[cc] = {
-      id: b.id,
+      id,
       lo: Number.isFinite(+b.lo) ? +b.lo : 0,
       hi: Number.isFinite(+b.hi) ? +b.hi : 1,
     };

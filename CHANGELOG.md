@@ -1,13 +1,88 @@
 # Cambios
 
-Una entrada por versión publicada, la más reciente arriba. Numeración X.Y.Z:
+Una entrada por versión publicada, la más reciente arriba; lo ya hecho que aún
+no se ha publicado va en «Sin publicar». Numeración X.Y.Z:
 **Z** = arreglos, **Y** = funciones nuevas, **X** = algo guardado deja de
 cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
 de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
+## [1.2.0] — 2026-10-24
+
+Más instrumento: movimiento a tempo (reloj común, LFO a tempo, Pasos, una
+envolvente en bucle), un drive con más caracteres, un mezclador a la Minimoog y
+un taller para diseñar sin miedo (deshacer, comparar). Varias cosas salen de
+la revisión que hizo @tacowars.
+
+**Suenan distinto** (a propósito, como debieron sonar siempre):
+- **FM de dos operadores (onda Seno con Index)**: la fase del modulador se
+  sorteaba en cada nota y cada nota salía con otro timbre — en «DX bass», seis
+  Do4 seguidos variaban casi 8 dB. Ahora arranca alineado con la portadora,
+  como el FM4 y como un DX7: todas las notas iguales. «Bajo FM» queda algo más
+  oscuro en el registro agudo.
+- **LFO globales**: sin nada sonando se quedaban parados y la nota siguiente
+  los retomaba donde se habían quedado; ahora corren siempre, así que la fase
+  con la que arranca una nota depende de cuándo la tocas, como en un sinte de
+  hardware. Si quieres que cada nota empiece igual, usa la fase «reinicio»
+  (nueva, abajo).
+- **Tabla de ondas más limpia**: menos ruido entre armónicos (sobre todo en el
+  registro medio) y un poco más de brillo arriba.
+
+Nuevo:
+- **Mezclador a la Minimoog**: Osc A, Osc B, Ring y Ruido con su nivel cada
+  uno. Subir uno no baja los otros: suman, y con Drive saturan más (el truco de
+  subir el mezclador del Minimoog). Los presets de antes se traducen solos y
+  suenan igual.
+- **Drive con carácter** (módulo Filtro): *suave* (el de siempre) o *plegado*
+  — al subir el Drive la onda se dobla sobre sí misma y los armónicos aparecen,
+  suben y vuelven a bajar (la síntesis de la Costa Oeste) —, y **Asimetría**,
+  que añade armónicos pares (el cuerpo de una válvula); en el plegado, a tope,
+  suena la octava.
+- **Más destinos en la matriz**: los niveles del mezclador (un LFO que baja A
+  mientras sube B funde una onda en otra: síntesis vectorial), el Drive, el tono
+  solo del oscilador A y el Material del resonador.
+- **Reloj común**: arpegiador, secuenciador y los músicos de las Partes en la
+  misma rejilla. Dos arpegios de dos partes caen juntos, y una parte con
+  arpegiador que toca un músico arranca en su pulso, no donde cae.
+- **LFO a tempo**: cada LFO puede ir sincronizado al BPM (de 4 compases a
+  1/32, con puntillos y tresillos), con su ciclo en la rejilla. Y la fase tiene
+  dos modos más: **reinicio** (cada nota arranca sus LFO desde el principio) y
+  **una vez** (recorren un ciclo y se quedan: un LFO que hace de envolvente).
+- **Env mod** (pantalla Secuenciación): una envolvente libre para la matriz,
+  aparte de la del filtro, en modo *normal*, *bucle* (ataque y caída repetidos
+  mientras dura la nota: ritmos de timbre atados a cada nota) o *disparo* (la
+  curva entera aunque la nota dure un instante).
+- **Pasos** (pantalla Secuenciación): cuatro carriles que se dibujan con el
+  ratón, cada uno con su longitud (hasta 32), división, suavizado, rotación y
+  deriva. Son fuentes de la matriz: continuas («Pasos 1») o fijas por nota
+  («Pasos 1 · nota», cada nota de un arpegio con su color). Con longitudes
+  distintas (16 · 12 · 5) tardan 15 compases en volver a coincidir — el panel
+  lo dice —; un carril sobre Amplitud es un *trance gate*.
+- **Deshacer y rehacer** (Ctrl+Z, Ctrl+Y, ↶ ↷ en la cabecera): por gestos, con
+  lo que deshace en el título; no corta las notas que suenan.
+- **Comparar con el guardado**: ● junto al preset cuando lo que suena ya no es
+  lo guardado (y se apaga si lo devuelves); «Comparar» alterna entre el guardado
+  y tu edición.
+- **Velocity con el ratón**: en el teclado de pantalla, la altura a la que
+  pulsas la tecla es la fuerza.
+- **Exportar SFZ**: las capas de velocity se deciden midiendo el sonido, así
+  que los presets cuya velocity cambia el timbre por la matriz, por los
+  operadores FM4 o por la distorsión exportan su tacto (45 de 117 de fábrica,
+  antes 30). Exportar dos veces da exactamente lo mismo.
+
+Arreglos:
+- **Teclado del ordenador**: Ctrl+Z ya no toca un Do, Shift entre pulsar y
+  soltar ya no deja la nota colgada, y las teclas van por posición (el piano
+  queda en su sitio en AZERTY o Dvorak). Un toque cancelado en pantalla
+  táctil ya no cuelga la nota.
+- **Partes**: cambiar el BPM solo llegaba a la parte que estabas editando; el
+  arpegiador, el secuenciador y la secuencia de tabla de las demás seguían al
+  tempo viejo.
+- Banco de demos: pares MEZ, DRV, VEC, LFOT, FASE, ENVM y PASOS para oír cada
+  cosa; checks nuevos en el selftest (194).
+
 ## [1.1.0] — 2026-10-14
 
-Ideas de @tacowars que lo probó, arreglos que salieron al hacerlas y solución a los 
+Ideas de @tacowars que lo probó, arreglos que salieron al hacerlas y solución a los
 acordes «sucios».
 
 - **Acordes limpios: margen en el máster.** Un acorde de pad entraba en el

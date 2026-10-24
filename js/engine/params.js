@@ -47,9 +47,14 @@ export const PARAMS = {
   phaseB:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscB.phase' },
   octB:     { def: 0, min: -2, max: 2, t: 'oscB.oct' },
   octavesB: { def: 1, min: 1, max: 4, t: 'oscB.octaves' },
-  mix:      { def: 0, min: 0, max: 1 },                // 0 = solo A · 1 = solo B (Reset: el oscilador A a solas)
-  ring:     { def: 0, min: 0, max: 1, act: true },
-  noise:    { def: 0, min: 0, max: 1, act: true },
+  // Mezclador a la Minimoog (1.2.0): cada fuente con SU nivel, sumadas antes del
+  // filtro (sustituye al crossfade Mix A↔B; state.migrateMix traduce los presets
+  // de antes). Lineales, en dB en pantalla. Dos a tope suman: +3 dB desafinados
+  // (potencias), +6 dB si son la misma onda en fase; con Drive, más saturación.
+  levelA:   { def: 1, min: 0, max: 1, fmt: dbFmt, act: true },   // Reset: el oscilador A a solas
+  levelB:   { def: 0, min: 0, max: 1, fmt: dbFmt, act: true },
+  ring:     { def: 0, min: 0, max: 1, fmt: dbFmt, act: true },   // A×B, sumado como una fuente más (ya no baja A y B)
+  noise:    { def: 0, min: 0, max: 1, fmt: dbFmt, act: true },
   noiseColor:{ def: 0, min: -1, max: 1 },           // − oscuro (LP) · 0 blanco · + "aire" (HP)
   spread:   { def: 0.5, min: 0, max: 1 },
   drift:    { def: 0, min: 0, max: 15, unit: ' ct', act: true },   // deriva aleatoria lenta por oscilador (analógico)
@@ -103,12 +108,28 @@ export const PARAMS = {
   keytrack:     { def: 0, min: 0, max: 1, act: true },  // el cutoff sigue la altura de la nota (1 = 1:1)
   filterSlope:  { def: '12' },                    // '12' | '24' dB/oct (2ª etapa en cascada; por nota)
   filterType:   { def: 'morph' },                 // 'morph' (LP↔HP paralelo) | 'bp' (LP y HP en serie) | 'notch' (LP + HP a 1); estructura: por nota
-  filterDrive:  { def: 0, min: 0, max: 1, act: true },  // saturación tanh PRE-filtro por voz (0 = transparente)
+  filterDrive:  { def: 0, min: 0, max: 1, act: true },  // saturación PRE-filtro por voz (0 = transparente)
+  // Carácter del drive (Roadmap 7.0 · 3.1): 'suave' = tanh (el de siempre) · 'plegado' = pliegue
+  // senoidal (Costa Oeste: al subir el Drive la onda se dobla y el brillo sube y baja). Asimetría =
+  // sesgo a la entrada de la curva, y = f(g·x + b) − f(b): armónicos PARES (válvula, bombo
+  // «torcido»); en el plegado es la simetría del wavefolder (a tope, solo pares: la octava).
+  driveChar:    { def: 'suave' },
+  driveAsym:    { def: 0, min: 0, max: 1, act: true },
   fenvMode: { def: 'link' },                        // 'link' = la env del filtro usa el ADSR de amplitud
   fa: { def: 0.01, min: 0.001, max: 20, log: true, fmt: secFmt },   // tiempos ×10, en log (1 ms y 20 s en el mismo knob)
   fd: { def: 0.2,  min: 0.001, max: 20, log: true, fmt: secFmt },
   fs: { def: 0.7,  min: 0, max: 1 },
   fr: { def: 0.3,  min: 0.001, max: 30, log: true, fmt: secFmt },
+  // Env mod (Roadmap 7.0 · 2.1): una envolvente LIBRE, solo para la matriz (fuente «Env mod», 0..1,
+  // sin velocity), en la pantalla Secuenciación. Modo: 'normal' (ADSR) · 'bucle' (A + D repetidos
+  // mientras la nota dura: un LFO con forma de envolvente que arranca con la nota; el sustain no
+  // cuenta) · 'disparo' (ignora el note-off: A → D → R enteros aunque la nota dure 20 ms).
+  envmMode: { def: 'normal' },
+  envmA: { def: 0.01, min: 0.001, max: 20, log: true, fmt: secFmt },
+  envmD: { def: 0.3,  min: 0.001, max: 20, log: true, fmt: secFmt },
+  envmS: { def: 0.5,  min: 0, max: 1 },
+  envmR: { def: 0.3,  min: 0.001, max: 30, log: true, fmt: secFmt },
+  envmCurve: { def: 0, min: 0, max: 1 },             // como la de Env amp: 0 = rampas lineales, 1 = RC
 
   // --- Vocal (banco de formantes por voz, entre el drive y el filtro) ---
   vocAmt:   { def: 0, min: 0, max: 1, act: true },  // dry/wet del tracto vocal (0 = sin banco)
@@ -188,6 +209,16 @@ export const PARAMS = {
   seqRetrig: { def: 'off' },                        // on: nueva tecla reinicia la frase (en rejilla)
   wsOn:   { def: 'off' },                           // off | on — secuencia de tabla (wave sequencing)
   wsPat:  { def: '0 . 7 . 3 5 7 .' },               // frase de FRAMES 0..7, '.' = mantener (máx 16 pasos)
+  // Pasos (Roadmap 7.0 · 2.3, engine/Steps.js): 4 carriles de valores −1..+1 (hasta 32), cada uno
+  // con división, suavizado (0 = escalón con micro-rampa de 4 ms … 1 = rampa del paso entero),
+  // rotación y deriva de la rotación (un paso más cada N compases). Solo actúan si la matriz
+  // usa «Pasos i» o «Pasos i · nota»: los patrones de partida no tocan nada por sí solos y
+  // traen longitudes distintas (16 · 12 · 5 · 8) para oír la polimetría al primer intento.
+  st1Pat: { def: '1 0 0.5 0 -0.5 0 0.5 0 1 0 0.5 0 -0.5 0 -1 0' },
+  st2Pat: { def: '1 0.5 0 -0.5 -1 -0.5 0 0.5 1 0.5 0 -0.5' },
+  st3Pat: { def: '1 -1 0.5 -0.5 0' },
+  st4Pat: { def: '1 0 0 1 0 0 1 0' },
+  stReset: { def: 'tocar' },                          // 'tocar' | 'nunca' | '1 c' | '2 c' | '4 c' | '8 c'
   wsDiv:  { def: '1/16' },                          // división musical del paso (usa bpm)
   wsMode: { def: 'loop' },                          // loop | 1shot (una pasada: envolvente de timbre)
   wsXf:   { def: 0.25, min: 0, max: 1, fmt: v => (v * 100).toFixed(0) + '%' },  // fundido: fracción del paso (1 = glissando)
@@ -214,6 +245,16 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'lfoFreq', label: 'LFO vibrato' },
   { id: 'lfoPwm',  label: 'LFO PWM' },
   { id: 'env',     label: 'Env filtro' },
+  { id: 'envm',    label: 'Env mod' },        // la envolvente libre (Secuenciación): normal, bucle o disparo
+  // Pasos (Secuenciación): continuo (el escalón mueve una nota sostenida) o «· nota» (el valor del paso en que empieza la nota)
+  { id: 'st1',     label: 'Pasos 1' },
+  { id: 'st2',     label: 'Pasos 2' },
+  { id: 'st3',     label: 'Pasos 3' },
+  { id: 'st4',     label: 'Pasos 4' },
+  { id: 'st1n',    label: 'Pasos 1 · nota' },
+  { id: 'st2n',    label: 'Pasos 2 · nota' },
+  { id: 'st3n',    label: 'Pasos 3 · nota' },
+  { id: 'st4n',    label: 'Pasos 4 · nota' },
   { id: 'vel',     label: 'Velocity' },
   { id: 'note',    label: 'Nota (altura)' },
   { id: 'rnd',     label: 'S&H por nota' },
@@ -234,8 +275,20 @@ export const MX_DESTS = [
   { id: 'wt',     label: 'Wavetable' },     // morph de la tabla (el AudioParam recorta a [0,1])
   { id: 'vow',    label: 'Vocal' },         // recorre las vocales a audio-rate (los WaveShapers saturan en u/i)
   { id: 'fm',     label: 'FM índice' },     // índice de modulación (el AudioParam recorta en 0): env→fm = pluck DX, vel→fm = tacto DX
+  // Roadmap 7.0 · 2.4: los niveles del mezclador (morph vectorial: un LFO que baja A y sube B),
+  // la ganancia de entrada del Drive (barridos de plegado), el tono de A solo (barrido de sync)
+  // y el Material del resonador. Un nivel que baja de 0 invierte la fase (AM por cero): suena,
+  // y con bases razonables (0,5 ± 0,5) no pasa — recortarlo costaría un WaveShaper por voz.
+  { id: 'lvlA',   label: 'Nivel A' },       // ganancia del mezclador (lineal: 1 = 0 dB)
+  { id: 'lvlB',   label: 'Nivel B' },
+  { id: 'lvlRing',label: 'Nivel Ring' },
+  { id: 'lvlNoise', label: 'Nivel ruido' },
+  { id: 'drive',  label: 'Drive' },         // ganancia de entrada de la curva (±1 = todo el recorrido del knob); necesita Drive > 0
+  { id: 'pitchA', label: 'Pitch A' },       // cents solo sobre el oscilador A
+  { id: 'resMat', label: 'Material' },      // resonador: ±1 = de cuerda a barra (cada modo, sus cents)
 ];
-export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8 };
+export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8,
+  lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1 };   // drive y resMat: la voz escala (por carácter / por modo)
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
@@ -244,10 +297,31 @@ for (let i = 1; i <= MX_SLOTS; i++) {
 // Modulación POR VOZ (Roadmap 5.0 · bloque 2): velocidad de la fuente «Deriva
 // (voz)» (0,05 Hz = un vaivén cada 20 s) y fase de los LFO de cutoff/reso/
 // vibrato/PWM/pan: 'global' = un LFO por motor (como siempre; el acorde respira
-// en bloque) · 'voz' = cada voz arranca los suyos en una fase distinta
-// (estructura: aplica por nota, como filterSlope).
+// en bloque) · 'voz' = cada voz arranca los suyos en una fase distinta ·
+// 'reinicio' = cada nota los arranca en su fase 0 (el LFO atado a la nota) ·
+// 'una' = una vez: recorren un ciclo desde la nota y se quedan en su final
+// (otra envolvente; S&H y deriva no tienen final: van como en reinicio).
+// Estructura: aplica por nota, como filterSlope. El trémolo es siempre global.
 PARAMS.mxDriftSpd = { def: 0.05, min: 0.005, max: 5, log: true, fmt: hzFmt };
 PARAMS.lfoPhase = { def: 'global' };
+
+// LFO a tempo (Roadmap 7.0 · 2.2): cada LFO con su sincro — 'libre' (Speed en Hz)
+// o una división: pulsos por ciclo (1 c = un compás de 4; «.» = con puntillo,
+// ×1,5; «T» = tresillo, ×2/3). Con sincro el ciclo cae en la rejilla del reloj
+// común (engine/Clock.js) y Speed no se usa.
+export const LFO_DIVS = { '4 c': 16, '2 c': 8, '1 c': 4, '1/2.': 3, '1/2': 2, '1/2T': 4 / 3, '1/4.': 1.5, '1/4': 1, '1/4T': 2 / 3,
+  '1/8.': 0.75, '1/8': 0.5, '1/8T': 1 / 3, '1/16.': 0.375, '1/16': 0.25, '1/16T': 1 / 6, '1/32': 0.125 };
+for (let i = 1; i <= 4; i++) {                    // Pasos: los ajustes de cada carril (los patrones, arriba)
+  PARAMS['st' + i + 'Div'] = { def: '1/16' };
+  PARAMS['st' + i + 'Smooth'] = { def: 0, min: 0, max: 1, act: true };
+  PARAMS['st' + i + 'Rot'] = { def: 0, min: 0, max: 31, step: 1, fmt: v => Math.round(v) + '' };
+  PARAMS['st' + i + 'Drift'] = { def: 'off' };
+}
+export const LFO_KEYS = ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'];
+for (const k of LFO_KEYS) PARAMS[k + 'LfoSync'] = { def: 'libre' };
+// Velocidad efectiva del LFO k (Hz): la división al BPM, o el knob Speed
+export const lfoHz = (S, k, bpm) => { const b = LFO_DIVS[S[k + 'LfoSync']]; return b ? bpm / 60 / b : S[k + 'LfoSpd']; };
+export const lfoBeats = (S, k) => LFO_DIVS[S[k + 'LfoSync']] || 0;   // 0 = libre
 
 /* --- Base de los presets ---
    Los `def` de arriba son NEUTROS: Reset (y el arranque) dejan el oscilador A
@@ -255,12 +329,15 @@ PARAMS.lfoPhase = { def: 'global' };
    puerta; ningún módulo toca la señal. Pero los presets se guardan como
    DIFERENCIAS (fábrica, bancos del repo, demos, escenas a mano: solo lo que
    se desvía), y se escribieron sobre los defaults de antes (hasta oct-2026):
-   B a +7 ct mezclado al 0,4, LP a 6 kHz con 2 dB, ADSR 10 ms / 0,7 / 300 ms.
+   B a +7 ct mezclado al 0,4 (hoy niveles A 0,6 · B 0,4), LP a 6 kHz con 2 dB,
+   ADSR 10 ms / 0,7 / 300 ms.
    Un preset NO vacío se aplica sobre esta base (state.withPresetBase) y suena
    exactamente igual que antes; los guardados con Guardar llevan todas las
    claves (snapshot), así que la base no les cambia nada. {} sigue siendo Reset.
-   Un preset NUEVO escrito a mano también parte de aquí (o fija las claves). */
-export const PRESET_BASE = { detuneB: 7, mix: 0.4, cutoff: 6000, reso: 2, a: 0.01, s: 0.7, r: 0.3 };
+   Un preset NUEVO escrito a mano también parte de aquí (o fija las claves).
+   OJO: uno con Ring > 0 y sin levelA/levelB se lee como de ANTES del
+   mezclador (state.migrateMix): los presets con Ring llevan sus niveles. */
+export const PRESET_BASE = { detuneB: 7, levelA: 0.6, levelB: 0.4, cutoff: 6000, reso: 2, a: 0.01, s: 0.7, r: 0.3 };
 
 // Posición de slider (0..1 si log) <-> valor de motor. Para params sin `log`
 // la posición ES el valor (el <input> lleva min/max/step reales).

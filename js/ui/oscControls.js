@@ -4,9 +4,9 @@
    selector giratorio (.rot, ui/rotary.js) o como conmutador con LED (.tog):
    para bindSeg es lo mismo, una fila de <button data-KEY>. */
 import { part } from '../engine/parts.js';
-import { PARAMS } from '../engine/params.js';
+import { PARAMS, LFO_DIVS } from '../engine/params.js';
 import { WT_SETS } from '../engine/wavetable.js';
-import { CONTROLS, applyTarget } from './registry.js';
+import { CONTROLS, applyTarget, bindSelect } from './registry.js';
 
 // Segmento genérico de botones: <button data-KEY="valor">. Registra el control
 // canónico `name` y aplica al target del motor. num: el valor es un número
@@ -71,12 +71,17 @@ export function bindOscControls() {
   bindSeg('fenvModeSel', 'fenv', 'fenvMode', 'fenvMode');  // env filtro: =Amp / Propia
   bindSeg('filterSlopeSel', 'slope', 'filterSlope', 'filterSlope');  // 12 / 24 dB por octava
   bindSeg('filterTypeSel', 'ftype', 'filterType', 'filterType');     // LP↔HP / BP / Notch (estructura: por nota)
+  bindSeg('driveCharSel', 'dchar', 'driveChar', 'driveChar');      // drive suave (tanh) / plegado (en vivo)
+  bindSeg('envmModeSel', 'envm', 'envmMode', 'envmMode');           // Env mod: normal / bucle / disparo (por nota)
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: libre / división del BPM
   bindSeg('chModeSel', 'chm', 'chMode', 'chMode');         // chorus 2 líneas / ensemble 3 fases
   bindSeg('reverbTypeSel', 'rt', 'reverbType', 'reverbType');   // reverb: sala (IR) / placa (Dattorro)
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algoritmo (quién modula a quién)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
-  bindSeg('lfoPhaseSel', 'lph', 'lfoPhase', 'lfoPhase');   // LFOs: fase global (un LFO por motor) / por voz (copias en fase Weyl)
+  const ph = document.getElementById('lfoPhaseSel');   // LFOs: fase global / por voz (Weyl) / reinicio / una vez (Roadmap 7.0 · 2.2)
+  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voz', label: 'por voz' }, { id: 'reinicio', label: 'reinicio' }, { id: 'una', label: 'una vez' }]);
+  const divs = [{ id: 'libre', label: 'libre' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
+  document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // LFO a tempo
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: intervalo del desplazador (clave de la Sala)
   bindFreeze();
   bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpegiador

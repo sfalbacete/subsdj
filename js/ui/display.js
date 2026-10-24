@@ -93,6 +93,10 @@ export function initDisplay() {
   document.addEventListener('ctl-touch', later);
   document.addEventListener('deps-changed', () => { if (touched && performance.now() < until) later(); });   // el motivo de apagado puede cambiar al tocar
   document.addEventListener('preset-loaded', e => { touched = null; show('Preset', e.detail?.name || ''); });
+  // un mensaje de otro módulo (deshacer / rehacer: qué se ha deshecho)
+  document.addEventListener('display-show', e => { touched = null; show(e.detail.who || '', e.detail.val || '', '', e.detail.det || ''); });
+  // nota tocada con el ratón en el teclado de pantalla: su velocity (sale de la altura de la pulsación)
+  document.addEventListener('kb-note', e => { touched = null; show('Teclado · ' + e.detail.name, 'vel ' + e.detail.vel.toFixed(2), '', 'arriba de la tecla = suave · abajo = fuerte'); });
   show('Preset', $('presetSelect')?.selectedOptions[0]?.textContent || '—');
 
   // Menú Archivo: se abre con su botón y se cierra al elegir o al pulsar fuera
