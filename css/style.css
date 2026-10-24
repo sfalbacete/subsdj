@@ -644,27 +644,33 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 #kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
 #kbBar .wheel input[type=range]{width:140px;}
 
-/* PANTALLA DE ENTRADA (ui/splash.js). El lienzo va a baja resolución y se
-   escala con píxel gordo (pixelated); encima, nítidos, la versión y ENTRAR.
-   Colores propios (la marca), no los del tema: tokens --sp-* aquí debajo. */
-:root{   /* la pantalla de entrada lleva los colores de la marca (los del emblema y el cobre), no los del tema */
-  --sp-bg:#02090a; --sp-meta:#a8f0e0; --sp-meta-glow:rgba(63,214,190,.55); --sp-shadow:#000; --sp-violet:#a78bfa; --sp-glow:rgba(63,198,242,.45); --sp-glow2:rgba(167,139,250,.6); --sp-green:#39d4a3; --sp-cyan:#3fc6f2; --sp-btn-top:rgba(6,24,26,.94); --sp-btn-bot:rgba(2,10,12,.96); --sp-btn-ink:#d6fff6; --sp-btn-glow:rgba(63,214,242,.8); --sp-sweep:rgba(255,255,255,.22); --sp-btn-top-on:rgba(12,52,56,.95); --sp-btn-bot-on:rgba(4,22,26,.96); --sp-white:#fff; --sp-hint:#5d958a;
-  /* paletas del lienzo (splash.js las interpola a 256 colores): plasma cíclico, metal del emblema y cobre del nombre */
+/* VENTANA DE ENTRADA (ui/splash.js): una ventana modal centrada sobre el
+   instrumento, que se ve detrás apagado (oscurecido y desaturado). Arriba, la
+   pantallita del efecto a píxel doble (pixelated); debajo, ENTRAR y el pie.
+   Se escala con el instrumento (zoom en línea desde splash.js). Colores de la
+   marca, no del tema: tokens --sp-* aquí debajo (y las paletas del lienzo). */
+:root{
+  --sp-dim:rgba(4,7,9,.6); --sp-card-top:#0f1b1d; --sp-card-bot:#091113; --sp-edge:rgba(63,214,190,.3); --sp-edge2:rgba(255,255,255,.06);
+  --sp-shadow:rgba(0,0,0,.7); --sp-halo:rgba(63,198,242,.12); --sp-ink:#cdeee6; --sp-soft:#7aa39a; --sp-meta:#8fd9c8; --sp-white:#fff;
+  --sp-green:#39d4a3; --sp-cyan:#3fc6f2; --sp-violet:#a78bfa; --sp-glow:rgba(63,198,242,.4);
+  --sp-btn-top:rgba(6,24,26,.96); --sp-btn-bot:rgba(2,10,12,.98); --sp-btn-top-on:rgba(12,52,56,.96); --sp-btn-bot-on:rgba(4,22,26,.98);
+  --sp-btn-ink:#d6fff6; --sp-btn-glow:rgba(63,214,242,.75); --sp-sweep:rgba(255,255,255,.2);
+  /* paletas del lienzo (splash.js las interpola a 256 colores): plasma cíclico y cobre del nombre */
   --sp-plasma:#02090a,#041d1c,#08383a,#0d5752,#127a6c,#18a08a,#127a6c,#0d4f57,#132a4a,#08202a;
-  --sp-metal:#0b211e,#2f5a52,#6f9f94,#b9e3d8,#ffffff;
   --sp-copper:#0e3b52,#3fc6f2,#e8fbff,#3fc6f2,#2a6f9e,#7d63d8,#d9ccff,#a78bfa,#3b2a78,#0e3b52;}
-#splash{position:fixed;inset:0;z-index:1000;background:var(--sp-bg);overflow:hidden;
-  transition:opacity .5s ease,transform .5s ease;}
-#splash.out{opacity:0;transform:scale(1.04);pointer-events:none;}
-#splashFx{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;}
-.sp-ui{position:absolute;left:50%;top:75%;transform:translateX(-50%);display:flex;flex-direction:column;
-  align-items:center;gap:16px;opacity:0;transition:opacity .9s ease;}
-.sp-ui.show{opacity:1;}
-.sp-meta{display:flex;gap:12px;align-items:center;font:600 13px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;
-  letter-spacing:.28em;color:var(--sp-meta);text-shadow:0 0 10px var(--sp-meta-glow),0 1px 0 var(--sp-shadow);}
-.sp-dot{color:var(--sp-violet);font-size:9px;letter-spacing:0;}
-.sp-btn{filter:drop-shadow(0 0 12px var(--sp-glow)) drop-shadow(0 0 2px var(--sp-glow2));}
-#spEnter{--cut:13px;position:relative;width:230px;height:52px;padding:0;border:0;cursor:pointer;
+#splash{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:var(--sp-dim);
+  backdrop-filter:saturate(.45) brightness(.82);transition:opacity .4s ease;}
+#splash.out{opacity:0;pointer-events:none;}
+.sp-card{width:336px;overflow:hidden;border:1px solid var(--sp-edge);border-radius:10px;
+  background:linear-gradient(180deg,var(--sp-card-top),var(--sp-card-bot));
+  box-shadow:inset 0 0 0 1px var(--sp-edge2),0 24px 60px var(--sp-shadow),0 0 48px var(--sp-halo);
+  animation:spIn .45s cubic-bezier(.2,.8,.2,1) both;transition:transform .4s ease;}
+#splash.out .sp-card{transform:scale(.96);}
+#splashFx{display:block;width:336px;height:132px;image-rendering:pixelated;border-bottom:1px solid var(--sp-edge);}
+.sp-body{display:flex;flex-direction:column;align-items:center;gap:13px;padding:14px 24px 16px;}
+.sp-sub{font:600 10px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--sp-meta);}
+.sp-btn{filter:drop-shadow(0 0 10px var(--sp-glow));}
+#spEnter{--cut:11px;position:relative;width:196px;height:44px;padding:0;border:0;cursor:pointer;
   background:linear-gradient(90deg,var(--sp-green),var(--sp-cyan),var(--sp-violet),var(--sp-cyan),var(--sp-green));background-size:300% 100%;
   animation:spFlow 5s linear infinite;
   clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
@@ -672,13 +678,19 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 #spEnter span{position:absolute;inset:1.5px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   background:linear-gradient(180deg,var(--sp-btn-top),var(--sp-btn-bot));
   clip-path:polygon(calc(var(--cut) - 1px) 0,100% 0,100% calc(100% - var(--cut) + 1px),calc(100% - var(--cut) + 1px) 100%,0 100%,0 calc(var(--cut) - 1px));
-  font:700 14px/1 system-ui,sans-serif;letter-spacing:.6em;text-indent:.6em;color:var(--sp-btn-ink);
+  font:700 13px/1 system-ui,sans-serif;letter-spacing:.55em;text-indent:.55em;color:var(--sp-btn-ink);
   text-shadow:0 0 8px var(--sp-btn-glow);transition:background .2s,color .2s;}
 #spEnter span::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;
   background:linear-gradient(100deg,transparent,var(--sp-sweep),transparent);animation:spSweep 2.8s ease-in-out infinite;}
 #spEnter:hover span,#spEnter:focus-visible span{background:linear-gradient(180deg,var(--sp-btn-top-on),var(--sp-btn-bot-on));color:var(--sp-white);}
 #spEnter:active{transform:scale(.97);}
 #spEnter:focus{outline:none;}
-.sp-hint{font:500 11px/1 system-ui,sans-serif;letter-spacing:.12em;color:var(--sp-hint);text-shadow:0 1px 0 var(--sp-shadow);}
+.sp-text{margin:0;font:12px/1.45 system-ui,sans-serif;color:var(--sp-soft);text-align:center;}
+.sp-foot{display:flex;justify-content:space-between;gap:10px;padding:9px 14px;border-top:1px solid var(--sp-edge2);
+  font:500 10px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.04em;color:var(--sp-soft);}
+.sp-foot b{color:var(--sp-ink);font-weight:600;}
+.sp-foot a{color:var(--sp-meta);text-decoration:none;}
+.sp-foot a:hover{color:var(--sp-white);text-decoration:underline;}
+@keyframes spIn{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:none;}}
 @keyframes spFlow{to{background-position:300% 0;}}
 @keyframes spSweep{0%{left:-60%;}60%,100%{left:120%;}}

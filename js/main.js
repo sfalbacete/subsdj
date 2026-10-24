@@ -37,9 +37,9 @@ import { VERSION } from './version.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 document.getElementById('verBadge').textContent = 'v' + VERSION;   // junto al título (js/version.js)
-initSplash();         // pantalla de entrada (demoscene): lo primero, tapa el montaje; ENTRAR arranca el audio
 initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
+initSplash();         // ventana de entrada (demoscene; ya está en el HTML y tapa el montaje): tras initFrame, para su escala; ENTRAR arranca el audio
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
 bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
 bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira

@@ -8,9 +8,9 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
-- **Pantalla de entrada** con una intro de demoscene old-school: plasma con
-  interferencia, el emblema del SubSDJ original en metal girando, el nombre en
-  barras de cobre y un scroller; la versión y su fecha, y el botón **ENTRAR**
+- **Ventana de entrada**: al abrir, una ventana sobre el instrumento (que se ve
+  detrás, apagado) con una pantallita de demoscene — plasma con interferencia y
+  el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**
   (o Intro), que además arranca el audio.
 - **Teclado en pantalla**: las teclas negras, centradas entre sus dos blancas
   (antes imitaban el desplazamiento de un piano acústico).

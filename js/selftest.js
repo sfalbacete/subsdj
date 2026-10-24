@@ -50,7 +50,7 @@ import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION, RELEASE } from './version.js';
-import { emblemAt, splashDate, SplashFx } from './ui/splash.js';
+import { splashDate, SplashFx } from './ui/splash.js';
 import { FM4_ALGS, layout as fm4Layout, svgFor as fm4Svg } from './ui/fm4Graph.js';
 
 const SR = 44100;
@@ -3351,29 +3351,18 @@ export async function runSelfTest() {
     push({ name: 'versión ' + VERSION + ' del ' + RELEASE + ' (= primera entrada del CHANGELOG, visible en la cabecera)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // Pantalla de entrada (splash): el emblema del SubSDJ original es de simetría
-    // 3 (girarlo 120° no cambia nada) con un hueco en el centro; un fotograma del
-    // efecto pinta algo (no un color plano) y deja el emblema y el título; la
-    // fecha que enseña es la de RELEASE.
+    // Ventana de entrada: un fotograma del efecto pinta algo (no un color plano),
+    // el nombre ya ha entrado entero a los 3 s y la fecha que enseña es la de RELEASE.
     const probs = [];
-    let asym = 0, cells = 0;
-    for (let i = 0; i < 400; i++) {
-      const a = i * 0.0157, rr = 0.12 + (i % 9) * 0.1,   // radios fuera de los bordes exactos del aro (0,15 · 0,30), donde decide el redondeo
-            x = rr * Math.cos(a), y = rr * Math.sin(a);
-      const v = emblemAt(x, y), c = Math.cos(2 * Math.PI / 3), s = Math.sin(2 * Math.PI / 3);
-      if (v !== emblemAt(x * c - y * s, x * s + y * c)) asym++;
-      if (v === 1) cells++;
-    }
-    if (asym) probs.push('emblema sin simetría de 120° (' + asym + ' puntos)');
-    if (emblemAt(0, 0) !== 2 || !(cells > 60)) probs.push('emblema: hueco ' + emblemAt(0, 0) + ', metal en ' + cells + ' de 400 puntos');
-    const cv = document.createElement('canvas'), fx = new SplashFx(cv, 1920, 1000);
-    fx.frame(4.0);
-    const d = fx.px, seen = new Set(); for (let i = 0; i < d.length; i += 37) seen.add(d[i]);
+    const cv = document.createElement('canvas'), fx = new SplashFx(cv);
+    fx.frame(3.0);
+    const d = fx.px, seen = new Set(); for (let i = 0; i < d.length; i += 7) seen.add(d[i]);
     if (!(seen.size > 40)) probs.push('el fotograma tiene ' + seen.size + ' colores (¿plano?)');
-    if (!(fx.stats.emblem > 500 && fx.stats.title > 500)) probs.push('emblema / título sin píxeles (' + fx.stats.emblem + ' / ' + fx.stats.title + ')');
+    const full = fx.tmask.reduce((a, v) => a + v, 0);
+    if (!(full > 300 && fx.stats.title === full)) probs.push('el nombre: ' + fx.stats.title + ' de ' + full + ' píxeles');
     const want = new Date(RELEASE + 'T12:00:00').getFullYear() + '';
     if (!splashDate(RELEASE).includes(want)) probs.push('fecha: «' + splashDate(RELEASE) + '»');
-    push({ name: 'pantalla de entrada (emblema de simetría 3 · el fotograma pinta · versión y fecha)', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'ventana de entrada (el fotograma pinta · el nombre entero · versión y fecha)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   // Tarjeta para redes (Open Graph): título, descripción, URL e imagen presentes; la
