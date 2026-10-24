@@ -18,6 +18,7 @@ import { initPresetPicker } from './ui/presetPicker.js';
 import { initRecorder } from './ui/recorder.js';
 import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
+import { initMeter } from './ui/meter.js';
 import { initADSRGraph } from './ui/adsrGraph.js';
 import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
@@ -78,6 +79,7 @@ document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.
 engine.init()
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
+    initMeter();         // medidor de salida: picos L/R y reducción del limitador
     if (!isStatus('powerInfo', 'on')) setStatus('powerInfo', 'wait', 'audio listo: pulsa una tecla o una nota para sonar');
   })
   .catch(err => {

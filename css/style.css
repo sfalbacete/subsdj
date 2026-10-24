@@ -500,6 +500,21 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 @keyframes lcdScroll{0%,12%{transform:translateX(0);}88%,100%{transform:translateX(var(--dx,0));}}
 .vizrow{display:flex;gap:8px;margin-top:8px;flex:1;min-height:0;}
 .vizrow canvas{flex:1;min-width:0;height:100%;display:block;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+/* Medidor de salida (ui/meter.js): dos barras de pico (−48..0 dBFS; las zonas, fijas en el fondo:
+   −12 dBFS al 75 %, −1 al 97,9 %) que una tapa semitransparente esconde desde arriba, la raya
+   de retención y la reducción del limitador (violeta, desde arriba). Solo transform: sin layout */
+.meter{flex:none;width:60px;display:flex;flex-direction:column;gap:4px;}
+.mt-bars{flex:1;min-height:0;display:flex;gap:3px;padding:4px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+.mt-ch,.mt-gr{position:relative;overflow:hidden;border-radius:2px;}
+.mt-ch{flex:1;background:linear-gradient(to top,var(--accent) 0 75%,var(--star) 75% 97.9%,var(--hot) 97.9%);}
+.mt-ch i{position:absolute;inset:0;background:color-mix(in srgb,var(--screen) 86%,transparent);transform-origin:top;transform:scaleY(1);}
+.mt-ch b{position:absolute;inset:0;border-top:2px solid var(--ink);transform:translateY(100%);}
+.mt-gr{flex:none;width:6px;background:color-mix(in srgb,var(--accent2) 14%,transparent);}
+.mt-gr i{position:absolute;inset:0;background:var(--accent2);transform-origin:top;transform:scaleY(0);}
+.mt-foot{display:flex;align-items:center;justify-content:space-between;gap:2px;font:600 10px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;
+  color:var(--dim);font-variant-numeric:tabular-nums;}
+#mtLed{padding:2px 4px;border:1px solid var(--edge);border-radius:4px;background:none;color:var(--dim);font:inherit;cursor:pointer;}
+#mtLed.on{color:var(--hot);border-color:var(--hot);box-shadow:0 0 6px color-mix(in srgb,var(--hot) 50%,transparent);}
 
 /* Teclado: parte del instrumento, se escala con él */
 #kbWrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}

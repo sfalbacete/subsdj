@@ -32,6 +32,7 @@ import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
 import { velFromY } from './ui/keyboard.js';
+import { feedMeter, meterLedOn } from './ui/meter.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
@@ -3439,6 +3440,58 @@ export async function runSelfTest() {
     } catch (e2) {
       r = { name: 'limitador: transparente bajo el techo, ninguna muestra lo pasa, se recupera; pico real < 0 dBTP', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
+    push(r);
+  }
+
+  {
+    // Medidor de salida (Roadmap 7.0 · 1.3). Motor: con 'meter-on', el limitador manda
+    // cada 50 ms los máximos del intervalo; una ráfaga a +12 dB en L marca > 6 dB de
+    // reducción y su pico de entrada, ningún pico de salida pasa del techo y en el
+    // silencio de después los picos son 0. UI (ui/meter.js, alimentado con esos datos
+    // tal cual): la ráfaga llena la barra de reducción y enciende el LED, que se queda
+    // encendido; tras 3 s de silencio, picos «−∞» y barras vacías (caen a 24 dB/s);
+    // el clic apaga el LED.
+    const NAME = 'medidor de salida (picos y reducción del limitador · LED que se queda · −∞ en silencio)';
+    let r;
+    try {
+      const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), N = Math.ceil(SR * 1.2), ctx = new OfflineAudioContext(2, N, SR);
+      await loadWorklets(ctx);
+      const sala = new Sala(ctx, makeDefaultState(), { master: 1 });
+      const msgs = []; sala.comp.port.onmessage = e => msgs.push(e.data);
+      sala.comp.port.postMessage('meter-on');
+      await new Promise(res => setTimeout(res, 50));
+      const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
+      for (let i = Math.floor(0.1 * SR); i < Math.floor(0.4 * SR); i++) { const s = Math.sin(2 * Math.PI * 440 * i / SR); xl[i] = 4 * s; xr[i] = 0.25 * s; }   // L a +12 dB, R a −12
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
+      await ctx.startRendering();
+      await new Promise(res => setTimeout(res, 100));
+      const grDb = m => -20 * Math.log10(m.g);
+      const maxGr = Math.max(0, ...msgs.map(grDb)), maxIn = Math.max(0, ...msgs.map(m => m.i)), maxOut = Math.max(0, ...msgs.map(m => Math.max(m.l, m.r)));
+      const last = msgs[msgs.length - 1];
+      if (!(msgs.length >= 18 && msgs.length <= 26)) probs.push(msgs.length + ' mensajes en 1,2 s (esperados ~24)');
+      if (!(maxGr > 6)) probs.push('la ráfaga marca ' + maxGr.toFixed(1) + ' dB de reducción (esperado > 6)');
+      if (!(20 * Math.log10(maxIn) > 12)) probs.push('pico de entrada ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB (esperado > +12)');
+      if (!(maxOut <= CEIL * 1.0001)) probs.push('un pico de salida pasa del techo (' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS)');
+      if (!last || last.l !== 0 || last.r !== 0) probs.push('en silencio los picos no son 0 (' + (last ? last.l + '/' + last.r : 'sin datos') + ')');
+      // la UI, con esos datos y luego 3 s de silencio (todo seguido: sin que entren los del motor en vivo)
+      const led = document.getElementById('mtLed'), grBar = document.querySelector('#meter .mt-gr i');
+      const scale = e => +(/scaleY\(([\d.]+)\)/.exec(e.style.transform) || [0, NaN])[1];
+      led.classList.remove('on');
+      const t0 = performance.now() / 1000 + 10;
+      let grFull = 0;
+      msgs.forEach((m, k) => { feedMeter(m, t0 + k * 0.05); grFull = Math.max(grFull, scale(grBar)); });
+      if (!(grFull > 0.5)) probs.push('la barra de reducción llega a ' + grFull.toFixed(2) + ' (esperado > 0,5: más de 6 de 12 dB)');
+      if (!meterLedOn()) probs.push('la ráfaga no enciende el LED');
+      for (let k = 0; k < 60; k++) feedMeter({ l: 0, r: 0, i: 0, g: 1 }, t0 + (msgs.length + k) * 0.05);
+      const covers = [...document.querySelectorAll('#meter .mt-ch i')].map(scale);
+      if (document.getElementById('mtPk').textContent !== '−∞') probs.push('en silencio el pico dice «' + document.getElementById('mtPk').textContent + '»');
+      if (!covers.every(c => c === 1) || scale(grBar) !== 0) probs.push('en silencio las barras no se vacían (' + covers.join('/') + ' · ' + scale(grBar) + ')');
+      if (!meterLedOn()) probs.push('el LED no se queda encendido');
+      led.click();
+      if (meterLedOn()) probs.push('el clic no apaga el LED');
+      console.log('medidor: ' + msgs.length + ' mensajes · reducción máx ' + maxGr.toFixed(1) + ' dB · entrada ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB · salida ' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS');
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 

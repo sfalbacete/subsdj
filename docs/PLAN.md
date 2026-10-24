@@ -3,7 +3,7 @@
 Fecha: 2026-10-24 · **publicada la 1.2.0**: mezclador a la Minimoog, velocity con el ratón, checks
 fiables y del Roadmap 7.0 los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1 (194/194). Lo que se haga
 a partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente (1.3.0 si son funciones).
-Siguiente en el orden: 1.3 medidor, 2.5 macros, 2.6 tacto.
+Siguiente en el orden: 2.5 macros, 2.6 tacto (1.3 medidor hecho el 2026-10-25).
 
 ## Roadmap 7.0 «el instrumento» (propuesto 2026-10-17 · pendiente de acordar)
 
@@ -36,7 +36,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | **1** | **Taller de sonido** | | | |
 | 1.1 | Deshacer / rehacer ✔ | probar sin miedo — HECHO 2026-10-17 | bajo-medio | 0.1 |
 | 1.2 | Comparar con el guardado ✔ | ¿mi edición mejora el preset? — HECHO 2026-10-17 | bajo | 1.1 |
-| 1.3 | Medidor de salida | margen y trabajo del limitador a la vista | bajo-medio | — |
+| 1.3 | Medidor de salida ✔ | margen y trabajo del limitador a la vista — HECHO 2026-10-25 (junto al espectro, en Salida) | bajo-medio | — |
 | 1.4 | Biblioteca 2.0 | etiquetas, descripción de uso, buscador, escuchar sin cargar | medio | — |
 | **2** | **Expresión y movimiento** | | | |
 | 2.1 | Envolvente de modulación con bucle ✔ | ritmos de timbre atados a cada nota — HECHO 2026-10-20 (panel en Secuenciación) | medio | — |

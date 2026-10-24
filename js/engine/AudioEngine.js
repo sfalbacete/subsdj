@@ -60,7 +60,7 @@ const PERF_TAU = 0.02;
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=11';  // v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=12';  // v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;

@@ -8,6 +8,11 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Medidor de salida** en el módulo Salida, junto al espectro: picos L y R de
+  lo que sale (amarillo desde −12 dBFS, rojo desde −1, el techo del
+  limitador), la reducción del limitador y el LED **lim**, que se queda
+  encendido si el limitador ha trabajado (clic para apagarlo). Los datos los
+  manda el propio limitador cada 50 ms.
 - **Ventana de entrada**: al abrir, una ventana sobre el instrumento (que se ve
   detrás, apagado) con una pantallita de demoscene — plasma con interferencia y
   el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**

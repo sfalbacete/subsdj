@@ -367,8 +367,13 @@
     <div class="panel grow" id="salida" data-slot="salida">
       <h2>Salida</h2>
       <div class="readout"><span class="who" id="dispWho">Preset</span><span class="side" id="dispWhy"><span></span></span><span class="v" id="dispVal"><span>—</span></span></div>
-      <div class="vizrow"><canvas id="scope"></canvas><canvas id="spectrum"></canvas></div>
-      <div class="help"><b>Salida.</b> La pantalla del instrumento: el último parámetro que tocas (con el ratón o con un mando MIDI) y, en grande, su valor; en la línea de arriba, qué significa la opción elegida o, si ahora mismo no hace nada (está atenuado), por qué. Al cargar un preset, su nombre. Lo que no cabe encoge la letra y, si ni así, se desplaza despacio de un lado a otro, como el LCD de un sinte. Abajo, el osciloscopio y el espectro de lo que suena en el máster (todas las partes).</div>
+      <div class="vizrow"><canvas id="scope"></canvas><canvas id="spectrum"></canvas>
+        <div class="meter" id="meter" title="Medidor de salida: picos L y R de lo que sale (de −48 a 0 dBFS; amarillo desde −12, rojo desde −1, donde está el techo del limitador; la raya, el pico de hace 1 s). La barra violeta es la reducción de ganancia del limitador (llena = 12 dB). Abajo, el pico más alto reciente en dBFS">
+          <div class="mt-bars"><div class="mt-ch"><i></i><b></b></div><div class="mt-ch"><i></i><b></b></div><div class="mt-gr"><i></i></div></div>
+          <div class="mt-foot"><span id="mtPk">−∞</span><button type="button" id="mtLed" title="Se enciende cuando el limitador trabaja y se queda encendido: clic para apagarlo">lim</button></div>
+        </div>
+      </div>
+      <div class="help"><b>Salida.</b> La pantalla del instrumento: el último parámetro que tocas (con el ratón o con un mando MIDI) y, en grande, su valor; en la línea de arriba, qué significa la opción elegida o, si ahora mismo no hace nada (está atenuado), por qué. Al cargar un preset, su nombre. Lo que no cabe encoge la letra y, si ni así, se desplaza despacio de un lado a otro, como el LCD de un sinte. Abajo, el osciloscopio y el espectro de lo que suena en el máster (todas las partes) y el <b>medidor</b>: picos L y R de lo que sale (amarillo desde −12 dBFS, rojo desde −1, el techo del limitador), la reducción del limitador en violeta y el LED <b>lim</b>, que se queda encendido si el limitador ha trabajado (clic para apagarlo). Margen sano: los picos por debajo de −1 y el LED apagado; si se enciende, el sonido se está comprimiendo (baja el Master del preset o el Nivel de las partes).</div>
     </div>
   </div>
 </div>

@@ -290,6 +290,20 @@ Todo se lee del propio control (su etiqueta o `data-lab`, su `.val`, el
 botón activo, la opción elegida) y de su sección: no hay otra tabla de
 nombres. Debajo, el osciloscopio y el espectro del máster, ahora grandes.
 
+**Medidor de salida** (`ui/meter.js`, junto al espectro): picos L y R de lo
+que SALE (después del limitador; de −48 a 0 dBFS, amarillo desde −12, rojo
+desde −1, que es el techo), una raya con el pico del último segundo, la
+reducción de ganancia del limitador en violeta (llena = 12 dB), el pico más
+alto en cifras y el LED **lim**, que se enciende en cuanto el limitador quita
+más de 0,1 dB y se queda hasta clicarlo: así se ve un apretón que dura un
+instante. Los datos los calcula el propio limitador (`limiter-processor`): con
+`meter-on` acumula los máximos del intervalo (cuatro comparaciones por
+muestra) y cada 50 ms los manda por su `port`. El hilo principal no mira
+muestras: pinta al llegar el dato, solo con `transform` (las zonas son el
+fondo fijo de la barra y una tapa semitransparente la esconde desde arriba),
+y con la pestaña oculta el limitador calla (`meter-off`). Las barras caen a
+24 dB/s y la raya espera 1 s antes de caer.
+
 La **cabecera** es una sola fila: título, pestañas, presets (‹ selector ›,
 nombre, Guardar y **Archivo ▾** con Borrar, Exportar, Importar y SFZ — los
 mismos botones, plegados), MIDI map, Reset, Pánico, Grabar, Partes, tema y
@@ -438,9 +452,16 @@ de cada parte, y en capa las cuatro partes suman).
 
 - Layout estilo **tracker** (FastTracker), 2 filas:
   fila baja `Z S X D C V G B H N J M`, fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`.
-- Octava: `RePág` / `AvPág`, o los botones − / + bajo el teclado (muestran el
-  rango visible, p. ej. C4–C6). Las notas, también con el ratón sobre el
-  teclado en pantalla. Polifónico.
+- Octava: `RePág` / `AvPág`, o los botones − / + bajo el teclado (muestran lo
+  que alcanza el teclado del PC, de la Z a la P: p. ej. C3–E5). Es la octava
+  del TECLADO DEL PC, aparte de la del teclado en pantalla: la Z va de C0 a C7
+  (la fila alta llega a C9) y el de pantalla (hasta 6 octavas, tope C9) se
+  desplaza lo justo para enseñarla. Antes eran la misma y, con 6 octavas en
+  pantalla, la P se quedaba en E5. De entrada, Z = C3 y Q = C4 (Do central).
+- Con el ratón sobre el teclado en pantalla: la altura de la pulsación es la
+  velocity y, con el botón pulsado, cada tecla que pisa suena y suelta la
+  anterior (glissando; el puntero se delega en el contenedor, con captura).
+  Polifónico.
 
 ## MIDI
 
