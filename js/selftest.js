@@ -3362,7 +3362,24 @@ export async function runSelfTest() {
     if (!(full > 300 && fx.stats.title === full)) probs.push('el nombre: ' + fx.stats.title + ' de ' + full + ' píxeles');
     const want = new Date(RELEASE + 'T12:00:00').getFullYear() + '';
     if (!splashDate(RELEASE).includes(want)) probs.push('fecha: «' + splashDate(RELEASE) + '»');
-    push({ name: 'ventana de entrada (el fotograma pinta · el nombre entero · versión y fecha)', peak: 0, ok: !probs.length, problems: probs });
+    // «Acerca de»: el título de la cabecera la reabre (aquí, con ?selftest, empezó cerrada),
+    // con VOLVER; mientras está, una tecla no toca; Escape la cierra
+    const sp = document.getElementById('splash');
+    if (!sp || !sp.hidden) probs.push('con ?selftest la ventana debería empezar cerrada');
+    else {
+      document.getElementById('aboutBtn').click();
+      const lab = document.querySelector('#spEnter span').textContent;
+      if (sp.hidden || lab !== 'VOLVER') probs.push('«Acerca de»: ' + (sp.hidden ? 'no se abre' : 'el botón dice ' + lab));
+      const before = engine.voices.size;
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', bubbles: true }));
+      const during = engine.voices.size;
+      document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'z', code: 'KeyZ', bubbles: true }));
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      await new Promise(res => setTimeout(res, 600));
+      if (during !== before) probs.push('con la ventana abierta el teclado toca');
+      if (!sp.hidden) probs.push('Escape no cierra el «Acerca de»');
+    }
+    push({ name: 'ventana de entrada (el fotograma pinta · el nombre entero · versión y fecha · «Acerca de»)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   // Tarjeta para redes (Open Graph): título, descripción, URL e imagen presentes; la

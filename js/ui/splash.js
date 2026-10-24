@@ -129,41 +129,58 @@ export class SplashFx {
   }
 }
 
+// Una sola ventana en la página: se abre al cargar (entrada: ENTRAR arranca el audio)
+// y se reabre como «Acerca de» (el título de la cabecera, el menú Archivo): VOLVER,
+// Escape o un clic fuera la cierran. Al cerrar se OCULTA (no se borra) y se para el efecto.
+let open = () => {};
+export const openSplash = (about = true) => open(about);
+
 export function initSplash() {
   const el = document.getElementById('splash');
   if (!el) return;
-  const q = new URLSearchParams(location.search);
-  if (q.has('selftest') || q.has('nosplash')) { el.remove(); return; }
-  const card = el.querySelector('.sp-card'), btn = el.querySelector('#spEnter');
+  const card = el.querySelector('.sp-card'), btn = el.querySelector('#spEnter'), label = btn.querySelector('span');
   el.querySelector('#spVer').textContent = 'v' + VERSION;
   el.querySelector('#spDate').textContent = splashDate(RELEASE);
   const fx = new SplashFx(el.querySelector('canvas'));
   const scale = () => { card.style.zoom = uiZoom(); };          // a la escala del instrumento (en una 4K al 150 %, ~1,3)
-  scale(); addEventListener('resize', scale);
-  let t0 = null, raf = 0, gone = false;
+  let t0 = null, raf = 0, shown = false, about = false, timer = 0;
   const loop = now => {
     if (t0 === null) t0 = now;
     fx.frame((now - t0) / 1000);
     raf = requestAnimationFrame(loop);
   };
-  raf = requestAnimationFrame(loop);
-  const keys = e => {                                         // mientras está la ventana, el teclado no toca notas
-    if (e.key === 'Enter' || e.key === ' ') enter();
+  // Mientras está la ventana, el teclado no toca notas. Se registra UNA vez, aquí, antes que el
+  // teclado (que también escucha en captura sobre window): el primero registrado, el primero en oír.
+  const keys = e => {
+    if (!shown) return;
+    if (e.key === 'Enter' || e.key === ' ' || (about && e.key === 'Escape')) close();
     e.stopImmediatePropagation(); e.preventDefault();          // también frente a otros listeners de window (el teclado escucha ahí)
   };
-  function enter() {
-    if (gone) return; gone = true;
-    try {                                                     // el gesto que el navegador pide para sonar
+  function close() {
+    if (!shown) return; shown = false;
+    if (!about) try {                                         // la entrada: el gesto que el navegador pide para sonar
       const e = part();
       if (e && e.ctx && e.ctx.state === 'suspended') e.ctx.resume().then(() => setStatus('powerInfo', 'on', 'audio activo')).catch(() => {});
     } catch (err) {}
     fx.exitT = (performance.now() - (t0 ?? performance.now())) / 1000;
     el.classList.add('out');
-    removeEventListener('keydown', keys, true);
     removeEventListener('resize', scale);
-    setTimeout(() => { cancelAnimationFrame(raf); el.remove(); }, 460);
+    timer = setTimeout(() => { cancelAnimationFrame(raf); el.hidden = true; }, 460);
   }
+  open = (asAbout) => {
+    if (shown) return; shown = true; about = asAbout;
+    clearTimeout(timer); cancelAnimationFrame(raf);
+    label.textContent = about ? 'VOLVER' : 'ENTRAR';
+    fx.exitT = null; t0 = null;
+    el.hidden = false; el.classList.remove('out');
+    scale(); addEventListener('resize', scale);
+    raf = requestAnimationFrame(loop);
+    btn.focus({ preventScroll: true });
+  };
   addEventListener('keydown', keys, true);
-  btn.addEventListener('click', enter);
-  btn.focus({ preventScroll: true });
+  btn.addEventListener('click', close);
+  el.addEventListener('click', e => { if (about && !card.contains(e.target)) close(); });   // «Acerca de»: un clic fuera también cierra
+  const q = new URLSearchParams(location.search);
+  if (q.has('selftest') || q.has('nosplash')) el.hidden = true;   // pruebas y capturas: sin entrada (el «Acerca de» sigue)
+  else open(false);
 }

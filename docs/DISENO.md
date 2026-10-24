@@ -2131,10 +2131,16 @@ brillo que lo recorre, que entra con un fundido de **trama ordenada** (Bayer
 4×4). Debajo, en HTML: el botón **ENTRAR** de esquinas cortadas con borde de
 gradiente que fluye — el gesto que el navegador pide para arrancar el audio;
 Intro también entra, y mientras la ventana está el teclado no toca notas
-(`stopImmediatePropagation` en captura) —, una línea que explica por qué, y al
+(`stopImmediatePropagation` en captura) —, y al
 pie la versión, su fecha (`RELEASE` en `version.js`; el check de versión
-exige que sea la del CHANGELOG), el código y la licencia. La ventana se escala
+exige que sea la del CHANGELOG), el código (con el icono de GitHub) y la licencia. La ventana se escala
 con el instrumento (`zoom` = `uiZoom()`: en una 4K al 150 %, 1,3).
+Se reabre como **«Acerca de»** (el título «SubSDJ v1.2.0» de la cabecera, o
+Archivo ▾ → Acerca de SubSDJ…): el botón dice VOLVER, y Escape o un clic fuera
+la cierran. Por eso al cerrar se OCULTA y se para el efecto, en vez de
+borrarse. Ojo con el teclado: también escucha en captura sobre `window`, así
+que la guarda de la ventana se registra UNA vez al iniciar, antes que él (el
+primero registrado es el primero en oír), y solo actúa con la ventana abierta.
 Los colores son de la marca, no del tema: tokens `--sp-*` en `:root` (la regla de la piel: ningún literal de
 color fuera de ahí), las paletas del lienzo como listas de paradas que se leen
 con `tokenList` de `theme.js`. Va estática en `index.html` para estar

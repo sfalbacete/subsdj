@@ -25,7 +25,7 @@ import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
-import { initSplash } from './ui/splash.js';
+import { initSplash, openSplash } from './ui/splash.js';
 import { initRotaries } from './ui/rotary.js';
 import { initFm4Graph } from './ui/fm4Graph.js';
 import { initDisplay } from './ui/display.js';
@@ -40,6 +40,7 @@ document.getElementById('verBadge').textContent = 'v' + VERSION;   // junto al t
 initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
 initSplash();         // ventana de entrada (demoscene; ya está en el HTML y tapa el montaje): tras initFrame, para su escala; ENTRAR arranca el audio
+for (const id of ['aboutBtn', 'verBadge', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «Acerca de»: la misma ventana
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
 bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
 bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira
