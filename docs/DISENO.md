@@ -44,6 +44,26 @@ git tag subsdj-vX.Y.Z $(git subtree split --prefix=WebAudioAPI/synth_test)
 git push subsdj subsdj-vX.Y.Z:refs/tags/vX.Y.Z
 ```
 
+Ojo con editar directamente en el repo público (por ejemplo un fichero desde
+la web de GitHub): ese commit no está en la historia de desarrollo y el
+`subtree push` siguiente se rechaza (no es fast-forward), y un `subtree pull`
+tampoco sirve («unrelated histories»: aquí nunca hubo `subtree add`). Lo que se
+hizo en la 1.2.0 (una corrección del CHANGELOG hecha en la web que ya estaba
+también aquí): registrar ese commit con un merge que no cambia nada, con las
+marcas que git-subtree reconoce, y publicar el split, que ya lo incluye:
+
+```
+git merge -s ours --allow-unrelated-histories <commit-web> -m "…
+
+git-subtree-dir: WebAudioAPI/synth_test
+git-subtree-mainline: <HEAD de antes>
+git-subtree-split: <commit-web>"
+git push subsdj $(git subtree split --prefix=WebAudioAPI/synth_test):refs/heads/main
+```
+
+Si el cambio de la web NO estuviera aquí, antes hay que copiarlo a mano. Lo
+sencillo es no editar en el repo público.
+
 GitHub Pages sirve con unos 10 minutos de caché: justo después de publicar,
 una recarga normal puede mezclar módulos viejos y nuevos (Ctrl+F5). Para
 comprobar la versión publicada, el selftest contra Pages:
