@@ -16,10 +16,12 @@ build step. The interface and the docs are in Spanish.*
 ## Cómo se toca
 
 - **Teclado del ordenador**, al estilo tracker: fila baja `Z S X D C V G B H N J M`,
-  fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`; la octava, con `RePág` / `AvPág`. Va por
-  la posición de las teclas, así que el piano queda en su sitio también en
-  AZERTY o Dvorak. Con el ratón sobre el teclado en pantalla, la altura a la
-  que pulsas la tecla es la fuerza (velocity).
+  fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`; la octava, con `RePág` / `AvPág` (la Z
+  va de C0 a C7, así que la fila alta llega a C9; de entrada, la Q es el Do
+  central). Va por la posición de las teclas, así que el piano queda en su
+  sitio también en AZERTY o Dvorak. Con el ratón sobre el teclado en pantalla,
+  la altura a la que pulsas la tecla es la fuerza (velocity), y arrastrando
+  con el botón pulsado va tocando las teclas que pisa.
 - **Teclado MIDI**: se conecta solo al aceptar el permiso del navegador
   (velocity, pitch bend, sustain y Program Change). **MIDI map** liga
   cualquier mando físico a cualquier control.
@@ -29,6 +31,9 @@ build step. The interface and the docs are in Spanish.*
 - Tres pantallas: **Diseño** (el sonido), **Secuenciación** (arpegiador,
   secuenciador, la envolvente en bucle, los Pasos, partes y escenas) y
   **Presets** (la biblioteca).
+- El **selector de presets** de la cabecera busca (sin importar acentos ni
+  mayúsculas) y filtra por categoría; un clic o `↑` `↓` cargan para probar,
+  `Intro` elige y cierra, y **Navegar todos** abre la pantalla Presets.
 - `Ctrl+Z` / `Ctrl+Y` deshacen y rehacen. El ● junto al nombre del preset
   avisa de que has cambiado algo, y **Comparar** alterna entre lo guardado y
   tu edición.

@@ -24,6 +24,7 @@
 import { AudioEngine } from '../engine/AudioEngine.js';
 import { part } from '../engine/parts.js';
 import { encodeWav, download } from './recorder.js';
+import { currentPreset } from './presetBank.js';
 
 const SR = 44100;
 const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -281,8 +282,7 @@ export function initSfzExport() {
   btn.addEventListener('click', async () => {
     if (btn.disabled) return;
     btn.disabled = true;
-    const sel = document.getElementById('presetSelect');
-    const name = (sel && sel.selectedOptions[0] && sel.selectedOptions[0].textContent) || 'preset';
+    const name = currentPreset()?.nombre || 'preset';
     try {
       // exporta lo que SUENA ahora: el preset cargado + los retoques de knobs
       const kit = await exportPresetSFZ(name, structuredClone(part().S),

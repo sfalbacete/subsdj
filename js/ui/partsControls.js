@@ -15,6 +15,7 @@ import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
 import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
+import { currentPreset, markPreset, markPresetByName } from './presetBank.js';
 
 const SALA_PANELS = ['Delay', 'Reverb', 'Cinta'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
@@ -103,11 +104,9 @@ function choose(i) {
   const sc = getScene(); if (!sc || i === sc.sel) return;
   selectPart(i);
   syncControls(part().S);                     // el rack enseña la parte (sin cortarle las notas)
-  const sel = $('presetSelect'), p = sc.parts[i];
-  if (sel && p.presetVal) sel.value = p.presetVal;
-  if (sel && sel.selectedIndex < 0 && p.presetName) {   // escenas de antes de la biblioteca ('f:Nombre'): por nombre
-    const o = [...sel.options].find(o => o.textContent === p.presetName); if (o) sel.value = o.value;
-  }
+  const p = sc.parts[i];
+  if (p.presetVal) markPreset(p.presetVal);
+  if (!currentPreset() && p.presetName) markPresetByName(p.presetName);   // escenas de antes de la biblioteca ('f:Nombre'): por nombre
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Parte ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
   refreshNames();
   document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte
@@ -141,8 +140,8 @@ async function toggle(btn) {
   btn.disabled = true;
   try { await enableScene(); } finally { btn.disabled = false; }
   buildStrips(); setUI(true); syncControls(part().S);
-  const sel = $('presetSelect'), p0 = getScene().parts[0];      // la parte 1 hereda el sonido (y su nombre de preset)
-  if (sel && sel.selectedOptions[0]) { p0.presetVal = sel.value; p0.presetName = sel.selectedOptions[0].textContent; refreshNames(); }
+  const cur = currentPreset(), p0 = getScene().parts[0];      // la parte 1 hereda el sonido (y su nombre de preset)
+  if (cur) { p0.presetVal = cur.id; p0.presetName = cur.nombre; refreshNames(); }
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Partes: la 1 hereda el sonido que había';
 }
 

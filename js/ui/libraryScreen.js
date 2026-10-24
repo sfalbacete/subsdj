@@ -7,11 +7,11 @@
    preset va por el mismo camino que el selector rápido; una escena, por el
    de ⇧ Escena del módulo Arreglo (enciende las Partes si hace falta). */
 import { library, normaliza } from '../engine/library.js';
-import { loadPresetId } from './presetBank.js';
+import { loadPresetId, currentPresetId } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
 
 const $ = id => document.getElementById(id);
-let list, sel, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: la escena que suena (solo una)
+let list, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: la escena que suena (solo una)
 const msg = t => { if (msgEl) msgEl.textContent = t; };
 
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -40,7 +40,7 @@ function row(it, cur) {
   r.title = it.tipo === 'escena' ? 'Cargar la escena (enciende las Partes) · arrastra para mover'
                                  : 'Cargar en la parte que edita el rack · arrastra para mover';
   const star = mk('span', 'pl-star' + (it.fav ? ' on' : ''), '★');
-  star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale el primero en el selector rápido';
+  star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale en «★ Favoritos» del selector rápido';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
   r.appendChild(star);
   if (it.tipo === 'escena') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
@@ -82,7 +82,7 @@ async function cargar(it) {
 function render() {
   if (!list) return;
   list.innerHTML = '';
-  const q = normaliza(filtro), cur = sel ? sel.value : null;
+  const q = normaliza(filtro), cur = currentPresetId();
   for (const s of library.secciones()) {
     const todos = library.items(s.id);
     let items = todos;
@@ -119,10 +119,10 @@ function render() {
   }
   if (!list.children.length) list.appendChild(mk('div', 'note', q || soloFav ? 'Nada que coincida.' : 'Biblioteca vacía: ⟲ Traer de fábrica.'));
 }
-function mark() { if (!list || !sel) return; list.querySelectorAll('.pl-item').forEach(r => r.classList.toggle('cur', r.dataset.id === sel.value)); }
+function mark() { if (!list) return; const cur = currentPresetId(); list.querySelectorAll('.pl-item').forEach(r => r.classList.toggle('cur', r.dataset.id === cur)); }
 
 export function initLibraryScreen() {
-  list = $('presetList'); sel = $('presetSelect'); msgEl = $('libMsg');
+  list = $('presetList'); msgEl = $('libMsg');
   if (!list) return;
   $('libSearch').addEventListener('input', e => { filtro = e.target.value; render(); });
   $('libFavOnly').addEventListener('change', e => { soloFav = e.target.checked; render(); });
@@ -137,9 +137,8 @@ export function initLibraryScreen() {
         + (r.errores.length ? ' No se pudo leer: ' + r.errores.join(', ') + '.' : ''));
   });
   document.addEventListener('library-changed', render);
-  if (sel) sel.addEventListener('change', mark);
-  document.addEventListener('preset-loaded', mark);   // ‹ ›, program change
-  document.addEventListener('part-changed', mark);    // cambiar de parte pone sel.value sin change
+  document.addEventListener('preset-loaded', mark);   // selector rápido, ‹ ›, program change
+  document.addEventListener('preset-marked', mark);   // cambiar de parte o guardar: el actual cambia sin cargar
   document.addEventListener('play-changed', render);   // ▶/⏹ de las escenas al día (también desde ▶ Tocar)
   document.addEventListener('scene-changed', render);  // Pánico o Partes apagadas paran el director
   document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // otra escena (⇧ Escena, ↺ Última)

@@ -105,8 +105,14 @@ variable `CHROME` si no es la habitual).
   de verdad para presets y escenas, en secciones que creas, renombras,
   reordenas y borras; los ítems se cargan con un clic, se mueven arrastrando
   (a otra sección o a otra posición), se renombran en línea, se marcan ★
-  (salen los primeros en el selector rápido) y se borran; buscar ignora
-  acentos y mayúsculas. Vive entera en localStorage (`subsdj.biblioteca.v1`).
+  (salen en «★ Favoritos» del selector rápido) y se borran; buscar ignora
+  acentos y mayúsculas. El **selector rápido** de la cabecera
+  (`ui/presetPicker.js`) sustituye al desplegable, que con 300 presets en 16
+  secciones ya no se recorría: buscador, categorías con cuántos coinciden en
+  cada una y la lista; un clic o ↑ ↓ cargan sin cerrar (para PROBAR: tras el
+  clic el foco sale del buscador y el teclado del PC vuelve a tocar notas),
+  y Esc lo cierra sin hacer pánico (keyboard.js pregunta antes con el evento
+  `escape-first`). Vive entera en localStorage (`subsdj.biblioteca.v1`).
   La fábrica (código), los bancos del repo (`subsdj-demos.json`,
   `subsdj-presets-2.0.json`), las escenas de `escenas/` y los presets de
   usuario antiguos son SEMILLA: entran la primera vez y desde entonces mandas

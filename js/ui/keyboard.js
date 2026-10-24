@@ -35,9 +35,16 @@ const HINTS = {};
 for (const [code, off] of Object.entries(KEYMAP)) HINTS[off] = code;
 const hintChip = off => off in HINTS ? `<span class="klab">${keyLabel(HINTS[off]).toUpperCase()}</span>` : '';
 
-let baseOctave = 4;
+// Dos octavas distintas: la de la VISTA (la primera tecla en pantalla, hasta 6 octavas
+// con tope en C9) y la del QWERTY (la de la Z), que es la que mueven RePág/AvPág y − / +.
+// Antes eran la misma y el QWERTY, que solo abarca 2 octavas y una tercera, se paraba
+// donde se paraba la vista: con 6 octavas en pantalla (C3–C9 arriba del todo), en E5.
+let viewOctave = 4;
 let numOctaves = 2;
-let octaveTouched = false;  // el usuario fijó octava con RePág/AvPág → no re-centrar al redimensionar
+let qOctave = 3;            // Z = C3, Q = C4 (el Do central)
+const Q_MAX = 7;            // Z = C7: la P llega a E9 (MIDI 124; el tope del MIDI es 127)
+const Q_TOP = 28;           // la P: dos octavas y una tercera sobre la Z
+const qStart = () => (qOctave + 1) * 12;
 let kb;
 const active = new Map();   // midi -> element|null: lo que SUENA
 // Quién sostiene cada nota: 'k:KeyZ' (tecla del PC), 'p:<pointerId>' (ratón o un dedo), 'midi'.
@@ -45,19 +52,26 @@ const active = new Map();   // midi -> element|null: lo que SUENA
 // ni un dedo la de otro dedo sobre la misma tecla.
 const holders = new Map();  // midi -> Set de fuentes
 const held = new Map();     // e.code -> midi (la nota que dio esa tecla al pulsarla)
-const pointers = new Map(); // pointerId -> midi
+const pointers = new Map(); // pointerId -> midi que toca (null: botón pulsado fuera de las teclas)
 
 // Octavas que caben en el ancho disponible: ~38px por tecla blanca, 1..6.
 const KEY_PX = 38;
 const octavesForWidth = () =>
   Math.max(1, Math.min(6, Math.floor(((kb.clientWidth - 16) / KEY_PX - 1) / 7)));
-// Octava base por defecto: rango centrado alrededor de C4-C5 (con tope en C9).
+// Octava de la vista por defecto: rango centrado alrededor de C4-C5 (con tope en C9).
 const defaultBase = n => Math.max(0, Math.min(9 - n, 5 - Math.ceil(n / 2)));
+// La vista sigue al QWERTY: se mueve lo justo para que quepa de la Z a la P
+// (y, si la vista es más corta que eso, empieza en la Z).
+function fitView() {
+  let v = Math.max(Math.min(viewOctave, qOctave), qOctave + Math.ceil(Q_TOP / 12) - numOctaves);
+  if (v > qOctave) v = qOctave;
+  viewOctave = Math.max(0, Math.min(9 - numOctaves, v));
+}
 
 function buildKeyboard() {
   kb.innerHTML = '<div id="kbKeys"></div>';
   const row = kb.firstElementChild;
-  const startMidi = (baseOctave + 1) * 12;
+  const startMidi = (viewOctave + 1) * 12;
   const semis = [0, 2, 4, 5, 7, 9, 11];
   const blackAfter = { 0: 1, 2: 3, 5: 6, 7: 8, 9: 10 };
   const white = [], black = [];
@@ -78,9 +92,9 @@ function buildKeyboard() {
     const d = document.createElement('div');
     d.className = 'wkey'; d.dataset.midi = w.midi;
     const name = NOTE_NAMES[w.midi % 12];
-    d.innerHTML = hintChip(w.midi - startMidi) +
+    d.innerHTML = hintChip(w.midi - qStart()) +
       (name === 'C' ? `<span class="kname">C${Math.floor(w.midi / 12) - 1}</span>` : '');
-    row.appendChild(d); bindKeyEl(d, w.midi);
+    row.appendChild(d);
   });
   black.forEach(b => {
     const d = document.createElement('div');
@@ -88,12 +102,12 @@ function buildKeyboard() {
     const center = (b.after + 1) * wWidth;    // centrada en la juntura de sus dos blancas (sin el sesgo de un piano acústico: decisión de Sergio)
     d.style.left = `${(center - bWidth / 2).toFixed(3)}%`;
     d.style.width = `${bWidth.toFixed(3)}%`;
-    d.innerHTML = hintChip(b.midi - startMidi);
-    row.appendChild(d); bindKeyEl(d, b.midi);
+    d.innerHTML = hintChip(b.midi - qStart());
+    row.appendChild(d);
   });
 
-  const num = document.getElementById('kbOctNum');   // rango visible bajo el teclado: C4–C6
-  if (num) num.textContent = 'C' + baseOctave + '–C' + (baseOctave + numOctaves);
+  const num = document.getElementById('kbOctNum');   // lo que alcanza el QWERTY, de la Z a la P: C3–E5
+  if (num) num.textContent = 'C' + qOctave + '–E' + (qOctave + 2);
 
   // Tras reconstruir (resize), las notas que siguen sonando recuperan su tecla.
   active.forEach((el, midi) => {
@@ -130,21 +144,43 @@ function unhold(midi, src) {
   holders.delete(midi);
   release(midi);
 }
-function bindKeyEl(el, midi) {
-  el.addEventListener('pointerdown', e => {
+// Ratón (o dedo) sobre el teclado en pantalla, delegado en el contenedor (las teclas
+// se rehacen al cambiar de octava). Pulsar toca la tecla; arrastrar con el botón
+// pulsado va tocando las que pisa (glissando): cada tecla nueva suelta la anterior y
+// suena con la velocity de la altura a la que entra. Fuera de las teclas, silencio
+// hasta volver a entrar. La captura va al contenedor: los movimientos le siguen
+// llegando aunque el puntero salga, y el soltar también.
+const keyAt = (x, y) => document.elementFromPoint(x, y)?.closest?.('#keyboard [data-midi]') || null;
+function strike(e, el) {
+  const midi = +el.dataset.midi, r = el.getBoundingClientRect(), vel = velFromY((e.clientY - r.top) / r.height);
+  pointers.set(e.pointerId, midi);
+  hold(midi, 'p:' + e.pointerId, vel);
+  // a la pantalla Salida: solo lo tocado con el ratón (el MIDI y el QWERTY no le pisan el knob que giras)
+  document.dispatchEvent(new CustomEvent('kb-note', { detail: { name: NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1), vel } }));
+}
+function lift(id) {
+  const midi = pointers.get(id);
+  if (midi != null) unhold(midi, 'p:' + id);
+  pointers.set(id, null);
+}
+function bindPointer() {
+  kb.addEventListener('pointerdown', e => {
+    const el = e.target.closest?.('[data-midi]'); if (!el) return;
     part().resume();
-    const r = el.getBoundingClientRect(), vel = velFromY((e.clientY - r.top) / r.height);
-    pointers.set(e.pointerId, midi);
-    hold(midi, 'p:' + e.pointerId, vel);
-    // a la pantalla Salida: solo lo tocado con el ratón (el MIDI y el QWERTY no le pisan el knob que giras)
-    document.dispatchEvent(new CustomEvent('kb-note', { detail: { name: NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1), vel } }));
-    try { el.setPointerCapture(e.pointerId); } catch (_) {}   // un puntero sintético (el selftest) no se puede capturar
+    lift(e.pointerId); strike(e, el);
+    try { kb.setPointerCapture(e.pointerId); } catch (_) {}   // un puntero sintético (el selftest) no se puede capturar
+  });
+  kb.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId) || !e.buttons) return;
+    const el = keyAt(e.clientX, e.clientY), midi = el ? +el.dataset.midi : null;
+    if (midi === pointers.get(e.pointerId)) return;
+    lift(e.pointerId);
+    if (el) strike(e, el);
   });
   // Soltar: al levantar, si el sistema CANCELA el toque (un gesto, una llamada…) o si se pierde la
   // captura (la ventana pierde el foco con el botón pulsado). Sin los dos últimos, la nota colgaba.
-  const lift = e => { if (pointers.get(e.pointerId) !== midi) return; pointers.delete(e.pointerId); unhold(midi, 'p:' + e.pointerId); };
-  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, lift);
-  el.addEventListener('pointerleave', e => { if (e.buttons) lift(e); });
+  const end = e => { if (!pointers.has(e.pointerId)) return; lift(e.pointerId); pointers.delete(e.pointerId); };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) kb.addEventListener(ev, end);
 }
 export function panic() {
   held.clear(); holders.clear(); pointers.clear();
@@ -158,12 +194,13 @@ export function panic() {
 // cortaba TODAS las voces de todas las partes — con la escena tocando, los pads
 // y drones de los jugadores desaparecían hasta el siguiente acorde.
 function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); holders.clear(); pointers.clear(); }
-// Octava arriba/abajo (RePág/AvPág y los botones − / + bajo el teclado): suelta
-// lo que sostiene este teclado (sus notas cambiarían de tecla) y reconstruye.
+// Octava del QWERTY arriba/abajo (RePág/AvPág y los botones − / + bajo el teclado):
+// suelta lo que sostiene este teclado (sus notas cambiarían de tecla), arrastra la
+// vista si hace falta y reconstruye.
 function shiftOctave(d) {
-  releaseHeldKeys(); octaveTouched = true;
-  baseOctave = Math.max(0, Math.min(9 - numOctaves, baseOctave + d));
-  buildKeyboard();
+  releaseHeldKeys();
+  qOctave = Math.max(0, Math.min(Q_MAX, qOctave + d));
+  fitView(); buildKeyboard();
 }
 
 // API para la entrada MIDI (ui/midi.js): mismas notas e ids que el teclado,
@@ -174,8 +211,8 @@ export function releaseNote(midi) { unhold(midi, 'midi'); }
 export function initKeyboard() {
   kb = document.getElementById('keyboard');
   numOctaves = octavesForWidth();
-  baseOctave = defaultBase(numOctaves);
-  buildKeyboard();
+  viewOctave = defaultBase(numOctaves); fitView();
+  buildKeyboard(); bindPointer();
   document.querySelectorAll('#kbOct button[data-kbo]').forEach(b => b.addEventListener('click', () => shiftOctave(+b.dataset.kbo)));
 
   // Rueda de modulación en pantalla: fuente «Rueda (CC1)» de la matriz
@@ -196,7 +233,7 @@ export function initKeyboard() {
       const n = octavesForWidth();
       if (n === numOctaves) return;
       numOctaves = n;
-      baseOctave = octaveTouched ? Math.min(baseOctave, 9 - numOctaves) : defaultBase(numOctaves);
+      viewOctave = defaultBase(numOctaves); fitView();
       buildKeyboard();
     }, 120);
   }).observe(kb);
@@ -218,14 +255,18 @@ export function initKeyboard() {
       if (open) return;                              // desplegable abierto de verdad: respétalo
       e.stopPropagation(); e.target.blur();
     }
-    if (k === 'escape') { e.preventDefault(); panic(); return; }   // Escape = pánico (corta todo)
+    if (k === 'escape') {                            // Escape = pánico (corta todo)… salvo que cierre antes algo
+      e.preventDefault();                            // abierto (el selector de presets): ese cancela escape-first
+      if (document.dispatchEvent(new CustomEvent('escape-first', { cancelable: true }))) panic();
+      return;
+    }
     if (k === 'pageup' || k === 'pagedown') {        // octava arriba / abajo (RePág / AvPág)
       e.preventDefault(); shiftOctave(k === 'pageup' ? 1 : -1); return;
     }
     if (!note) return;
     if (held.has(e.code) || e.repeat) { e.preventDefault(); return; }  // el auto-repeat tampoco debe llegar al navegador
     e.preventDefault();                              // evita atajos del navegador con '/', ',', etc.
-    const midi = (baseOctave + 1) * 12 + KEYMAP[e.code];
+    const midi = qStart() + KEYMAP[e.code];
     held.set(e.code, midi); part().resume();
     hold(midi, 'k:' + e.code);
   }, true);   // fase de CAPTURA: corre antes de que un combo enfocado procese la tecla

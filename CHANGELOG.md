@@ -13,8 +13,21 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
   el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**
   (o Intro), que además arranca el audio. Se vuelve a abrir como «Acerca de»
   pulsando el título de la cabecera o desde Archivo ▾.
-- **Teclado en pantalla**: las teclas negras, centradas entre sus dos blancas
-  (antes imitaban el desplazamiento de un piano acústico).
+- **Selector de presets** nuevo en la cabecera, en lugar del desplegable: un
+  buscador (sin importar acentos ni mayúsculas), las categorías a la izquierda
+  con cuántos presets coinciden en cada una (Todos, ★ Favoritos y cada sección)
+  y la lista a la derecha. Un clic o `↑` `↓` cargan el preset para probarlo sin
+  cerrar; `Intro` o doble clic eligen y cierran; la ★ marca favoritos; y
+  **Navegar todos** lleva a la pantalla Presets con la misma búsqueda.
+- **Teclado del ordenador**: su octava va aparte de la del teclado en pantalla.
+  Antes eran la misma, y como el teclado en pantalla enseña seis octavas y para
+  en C9, la fila alta se quedaba en E5. Ahora la Z va de C0 a C7 (la fila alta
+  llega a C9) y el teclado en pantalla se desplaza para enseñarla. De entrada,
+  la Z es C3 y la Q el Do central (antes, la Z era C2).
+- **Teclado en pantalla**: con el botón del ratón pulsado, pasar por las teclas
+  las va tocando (glissando); antes solo sonaba la primera. Las teclas negras,
+  centradas entre sus dos blancas (antes imitaban el desplazamiento de un piano
+  acústico).
 
 ## [1.2.0] — 2026-10-24
 

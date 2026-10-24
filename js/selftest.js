@@ -41,7 +41,7 @@ import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip, velocityLayers } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
-import { loadPresetIndex, loadPresetId, navOptions, presetBankReady } from './ui/presetBank.js';
+import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId } from './ui/presetBank.js';
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
@@ -443,19 +443,18 @@ export async function runSelfTest() {
     const K = 'subsdj.midimap.v1:selftest2';
     localStorage.removeItem(K);
     setDevice('selftest2');
-    const sel = document.getElementById('presetSelect');
-    const nav = navOptions(), n = nav.length;     // ‹ › y program change recorren la biblioteca sin el grupo ★ (duplica)
-    const i0 = Math.max(0, nav.findIndex(o => o.value === sel.value));
-    const at = i => nav[((i % n) + n) % n].value;
+    const nav = navIds(), n = nav.length;         // ‹ › y program change recorren la biblioteca en orden
+    const i0 = Math.max(0, nav.indexOf(currentPresetId()));
+    const at = i => nav[((i % n) + n) % n];
     armLearn('presetNext'); learnCapture(36);
     applyCC(36, 1);                               // pulsar (127) → siguiente preset
-    const okStep = sel.value === at(i0 + 1);
+    const okStep = currentPresetId() === at(i0 + 1);
     applyCC(36, 1);                               // mantenido: NO repite
-    const okOnce = sel.value === at(i0 + 1);
+    const okOnce = currentPresetId() === at(i0 + 1);
     applyCC(36, 0); applyCC(36, 1);               // soltar y pulsar → avanza otra vez
-    const okEdge = sel.value === at(i0 + 2);
+    const okEdge = currentPresetId() === at(i0 + 2);
     loadPresetIndex(i0 + 130);                    // program change: módulo del tamaño de la biblioteca
-    const okPC = sel.value === at(i0 + 130);
+    const okPC = currentPresetId() === at(i0 + 130);
     localStorage.removeItem(K);
     setDevice(prevDev);
     const okA = okStep && okOnce && okEdge && okPC;
@@ -499,14 +498,13 @@ export async function runSelfTest() {
         if (over(b)) probs.push(s + ': banda ' + (b.id || '?') + ' recorta (' + b.scrollWidth + '×' + b.scrollHeight + ' en ' + b.clientWidth + '×' + b.clientHeight + ')');
     }
     showScreen('presets');
-    const sel = document.getElementById('presetSelect');
     const items = [...document.querySelectorAll('#presetList .pl-item')];
     if (!items.length || items.length !== library.items().length) probs.push('lista: ' + items.length + ' ítems vs ' + library.items().length + ' en la biblioteca');
-    const target = items.find(b => !b.classList.contains('esc') && b.dataset.id !== sel.value);   // un preset (las escenas cargan otra cosa)
+    const target = items.find(b => !b.classList.contains('esc') && b.dataset.id !== currentPresetId());   // un preset (las escenas cargan otra cosa)
     if (target) {
       target.click();
       const curs = document.querySelectorAll('#presetList .pl-item.cur');
-      if (sel.value !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + sel.value + ')');
+      if (currentPresetId() !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + currentPresetId() + ')');
     }
     showScreen(before);
     push({ name: 'pantallas (panel fijo · huecos · memoria · nada recortado · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
@@ -1791,6 +1789,141 @@ export async function runSelfTest() {
       ptr('pointerup', 83);
       if (mv()) probs.push('dos dedos: al levantar los dos sigue sonando');
       part().allNotesOff();
+      loadState(keep);
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Teclado: (1) el QWERTY tiene su propia octava y llega arriba del todo. Antes
+    // compartía la de la vista, que con 6 octavas en pantalla para en C3–C9, y la P
+    // (dos octavas y una tercera sobre la Z) se quedaba en E5. Ahora la Z va de C0 a
+    // C7 (la I da C9) y la vista se desplaza para enseñarla. (2) Glissando: con el
+    // botón pulsado, pasar a otra tecla la toca y suelta la anterior; al levantar, nada
+    // suena. Por el camino real: botones − / +, eventos de teclado y de puntero.
+    const NAME = 'teclado: el QWERTY llega a C9 · glissando con el ratón';
+    let r;
+    try {
+      const probs = [], keep = snapshot();
+      loadState({});
+      const num = () => document.getElementById('kbOctNum').textContent;
+      const btn = d => document.querySelector('#kbOct button[data-kbo="' + d + '"]');
+      const on = m => !!document.querySelector('#keyboard [data-midi="' + m + '"].on');
+      const zAt = () => +[...document.querySelectorAll('#keyboard .klab')].find(e => e.textContent === 'Z')?.closest('[data-midi]')?.dataset.midi;
+      const key = (type, code, k) => window.dispatchEvent(new KeyboardEvent(type, { code, key: k, bubbles: true, cancelable: true }));
+      const start = num();
+      if (start !== 'C3–E5') probs.push('octava inicial: ' + start + ' (esperado C3–E5: la Q en el Do central)');
+      for (let k = 0; k < 10; k++) btn(1).click();
+      if (num() !== 'C7–E9') probs.push('arriba del todo: ' + num());
+      if (zAt() !== 96) probs.push('la Z no está en C7 (' + zAt() + ')');
+      key('keydown', 'KeyI', 'i');
+      if (!part().voices.has('m120') || !on(120)) probs.push('la I no toca C9 (o no se ve)');
+      key('keyup', 'KeyI', 'i');
+      for (let k = 0; k < 10; k++) btn(-1).click();
+      if (num() !== 'C0–E2' || zAt() !== 12) probs.push('abajo del todo: ' + num() + ', Z en ' + zAt());
+      for (let k = 0; k < 10 && num() !== start; k++) btn(1).click();
+      // glissando: las dos primeras blancas (a la izquierda: el panel del selftest está a la derecha)
+      const [a, b] = document.querySelectorAll('#keyboard .wkey');
+      const sc = document.body, sx = sc.scrollLeft, sy = sc.scrollTop;   // con la ventana pequeña (el runner) el instrumento se desplaza: que se vean
+      if (b.getBoundingClientRect().bottom > innerHeight) b.scrollIntoView({ block: 'end', inline: 'nearest' });
+      const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), ma = +a.dataset.midi, mb = +b.dataset.midi;
+      const y = ra.bottom - 6, kb = document.getElementById('keyboard');
+      const ptr = (type, el, x, buttons) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 91, clientX: x, clientY: y, buttons }));
+      const hit = document.elementFromPoint(rb.left + rb.width / 2, y);
+      if (hit?.closest('[data-midi]') !== b) probs.push('(no se puede apuntar a la segunda tecla: en ' + Math.round(rb.left + rb.width / 2) + ',' + Math.round(y) + ' está ' + (hit ? hit.tagName + '#' + hit.id + '.' + hit.className : 'nada') + ' · ventana ' + innerWidth + '×' + innerHeight + ')');
+      else {
+        ptr('pointerdown', a, ra.left + ra.width / 2, 1);
+        const s1 = part().voices.has('m' + ma);
+        ptr('pointermove', kb, rb.left + rb.width / 2, 1);
+        const s2 = part().voices.has('m' + mb) && !on(ma) && on(mb);
+        ptr('pointermove', kb, ra.left + ra.width / 2, 0);            // sin botón: pasar por encima no toca
+        const s3 = on(mb) && !on(ma);
+        ptr('pointerup', kb, rb.left + rb.width / 2, 0);
+        const s4 = !on(ma) && !on(mb);
+        if (!s1) probs.push('pulsar no toca');
+        if (!s2) probs.push('arrastrar a la tecla de al lado no la toca (o no suelta la primera)');
+        if (!s3) probs.push('sin botón pulsado, pasar por encima cambia de nota');
+        if (!s4) probs.push('al levantar queda una tecla encendida');
+      }
+      sc.scrollLeft = sx; sc.scrollTop = sy;
+      part().allNotesOff();
+      loadState(keep);
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Selector rápido de presets (ui/presetPicker.js), por el camino real (clics y
+    // teclas): se abre con el buscador enfocado; buscar ignora acentos y mayúsculas;
+    // una categoría deja solo lo suyo y los contadores dicen cuántos coinciden en
+    // cada una; ↓ carga el siguiente de lo filtrado; Intro cierra; tras un clic en la
+    // lista (el foco sale del buscador) el teclado toca y Esc cierra SIN pánico; y
+    // «Navegar todos» lleva a la pantalla Presets con la misma búsqueda.
+    const NAME = 'selector de presets (buscar sin acentos · categorías · ↓ carga · Esc sin pánico · Navegar todos)';
+    let r;
+    try {
+      const probs = [], keep = snapshot(), id0 = currentPresetId(), scr0 = currentScreen();
+      const $ = id => document.getElementById(id);
+      const pop = $('presetPop'), search = $('ppSearch');
+      const type = t => { search.value = t; search.dispatchEvent(new Event('input')); };
+      const ids = () => [...document.querySelectorAll('#ppList .pp-item')].map(e => e.dataset.id);
+      const mv = () => [...part().voices.keys()].filter(k => /^m\d+$/.test(k)).length;
+      $('presetPick').click();
+      if (pop.hidden || document.activeElement !== search) probs.push('no se abre con el buscador enfocado');
+      // un preset con acento, buscado sin él y en mayúsculas
+      const conAcento = library.presets().find(it => /[áéíóúñ]/i.test(it.nombre));
+      if (conAcento) {
+        const sin = conAcento.nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+        type(sin);
+        if (!ids().includes(conAcento.id)) probs.push('«' + sin + '» no encuentra «' + conAcento.nombre + '»');
+        type('');
+      }
+      // categoría: solo lo suyo, y su contador = lo que se ve
+      const catEls = [...document.querySelectorAll('#ppCats .pp-cat')];
+      const sec = library.secciones().find(x => library.items(x.id).filter(it => it.tipo === 'preset').length > 3);
+      const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.nombre);
+      if (catEls[0]?.querySelector('.pp-cname').textContent !== 'Todos' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
+        probs.push('«Todos» no cuenta la biblioteca entera');
+      if (!catEl) probs.push('falta la categoría «' + sec.nombre + '»');
+      else {
+        catEl.click();
+        const v = ids();
+        if (!v.length || v.some(id => library.item(id).seccion !== sec.id)) probs.push('«' + sec.nombre + '» enseña presets de otras secciones');
+        const cnt = +document.querySelector('#ppCats .pp-cat.on .pp-cn')?.textContent;
+        if (cnt !== v.length) probs.push('contador ' + cnt + ' ≠ ' + v.length + ' a la vista');
+        // clic carga; ↓ desde ahí carga el siguiente
+        document.querySelector('#ppList .pp-item').click();
+        if (currentPresetId() !== v[0]) probs.push('clic no carga');
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }));
+        if (currentPresetId() !== v[1]) probs.push('↓ no carga el siguiente');
+        // el foco ya no está en el buscador: el teclado toca y Esc cierra sin cortar la nota
+        if (document.activeElement === search) search.blur();   // (en el navegador lo hace el clic de verdad)
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'z', bubbles: true, cancelable: true }));
+        const toca = mv();
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true }));
+        if (!toca) probs.push('fuera del buscador el teclado no toca');
+        if (!pop.hidden) probs.push('Esc no cierra');
+        if (toca && mv() !== toca) probs.push('Esc con el selector abierto hace pánico');
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyZ', key: 'z', bubbles: true }));
+        // reabrir: recuerda la categoría; Intro cierra
+        $('presetPick').click();
+        if (!document.querySelector('#ppCats .pp-cat.on .pp-cname')?.textContent.startsWith(sec.nombre)) probs.push('no recuerda la categoría');
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+        if (!pop.hidden) probs.push('Intro no cierra');
+      }
+      // Navegar todos: a la pantalla Presets con la búsqueda
+      $('presetPick').click(); document.querySelector('#ppCats .pp-cat').click();
+      type('pad');
+      $('ppAll').click();
+      if (currentScreen() !== 'presets') probs.push('«Navegar todos» no lleva a Presets');
+      if ($('libSearch').value !== 'pad') probs.push('la búsqueda no viaja («' + $('libSearch').value + '»)');
+      if (!pop.hidden) probs.push('«Navegar todos» no cierra el selector');
+      $('libSearch').value = ''; $('libSearch').dispatchEvent(new Event('input'));
+      showScreen(scr0);
+      part().allNotesOff();
+      if (id0) loadPresetId(id0);
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }

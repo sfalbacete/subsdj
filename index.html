@@ -62,7 +62,14 @@
   </nav>
   <div id="presetBar">
     <button class="btn nav" id="prevBtn" title="Preset anterior">‹</button>
-    <select id="presetSelect"></select>
+    <span class="menuWrap" id="presetPickWrap">
+      <button class="pick" id="presetPick" type="button" aria-haspopup="dialog" aria-expanded="false"><span id="presetPickName">—</span></button>
+      <div class="ppop" id="presetPop" role="dialog" aria-label="Elegir preset" hidden>
+        <div class="pp-top"><input type="text" id="ppSearch" placeholder="buscar preset…" autocomplete="off" spellcheck="false" maxlength="40"><span class="pp-count" id="ppCount"></span></div>
+        <div class="pp-main"><div class="pp-cats" id="ppCats"></div><div class="pp-list" id="ppList"></div></div>
+        <div class="pp-foot"><span class="pp-keys">clic o ↑ ↓ prueban · Intro elige · Esc cierra</span><button class="btn" id="ppAll" type="button" title="La pantalla Presets: la biblioteca entera (secciones, escenas, ★, renombrar, mover), con lo que hayas buscado">Navegar todos →</button></div>
+      </div>
+    </span>
     <span id="modDot" title="Modificado: lo que suena ya no es el preset guardado (si lo devuelves a como estaba, se apaga)">●</span>
     <button class="btn nav" id="nextBtn" title="Preset siguiente">›</button>
     <input id="presetName" type="text" placeholder="nombre del preset…" maxlength="32">
@@ -681,7 +688,7 @@
 <div class="band band-full">
   <div class="panel grow" id="library">
     <h2>Biblioteca</h2>
-    <div class="help"><b>Tu biblioteca de presets y escenas.</b> Un clic carga (un preset, en la parte que edita el instrumento; una escena enciende las Partes) y el teclado de abajo sirve para probar · ★ favorito: sale el primero en el selector rápido · ✎ renombra en línea · 🗑 borra (lo de fábrica vuelve con ⟲ Traer de fábrica) · arrastra un preset a otra sección o a otra posición · las secciones se crean, renombran, reordenan (‹ ›) y borran · buscar ignora acentos y mayúsculas. Guardar (en «★ Míos», o encima si el nombre es el del preset cargado) está en la cabecera; Exportar (la biblioteca entera) e Importar (biblioteca, banco v2 o escena; se funde, nunca sustituye), en «Archivo ▾». Todo vive en este navegador (localStorage): exporta de vez en cuando.</div>
+    <div class="help"><b>Tu biblioteca de presets y escenas.</b> Un clic carga (un preset, en la parte que edita el instrumento; una escena enciende las Partes) y el teclado de abajo sirve para probar · ★ favorito: sale en «★ Favoritos» del selector rápido · ✎ renombra en línea · 🗑 borra (lo de fábrica vuelve con ⟲ Traer de fábrica) · arrastra un preset a otra sección o a otra posición · las secciones se crean, renombran, reordenan (‹ ›) y borran · buscar ignora acentos y mayúsculas. Guardar (en «★ Míos», o encima si el nombre es el del preset cargado) está en la cabecera; Exportar (la biblioteca entera) e Importar (biblioteca, banco v2 o escena; se funde, nunca sustituye), en «Archivo ▾». Todo vive en este navegador (localStorage): exporta de vez en cuando.</div>
     <div class="lib-bar">
       <input id="libSearch" type="text" placeholder="buscar…" maxlength="48" title="Filtra por nombre (sin acentos ni mayúsculas)">
       <label class="chk" title="Solo los marcados con ★"><input type="checkbox" id="libFavOnly"> ★ solo favoritos</label>
@@ -701,8 +708,8 @@
   <div id="keyboard"></div>
   <div id="kbBar">
     <span class="lab">Octava</span>
-    <div class="stepper" id="kbOct" title="Octava base del teclado (RePág / AvPág también). Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U (por posición: en cualquier teclado, las mismas teclas físicas; con Ctrl o Alt no tocan, son atajos). Polifónico. Con el ratón, la altura a la que pulsas es la velocity: arriba de la tecla suave, abajo fuerte (el teclado del PC va siempre a tope).">
-      <button data-kbo="-1" title="Octava abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava arriba (RePág)">+</button>
+    <div class="stepper" id="kbOct" title="Octava del teclado del PC: de la Z (la C de la izquierda) a la P (la E dos octavas más arriba), de C0–E2 a C7–E9 (RePág / AvPág también); el teclado en pantalla se desplaza para enseñarla. Cada tecla lleva su tecla del PC, estilo tracker en dos filas: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U (por posición: en cualquier teclado, las mismas teclas físicas; con Ctrl o Alt no tocan, son atajos). Polifónico. Con el ratón, la altura a la que pulsas es la velocity: arriba de la tecla suave, abajo fuerte (el teclado del PC va siempre a tope).">
+      <button data-kbo="-1" title="Octava del teclado del PC abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava del teclado del PC arriba (RePág)">+</button>
     </div>
     <label class="wheel" title="Rueda de modulación: fuente «Rueda (CC1)» de la matriz (0 = reposo). La rueda de un teclado MIDI (CC1) también la mueve. Doble clic = 0"><span class="lab">Rueda</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>
   </div>

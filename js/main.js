@@ -14,6 +14,7 @@ import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
 import { initPresetBank } from './ui/presetBank.js';
+import { initPresetPicker } from './ui/presetPicker.js';
 import { initRecorder } from './ui/recorder.js';
 import { initSfzExport } from './ui/sfzExport.js';
 import { initScope } from './ui/scope.js';
@@ -54,6 +55,7 @@ initKeyboard();
 initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
 initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
 initPresetBank();
+initPresetPicker();  // selector rápido de la cabecera: buscar, categorías, ↑ ↓ para probar
 initLibraryScreen(); // pantalla Presets: la biblioteca (secciones, ★, buscar, arrastrar, escenas)
 initRecorder();      // grabación de la salida a WAV
 initSfzExport();     // preset actual → multisample SFZ (zip)
