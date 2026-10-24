@@ -1,6 +1,6 @@
 {
   "formato": "subsdj-presets-v2",
-  "banco": "SubSDJ · demos de mejoras — v30 (+ Pasos: cuatro carriles para la matriz, continuo o por nota; Env mod; LFO a tempo, 2026-10)",
+  "banco": "SubSDJ · demos de mejoras — v31 (+ Macros: un knob del preset, varios destinos de la matriz; Pasos; Env mod; LFO a tempo, 2026-10)",
   "nota": "Banco-evidencia: cada mejora del motor entra aquí con un par A/B — presets IDÉNTICOS salvo el parámetro nuevo, para oír exactamente qué aporta. Los prefijos numerados mantienen cada par adyacente al importar (se aplana a «★ Míos» en orden alfabético). Este banco CRECE con cada bloque de mejoras nuevo. Los presets Seq necesitan MANTENER una tecla (es la raíz que transpone la frase). Los presets WS lucen más con un ACORDE mantenido (cada voz desfasa su frase). Los Disparo: toca LIGADO (la segunda tecla antes de soltar la primera) — en Legato la nota desliza, en Cada nota redispara. Los MEZ: 1/2 = el ring ya no se come al A; 3/4 = con Drive, subir el mezclador satura más (el truco del Minimoog). Los FMV: con teclado MIDI, suave y fuerte; a velocity 1 suenan igual (la sonda los renderiza a 0,4, ver «velocidad»).",
   "velocidad": { "FMV": 0.4 },
   "presets": {
@@ -38,6 +38,8 @@
     "DRV 8 · mismo, simetría a tope (octava)": { "waveA": "triangle", "levelA": 0.7, "levelB": 0, "filterDrive": 1, "driveChar": "plegado", "cutoff": 9000, "reso": 0, "a": 0.02, "d": 0.5, "s": 0.9, "r": 0.6, "cutLfoSpd": 0.2, "reverbMix": 0.25, "dlyAmt": 0.2, "master": 1, "mx1src": "lfoCut", "mx1dst": "drive", "mx1amt": 0.5, "driveAsym": 1 },
     "VEC 1 · sierra y seno +1 oct, fijos": { "waveA": "sawtooth", "waveB": "sine", "octB": 1, "detuneB": 7, "levelA": 0.5, "levelB": 0.5, "cutoff": 4000, "reso": 1, "a": 0.3, "d": 1, "s": 0.8, "r": 1.2, "cutLfoSpd": 0.25, "reverbMix": 0.3, "master": 1 },
     "VEC 2 · mismos, LFO lento de A a B": { "waveA": "sawtooth", "waveB": "sine", "octB": 1, "detuneB": 7, "levelA": 0.5, "levelB": 0.5, "cutoff": 4000, "reso": 1, "a": 0.3, "d": 1, "s": 0.8, "r": 1.2, "cutLfoSpd": 0.25, "reverbMix": 0.3, "master": 1, "mx1src": "lfoCut", "mx1dst": "lvlA", "mx1amt": -0.5, "mx2src": "lfoCut", "mx2dst": "lvlB", "mx2amt": 0.5 },
+    "MAC 1 · pad, Macro 1 a 0 (tres slots la esperan)": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "levelA": 0.5, "levelB": 0.5, "cutoff": 500, "reso": 2, "filterDrive": 0.3, "a": 0.2, "d": 1, "s": 0.8, "r": 1, "reverbMix": 0.25, "master": 1, "mx1src": "mac1", "mx1dst": "cutoff", "mx1amt": 0.5, "mx2src": "mac1", "mx2dst": "drive", "mx2amt": 0.6, "mx3src": "mac1", "mx3dst": "reso", "mx3amt": 0.4, "macro1": 0 },
+    "MAC 2 · mismo, Macro 1 a tope: filtro, drive y resonancia a la vez": { "waveA": "sawtooth", "waveB": "sawtooth", "detuneB": 7, "levelA": 0.5, "levelB": 0.5, "cutoff": 500, "reso": 2, "filterDrive": 0.3, "a": 0.2, "d": 1, "s": 0.8, "r": 1, "reverbMix": 0.25, "master": 1, "mx1src": "mac1", "mx1dst": "cutoff", "mx1amt": 0.5, "mx2src": "mac1", "mx2dst": "drive", "mx2amt": 0.6, "mx3src": "mac1", "mx3dst": "reso", "mx3amt": 0.4, "macro1": 1 },
 
     "MEZ 1 · sierra con ring en crossfade (antes)": { "waveA": "sawtooth", "waveB": "sine", "octB": 1, "detuneB": 30, "levelA": 0.4, "levelB": 0, "ring": 0.6,
       "cutoff": 2400, "reso": 2, "a": 0.005, "d": 0.6, "s": 0.5, "r": 0.4, "width": 0.3, "reverbMix": 0.2, "master": 1 },

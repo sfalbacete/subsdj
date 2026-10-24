@@ -2982,6 +2982,54 @@ export async function runSelfTest() {
     push(r);
   }
 
+  // Macros (Roadmap 7.0 · 2.5): knobs del preset como fuentes de la matriz. (1) un
+  // solo knob a varios destinos: Macro 1 → pitch +0,5 (600 ct) y → amplitud −0,5 en
+  // dos slots; con la macro a 1 la nota sube 600 ct y queda a la mitad, a 0 suena
+  // como sin matriz; (2) Macro 2 → cutoff abre el filtro; (3) el knob va al motor en
+  // vivo y se guarda en el preset (snapshot), y la matriz las ofrece como fuentes;
+  // (4) sin ningún slot que la use, el knob sale atenuado con su motivo (deps).
+  {
+    const NAME = 'macros (un knob, varios destinos · cutoff · al motor y al preset · fuentes de la matriz · atenuadas si nadie las usa)';
+    let r;
+    try {
+      const probs = [];
+      const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      const hzOf = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
+      const render = async st => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.noteOn('m', NOTE1); return ctx.startRendering(); };
+      const keep = snapshot();
+      const sine = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4,
+        mx1src: 'mac1', mx1dst: 'pitch', mx1amt: 0.5, mx2src: 'mac1', mx2dst: 'amp', mx2amt: -0.5 };
+      const s0 = await render({ ...sine, macro1: 0 }), s1 = await render({ ...sine, macro1: 1 });
+      const f0 = hzOf(s0, 0.3, 1.1), f1 = hzOf(s1, 0.3, 1.1), fEsp = NOTE1 * Math.pow(2, 0.5), q = rmsW(s1, 0.3, 1.1) / Math.max(1e-9, rmsW(s0, 0.3, 1.1));
+      if (!(Math.abs(f0 - NOTE1) < 2.5)) probs.push('a 0 la macro ya mueve el pitch (' + f0.toFixed(1) + ' Hz)');
+      if (!(Math.abs(f1 - fEsp) < 2.5)) probs.push('Macro 1 no sube el pitch 600 ct (' + f1.toFixed(1) + ' Hz, esperado ' + fEsp.toFixed(1) + ')');
+      if (!(q > 0.45 && q < 0.55)) probs.push('Macro 1 no deja la amplitud a la mitad (×' + q.toFixed(3) + ')');
+      const saw = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 400, reso: 0.7, filterSlope: '24', a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4,
+        mx1src: 'mac2', mx1dst: 'cutoff', mx1amt: 0.6 };
+      const c0 = await render({ ...saw, macro2: 0 }), c1 = await render({ ...saw, macro2: 1 });
+      const tw = tiltW(c1, 0.3, 1.1) / Math.max(1e-12, tiltW(c0, 0.3, 1.1));
+      if (!(tw > 3)) probs.push('Macro 2 no abre el filtro (tilt ×' + tw.toFixed(2) + ')');
+      // al motor en vivo, al preset y a la lista de fuentes
+      loadState({ mx1src: 'mac2', mx1dst: 'cutoff', mx1amt: 0.5, macro2: 0.7 });
+      if (engine.S.macro2 !== 0.7 || snapshot().macro2 !== 0.7) probs.push('macro2 no llega al motor o al preset (' + engine.S.macro2 + ' / ' + snapshot().macro2 + ')');
+      const opts = [...document.querySelectorAll('#mxRows select')].flatMap(s => [...s.options].map(o => o.textContent));
+      if (!opts.includes('Macro 1') || !opts.includes('Macro 2')) probs.push('la matriz no ofrece Macro 1 / Macro 2');
+      // deps: Macro 1 sin usar → atenuada con motivo; Macro 2 en uso → viva
+      const k1 = document.querySelector('[data-knob="macro1"]')?.closest('.ctl'), k2 = document.querySelector('[data-knob="macro2"]')?.closest('.ctl');
+      await new Promise(res => setTimeout(res, 50));
+      const off = e => !!e && (!!e.closest('.dep-off') || !!e.querySelector('.dep-off'));
+      if (!k1 || !k2) probs.push('faltan los knobs de las macros');
+      else if (!off(k1) || off(k2)) probs.push('atenuado: Macro 1 sin usar ' + off(k1) + ' · Macro 2 en uso ' + off(k2));
+      loadState(keep);
+      console.log('macros: pitch a 0 / a 1 ' + f0.toFixed(1) + ' / ' + f1.toFixed(1) + ' Hz (esperado ' + fEsp.toFixed(1) + ') · amplitud ×' + q.toFixed(3) + ' · Macro 2 → cutoff tilt ×' + tw.toFixed(2));
+      r = { name: NAME, peak: analyze(c1).peak, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
   // ---------- Roadmap 5.0 · bloque 7: cinta en el máster ----------
   // Saturación: un seno de C3 gana 3er armónico (392 Hz) a tope y no lo tiene a 0,
   // sin saltar de nivel; y a 0,3 (la zona «un poco» del knob, que entra al

@@ -123,6 +123,8 @@ export const RULES = [
     'solo hace entrar en rampa el vibrato y el PWM, y ninguno está en uso'),
   ...live(['lfoPhase'], S => ['cut', 'res', 'freq', 'pwm', 'pan'].some(k => lfoLive(S, k)), 'ningún LFO de cutoff, reso, vibrato, PWM o pan en uso'),
   ...live(['mxDriftSpd'], S => mxFrom(S, 'drift'), 'ningún slot de la matriz usa «Deriva (voz)»'),
+  ...live(['macro1'], S => mxFrom(S, 'mac1'), 'ningún slot de la matriz usa «Macro 1»'),
+  ...live(['macro2'], S => mxFrom(S, 'mac2'), 'ningún slot de la matriz usa «Macro 2»'),
   ['sec:Env mod', S => (mxFrom(S, 'envm') ? null : 'ningún slot de la matriz usa «Env mod»: elígela como fuente en la Matriz')],
   ['sec:Pasos', S => ([1, 2, 3, 4].some(i => mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n')) ? null : 'ningún slot de la matriz usa «Pasos»: elige «Pasos 1…4» como fuente en la Matriz')],
   ...[1, 2, 3, 4].map(i => ['.ps-row[data-lane="' + i + '"]', S => (mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n') ? null : 'ningún slot de la matriz usa «Pasos ' + i + '»')]),

@@ -2178,3 +2178,22 @@ desde el primer pintado; fuera con `?selftest` o `?nosplash`
 **Teclas negras centradas** entre sus dos blancas (decisión de Sergio). Antes
 imitaban el sesgo de un piano acústico (C# y F# hacia la izquierda, D# y A#
 hacia la derecha), y en pantalla parecía que estaban mal colocadas.
+
+**1.3 · Medidor de salida.** En el módulo Salida, junto al espectro: ver
+«Medidor de salida» arriba, en Pantallas. Check «medidor de salida»: una
+ráfaga a +12 dB marca 14,8 dB de reducción y enciende el LED, la salida no
+pasa del techo (−1,00 dBFS) y en silencio los picos son 0 («−∞»).
+
+**2.5 · Macros.** Dos knobs, **macro 1** y **macro 2**, al pie de la Matriz:
+fuentes `mac1` / `mac2` (0..1) por el mismo camino que la rueda o la
+expresión (un `ConstantSource` en `AudioEngine.perf`, suavizado 20 ms), pero
+su valor es del PRESET (`macro1` / `macro2` en `PARAMS`): se guardan,
+entran en deshacer y se aprenden con MIDI map como cualquier knob. Con la
+misma macro en varios slots, un solo mando mueve varios destinos, cada uno
+con la cantidad de su slot. A 0 no mueven nada (como todo lo que es `act`), y
+sin ningún slot que las use salen atenuadas con su motivo. La alternativa —
+macros que mueven cualquier parámetro con rango y curva propios — se aparcó
+(chocaría con deshacer y MIDI learn). Check «macros»: Macro 1 → pitch +0,5 y
+→ amplitud −0,5 en dos slots: el seno pasa de 130,6 a 185,0 Hz (el valor
+exacto) y queda a ×0,500; Macro 2 → cutoff a 0,6: tilt ×5,4. Par **MAC 1-2**
+(un pad con tres slots en Macro 1: filtro, drive y resonancia), diff 0,98.

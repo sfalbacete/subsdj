@@ -54,6 +54,7 @@ const budgets = new WeakMap();
 const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
 // Fuentes de ejecución (rueda, aftertouch, expresión): suavizado de los saltos de 1/127 del MIDI
 const PERF_TAU = 0.02;
+const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matriz ← parámetro del preset
 
 // Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
 // parts.createScene, que construye la Sala compartida antes de ningún motor).
@@ -189,6 +190,9 @@ export class AudioEngine {
     // van a todas las partes (parts.setPerf), como el bend.
     this.perf = {};
     for (const k in this.perfVal) { const c = ctx.createConstantSource(); c.offset.value = this.perfVal[k]; c.start(); this.perf[k] = c; }
+    // Macros (Roadmap 7.0 · 2.5): mismo camino que las de ejecución, pero su valor es
+    // del preset (S.macro1/2), no un gesto: fuentes 'mac1' / 'mac2'
+    for (const [k, p] of MACROS) { const c = ctx.createConstantSource(); c.offset.value = S[p] || 0; c.start(); this.perf[k] = c; }
 
     // hub de modulación que se pasa a cada voz
     this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
@@ -609,6 +613,7 @@ export class AudioEngine {
       case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Partes: fader de la parte
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
+      case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
       // a, d, s, r, glide, lfoFade, filterSlope, filterType: se leen al crear cada voz (sin nodo en vivo)

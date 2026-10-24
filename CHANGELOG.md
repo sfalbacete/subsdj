@@ -8,6 +8,11 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Macros**: dos knobs, macro 1 y macro 2, al pie de la Matriz, que se guardan
+  en el preset y son fuentes de la matriz. Con la misma macro en varios slots,
+  un solo mando abre el filtro, sube el drive y la resonancia a la vez, cada
+  destino con su cantidad; con MIDI map, desde un mando físico. Par de demos
+  MAC 1-2.
 - **Medidor de salida** en el módulo Salida, junto al espectro: picos L y R de
   lo que sale (amarillo desde −12 dBFS, rojo desde −1, el techo del
   limitador), la reducción del limitador y el LED **lim**, que se queda

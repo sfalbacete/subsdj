@@ -264,6 +264,11 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'wheel',   label: 'Rueda (CC1)' },   // rueda de modulación: la de pantalla (bajo el teclado) o el CC1
   { id: 'at',      label: 'Aftertouch' },    // presión del teclado MIDI (canal; el polifónico se trata igual)
   { id: 'expr',    label: 'Expresión (CC11)' },  // pedal de expresión
+  // Macros (Roadmap 7.0 · 2.5): dos knobs 0..1 al pie de la matriz que SÍ se guardan en el
+  // preset. Varios slots con la misma macro = un solo mando que abre el filtro, sube el
+  // drive y la resonancia a la vez, cada destino con la cantidad de su slot.
+  { id: 'mac1',    label: 'Macro 1' },
+  { id: 'mac2',    label: 'Macro 2' },
 ];
 export const MX_DESTS = [
   { id: 'pitch',  label: 'Pitch' },         // cents sobre el detune de ambos osciladores
@@ -303,6 +308,9 @@ for (let i = 1; i <= MX_SLOTS; i++) {
 // (otra envolvente; S&H y deriva no tienen final: van como en reinicio).
 // Estructura: aplica por nota, como filterSlope. El trémolo es siempre global.
 PARAMS.mxDriftSpd = { def: 0.05, min: 0.005, max: 5, log: true, fmt: hzFmt };
+// Macros: fuentes 'mac1' / 'mac2' de la matriz (AudioEngine.perf); a 0 no mueven nada
+PARAMS.macro1 = { def: 0, min: 0, max: 1, act: true };
+PARAMS.macro2 = { def: 0, min: 0, max: 1, act: true };
 PARAMS.lfoPhase = { def: 'global' };
 
 // LFO a tempo (Roadmap 7.0 · 2.2): cada LFO con su sincro — 'libre' (Speed en Hz)
