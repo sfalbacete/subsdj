@@ -25,6 +25,7 @@ import { initPlayerControls } from './ui/playerControls.js';
 import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
+import { initSplash } from './ui/splash.js';
 import { initRotaries } from './ui/rotary.js';
 import { initFm4Graph } from './ui/fm4Graph.js';
 import { initDisplay } from './ui/display.js';
@@ -36,6 +37,7 @@ import { VERSION } from './version.js';
 
 // 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
 document.getElementById('verBadge').textContent = 'v' + VERSION;   // junto al título (js/version.js)
+initSplash();         // pantalla de entrada (demoscene): lo primero, tapa el montaje; ENTRAR arranca el audio
 initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
 initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
 bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)

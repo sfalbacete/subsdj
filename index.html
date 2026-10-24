@@ -24,6 +24,16 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<!-- PANTALLA DE ENTRADA (ui/splash.js): intro de demoscene a baja resolución; ENTRAR
+     (o Intro) arranca el audio. Estática aquí para que tape la página desde el primer pintado. -->
+<div id="splash">
+  <canvas id="splashFx"></canvas>
+  <div class="sp-ui">
+    <div class="sp-meta"><span id="spVer"></span><span class="sp-dot">◆</span><span id="spDate"></span></div>
+    <div class="sp-btn"><button id="spEnter" type="button"><span>ENTRAR</span></button></div>
+    <div class="sp-hint">o pulsa Intro · el audio arranca al entrar</div>
+  </div>
+</div>
 <!-- EL INSTRUMENTO (ui/frame.js): un objeto de 1920 × 1000 px que se escala
      entero para caber en la ventana; nada refluye, cada módulo tiene SIEMPRE
      el mismo sitio. Cabecera + cuerpo (una pantalla por pestaña, cada una con

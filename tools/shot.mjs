@@ -3,7 +3,7 @@
 //       node tools/shot.mjs "pantalla:secuenciacion" salida.png [ancho] ["<JS previo>"]   → la página entera en esa pestaña
 // El JS previo se evalúa (con await si devuelve promesa) antes de capturar: p. ej. encender
 // las Partes o cargar un preset. Sirve en 8002 para no chocar con el runner ni con el 8000.
-// Variable de entorno THEME=id → captura con ese tema (?theme=, que no se recuerda).
+// Variable de entorno THEME=id → captura con ese tema (?theme=, que no se recuerda). SPLASH=1 → con la pantalla de entrada.
 // H=alto → alto de la ventana (por defecto 1000): el instrumento se escala a min(ancho/1920, alto/1000).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 import os from 'node:os'; import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
@@ -34,7 +34,9 @@ const send = (method, params = {}) => new Promise(r => { const i = ++id; pend.se
 const ev = async expression => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value;
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' + (THEME ? '?theme=' + encodeURIComponent(THEME) : '') });
+// sin la pantalla de entrada (taparía la captura) salvo SPLASH=1, que captura justo eso
+const qs = [THEME ? 'theme=' + encodeURIComponent(THEME) : '', process.env.SPLASH ? '' : 'nosplash=1'].filter(Boolean).join('&');
+await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/' + (qs ? '?' + qs : '') });
 for (let i = 0; i < 50; i++) { await sleep(200); if (await ev('document.readyState') === 'complete') break; }
 await sleep(800);
 const preSrc = pre && pre.startsWith('@') ? fs.readFileSync(pre.slice(1), 'utf8') : pre;   // "@fichero.js": sondas largas

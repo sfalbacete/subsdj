@@ -60,9 +60,6 @@ function buildKeyboard() {
   const startMidi = (baseOctave + 1) * 12;
   const semis = [0, 2, 4, 5, 7, 9, 11];
   const blackAfter = { 0: 1, 2: 3, 5: 6, 7: 8, 9: 10 };
-  // Sesgo real de las negras respecto a la juntura de blancas (fracción del
-  // ancho de una blanca): C# y F# caen hacia la izquierda, D# y A# a la derecha.
-  const blackBias = { 1: -0.13, 3: 0.13, 6: -0.16, 8: 0, 10: 0.16 };
   const white = [], black = [];
   let count = 0;
   for (let oct = 0; oct < numOctaves; oct++) {
@@ -88,7 +85,7 @@ function buildKeyboard() {
   black.forEach(b => {
     const d = document.createElement('div');
     d.className = 'bkey'; d.dataset.midi = b.midi;
-    const center = (b.after + 1 + blackBias[b.midi % 12]) * wWidth;
+    const center = (b.after + 1) * wWidth;    // centrada en la juntura de sus dos blancas (sin el sesgo de un piano acústico: decisión de Sergio)
     d.style.left = `${(center - bWidth / 2).toFixed(3)}%`;
     d.style.width = `${bWidth.toFixed(3)}%`;
     d.innerHTML = hintChip(b.midi - startMidi);

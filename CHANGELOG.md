@@ -6,6 +6,15 @@ no se ha publicado va en «Sin publicar». Numeración X.Y.Z:
 cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
 de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
+## Sin publicar
+
+- **Pantalla de entrada** con una intro de demoscene old-school: plasma con
+  interferencia, el emblema del SubSDJ original en metal girando, el nombre en
+  barras de cobre y un scroller; la versión y su fecha, y el botón **ENTRAR**
+  (o Intro), que además arranca el audio.
+- **Teclado en pantalla**: las teclas negras, centradas entre sus dos blancas
+  (antes imitaban el desplazamiento de un piano acústico).
+
 ## [1.2.0] — 2026-10-24
 
 Más instrumento: movimiento a tempo (reloj común, LFO a tempo, Pasos, una

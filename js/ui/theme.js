@@ -23,6 +23,8 @@ const probe = document.createElement('canvas').getContext('2d');
 const cache = new Map();
 const LS_KEY = 'subsdj.theme.v1';
 
+// Un token que es una LISTA de colores (paradas de un degradado: "#02090a,#041d1c,…"): en crudo, partido
+export function tokenList(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).split(",").map(x => x.trim()).filter(Boolean); }
 export function token(name) {            // '--accent' → '#39d4a3'
   let v = cache.get(name);
   if (v === undefined) {

@@ -2113,3 +2113,38 @@ de −1 a +1 = la rampa de 4 ms; suavizado 1 a mitad = 0; rotación y deriva; ci
 11). Probado también en tiempo real (el valor de la fuente sigue al paso
 calculado con error 0; el planificador se para al callar). Pares PASOS 1-6.
 194/194.
+
+## Pantalla de entrada y teclas negras (2026-10-24)
+
+**Pantalla de entrada** (`ui/splash.js`, idea de Sergio tras ver la de un
+compañero: la nuestra, con un efecto de demoscene old-school). Un lienzo de
+400 px de ancho escalado con `image-rendering: pixelated` — píxeles gordos,
+como en un Amiga — calculado píxel a píxel cada fotograma (unos pocos ms):
+plasma (cuatro senos que se desplazan, uno radial) con paleta cíclica de 256
+colores más la interferencia de dos fuentes de ondas que se mueven en
+Lissajous (sus anillos se cruzan: el moiré), con viñeta; el **emblema** del
+SubSDJ original — el icono de 48 px del .exe de VB.Net: un aro con hueco y tres
+cuchillas curvas — como forma implícita (`emblemAt`: cada cuchilla es una
+media luna, un círculo menos otro igual desplazado en la tangente; las tres a
+120°), girando, en metal repujado (canto de luz arriba a la izquierda, de
+sombra abajo a la derecha, reflejos del plasma y un destello que lo cruza); el
+**nombre** en barras de cobre (un color por línea que sube: el Copper del
+Amiga) con canto de luz, sombra arrojada y un brillo que lo recorre, del tamaño
+que quepa al lado del emblema; un **scroller** senoidal. Todo entra con un
+fundido de **trama ordenada** (Bayer 4×4), como se hacían los fundidos con
+pocos colores. Encima, en HTML nítido: versión y fecha (`RELEASE` en
+`version.js`; el check de versión exige que sea la fecha del CHANGELOG) y el
+botón **ENTRAR** de esquinas cortadas con borde de gradiente que fluye, que
+además es el gesto que el navegador pide para arrancar el audio; Intro también
+entra, y mientras la intro está el teclado no toca notas
+(`stopImmediatePropagation` en captura). Los colores son de la marca, no del
+tema: tokens `--sp-*` en `:root` (la regla de la piel: ningún literal de
+color fuera de ahí), las paletas del lienzo como listas de paradas que se leen
+con `tokenList` de `theme.js`. Va estática en `index.html` para tapar la
+página desde el primer pintado; fuera con `?selftest` o `?nosplash`
+(`tools/shot.mjs` la quita salvo `SPLASH=1`). Check «pantalla de entrada»
+(emblema de simetría 3 con hueco, un fotograma que pinta, la fecha).
+
+**Teclas negras centradas** entre sus dos blancas (decisión de Sergio). Antes
+imitaban el sesgo de un piano acústico (C# y F# hacia la izquierda, D# y A#
+hacia la derecha), y en pantalla parecía que estaban mal colocadas.
