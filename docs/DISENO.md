@@ -468,7 +468,7 @@ de cada parte, y en capa las cuatro partes suman).
 Conecta un teclado MIDI y acepta el permiso del navegador: se enlaza solo
 (símbolo MIDI en la cabecera: encendido con aparato, apagado sin él, el
 tooltip dice cuál; reconecta en caliente). **Velocity** escala la
-amplitud y la envolvente del filtro; **pitch bend** ±2 semitonos; **sustain**
+amplitud y la envolvente del filtro (con la curva de **Tacto**); **pitch bend** con el rango del preset (±2 de entrada); **sustain**
 (CC64). Las notas MIDI iluminan el teclado en pantalla.
 
 ### MIDI learn (MIDI map)
@@ -2197,3 +2197,18 @@ macros que mueven cualquier parámetro con rango y curva propios — se aparcó
 → amplitud −0,5 en dos slots: el seno pasa de 130,6 a 185,0 Hz (el valor
 exacto) y queda a ×0,500; Macro 2 → cutoff a 0,6: tilt ×5,4. Par **MAC 1-2**
 (un pad con tres slots en Macro 1: filtro, drive y resonancia), diff 0,98.
+
+**2.6 · Respuesta al tacto.** Dos cosas distintas, en la barra del teclado
+junto a la rueda. **Tacto** (suave · lineal · dura) es la curva de velocity
+del que TOCA, no del preset: v^0,5, v, v^2 (una nota MIDI a 64 nace a 0,71 /
+0,50 / 0,25), se recuerda en este navegador (`subsdj.tacto.v1`) y vale para
+el MIDI y para el ratón — en el ratón, sobre la altura de la pulsación y
+conservando el suelo de 0,2, para que arriba de la tecla siga sonando —; el
+teclado del PC no sabe de fuerza. **Bend** (±1…±24 semitonos) es del PRESET
+(`bendRange`): el MIDI manda el bend normalizado (−1..1) y cada motor lo escala
+con su rango, así que en Partes el bajo puede caer una octava (±12) mientras el
+pad dobla un tono (±2) con la misma rueda; cambiar el rango con la rueda movida
+reescala en vivo. Check «respuesta al tacto»: las tres curvas por MIDI y por
+ratón, botones y memoria; bend a tope con ±12: 130,8 → 261,3 Hz (la octava),
+con ±2: 146,9; en vivo +0,5 da 100 ct con ±2 y 600 con ±12. Sin par A/B: la
+sonda no mueve el bend ni toca flojo.

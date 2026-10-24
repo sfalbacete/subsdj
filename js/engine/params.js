@@ -311,6 +311,10 @@ PARAMS.mxDriftSpd = { def: 0.05, min: 0.005, max: 5, log: true, fmt: hzFmt };
 // Macros: fuentes 'mac1' / 'mac2' de la matriz (AudioEngine.perf); a 0 no mueven nada
 PARAMS.macro1 = { def: 0, min: 0, max: 1, act: true };
 PARAMS.macro2 = { def: 0, min: 0, max: 1, act: true };
+// Rango del pitch bend en semitonos (Roadmap 7.0 · 2.6), del preset: ±2 lo normal,
+// ±12 para bajos y efectos. El bend llega normalizado (−1..1) y el motor lo escala.
+export const BEND_RANGES = ['1', '2', '3', '5', '7', '12', '24'];
+PARAMS.bendRange = { def: '2' };
 PARAMS.lfoPhase = { def: 'global' };
 
 // LFO a tempo (Roadmap 7.0 · 2.2): cada LFO con su sincro — 'libre' (Speed en Hz)

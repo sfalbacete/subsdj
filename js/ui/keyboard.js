@@ -1,6 +1,8 @@
 /* SubSDJ · teclado en pantalla + teclado del PC (polifónico) */
 import { part, playOn, playOff, eachPart, forgetSounding, setPerf } from '../engine/parts.js';
 import { setStatus } from './status.js';
+import { bindSelect } from './registry.js';
+import { BEND_RANGES } from '../engine/params.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // Layout estilo tracker (FastTracker/Impulse): dos filas de notas, semitonos desde la octava base.
@@ -27,7 +29,25 @@ const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
 // El QWERTY no sabe de fuerza: sigue a 1. El MIDI trae la suya.
 const VEL_MIN = 0.2;    // arriba del todo: −14 dB en el VCA (y menos filtro / FM donde la velocity los mueve). Más bajo casi no se oye
 const VEL_FULL = 0.85;  // el 15 % del borde da 1: un clic abajo suena como antes de haber velocity
-export const velFromY = f => VEL_MIN + (1 - VEL_MIN) * Math.min(1, Math.max(0, f) / VEL_FULL);
+export const velFromY = f => VEL_MIN + (1 - VEL_MIN) * touchCurve(Math.min(1, Math.max(0, f) / VEL_FULL));
+
+// Respuesta al tacto (Roadmap 7.0 · 2.6): la curva de velocity del que TOCA, no del
+// preset (se recuerda en este navegador). suave = con poca fuerza ya suena fuerte
+// (v^0,5: 64 → 90), dura = hay que apretar (v^2: 64 → 32). Vale para el MIDI y para
+// el ratón (sobre la altura de la pulsación, conservando su suelo VEL_MIN); el
+// QWERTY no sabe de fuerza y sigue a 1.
+const TOUCH = { suave: 0.5, lineal: 1, dura: 2 };
+const TOUCH_KEY = 'subsdj.tacto.v1';
+let touch = 'lineal';
+try { const t = localStorage.getItem(TOUCH_KEY); if (t in TOUCH) touch = t; } catch (_) {}
+export function touchCurve(v) { return Math.pow(Math.max(0, Math.min(1, v)), TOUCH[touch]); }
+export function getTouch() { return touch; }
+export function setTouch(t) {
+  if (!(t in TOUCH)) return;
+  touch = t;
+  try { localStorage.setItem(TOUCH_KEY, t); } catch (_) {}
+  document.querySelectorAll('#kbTouch button').forEach(b => b.classList.toggle('active', b.dataset.touch === t));
+}
 
 // Semitono (desde la octava base) -> tecla del PC para pintarla sobre la tecla. En los
 // solapes fila baja/alta (12-14) gana la fila alta: va después en KEYMAP y la pisa.
@@ -224,6 +244,11 @@ export function initKeyboard() {
     wheel.addEventListener('dblclick', () => { wheel.value = 0; setPerf('wheel', 0); });
     document.addEventListener('perf-change', e => { if (e.detail.id === 'wheel') wheel.value = e.detail.value; });
   }
+  // Rango del bend (del preset) y tacto (tuyo), junto a la rueda
+  const bend = document.getElementById('bendRangeSel');
+  if (bend) bindSelect(bend, 'bendRange', BEND_RANGES.map(n => ({ id: n, label: '±' + n })));
+  document.querySelectorAll('#kbTouch button').forEach(b => b.addEventListener('click', () => setTouch(b.dataset.touch)));
+  setTouch(touch);
 
   // Al cambiar el ancho, recalcular cuántas octavas caben y reconstruir.
   let rszT;

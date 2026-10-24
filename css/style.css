@@ -689,6 +689,9 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 /* rueda de modulación bajo el teclado (Roadmap 5.0 · bloque 4): fuente «Rueda (CC1)» de la matriz */
 #kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
 #kbBar .wheel input[type=range]{width:140px;}
+#kbBar .kb-grp{display:flex;align-items:center;gap:8px;margin-left:18px;}
+#kbBar .kb-grp select{padding:2px 6px;font-size:11px;}
+#kbTouch button{padding:3px 8px;font-size:10px;}
 
 /* VENTANA DE ENTRADA (ui/splash.js): una ventana modal centrada sobre el
    instrumento, que se ve detrás apagado (oscurecido y desaturado). Arriba, la

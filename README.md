@@ -23,7 +23,9 @@ build step. The interface and the docs are in Spanish.*
   la altura a la que pulsas la tecla es la fuerza (velocity), y arrastrando
   con el botón pulsado va tocando las teclas que pisa.
 - **Teclado MIDI**: se conecta solo al aceptar el permiso del navegador
-  (velocity, pitch bend, sustain y Program Change). **MIDI map** liga
+  (velocity, pitch bend, sustain y Program Change). Bajo el teclado, **Tacto**
+  ajusta la curva de velocity (suave, lineal o dura) y **Bend** el rango del
+  pitch bend del preset. **MIDI map** liga
   cualquier mando físico a cualquier control.
 - El audio arranca con el primer clic o la primera tecla: los navegadores no
   dejan sonar una página antes.

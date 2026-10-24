@@ -8,6 +8,11 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Respuesta al tacto**, en la barra del teclado: **Tacto** (suave · lineal ·
+  dura), la curva de velocity de tu teclado MIDI y del ratón, que se recuerda
+  en el navegador; y **Bend**, el rango del pitch bend (±1 a ±24 semitonos),
+  que se guarda en el preset (antes, ±2 fijos). En Partes, cada parte con su
+  rango.
 - **Macros**: dos knobs, macro 1 y macro 2, al pie de la Matriz, que se guardan
   en el preset y son fuentes de la matriz. Con la misma macro en varios slots,
   un solo mando abre el filtro, sube el drive y la resonancia a la vez, cada

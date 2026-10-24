@@ -613,6 +613,7 @@ export class AudioEngine {
       case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Partes: fader de la parte
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
+      case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // un bend ya movido se reescala
       case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
@@ -628,10 +629,13 @@ export class AudioEngine {
     if (this.ready) this.perf[id].offset.setTargetAtTime(v, this.ctx.currentTime, PERF_TAU);
   }
 
-  // Pitch bend MIDI (cents). Va por fuera de CONTROLS/presets: se SUMA al
-  // slider de cents en el mismo ConstantSource compartido (pitchOffset).
-  setBend(cents) {
-    this._bend = cents;
+  // Pitch bend MIDI, normalizado (−1..1). Va por fuera de CONTROLS/presets: se
+  // SUMA al slider de cents en el mismo ConstantSource compartido (pitchOffset),
+  // escalado por el rango del PRESET (bendRange, semitonos): en Partes, cada
+  // parte con el suyo (el bajo a ±12 y el pad a ±2 con la misma rueda).
+  setBend(norm) {
+    this._bendNorm = Math.max(-1, Math.min(1, +norm || 0));
+    const cents = this._bend = this._bendNorm * (+this.S.bendRange || 2) * 100;
     if (!this.ready) return;
     this.pitchOffset.offset.setTargetAtTime(this.S.freqCents + cents, this.ctx.currentTime, 0.005);
     if (cents) this._forVoices(v => v.ensurePitch());

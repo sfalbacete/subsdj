@@ -1,8 +1,9 @@
 /* =====================================================================
    SubSDJ · entrada Web MIDI.
    Notas con velocity -> pressNote/releaseNote (comparte ids y visuales con
-   el teclado en pantalla). Pitch bend ±200 ct -> part().setBend (no pasa
-   por presets). Sustain (CC64) retenido aquí, salvo que el usuario lo
+   el teclado en pantalla), pasada por la curva de tacto (keyboard.js).
+   Pitch bend normalizado (−1..1) -> setBend de cada parte, que lo escala por
+   el rango de su preset (bendRange). Sustain (CC64) retenido aquí, salvo que el usuario lo
    remapee. El resto de CCs pasa por el mapa de midimap.js (MIDI learn);
    de fábrica: CC1 -> vibrato, CC74/CC71 -> cutoff/resonancia (los
    controles giran en pantalla: misma filosofía que un panel analógico).
@@ -14,7 +15,7 @@
    se trata igual: la fuente es por motor) alimenta 'at'.
    ===================================================================== */
 import { part, eachPart, setPerf } from '../engine/parts.js';
-import { pressNote, releaseNote } from './keyboard.js';
+import { pressNote, releaseNote, touchCurve } from './keyboard.js';
 import { applyCC, learnCapture, setDevice } from './midimap.js';
 import { loadPresetIndex } from './presetBank.js';
 import { setStatus } from './status.js';
@@ -32,7 +33,7 @@ export function handleMidi(data) {
   if (cmd === 0x90 && d2 > 0) {                        // note on
     part().resume();
     if (pedalHeld.has(d1)) { pedalHeld.delete(d1); releaseNote(d1); }   // retrigger de nota sostenida
-    pressNote(d1, d2 / 127);
+    pressNote(d1, touchCurve(d2 / 127));
   } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {   // note off
     if (pedal) pedalHeld.add(d1);
     else releaseNote(d1);
@@ -51,8 +52,8 @@ export function handleMidi(data) {
     perf('at', d2 / 127);
   } else if (cmd === 0xc0) {                           // program change → preset del banco
     loadPresetIndex(d1);
-  } else if (cmd === 0xe0) {                           // pitch bend ±200 ct (±2 semitonos)
-    eachPart(e => e.setBend((((d2 << 7) | d1) - 8192) / 8192 * 200));
+  } else if (cmd === 0xe0) {                           // pitch bend: −1..1 (el rango lo pone el preset)
+    eachPart(e => e.setBend((((d2 << 7) | d1) - 8192) / 8192));
   }
 }
 function onMsg(e) { handleMidi(e.data); }

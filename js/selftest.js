@@ -31,7 +31,7 @@ import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS,
 import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
-import { velFromY } from './ui/keyboard.js';
+import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
@@ -1670,7 +1670,8 @@ export async function runSelfTest() {
     const NAME = 'teclado de pantalla: velocity por la altura de la pulsación (curva · voz · tecla · pantalla)';
     let r;
     try {
-      const probs = [], near = (a, b) => Math.abs(a - b) < 1e-9;
+      const probs = [], near = (a, b) => Math.abs(a - b) < 1e-9, tk = getTouch();
+      setTouch('lineal');                          // la curva de tacto del navegador no cuenta aquí
       if (!(near(velFromY(0), 0.2) && near(velFromY(0.425), 0.6) && near(velFromY(0.85), 1) && near(velFromY(1), 1) && near(velFromY(-0.1), 0.2)))
         probs.push('curva: ' + [0, 0.425, 0.85, 1].map(velFromY).map(v => v.toFixed(3)).join(' '));
       const keep = snapshot();
@@ -1691,7 +1692,7 @@ export async function runSelfTest() {
       if (lo.css !== eLo.toFixed(2)) probs.push('la tecla no publica --vel («' + lo.css + '»)');
       if (!lo.disp.includes(eLo.toFixed(2))) probs.push('la pantalla Salida no enseña la velocity («' + lo.disp + '»)');
       part().allNotesOff();
-      loadState(keep);
+      loadState(keep); setTouch(tk);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
@@ -3030,6 +3031,58 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // Respuesta al tacto (Roadmap 7.0 · 2.6). (1) Curva de velocity, del que toca (no del
+    // preset): suave v^0,5 · lineal · dura v^2, por el camino real — una nota MIDI con
+    // velocity 64 nace con (64/127)^γ, y el ratón la aplica a la altura de la pulsación
+    // conservando el suelo (0,2); los botones marcan la elegida y se recuerda. (2) Rango
+    // del bend, del preset: con el bend a tope, ±12 sube una octava exacta y ±2 un tono;
+    // cambiar el rango con la rueda movida reescala el bend en vivo.
+    const NAME = 'respuesta al tacto (curva suave/lineal/dura en MIDI y ratón · rango del bend del preset · reescala en vivo)';
+    let r;
+    try {
+      const probs = [], keep = snapshot(), tk = getTouch(), near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
+      loadState({});
+      const v64 = 64 / 127;
+      for (const [t, g] of [['suave', 0.5], ['lineal', 1], ['dura', 2]]) {
+        setTouch(t);
+        handleMidi([0x90, 60, 64]);
+        const v = part().voices.get('m60');
+        handleMidi([0x80, 60, 0]);
+        if (!v || !near(v.vel, Math.pow(v64, g), 1e-6)) probs.push(t + ': MIDI 64 nace con vel ' + (v ? v.vel.toFixed(3) : '—') + ' (esperado ' + Math.pow(v64, g).toFixed(3) + ')');
+        const m = velFromY(0.425), mEsp = 0.2 + 0.8 * Math.pow(0.5, g);
+        if (!near(m, mEsp)) probs.push(t + ': ratón a media tecla ' + m.toFixed(3) + ' (esperado ' + mEsp.toFixed(3) + ')');
+        if (!near(velFromY(0), 0.2) || !near(velFromY(1), 1)) probs.push(t + ': el ratón pierde el suelo o el techo');
+        const act = [...document.querySelectorAll('#kbTouch button.active')].map(b => b.dataset.touch);
+        if (act.join() !== t) probs.push(t + ': botones marcados ' + (act.join() || 'ninguno'));
+        let saved = null; try { saved = localStorage.getItem('subsdj.tacto.v1'); } catch (_) {}
+        if (saved !== t) probs.push(t + ': no se recuerda (' + saved + ')');
+      }
+      part().allNotesOff();
+      setTouch(tk);
+      // rango del bend: offline, seno, bend a tope
+      const hzOf = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
+      const sine = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
+      const bendRender = async range => { loadState({ ...sine, bendRange: range }); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.setBend(1); eng.noteOn('b', NOTE1); return ctx.startRendering(); };
+      const f12 = hzOf(await bendRender('12'), 0.3, 1.1), f2 = hzOf(await bendRender('2'), 0.3, 1.1);
+      if (!(Math.abs(f12 - 2 * NOTE1) < 2.5)) probs.push('±12 con el bend a tope: ' + f12.toFixed(1) + ' Hz (esperado ' + (2 * NOTE1).toFixed(1) + ')');
+      if (!(Math.abs(f2 - NOTE1 * Math.pow(2, 2 / 12)) < 2.5)) probs.push('±2 con el bend a tope: ' + f2.toFixed(1) + ' Hz (esperado ' + (NOTE1 * Math.pow(2, 2 / 12)).toFixed(1) + ')');
+      // en vivo: el MIDI llega normalizado y el rango lo escala; cambiar el rango reescala
+      loadState({ bendRange: '2' });
+      handleMidi([0xe0, 0x00, 0x60]);                       // +0,5 (8192 + 4096)
+      const b2 = engine._bend;
+      CONTROLS.bendRange.set('12');
+      const b12 = engine._bend;
+      handleMidi([0xe0, 0x00, 0x40]);                       // centro
+      if (!near(b2, 100, 1e-6) || !near(b12, 600, 1e-6) || engine._bend !== 0) probs.push('bend en vivo: ' + b2 + ' → ' + b12 + ' ct (esperado 100 → 600) · al centrar ' + engine._bend);
+      loadState(keep);
+      console.log('tacto: MIDI 64 suave/lineal/dura ' + [0.5, 1, 2].map(g => Math.pow(v64, g).toFixed(3)).join('/') + ' · bend a tope ±12 ' + f12.toFixed(1) + ' Hz · ±2 ' + f2.toFixed(1) + ' Hz · en vivo ' + b2 + ' → ' + b12 + ' ct');
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
   // ---------- Roadmap 5.0 · bloque 7: cinta en el máster ----------
   // Saturación: un seno de C3 gana 3er armónico (392 Hz) a tope y no lo tiene a 0,
   // sin saltar de nivel; y a 0,3 (la zona «un poco» del knob, que entra al

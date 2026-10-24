@@ -3,7 +3,8 @@
 Fecha: 2026-10-24 · **publicada la 1.2.0**: mezclador a la Minimoog, velocity con el ratón, checks
 fiables y del Roadmap 7.0 los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1 (194/194). Lo que se haga
 a partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente (1.3.0 si son funciones).
-Siguiente en el orden: 2.6 tacto (1.3 medidor y 2.5 macros hechos el 2026-10-25).
+1.3 medidor, 2.5 macros y 2.6 tacto hechos el 2026-10-25. Siguiente en el orden: 3.2-3.5, 4.1, 5.x, 6.x, 1.4 y 7.2-7.4
+intercalados (punto 6 del orden propuesto).
 
 ## Roadmap 7.0 «el instrumento» (propuesto 2026-10-17 · pendiente de acordar)
 
@@ -44,7 +45,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 2.3 | Módulo de Pasos (polimetría) ✔ | timbre por pasos, complejo y rítmico — HECHO 2026-10-20 | alto | 0.4, 2.2 |
 | 2.4 | Más destinos en la matriz ✔ | niveles del mezclador (vectorial), Drive, Pitch A, Material — HECHO 2026-10-20 (Decay no: ver abajo) | bajo | — |
 | 2.5 | Macros de ejecución ✔ | un knob mueve varios destinos — HECHO 2026-10-25 (dos knobs al pie de la Matriz) | bajo | — |
-| 2.6 | Respuesta al tacto | curva de velocity, rango del bend | bajo | — |
+| 2.6 | Respuesta al tacto ✔ | curva de velocity, rango del bend — HECHO 2026-10-25 (barra del teclado) | bajo | — |
 | **3** | **Generadores nuevos** | | | |
 | 3.1 | Drive con carácter: asimétrico y plegado ✔ | suave/plegado + Asimetría — HECHO 2026-10-20 | bajo-medio | — |
 | 3.2 | Sincronización dura | el barrido de sync clásico | medio | 2.4 |

@@ -721,6 +721,8 @@
       <button data-kbo="-1" title="Octava del teclado del PC abajo (AvPág)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Octava del teclado del PC arriba (RePág)">+</button>
     </div>
     <label class="wheel" title="Rueda de modulación: fuente «Rueda (CC1)» de la matriz (0 = reposo). La rueda de un teclado MIDI (CC1) también la mueve. Doble clic = 0"><span class="lab">Rueda</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>
+    <label class="kb-grp" title="Rango del pitch bend en semitonos (se guarda en el preset): ±2 es lo normal; ±12 para bajos y efectos que caen una octava. En Partes, cada parte con el suyo"><span class="lab">Bend</span><select id="bendRangeSel"></select></label>
+    <span class="kb-grp" title="Respuesta al tacto, de TU teclado (no del preset; se recuerda en este navegador): suave = con poca fuerza ya suena fuerte · lineal = la fuerza tal cual · dura = hay que apretar para llegar arriba. Vale para el teclado MIDI y para el ratón (la altura de la pulsación); el teclado del PC va siempre a tope"><span class="lab">Tacto</span><span class="seg" id="kbTouch"><button type="button" data-touch="suave">suave</button><button type="button" data-touch="lineal">lineal</button><button type="button" data-touch="dura">dura</button></span></span>
   </div>
 </div>
 </div><!-- /inst -->
