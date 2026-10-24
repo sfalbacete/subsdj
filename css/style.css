@@ -687,11 +687,12 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 #spEnter:hover span,#spEnter:focus-visible span{background:linear-gradient(180deg,var(--sp-btn-top-on),var(--sp-btn-bot-on));color:var(--sp-white);}
 #spEnter:active{transform:scale(.97);}
 #spEnter:focus{outline:none;}
-.sp-foot{display:flex;justify-content:space-between;gap:10px;padding:9px 14px;border-top:1px solid var(--sp-edge2);
+.sp-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;border-top:1px solid var(--sp-edge2);
   font:500 10px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.04em;color:var(--sp-soft);}
 .sp-foot b{color:var(--sp-ink);font-weight:600;}
 .sp-foot a{display:inline-flex;align-items:center;gap:5px;color:var(--sp-meta);text-decoration:none;}
-.sp-gh{width:12px;height:12px;flex:none;}
+.sp-gh{display:block;width:12px;height:12px;flex:none;margin-top:-1px;}   /* 12 px junto a texto de 11: medio píxel arriba para centrar */
+.sp-links{display:flex;align-items:center;gap:6px;}   /* centrado por cajas: el icono no empuja la línea de texto */
 .sp-foot a:hover{color:var(--sp-white);text-decoration:underline;}
 @keyframes spIn{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:none;}}
 @keyframes spFlow{to{background-position:300% 0;}}
