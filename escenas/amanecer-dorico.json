@@ -3,7 +3,7 @@
   "nombre": "Amanecer dórico",
   "nota": "Fa dórico, i-IV-VII-IV a 84 bpm: el vamp dórico de siempre, luminoso sin ser mayor. Un coro de vocales de tabla sostiene los acordes con el morph derivando (las vocales cambian solas), un bajo cremoso entra con la primera luz, el glockenspiel FM dibuja una melodía escasa por dos octavas y una caja de música marca un tresillo cuando la energía sube. Ciclo de 24 compases; Apertura alta para que el filtro amanezca con la energía.",
   "sala": { "bpm": 84, "dlySync": "1/8.", "dlyDamp": 0.5, "dlyWow": 0.2, "reverbSize": 3.0, "reverbDamp": 0.5, "reverbPre": 0.02,
-            "fb": 0.45, "dlyToRev": 0.5, "master": 0.7 },
+            "fb": 0.45, "dlyToRev": 0.5, "master": 1.93 },
   "director": {
     "seed": 21,
     "armonia": { "root": 5, "scale": "dórica", "prog": [1, 4, 7, 4], "bars": 2, "modo": "lista" },

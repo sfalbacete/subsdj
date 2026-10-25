@@ -2420,3 +2420,14 @@ la pendiente inicial nunca pasa de 0,9 s por segundo, así que la cinta nunca va
 movimiento pequeño llega en 20 ms y resbala el tono (el dub); uno grande es un barrido seguido —
 al alargar el eco el tono cae hasta ~3 octavas, la cinta frenando —. Check «sin clics al mover
 knobs» con diez representativos.
+
+**Eventos de nota y escenas.** Robo de voz (14 notas sobre 10 voces, pad y bajo), Pánico con un
+acorde grave sonando y la misma tecla otra vez durante su release: ningún salto por encima de
+×1,8 (el ×1,8 es el ataque de la nota nueva). Escenas del repo (Partes, offline 34-60 s, el
+medidor del propio limitador): ninguna lo aprieta, pero tres sonaban ~10 dB más flojas que la
+ambient y que los presets (RMS de −25 a −31 dB, picos de −8 a −13). Son de golpes y arpegios, con
+16-20 dB entre pico y media, así que no se igualan en media (se pegarían al limitador) sino por el
+pico: máster de la sala de 0,7 a 1,93 (amanecer-dórico), 1,12 (coro-robótico) y 1,66
+(techno-hipnótico), para picos en torno a −4 dBFS; medido el coro: pico −4,1, RMS −21,4, limitador
+sin trabajar. (Las copias de las escenas que ya estén en una biblioteca no cambian solas: borrarlas
+y ⟲ Traer de fábrica.)

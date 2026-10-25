@@ -3,7 +3,7 @@
   "nombre": "Techno hipnótico",
   "nota": "La pentatónica menor a 126 bpm, casi estática (i-i-iv-i, un compás por acorde). Bombo 808 a negras que se cae en los valles de energía (breakdown), un Ácido 303 en modo mono cuya frase del SECUENCIADOR se transpone con la raíz de cada acorde (Raíz + Seq = Frase) y cuyo cutoff deriva solo, una textura Wavestation ARPEGIADA a semicorcheas en dos octavas (Acorde + Arp) que solo entra en la cumbre, y un hat FM en E(7,16) con acentos. Ciclo de 16 compases, Sorpresa alta: huecos de un compás. OJO: el Seq y el Arp son de tiempo real — en el render offline del selftest esas dos partes callan.",
   "sala": { "bpm": 126, "dlySync": "1/8.", "dlyDamp": 0.45, "dlyWow": 0.1, "reverbSize": 1.6, "reverbDamp": 0.4, "reverbPre": 0.01,
-            "fb": 0.5, "dlyToRev": 0.3, "master": 0.7 },
+            "fb": 0.5, "dlyToRev": 0.3, "master": 1.66 },
   "director": {
     "seed": 3,
     "armonia": { "root": 9, "scale": "penta menor", "prog": [1, 1, 4, 1], "bars": 1, "modo": "lista" },

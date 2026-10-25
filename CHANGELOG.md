@@ -8,6 +8,9 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Escenas**: «amanecer-dórico», «coro-robótico» y «techno-hipnótico» sonaban ~10 dB más flojas que
+  el resto; ahora llegan al mismo pico (−4 dBFS) sin tocar el limitador. Robo de voz, Pánico y
+  repetir una tecla en su release, auditados: sin clics.
 - **Arreglado**: mover el Time del delay de golpe (un mando MIDI, cambiar de división o de BPM)
   daba un raspazo; ahora barre como una cinta. Auditados los demás knobs: ninguno da clic al
   moverlo de golpe con una nota sonando.

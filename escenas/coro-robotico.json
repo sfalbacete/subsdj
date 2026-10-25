@@ -3,7 +3,7 @@
   "nombre": "Coro robótico",
   "nota": "Re hirajoshi (pentatónica japonesa) a 66 bpm con la armonía en modo FUNCIONES: el paseo T→S/D→T decide los grados. Todo es el módulo Vocal: un madrigal de voces (una vocal distinta por nota) sostiene los acordes con la vocal base derivando, una voz glotal hace el dron de fundamental y quinta, un robot parlante canta la melodía a media voz, y la percusión vocal «ka» marca un E(5,12) cuando hay energía. Sala grande y oscura, eco de cinta con wow: cueva de robots.",
   "sala": { "bpm": 66, "dlySync": "1/4", "dlyDamp": 0.7, "dlyWow": 0.4, "reverbSize": 3.8, "reverbType": "placa", "reverbDamp": 0.5, "reverbPre": 0.05,
-            "fb": 0.55, "dlyToRev": 0.7, "master": 0.7 },
+            "fb": 0.55, "dlyToRev": 0.7, "master": 1.12 },
   "director": {
     "seed": 42,
     "armonia": { "root": 2, "scale": "hirajoshi", "prog": [1, 4, 5, 1], "bars": 2, "modo": "funciones" },
