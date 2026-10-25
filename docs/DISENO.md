@@ -2319,3 +2319,36 @@ Delay va con 2 px de margen. Medido: a 110 % el nivel pasa de −19,8 a −18,6 
 entre los segundos 5-6 y 9-10 (estable, pico 0,22); a 50 % cae más de 150 dB;
 el 3er armónico de las repeticiones de un seno fuerte, de −150 a −13,9 dB con
 Saturación 1. Check «delay que se desboca»; pares **DUB 1-4**.
+
+**5.1 · Articulaciones del secuenciador.** Sufijos por paso, como en un 303:
+`!` acento, `~` ligadura, `/` slide, `x2`-`x4` repeticiones, combinables
+(«7!/», «0x3»). En el editor de pasos: Mayús + clic = acento, Alt + clic =
+ligadura → slide → nada, Ctrl + clic = repeticiones; se dibujan (remate
+amarillo y más grueso, raya, diagonal hasta la altura del siguiente, remate
+partido) y arrastrar la altura las conserva (`stepToken`, el token canónico).
+- **Acento** relativo: si el patrón tiene alguno, los pasos sin acento bajan a
+  0,6 de la velocity (con el QWERTY, que siempre va a 1, si no el acento no
+  se oiría); y la fuente de la matriz **«Acento (Seq)»** vale 1 en la nota
+  acentuada (`Voice.acc`, como la velocity): el preset decide qué hace un
+  acento — Acento → Cutoff es el del 303. Atenuada si el Seq no está encendido
+  o el patrón no tiene «!».
+- **Ligadura y slide**: el paso no suelta su nota; el siguiente la CONTINÚA
+  con `AudioEngine._directGlide` (cambia la altura de la voz que suena sin
+  ataque nuevo: de golpe en la ligadura, con el Glide del preset — o 60 ms si
+  está a 0 — en el slide), en Poli y en Mono. Un silencio la termina.
+- **Repeticiones**: n golpes en el paso, cada uno con 0,8 de su hueco como
+  mucho (para que el siguiente vuelva a atacar).
+- **Arreglo de paso — el glide empezaba antes de tiempo.** `Voice.glideTo` usaba
+  `cancelAndHoldAtTime(t)` para fijar el punto de partida, pero si no hay
+  ninguna automatización después de t (la nota ya llegó a su altura) Chrome no
+  deja ese punto, y la rampa salía del último evento: el arranque de la nota.
+  El slide subía desde el principio del paso (158 Hz de media donde debía
+  haber 130,8) y el legato del Mono con Glide, igual. Ahora cada parámetro
+  recuerda su última altura y hasta cuándo dura su rampa: con una en curso,
+  cancelAndHold la corta; sin ella, el punto se fija a mano.
+Check «articulaciones del Seq» (4 / 2 / 3 ataques para plano / ligado /
+repeticiones; acento +4,4 dB y la fuente solo en su nota; slide 131 → 260 Hz en
+un ataque, Poli y Mono; legato con Glide sin moverse antes de la tecla) y pares
+**ART 1-2** (línea plana / con acentos y slides; mantener una tecla). Cuatro
+frases nuevas en el banco del Seq: «Ácido con slides», «Ácido que pregunta»,
+«Ligaduras largas», «Redobles».

@@ -72,7 +72,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 4.2 | Placa: graves y modulación aleatoria | colas oscuras, menos «chorus» | medio | opcional |
 | 4.3 | Phaser | el efecto que falta junto a flanger y chorus | bajo-medio | opcional |
 | **5** | **Acompañamiento ligero** | | | |
-| 5.1 | Secuenciador: acento, ligadura, slide, repeticiones | la línea de 303 | bajo | 0.4 · DECISIÓN |
+| 5.1 | Secuenciador: acento, ligadura, slide, repeticiones ✔ | la línea de 303 — HECHO 2026-10-25 (Mayús/Alt/Ctrl + clic en el editor) | bajo | 0.4 |
 | 5.2 | Notas por grado | el patrón sigue a la escala | bajo-medio | — |
 | 5.3 | Acordes que se encadenan | conducción de voces y disposiciones | bajo | — |
 | 5.4 | Pulso que respira y swing | densidad que cambia por compás; swing global | bajo | 0.4 |

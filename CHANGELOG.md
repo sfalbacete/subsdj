@@ -8,6 +8,14 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Articulaciones en el secuenciador**, como en un 303: **acento** (Mayús + clic
+  en un paso: más fuerte, y la fuente «Acento (Seq)» de la matriz para que el
+  preset decida qué hace — abrir el filtro, más drive…), **ligadura** y **slide**
+  (Alt + clic: la nota sigue sin volver a atacar, o resbala hasta la siguiente) y
+  **repeticiones** (Ctrl + clic: el paso se dispara 2, 3 o 4 veces). Cuatro
+  frases nuevas que las usan y pares de demos ART 1-2.
+- **Arreglado**: el glide (portamento del Mono en legato) empezaba a deslizar
+  desde el principio de la nota en vez de al llegar la siguiente.
 - **Delay que se desboca**: la realimentación tiene su propio knob (**realim.**,
   hasta 110 %), separada del Amount, que pasa a ser solo cuánto entra en el eco.
   Por encima de 100 % el eco crece hasta que la saturación de cinta del bucle lo

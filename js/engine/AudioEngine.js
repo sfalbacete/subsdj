@@ -256,8 +256,9 @@ export class AudioEngine {
     this._directOff(id);
   }
   // Camino directo (lo usa también el arpegiador, con inicio programado `when`)
-  _directOn(id, freq, vel = 1, when = null) {
-    if (this.S.mode === 'mono') return this._monoOn(id, freq, vel, when);
+  // acc: 1 si la nota lleva acento del secuenciador (fuente «Acento» de la matriz)
+  _directOn(id, freq, vel = 1, when = null, acc = 0) {
+    if (this.S.mode === 'mono') return this._monoOn(id, freq, vel, when, acc);
     this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !this.voices.size && !this.tails.size);   // Pasos: ¿empieza a tocar?
     const existing = this.voices.get(id);
     if (existing) { if (existing._timer) clearTimeout(existing._timer); this._dispose(existing); this.voices.delete(id); this.voiceCount = Math.max(0, this.voiceCount - 1); }
@@ -267,7 +268,7 @@ export class AudioEngine {
     }
     const cost = Voice.cost(this.S);
     this._makeRoom(cost);                                  // presupuesto de CPU común (ver VOICE_BUDGET)
-    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
+    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
     if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
     this.wseq.attach(v);                 // secuencia de tabla: cada voz arranca su frase en su noteOn
@@ -280,8 +281,18 @@ export class AudioEngine {
     if (this.S.mode === 'mono') return this._monoOff(id, when);
     this._releaseVoice(id, this.S.r, when);
   }
+  // Ligadura y slide del secuenciador (Roadmap 7.0 · 5.1): la nota `id` que suena cambia
+  // de altura en t SIN ataque nuevo — en `time` s, o de golpe con 0. Poli: su voz;
+  // Mono: la voz única (y la nota de la pila pasa a esa altura).
+  _directGlide(id, freq, t, time = 0) {
+    if (this.S.mode === 'mono') {
+      const n = this.heldStack.find(h => h.id === id); if (n) n.freq = freq;
+      if (this.monoVoice && !this.monoVoice.disposed) this.monoVoice.glideTo(freq, time, t);
+    } else { const v = this.voices.get(id); if (v && !v.disposed) v.glideTo(freq, time, t); }
+    this.lastFreq = freq;
+  }
   allNotesOff() {
-    this.arp.tie = this.seq.tie = null;   // la nota ligada que esperaba su off cae con las demás (corte rápido abajo)
+    this.arp.tie = this.seq.tie = this.seq.link = null;   // la nota ligada que esperaba su off cae con las demás (corte rápido abajo)
     this.arp.held = []; this.arp._maybeStop();
     this.seq.held = []; this.seq.latched = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
@@ -295,7 +306,7 @@ export class AudioEngine {
   // y operadores FM4 desde el principio). «Pulsada» va en tiempo MUSICAL: arp, Seq
   // y jugadores mandan on y off programados y en orden, así que el solape lo
   // decide el gate, no cuánto se adelanta el planificador.
-  _monoOn(id, freq, vel, when = null) {
+  _monoOn(id, freq, vel, when = null, acc = 0) {
     const had = this.heldStack.length > 0;
     this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !had && !this.tails.size && !this.monoVoice);
     this.heldStack = this.heldStack.filter(n => n.id !== id);
@@ -310,7 +321,7 @@ export class AudioEngine {
     else this._killMono();
     const cost = Voice.cost(this.S);
     this._makeRoom(cost);
-    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, startFreq: this.lastFreq, startAt: when });
+    const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
     if (this._bend) v.ensurePitch();
     this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)

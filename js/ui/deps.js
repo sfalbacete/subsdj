@@ -52,6 +52,8 @@ const mxFrom = (S, src) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i 
 const mxTo = (S, dst) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'dst'] === dst && slotOn(S, i)) return true; return false; };
 const slotWhy = (S, i, isAmt) => {
   if (S['mx' + i + 'src'] === 'off') return 'fuente «—»: el slot está libre';
+  if (S['mx' + i + 'src'] === 'acc' && !(S.seqOn === 'on' && /!/.test(S.seqPat || '')))
+    return 'Acento: solo lo da el secuenciador encendido, en los pasos marcados con «!»';
   const w = dstWhy(S, S['mx' + i + 'dst']);
   if (w) return w;
   return !isAmt && !S['mx' + i + 'amt'] ? 'cantidad 0: el slot no mueve nada' : null;   // el knob de cantidad es la llave: no se apaga a sí mismo

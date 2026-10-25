@@ -268,6 +268,7 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'st3n',    label: 'Pasos 3 · nota' },
   { id: 'st4n',    label: 'Pasos 4 · nota' },
   { id: 'vel',     label: 'Velocity' },
+  { id: 'acc',     label: 'Acento (Seq)' },   // 1 en los pasos con «!» del secuenciador, 0 en el resto (Roadmap 7.0 · 5.1)
   { id: 'note',    label: 'Nota (altura)' },
   { id: 'rnd',     label: 'S&H por nota' },
   { id: 'drift',   label: 'Deriva (voz)' },  // paseo lento PROPIO de cada voz (nodes.mkVoiceLFO 'drift' a mxDriftSpd): el acorde respira voz a voz

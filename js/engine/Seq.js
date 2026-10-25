@@ -11,23 +11,46 @@
    rejilla del RELOJ COMÚN (engine/Clock.js), como el arpegiador: dos Seq de
    dos partes, o un Seq y un Arp, caen juntos. Una tecla puede llegar con su
    instante («when», la de un jugador): es raíz a partir de ese paso.
+   ARTICULACIONES (Roadmap 7.0 · 5.1), sufijos del paso en el patrón:
+     !   acento: suena más fuerte que los pasos sin acento (si el patrón tiene
+         alguno, los demás bajan a SEQ_UNACCENT) y enciende la fuente de la
+         matriz «Acento» de esa nota — el preset decide qué hace un acento
+     ~   ligadura: la nota NO se corta; el paso siguiente la continúa sin ataque
+         nuevo (si tiene otra altura, salta a ella)
+     /   slide: como la ligadura, pero la altura RESBALA hasta la del paso
+         siguiente (el Glide del preset, o SEQ_SLIDE si está a 0): el 303
+     x2…x4  repeticiones: el paso se dispara 2-4 veces dentro de su tiempo
+   Se combinan: «7!/», «0x3», «3!~».
    ===================================================================== */
 import { clockOf, DIV_BEATS } from './Clock.js';
 export const SEQ_MAX_STEPS = 16, SEQ_OFF_MIN = -12, SEQ_OFF_MAX = 24;
+const SEQ_UNACCENT = 0.6;   // con acentos en el patrón, los pasos sin acento suenan a este factor de la velocity
+const SEQ_SLIDE = 0.06;     // s: el slide con el Glide a 0 (el tiempo fijo del 303)
+const SEQ_RATCHET_GATE = 0.8;   // fracción de cada golpe de una repetición (deja hueco para el siguiente ataque)
 
-// Token: entero con sufijo opcional '!' (acento) o '~' (tie) — se parsean ya
-// (encoding ampliable, fase 2) aunque el _tick de hoy solo consume `off`.
-// '.' o cualquier token inválido = silencio (null). Offsets clampeados.
+// Token: entero con sufijos opcionales en cualquier orden — '!' acento, '~'
+// ligadura, '/' slide (ligadura y slide se excluyen: gana el último), 'x2'…'x4'
+// repeticiones. '.' o cualquier token inválido = silencio (null). Offsets clampeados.
 export function parsePattern(str) {
   return String(str || '').trim().split(/\s+/).filter(Boolean)
     .slice(0, SEQ_MAX_STEPS)
     .map(tok => {
-      const m = /^(-?\d+)([!~]?)$/.exec(tok);
+      const m = /^(-?\d+)((?:!|~|\/|x[1-4])*)$/.exec(tok);
       if (!m) return null;
       const off = Math.max(SEQ_OFF_MIN, Math.min(SEQ_OFF_MAX, +m[1]));
-      return { off, accent: m[2] === '!', tie: m[2] === '~' };
+      const st = { off, accent: false, tie: false, slide: false, rep: 1 };
+      for (const f of m[2].match(/!|~|\/|x[1-4]/g) || []) {
+        if (f === '!') st.accent = true;
+        else if (f === '~') { st.tie = true; st.slide = false; }
+        else if (f === '/') { st.slide = true; st.tie = false; }
+        else st.rep = +f[1];
+      }
+      return st;
     });
 }
+// El token de un paso (para el editor): altura + sufijos en orden canónico
+export const stepToken = st => !st ? '.'
+  : String(st.off) + (st.accent ? '!' : '') + (st.slide ? '/' : st.tie ? '~' : '') + (st.rep > 1 ? 'x' + st.rep : '');
 
 export const stepFreq = (rootFreq, off) => rootFreq * Math.pow(2, off / 12);
 
@@ -43,6 +66,8 @@ export class Seq {
     this._patStr = null; this._pat = [];   // caché del parseo por identidad de string
     this.tie = null;         // {id, t}: off de la nota ligada (gate 1), pendiente del on siguiente
     this.retrigAt = null;    // seqRetrig con una tecla que entra más tarde: la frase vuelve al paso 0 en ese paso
+    this.link = null;        // {id, mode: 'tie'|'slide'}: la nota que el paso anterior dejó ligada al siguiente
+    this.nid = 0;            // contador de ids de nota (las repeticiones gastan varios por paso)
   }
 
   _div() { return DIV_BEATS[this.e.S.seqDiv] || 0.25; }
@@ -68,7 +93,9 @@ export class Seq {
       else { this.latched = null; this._maybeStop(); }
     }
   }
-  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this.playQ = []; this._flushTie(); clockOf(this.e.ctx).leave(this); } }
+  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this.playQ = []; this._flushTie(); this._unlink(this.e.ctx.currentTime); clockOf(this.e.ctx).leave(this); } }
+  // la nota que quedaba ligada al paso siguiente termina en t
+  _unlink(t) { const l = this.link; if (l) { this.link = null; this.e._directOff(l.id, t); } }
   // Note-off programado en el reloj de audio y emitido YA, en orden con los on:
   // así el motor sabe si dos pasos se solapan por el gate (en mono: legato o
   // redisparo), no por cuánto se adelanta el planificador. Con gate 1 la nota
@@ -112,12 +139,27 @@ export class Seq {
       this.playQ.push({ i: this.idx % steps.length, t0: this.nextT, t1: this.nextT + dur });
       if (this.playQ.length > 64) this.playQ.shift();  // tope por si la UI no consume (panel colapsado)
       if (st) {                                        // null = silencio: el tiempo avanza igual
-        const id = 'seq' + (this.idx % 8);             // ids rotatorios, disjuntos de 'arp'+n
-        this.e._directOn(id, stepFreq(root.freq, st.off), root.vel, this.nextT);
-        this._flushTie();                              // la ligada del paso anterior se suelta tras este on
-        const gate = Math.max(0.05, Math.min(1, S.seqGate));
-        this._off(id, this.nextT + dur * gate, gate >= 1);
-      } else this._flushTie();                         // silencio: la ligada termina aquí
+        const gate = Math.max(0.05, Math.min(1, S.seqGate)), f = stepFreq(root.freq, st.off), t = this.nextT;
+        const linkNext = st.slide ? 'slide' : st.tie ? 'tie' : null;
+        if (this.link) {                               // el paso anterior pidió ligadura o slide: este CONTINÚA su nota
+          const { id, mode } = this.link; this.link = null;
+          this.e._directGlide(id, f, t, mode === 'slide' ? (S.glide > 0 ? S.glide : SEQ_SLIDE) : 0);
+          if (linkNext) this.link = { id, mode: linkNext };
+          else this._off(id, t + dur * gate, gate >= 1);
+        } else {
+          // acento: con acentos en el patrón, los demás pasos bajan; la fuente «Acento» de la matriz, en la nota
+          const vel = st.accent || !steps.some(s => s && s.accent) ? root.vel : root.vel * SEQ_UNACCENT;
+          const n = st.rep, sub = dur / n;
+          for (let k = 0; k < n; k++) {                // repeticiones: n golpes dentro del paso
+            const id = 'seq' + (this.nid++ % 16), tk = t + k * sub, last = k === n - 1;   // ids rotatorios, disjuntos de 'arp'+n
+            this.e._directOn(id, f, vel, tk, st.accent ? 1 : 0);
+            if (k === 0) this._flushTie();             // la ligada (gate 1) del paso anterior se suelta tras este on
+            if (last && linkNext) this.link = { id, mode: linkNext };
+            else if (n > 1) this.e._directOff(id, tk + sub * Math.min(gate, SEQ_RATCHET_GATE));
+            else this._off(id, tk + sub * gate, gate >= 1);
+          }
+        }
+      } else { this._flushTie(); this._unlink(this.nextT); }   // silencio: la ligada termina aquí
       this.idx++;
       clock.advance(this, div);
     }

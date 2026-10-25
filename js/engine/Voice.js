@@ -97,7 +97,7 @@ const COST = {
 const mxDst = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === d) return true; return false; };
 
 export class Voice {
-  constructor(ctx, S, mod, { freq, vel = 1, startFreq = null, startAt = null }) {
+  constructor(ctx, S, mod, { freq, vel = 1, acc = 0, startFreq = null, startAt = null }) {
     this.ctx = ctx;
     this.mod = mod;
     this.S = S;
@@ -123,6 +123,7 @@ export class Voice {
     // cierra el VCA antes de abrirlo (el golpe mudo de los jugadores).
     this.lag = t - (startAt || ctx.currentTime);
     this.vel = vel;                       // fija por nota: la leen la matriz (fuente Velocity) y los niveles FM4
+    this.acc = acc;                       // 1 = paso acentuado del secuenciador (fuente «Acento» de la matriz)
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
     // --- Modulación por voz (Roadmap 5.0 · bloque 2) ---
@@ -137,6 +138,7 @@ export class Voice {
 
     // --- Osciladores (worklet) ---
     this.oscs = [];                       // {node, detune, pw, ratio}
+    this._glideLast = new Map();          // AudioParam → {value, end}: su última altura y hasta cuándo dura su rampa (glideTo)
     const busA = ctx.createGain(); busA.gain.value = 1 / Math.max(1, S.oscA.octaves);
     const busB = ctx.createGain(); busB.gain.value = 1 / Math.max(1, S.oscB.octaves);
     this._buildOscGroup(S.oscA, busA, freq, startFreq, glide, t);
@@ -383,6 +385,7 @@ export class Voice {
     } else {
       fParam.setValueAtTime(fEnd, t);
     }
+    this._glideLast.set(fParam, { value: fEnd, end: t + glide });
     dParam.value = cfg.detune;
     // Pitch envelope por nota: arranca desviado pitchEnvAmt cents y decae
     // exponencialmente al detune base (percusión, zaps, láseres)
@@ -792,6 +795,7 @@ export class Voice {
       return this._mxConsts[src] = c;
     }
     const val = src === 'vel' ? this.vel
+      : src === 'acc' ? this.acc
       : src === 'note' ? Math.max(-1, Math.min(1, Math.log2(this.noteFreq / 261.63) / 2))
       : src === 'rnd' ? this.rnd() * 2 - 1 : null;
     if (val === null) return null;
@@ -939,14 +943,23 @@ export class Voice {
   glideTo(freq, time, at = null) {
     const now = this.ctx.currentTime;
     const t = at !== null ? Math.max(now, at + this.lag) : now;
+    // Punto de partida de la rampa. cancelAndHoldAtTime solo deja uno si hay una
+    // automatización DESPUÉS de t que cortar; si no (la nota ya llegó a su altura),
+    // la rampa salía del último evento — el arranque de la nota — y el glide
+    // empezaba antes de tiempo (el slide del secuenciador subía desde el principio
+    // del paso; el legato del Mono, igual). Cada parámetro recuerda su última altura
+    // y hasta cuándo dura su rampa: con una rampa en curso en t, cancelAndHold la
+    // corta donde va; sin ella, el punto se fija a mano con la altura a la que llegó.
     const slide = (p, target) => {
+      const last = this._glideLast.get(p) || { value: p.value, end: 0 };
       if (time > 0) {
-        if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
-        else { p.cancelScheduledValues(t); p.setValueAtTime(Math.max(1, p.value), t); }
+        if (last.end > t && p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+        else { p.cancelScheduledValues(t); p.setValueAtTime(Math.max(1, last.end > t ? p.value : last.value), t); }
         p.exponentialRampToValueAtTime(target, t + time);
       } else {
         p.cancelScheduledValues(t); p.setValueAtTime(target, t);
       }
+      this._glideLast.set(p, { value: target, end: t + time });
     };
     this.oscs.forEach(o => slide(o.freq, Math.max(1, freq * o.ratio)));
     // el banco de resonadores sigue la nota: sus modos resbalan con los osciladores

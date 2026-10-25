@@ -552,10 +552,10 @@
       </div>
       <div class="vcol seqcanvas">
         <select id="seqPatSel"></select>
-        <canvas id="seqCanvas"></canvas>
+        <canvas id="seqCanvas" title="Arrastra un paso = altura · clic = nota/silencio · Mayús + clic = acento · Alt + clic = ligadura → slide → nada · Ctrl + clic = repeticiones (1-4)"></canvas>
       </div>
     </div>
-    <div class="help"><b>Secuenciador de pasos.</b> La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · Latch: la frase sigue al soltar · Retrig: si la frase YA suena (Latch o legato), la tecla nueva la reinicia en rejilla; con Off solo cambia la raíz. Arrancar desde parado siempre empieza en el paso 1 · en mono con Gate 1 los pasos ligan (glide) si Disparo está en Legato.</div>
+    <div class="help"><b>Secuenciador de pasos.</b> La tecla mantenida es la raíz: transpone la frase (semitonos) · arrastra un paso = altura · toque corto = silencio · <b>articulaciones</b> (como en un 303): <b>Mayús + clic</b> = acento (ese paso más fuerte que los demás, remate amarillo, y la fuente «Acento (Seq)» de la matriz vale 1 en su nota: el preset decide qué hace — abrir el filtro, más drive…) · <b>Alt + clic</b> = ligadura (la nota no se corta: el paso siguiente la continúa sin ataque; raya) → slide (además resbala hasta la altura del siguiente con el Glide, o 60 ms si está a 0; diagonal) → nada · <b>Ctrl + clic</b> = repeticiones: el paso se dispara 2, 3 o 4 veces (remate partido). En el texto de las frases: «7!», «5~», «3/», «0x3», combinables («7!/»). · Latch: la frase sigue al soltar · Retrig: si la frase YA suena (Latch o legato), la tecla nueva la reinicia en rejilla; con Off solo cambia la raíz. Arrancar desde parado siempre empieza en el paso 1 · en mono con Gate 1 los pasos ligan (glide) si Disparo está en Legato.</div>
   </div>
   <div class="panel osc">
     <h2>Tabla · secuencia</h2>

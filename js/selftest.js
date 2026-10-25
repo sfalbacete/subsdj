@@ -22,7 +22,7 @@ const HR = Math.pow(10, HEADROOM_DB / 20);   // margen fijo del máster (1.1.0):
 import { Arp } from './engine/Arp.js';
 import { Clock, clockOf } from './engine/Clock.js';
 import { Steps, cycleBars } from './engine/Steps.js';
-import { Seq, parsePattern, stepFreq } from './engine/Seq.js';
+import { Seq, parsePattern, stepFreq, stepToken } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
@@ -342,7 +342,7 @@ export async function runSelfTest() {
     for (const p of SEQ_PATTERNS) {
       const toks = p.pat.trim().split(/\s+/), st = parsePattern(p.pat);
       if (!toks.length || toks.length > 16) bad.push(p.name + ': longitud ' + toks.length);
-      if (!toks.every(t => t === '.' || /^-?\d+[!~]?$/.test(t))) bad.push(p.name + ': token inválido');
+      if (!toks.every(t => t === '.' || /^-?\d+(?:!|~|\/|x[1-4])*$/.test(t))) bad.push(p.name + ': token inválido');   // sufijos de articulación (5.1)
       if (!st.some(Boolean)) bad.push(p.name + ': sin notas');
       if (st.some((s, i) => s && s.off !== parseInt(toks[i], 10))) bad.push(p.name + ': offset fuera de rango');
       if (!['1/4', '1/8', '1/16'].includes(p.div)) bad.push(p.name + ': div ' + p.div);
@@ -3541,6 +3541,90 @@ export async function runSelfTest() {
       r = { name: 'Disparo mono (legato / cada nota) · arp y Seq redisparan por el gate · gate < look-ahead suena', peak: 0, ok: false,
             problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
     }
+    push(r);
+  }
+
+  {
+    // Articulaciones del secuenciador (Roadmap 7.0 · 5.1), offline (el Seq se avanza a
+    // mano cada 25 ms, como en «Disparo mono»): 4 pasos de corchea a 120 BPM (250 ms),
+    // gate 0,5, sostenido 1. (1) '0 0 0 0' = 4 ataques; '0~ 0 0~ 0' = 2 (la ligadura
+    // continúa la nota); '0x3 . . .' = 3 (repeticiones). (2) Acento: en '0! 0 0 0' el
+    // paso acentuado suena más fuerte que los demás, y solo su nota lleva la fuente
+    // «Acento». (3) Slide: '0/ 12 . .' es UN ataque y la altura resbala de la nota a su
+    // octava (Glide 0 → 60 ms); en Mono igual. (4) El parser: sufijos combinados y el
+    // token canónico vuelve a dar lo mismo.
+    body.appendChild(el('st-cat', 'Articulaciones del secuenciador'));
+    const NAME = 'articulaciones del Seq (ligadura = un ataque · repeticiones · acento más fuerte y fuente «Acento» · slide resbala, en Poli y Mono)';
+    let r;
+    try {
+      const probs = [], log = [];
+      const base = { mode: 'poly', waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.02,
+        width: 0, bpm: 120, glide: 0, seqOn: 'on', seqDiv: '1/8', seqGate: 0.5 };
+      const accs = [];
+      const run = async over => {
+        loadState({ ...base, ...over });
+        const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+        const on = eng._directOn.bind(eng); eng._directOn = (id, f, v, w, acc = 0) => { accs.push([w, v, acc]); return on(id, f, v, w, acc); };
+        const q = eng.seq; q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';
+        for (let i = 1; i * 0.025 < 0.86; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // planifica los pasos de 0,03 a 0,78 s (look-ahead 0,12)
+        c.suspend(1.03).then(() => { q.held = []; q._maybeStop(); c.resume(); });
+        return c.startRendering();
+      };
+      const HOP = Math.round(0.004 * SR);
+      const env = b => { const d = b.getChannelData(0), e = []; for (let i = 0; i + HOP <= d.length; i += HOP) { let s = 0; for (let k = i; k < i + HOP; k++) s += d[k] * d[k]; e.push(Math.sqrt(s / HOP)); } return e; };
+      const ataques = b => { const e = env(b), top = Math.max(...e), t = []; let up = false;
+        e.forEach((v, i) => { if (!up && v > top * 0.1) { up = true; t.push({ t: i * HOP / SR, i }); } else if (up && v < top * 0.04) up = false; }); return { t, e }; };
+      const hz = (b, t0, t1) => { const d = b.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.floor(t1 * SR); let n = 0;
+        for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / (t1 - t0); };
+      // (1) ligadura y repeticiones
+      for (const [pat, want] of [['0 0 0 0', 4], ['0~ 0 0~ 0', 2], ['0x3 . . .', 3]]) {
+        const n = ataques(await run({ seqPat: pat })).t.length;
+        log.push(pat + ' → ' + n);
+        if (n !== want) probs.push('«' + pat + '»: ' + n + ' ataques (esperados ' + want + ')');
+      }
+      // (2) acento: nivel de cada ataque (máximo de su primer paso) y la fuente en la nota
+      accs.length = 0;
+      const a = ataques(await run({ seqPat: '0! 0 0 0' }));
+      const pico = k => { const i0 = a.t[k].i; return Math.max(...a.e.slice(i0, i0 + Math.round(0.1 * SR / HOP))); };
+      if (a.t.length !== 4) probs.push('«0! 0 0 0»: ' + a.t.length + ' ataques');
+      else {
+        const dB1 = 20 * Math.log10(pico(0) / pico(1));
+        log.push('acento +' + dB1.toFixed(1) + ' dB');
+        if (!(dB1 > 2)) probs.push('el acento no suena más fuerte (+' + dB1.toFixed(1) + ' dB)');
+      }
+      const marcadas = accs.filter(x => x[2] === 1).length;
+      if (!(accs.length >= 4 && marcadas >= 1 && accs.filter(x => x[2] === 1).every(x => x[1] === 1) && accs.filter(x => x[2] === 0).every(x => x[1] < 1)))
+        probs.push('fuente «Acento» / velocity por nota: ' + JSON.stringify(accs.slice(0, 4).map(x => [+x[1].toFixed(2), x[2]])));
+      // (3) slide: un ataque y la altura resbala a la octava (Poli y Mono)
+      for (const mode of ['poly', 'mono']) {
+        const b = await run({ seqPat: '0/ 12 . .', mode }), at = ataques(b).t.length;
+        const f1 = hz(b, 0.08, 0.26), f2 = hz(b, 0.35, 0.40);   // el slide acaba a 0,34 s; con gate 0,5 la nota se suelta a 0,405
+        log.push(mode + ' slide ' + f1.toFixed(0) + ' → ' + f2.toFixed(0) + ' Hz, ' + at + ' ataque(s)');
+        if (at !== 1) probs.push(mode + ' slide: ' + at + ' ataques (esperado 1)');
+        if (!(Math.abs(f1 - NOTE1) < 3 && Math.abs(f2 - 2 * NOTE1) < 5)) probs.push(mode + ' slide: ' + f1.toFixed(1) + ' → ' + f2.toFixed(1) + ' Hz (esperado ' + NOTE1.toFixed(1) + ' → ' + (2 * NOTE1).toFixed(1) + ')');
+      }
+      // (3b) el fallo de raíz, con el teclado: Mono legato con Glide 0,1 s — la altura no se
+      // mueve antes de la segunda tecla (antes la rampa salía del arranque de la nota)
+      {
+        loadState({ ...base, seqOn: 'off', mode: 'mono', monoTrig: 'legato', glide: 0.1 });
+        const c = new OfflineAudioContext(2, Math.ceil(SR * 0.8), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
+        eng.noteOn('k1', NOTE1);
+        c.suspend(0.3).then(() => { eng.noteOn('k2', 2 * NOTE1); c.resume(); });
+        const b = await c.startRendering(), g1 = hz(b, 0.05, 0.28), g2 = hz(b, 0.5, 0.7);
+        log.push('legato ' + g1.toFixed(0) + ' → ' + g2.toFixed(0) + ' Hz');
+        if (!(Math.abs(g1 - NOTE1) < 3 && Math.abs(g2 - 2 * NOTE1) < 5)) probs.push('legato con Glide: ' + g1.toFixed(1) + ' → ' + g2.toFixed(1) + ' Hz (el glide empieza antes de la tecla)');
+      }
+      // (4) parser y token canónico
+      const p = parsePattern('7!/x2 3~ 0x3 . 5/!');
+      const ok4 = p[0].accent && p[0].slide && p[0].rep === 2 && p[1].tie && p[2].rep === 3 && p[3] === null && p[4].slide && p[4].accent
+        && p.map(stepToken).join(' ') === '7!/x2 3~ 0x3 . 5!/';
+      if (!ok4) probs.push('parser: ' + p.map(stepToken).join(' '));
+      loadState({});
+      console.log('articulaciones: ' + log.join(' · '));
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 

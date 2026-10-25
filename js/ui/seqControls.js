@@ -5,7 +5,7 @@ import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
 import { bindSeg } from './oscControls.js';
-import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq } from '../engine/Seq.js';
+import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken } from '../engine/Seq.js';
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
 
@@ -25,6 +25,11 @@ export const SEQ_PATTERNS = [
   { name: 'Escalera 2 octavas', pat: '0 3 7 10 12 15 19 22 24 22 19 15 12 10 7 3', div: '1/16' },
   { name: 'Pregunta-respuesta', pat: '0 3 5 7 . 7 10 12 . 12 10 7 5 3 . .',        div: '1/16' },
   { name: 'Dembow sub',         pat: '0 . . 0 . . 12 .',                            div: '1/8' },
+  // Con articulaciones (Roadmap 7.0 · 5.1): ! acento · ~ ligadura · / slide · x2-x4 repeticiones
+  { name: 'Ácido con slides',   pat: '0! 0 12/ 0 3 0! 10/ 7',                       div: '1/16' },
+  { name: 'Ácido que pregunta', pat: '0 0! . 0/ 12 . 3! 5/ 7 . 0 10! . 12/ 0 .',    div: '1/16' },
+  { name: 'Ligaduras largas',   pat: '0~ 0 7/ 5 3~ 3 . -2/',                         div: '1/8' },
+  { name: 'Redobles',           pat: '0! . 0 0x2 0! . 0x3 0x4',                      div: '1/8' },
   { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
   // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
   // personal). Relativos a la tecla mantenida; bpm = tempo del original.
@@ -133,8 +138,16 @@ function initSeqEditor(canvas) {
         const y = yOf(st.off), y0 = yOf(0);
         g.fillStyle = tint('--accent', .22);
         g.fillRect(xa, Math.min(y, y0), xb - xa, Math.max(2, Math.abs(y - y0)));  // tallo hasta la raíz
-        g.fillStyle = token('--accent');
-        g.fillRect(xa, y - 1.5, xb - xa, 3);                                      // remate: altura del paso
+        // remate: la altura del paso. Acento = más grueso y en el color de la estrella;
+        // repeticiones = el remate partido en tantos trozos como golpes
+        const capH = st.accent ? 5 : 3, n = st.rep, seg = (xb - xa) / n;
+        g.fillStyle = st.accent ? token('--star') : token('--accent');
+        for (let k = 0; k < n; k++) g.fillRect(xa + k * seg + (k ? 1 : 0), y - capH / 2, seg - (n > 1 ? 1 : 0), capH);
+        if (st.tie || st.slide) {                      // ligadura: raya horizontal · slide: diagonal hasta la altura del siguiente
+          const nx = steps[(i + 1) % steps.length], xn = PAD + (i + 1) * cw + cw * 0.18;
+          g.strokeStyle = token('--accent'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(xb, y);
+          g.lineTo(xn, st.slide && nx ? yOf(nx.off) : y); g.stroke(); g.lineWidth = 1;
+        }
       } else {
         g.fillStyle = tint('--dim', .35);
         g.fillRect(xa, h - PAD - 3, xb - xa, 2);                                  // silencio: marca en la base
@@ -162,7 +175,19 @@ function initSeqEditor(canvas) {
     const cw = (W - 2 * PAD) / toks.length;
     const step = Math.max(0, Math.min(toks.length - 1, Math.floor(((e.clientX - rect.left) / uiZoom() - PAD) / cw)));
     const st = parsePattern(part().S.seqPat)[step];
-    drag = { step, startY: e.clientY, startOff: st ? st.off : 0, wasRest: !st, moved: false };
+    // articulaciones (Roadmap 7.0 · 5.1), sobre un paso con nota: Mayús = acento,
+    // Alt = ligadura → slide → nada, Ctrl = repeticiones 1 → 2 → 3 → 4
+    if (st && (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)) {
+      const nx = { ...st };
+      if (e.shiftKey) nx.accent = !st.accent;
+      else if (e.altKey) { nx.tie = !st.tie && !st.slide; nx.slide = st.tie; }
+      else nx.rep = st.rep % 4 + 1;
+      toks[step] = stepToken(nx);
+      CONTROLS.seqPat.set(toks.join(' '));
+      e.preventDefault();
+      return;
+    }
+    drag = { step, startY: e.clientY, startOff: st ? st.off : 0, wasRest: !st, st, moved: false };
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -175,7 +200,7 @@ function initSeqEditor(canvas) {
     const off = Math.max(SEQ_OFF_MIN, Math.min(SEQ_OFF_MAX, Math.round(drag.startOff + dy / pxPerSemi)));
     const toks = tokensOf();
     if (toks[drag.step] === String(off)) return;     // solo al cambiar de semitono
-    toks[drag.step] = String(off);                   // arrastrar un silencio lo convierte en nota
+    toks[drag.step] = drag.st ? stepToken({ ...drag.st, off }) : String(off);   // conserva sus marcas; arrastrar un silencio lo convierte en nota
     CONTROLS.seqPat.set(toks.join(' '));
     preview(off);
   });
