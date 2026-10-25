@@ -1,9 +1,10 @@
 # SubSDJ · Plan
 
-Fecha: 2026-10-24 · **publicada la 1.2.0**: mezclador a la Minimoog, velocity con el ratón, checks
-fiables y del Roadmap 7.0 los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1 (194/194). Lo que se haga
-a partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente (1.3.0 si son funciones).
-1.3 medidor, 2.5 macros, 2.6 tacto, 3.2 sync y 3.3 cuerda hechos el 2026-10-25.
+Fecha: 2026-10-25 · **publicada la 1.3.0**: del Roadmap 7.0, 1.3 medidor, 2.5 macros, 2.6 tacto,
+3.2 sync, 3.3 cuerda, 4.1 delay que se desboca, 5.1 articulaciones, 5.4 swing y pulso que respira,
+5.2 notas por grado; selector de presets; y la primera pasada de pulido (216/216). Lo que se haga a
+partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente.
+(Antes: 1.2.0 el 2026-10-24, con los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1.)
 
 **Rumbo acordado el 2026-10-25 (Sergio):** el synth ya tiene mucha maquinaria y la combinatoria
 crece; ahora toca APROVECHARLA. Criterio para cualquier feature nueva: que aporte algo diferencial,
@@ -11,10 +12,11 @@ más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra.
 1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** ✔ (2026-10-25) Y se para.
 2. **Pulir y asentar** (antes de la 1.3.0): revisar la maquinaria para que dé sonido limpio — sin
    clics, sin saturaciones raras —, que sea fiable y que invite a tocar, a experimentar, a cambiar
-   aquí y allá. Revisar y optimizar lo que hay, no añadir. *En curso (2026-10-25): auditoría de la
-   fábrica hecha — sin limitador, sin clics, sin NaN; continua quitada (pulso centrado +
-   acoplamiento en alterna). Ver DISENO, «Pulir y asentar».*
-3. **Publicar la 1.3.0.**
+   aquí y allá. Revisar y optimizar lo que hay, no añadir. ✔ *Primera pasada (2026-10-25): fábrica,
+   knobs, eventos de nota y escenas auditados — sin limitador, sin clics, sin NaN; continua quitada
+   (pulso centrado + acoplamiento en alterna); nada recortado con las Partes. Ver DISENO, «Pulir y
+   asentar».*
+3. **Publicar la 1.3.0.** ✔ (2026-10-25)
 4. **Exportación:** 6.1 (SFZ con bucles y variaciones) y 6.2 (WAV).
 5. **Inglés** (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —
    no multi-idioma: los soft-synths y las serigrafías de los teclados van en inglés como idioma neutro,

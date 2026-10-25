@@ -6,48 +6,27 @@ no se ha publicado va en «Sin publicar». Numeración X.Y.Z:
 cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
 de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
-## Sin publicar
+## [1.3.0] — 2026-10-25
 
-- **Arreglado**: con las Partes encendidas, el Jugador se metía en el panel Arreglo
-  en todos sus modos, y el Mezclador cortaba la M de cada parte y la casilla «Capa».
-  El arreglo de la parte (Entra · Deriva · Cantidad) pasa al panel Arreglo, como
-  una fila de la parte que edita el rack; la M, junto al nombre de cada tira.
-- **Escenas**: «amanecer-dórico», «coro-robótico» y «techno-hipnótico» sonaban ~10 dB más flojas que
-  el resto; ahora llegan al mismo pico (−4 dBFS) sin tocar el limitador. Robo de voz, Pánico y
-  repetir una tecla en su release, auditados: sin clics.
-- **Arreglado**: mover el Time del delay de golpe (un mando MIDI, cambiar de división o de BPM)
-  daba un raspazo; ahora barre como una cinta. Auditados los demás knobs: ninguno da clic al
-  moverlo de golpe con una nota sonando.
+Más expresión y sonidos nuevos, y una pasada de pulido. Dos fuentes nuevas (la
+cuerda pulsada y el sync duro), un secuenciador que articula como un 303,
+swing, un delay que se desboca, macros y respuesta al tacto; un selector para
+encontrar presets en un momento; y la fábrica entera auditada: sin continua,
+sin clics y sin apretar el limitador en su uso.
+
+**Suenan distinto** (a propósito, como debieron sonar siempre):
 - **Sonido más limpio**: auditados los 124 presets de fábrica en su uso normal
   (ninguno aprieta el limitador ni hace clic). Los que llevaban corriente
   continua — todos los de pulso estrecho o PWM, hasta el 61 % de su nivel — ya
   no la llevan: el pulso sale centrado y cada parte va acoplada en alterna, como
   la salida de un sinte analógico. Más margen, y ecos y saturación de cinta
   simétricos.
-- **Notas por grado** en el secuenciador (selector junto a las frases): los
-  números pueden ser grados de una escala en vez de semitonos — la misma frase
-  suena en mayor, dórica o pentatónica sin reescribirla —, o seguir la armonía
-  de la escena en modo Partes. Tres frases nuevas «por grados» y pares de demos
-  GRD 1-2.
-- **Swing** global (al pie del Arpegiador; se guarda como el BPM): la segunda
-  corchea o semicorchea de cada par llega tarde, de recto (50 %) a puntillo
-  (75 %), en el arpegiador, el secuenciador, los Pasos y los jugadores a la vez.
-- **Pulso que respira**: el Pulso del Jugador gana Respira y Ciclo — los golpes
-  suben y bajan solos compás a compás, y el ritmo se llena y se vacía.
-- **Articulaciones en el secuenciador**, como en un 303: **acento** (Mayús + clic
-  en un paso: más fuerte, y la fuente «Acento (Seq)» de la matriz para que el
-  preset decida qué hace — abrir el filtro, más drive…), **ligadura** y **slide**
-  (Alt + clic: la nota sigue sin volver a atacar, o resbala hasta la siguiente) y
-  **repeticiones** (Ctrl + clic: el paso se dispara 2, 3 o 4 veces). Cuatro
-  frases nuevas que las usan y pares de demos ART 1-2.
-- **Arreglado**: el glide (portamento del Mono en legato) empezaba a deslizar
-  desde el principio de la nota en vez de al llegar la siguiente.
-- **Delay que se desboca**: la realimentación tiene su propio knob (**realim.**,
-  hasta 110 %), separada del Amount, que pasa a ser solo cuánto entra en el eco.
-  Por encima de 100 % el eco crece hasta que la saturación de cinta del bucle lo
-  sujeta y se queda sonando solo — mueve Time y el tono resbala, como en el dub.
-  **satur.** ensucia cada repetición. Los presets de antes suenan igual (reciben
-  la realimentación que tenían). Pares de demos DUB 1-4.
+- **Glide** (portamento del Mono en legato): empezaba a deslizar desde el
+  principio de la nota; ahora resbala al llegar la siguiente.
+- **Escenas**: «amanecer-dórico», «coro-robótico» y «techno-hipnótico» sonaban
+  ~10 dB más flojas que el resto; ahora llegan al mismo pico (−4 dBFS) sin tocar
+  el limitador.
+
 - **Cuerda**: una fuente nueva, la onda «Cuerda» (en los dos osciladores), que
   simula una cuerda pulsada (Karplus-Strong): cada nota es una púa, y la cuerda
   se apaga sola, con los agudos yéndose antes que la fundamental. Módulo Cuerda
@@ -62,32 +41,54 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
   desde la envolvente, un LFO, Pasos, la rueda o una macro) sale el chillido
   clásico de los leads de sync. «Pitch A» ya no mueve al maestro. Pares de
   demos SYNC 1-4.
-- **Respuesta al tacto**, en la barra del teclado: **Tacto** (suave · lineal ·
-  dura), la curva de velocity de tu teclado MIDI y del ratón, que se recuerda
-  en el navegador; y **Bend**, el rango del pitch bend (±1 a ±24 semitonos),
-  que se guarda en el preset (antes, ±2 fijos). En Partes, cada parte con su
-  rango.
+- **Articulaciones en el secuenciador**, como en un 303: **acento** (Mayús + clic
+  en un paso: más fuerte, y la fuente «Acento (Seq)» de la matriz para que el
+  preset decida qué hace — abrir el filtro, más drive…), **ligadura** y **slide**
+  (Alt + clic: la nota sigue sin volver a atacar, o resbala hasta la siguiente) y
+  **repeticiones** (Ctrl + clic: el paso se dispara 2, 3 o 4 veces). Cuatro
+  frases nuevas que las usan y pares de demos ART 1-2.
+- **Delay que se desboca**: la realimentación tiene su propio knob (**realim.**,
+  hasta 110 %), separada del Amount, que pasa a ser solo cuánto entra en el eco.
+  Por encima de 100 % el eco crece hasta que la saturación de cinta del bucle lo
+  sujeta y se queda sonando solo — mueve Time y el tono resbala, como en el dub.
+  **satur.** ensucia cada repetición. Los presets de antes suenan igual (reciben
+  la realimentación que tenían). Pares de demos DUB 1-4.
+- **Swing** global (al pie del Arpegiador; se guarda como el BPM): la segunda
+  corchea o semicorchea de cada par llega tarde, de recto (50 %) a puntillo
+  (75 %), en el arpegiador, el secuenciador, los Pasos y los jugadores a la vez.
+- **Pulso que respira**: el Pulso del Jugador gana Respira y Ciclo — los golpes
+  suben y bajan solos compás a compás, y el ritmo se llena y se vacía.
+- **Notas por grado** en el secuenciador (selector junto a las frases): los
+  números pueden ser grados de una escala en vez de semitonos — la misma frase
+  suena en mayor, dórica o pentatónica sin reescribirla —, o seguir la armonía
+  de la escena en modo Partes. Tres frases nuevas «por grados» y pares de demos
+  GRD 1-2.
 - **Macros**: dos knobs, macro 1 y macro 2, al pie de la Matriz, que se guardan
   en el preset y son fuentes de la matriz. Con la misma macro en varios slots,
   un solo mando abre el filtro, sube el drive y la resonancia a la vez, cada
   destino con su cantidad; con MIDI map, desde un mando físico. Par de demos
   MAC 1-2.
+- **Respuesta al tacto**, en la barra del teclado: **Tacto** (suave · lineal ·
+  dura), la curva de velocity de tu teclado MIDI y del ratón, que se recuerda
+  en el navegador; y **Bend**, el rango del pitch bend (±1 a ±24 semitonos),
+  que se guarda en el preset (antes, ±2 fijos). En Partes, cada parte con su
+  rango.
 - **Medidor de salida** en el módulo Salida, junto al espectro: picos L y R de
   lo que sale (amarillo desde −12 dBFS, rojo desde −1, el techo del
   limitador), la reducción del limitador y el LED **lim**, que se queda
   encendido si el limitador ha trabajado (clic para apagarlo). Los datos los
   manda el propio limitador cada 50 ms.
-- **Ventana de entrada**: al abrir, una ventana sobre el instrumento (que se ve
-  detrás, apagado) con una pantallita de demoscene — plasma con interferencia y
-  el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**
-  (o Intro), que además arranca el audio. Se vuelve a abrir como «Acerca de»
-  pulsando el título de la cabecera o desde Archivo ▾.
 - **Selector de presets** nuevo en la cabecera, en lugar del desplegable: un
   buscador (sin importar acentos ni mayúsculas), las categorías a la izquierda
   con cuántos presets coinciden en cada una (Todos, ★ Favoritos y cada sección)
   y la lista a la derecha. Un clic o `↑` `↓` cargan el preset para probarlo sin
   cerrar; `Intro` o doble clic eligen y cierran; la ★ marca favoritos; y
   **Navegar todos** lleva a la pantalla Presets con la misma búsqueda.
+- **Ventana de entrada**: al abrir, una ventana sobre el instrumento (que se ve
+  detrás, apagado) con una pantallita de demoscene — plasma con interferencia y
+  el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**
+  (o Intro), que además arranca el audio. Se vuelve a abrir como «Acerca de»
+  pulsando el título de la cabecera o desde Archivo ▾.
 - **Teclado del ordenador**: su octava va aparte de la del teclado en pantalla.
   Antes eran la misma, y como el teclado en pantalla enseña seis octavas y para
   en C9, la fila alta se quedaba en E5. Ahora la Z va de C0 a C7 (la fila alta
@@ -97,6 +98,19 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
   las va tocando (glissando); antes solo sonaba la primera. Las teclas negras,
   centradas entre sus dos blancas (antes imitaban el desplazamiento de un piano
   acústico).
+
+Arreglos:
+- **Time del delay**: moverlo de golpe (un mando MIDI, cambiar de división o de
+  BPM) daba un raspazo; ahora barre como una cinta. Auditados los demás knobs:
+  ninguno da clic al moverlo de golpe con una nota sonando.
+- **Partes**: con las Partes encendidas, el Jugador se metía en el panel Arreglo
+  en todos sus modos, y el Mezclador cortaba la M de cada parte y la casilla «Capa».
+  El arreglo de la parte (Entra · Deriva · Cantidad) pasa al panel Arreglo, como
+  una fila de la parte que edita el rack; la M, junto al nombre de cada tira.
+- **Eventos de nota**: robo de voz, Pánico y repetir una tecla durante su
+  release, auditados: sin clics.
+- Banco de demos: pares MAC, SYNC, CUERDA, DUB, ART, SWG y GRD para oír cada
+  cosa; checks nuevos en el selftest (216).
 
 ## [1.2.0] — 2026-10-24
 
