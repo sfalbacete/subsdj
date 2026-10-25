@@ -8,6 +8,9 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Arreglado**: mover el Time del delay de golpe (un mando MIDI, cambiar de división o de BPM)
+  daba un raspazo; ahora barre como una cinta. Auditados los demás knobs: ninguno da clic al
+  moverlo de golpe con una nota sonando.
 - **Sonido más limpio**: auditados los 124 presets de fábrica en su uso normal
   (ninguno aprieta el limitador ni hace clic). Los que llevaban corriente
   continua — todos los de pulso estrecho o PWM, hasta el 61 % de su nivel — ya

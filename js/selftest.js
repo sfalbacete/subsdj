@@ -3984,6 +3984,41 @@ export async function runSelfTest() {
   }
 
   {
+    // Sin clics al mover knobs (pulir, 2026-10-25). La auditoría cambió de golpe, con una
+    // nota sonando, los 135 parámetros numéricos de un estado con casi todo encendido: solo
+    // Time del delay daba un raspazo (el cabezal recorría 3,7 s de cinta en 20 ms; ahora el
+    // tiempo de eco cambia como en una cinta, DLY_SLEW). Aquí, diez representativos: el salto
+    // a la muestra del cambio no puede ser más brusco que la nota de antes NI que la de
+    // después (×3, y por encima de −40 dB del pico).
+    body.appendChild(el('st-cat', 'Sin clics al mover knobs'));
+    const NAME = 'sin clics al mover knobs de golpe (Time del delay, cutoff, reso, drive, distorsión, realimentación, morph, master…)';
+    let r;
+    try {
+      const probs = [], meds = [];
+      const RICO = { waveA: 'sawtooth', waveB: 'square', levelA: 0.5, levelB: 0.4, noise: 0.05, cutoff: 1500, reso: 4, filterEnvAmt: 800,
+        filterDrive: 0.3, a: 0.01, d: 0.3, s: 0.8, r: 0.3, dlyAmt: 0.3, dlyFb: 0.5, reverbMix: 0.25, chAmt: 0.4, flAmt: 0.3, dist: 0.2,
+        width: 0.4, cutLfoLvl: 300, freqLfoLvl: 5, master: 1 };
+      const casos = [['dlyTime', 4], ['dlyTime', 0.02], ['cutoff', 20000], ['reso', 24], ['filterDrive', 1], ['dist', 1], ['dlyFb', 1.1], ['wtPos', 1], ['master', 4], ['levelB', 1]];
+      for (const [k, to] of casos) {
+        const S = applyPreset(makeDefaultState(), RICO), ctx = new OfflineAudioContext(2, Math.ceil(SR * 0.9), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(ctx);
+        eng.noteOn('n', 130.81, 1);
+        ctx.suspend(0.5).then(() => { eng.set(k, to); ctx.resume(); });
+        const d = (await ctx.startRendering()).getChannelData(0), N = d.length;
+        const d2 = i => Math.abs(d[i] - 2 * d[i - 1] + d[i - 2]);
+        const mx = (t0, t1) => { let m = 0; for (let i = Math.floor(t0 * SR); i < Math.min(N, Math.floor(t1 * SR)); i++) m = Math.max(m, d2(i)); return m; };
+        let pk = 0; for (const x of d) pk = Math.max(pk, Math.abs(x));
+        const jump = mx(0.495, 0.53), ratio = jump / Math.max(1e-9, mx(0.3, 0.495), mx(0.6, 0.85));
+        meds.push(k + '→' + to + ' ×' + ratio.toFixed(1));
+        if (ratio > 3 && jump / Math.max(1e-9, pk) > 0.01) probs.push(k + ' → ' + to + ': salto ×' + ratio.toFixed(1));
+      }
+      console.log('knobs de golpe: ' + meds.join(' · '));
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
     // Medidor de salida (Roadmap 7.0 · 1.3). Motor: con 'meter-on', el limitador manda
     // cada 50 ms los máximos del intervalo; una ráfaga a +12 dB en L marca > 6 dB de
     // reducción y su pico de entrada, ningún pico de salida pasa del techo y en el

@@ -2410,3 +2410,13 @@ cosa. A 20 Hz quita 0,25 dB. Medido: «Lead cuadrado» de 57 % a 0,25 %, «Hoove
 rave» de 61 % a 0,16 %, «Ensemble PWM» de 59 % a 0,31 %. El pulso centrado tiene
 picos algo más altos (hasta +1,6 dB en «Lead cuadrado»), pero el más alto de la
 fábrica sigue en −1,0 dBFS y ninguno llega a comprimir. Check «sin continua».
+
+**Sin clics al mover knobs.** Auditoría: con una nota sonando en un estado con casi todo
+encendido, los 135 parámetros numéricos cambiados DE GOLPE de un extremo al otro (como un mando
+MIDI que salta), midiendo el salto a la muestra del cambio frente a la nota de antes y la de
+después. Solo uno daba un raspazo: **Time del delay** (de 0,3 a 4 s el cabezal recorría 3,7 s de
+cinta en 20 ms: tono ×185). Ahora el tiempo de eco cambia como en una cinta (Sala, DLY_SLEW 0,9:
+la pendiente inicial nunca pasa de 0,9 s por segundo, así que la cinta nunca va hacia atrás): un
+movimiento pequeño llega en 20 ms y resbala el tono (el dub); uno grande es un barrido seguido —
+al alargar el eco el tono cae hasta ~3 octavas, la cinta frenando —. Check «sin clics al mover
+knobs» con diez representativos.

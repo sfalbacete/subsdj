@@ -130,6 +130,13 @@ const PLATE_MOD = 0.5;   // excursión de los allpass modulados (0..1): descorre
 const DLY_DAMP_LP_MIN = 1200;                        // Hz: LP del bucle a Damp 1
 const DLY_DAMP_HP_MIN = 20, DLY_DAMP_HP_MAX = 200;   // Hz: HP del bucle (Damp 0+ … Damp 1)
 const DLY_WOW_HZ = 0.6, DLY_WOW_DEPTH = 0.0025;      // s: ±2,5 ms a Wow 1
+// Velocidad máxima a la que cambia el tiempo de eco (s de retardo por s): como una cinta, no salta.
+// La lectura va a 1 − dD/dt de velocidad: un cambio pequeño (girar el knob) llega en ~20 ms y el
+// tono resbala (el dub); uno grande (un mando MIDI de golpe, otra división, otro BPM) barre seguido
+// en vez de dar un raspazo — de 0,3 a 4 s el cabezal recorría 3,7 s de cinta en 20 ms (tono ×185).
+// Por debajo de 1 la cinta nunca va hacia atrás: con 0,9, al alargar el eco el tono cae hasta ~3
+// octavas (la cinta frenando) y al acortarlo sube hasta ~11 semitonos.
+const DLY_SLEW = 0.9;
 // Delay que se desboca (Roadmap 7.0 · 4.1): saturación DENTRO del bucle del ping-pong. Cada rama de
 // realimentación se reparte entre un camino limpio (1 − w) y uno saturado (w), tanh(D·x)/D: ganancia 1
 // en pequeña señal (los dos caminos suenan igual de fuertes) y techo 1/D. w es la Saturación, pero
@@ -160,7 +167,7 @@ export class Sala {
     this.sum = ctx.createGain();                     // seco + retornos
 
     // --- Delay ping-pong (estéreo): los ecos rebotan L<->R ---
-    this.dlyL = ctx.createDelay(DLY_MAX); this.dlyL.delayTime.value = this._effDelay();
+    this.dlyL = ctx.createDelay(DLY_MAX); this.dlyL.delayTime.value = this._dlyT = this._effDelay();
     this.dlyR = ctx.createDelay(DLY_MAX); this.dlyR.delayTime.value = this._effDelay();
     this.ppFbL = ctx.createGain(); this.ppFbR = ctx.createGain();
     this.ppFbL.gain.value = this.ppFbR.gain.value = fb;
@@ -328,7 +335,8 @@ export class Sala {
       case 'dlySat': this._dlySatGains(smooth); break;
       case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
       case 'dlySync':
-      case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
+      case 'bpm': { const tt = this._effDelay(), tau = Math.max(0.02, Math.abs(tt - (this._dlyT ?? tt)) / DLY_SLEW);   // pendiente inicial Δ/τ ≤ DLY_SLEW
+        this._dlyT = tt; this.dlyL.delayTime.setTargetAtTime(tt, now, tau); this.dlyR.delayTime.setTargetAtTime(tt, now, tau); break; }
       case 'reverbPre': smooth(this.revPre.delayTime, value); break;
       case 'reverbSize':                                   // regenerar IR es costoso: lo aplazamos (debounce)
       case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
