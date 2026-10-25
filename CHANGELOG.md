@@ -8,6 +8,12 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Sonido más limpio**: auditados los 124 presets de fábrica en su uso normal
+  (ninguno aprieta el limitador ni hace clic). Los que llevaban corriente
+  continua — todos los de pulso estrecho o PWM, hasta el 61 % de su nivel — ya
+  no la llevan: el pulso sale centrado y cada parte va acoplada en alterna, como
+  la salida de un sinte analógico. Más margen, y ecos y saturación de cinta
+  simétricos.
 - **Notas por grado** en el secuenciador (selector junto a las frases): los
   números pueden ser grados de una escala en vez de semitonos — la misma frase
   suena en mayor, dórica o pentatónica sin reescribirla —, o seguir la armonía

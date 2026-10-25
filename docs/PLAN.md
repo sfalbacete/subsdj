@@ -11,7 +11,9 @@ más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra.
 1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** ✔ (2026-10-25) Y se para.
 2. **Pulir y asentar** (antes de la 1.3.0): revisar la maquinaria para que dé sonido limpio — sin
    clics, sin saturaciones raras —, que sea fiable y que invite a tocar, a experimentar, a cambiar
-   aquí y allá. Revisar y optimizar lo que hay, no añadir.
+   aquí y allá. Revisar y optimizar lo que hay, no añadir. *En curso (2026-10-25): auditoría de la
+   fábrica hecha — sin limitador, sin clics, sin NaN; continua quitada (pulso centrado +
+   acoplamiento en alterna). Ver DISENO, «Pulir y asentar».*
 3. **Publicar la 1.3.0.**
 4. **Exportación:** 6.1 (SFZ con bucles y variaciones) y 6.2 (WAV).
 5. **Inglés** (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —

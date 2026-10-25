@@ -54,6 +54,14 @@ const budgets = new WeakMap();
 const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
 // Fuentes de ejecución (rueda, aftertouch, expresión): suavizado de los saltos de 1/127 del MIDI
 const PERF_TAU = 0.02;
+// Acoplamiento en alterna de la salida de cada parte (pulir, 2026-10-25): un paso alto de un polo
+// a AC_HZ, como el condensador de salida de un sinte analógico. Un pulso con ancho distinto del
+// 50 % tiene media ≠ 0 (el «Lead cuadrado» llevaba un 57 % de su nivel en continua): restaba
+// margen por un lado, saturaba asimétrico en la cinta y el limitador, y se acumulaba en el bucle
+// del delay. Va al FINAL de la parte (tras distorsión, flanger y chorus: recoge lo que añada
+// cualquiera), antes de los envíos. A 20 Hz quita 0,25 dB; por encima, nada que se oiga. El
+// pulso, además, sale centrado del oscilador (pulse-processor): su PWM ya no mueve la continua.
+const AC_HZ = 5;
 const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matriz ← parámetro del preset
 
 // Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
@@ -61,7 +69,7 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matri
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=14';  // v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=15';  // v15: el pulso sale centrado (sin la continua de su ancho); v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -143,12 +151,13 @@ export class AudioEngine {
     this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // envío a la reverb
 
     // Conexiones globales (los wets se enganchan al crearse)
+    this.acCoup = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * AC_HZ / ctx.sampleRate)]);   // sin continua (ver AC_HZ)
     this.voicesBus.connect(this.amp);
     this.amp.connect(this.distDry); this.distDry.connect(this.distOut);
     this.distOut.connect(this.flDry); this.flDry.connect(this.flOut);
     this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
     // Salida: chOut -> nivel -> mute -> [pan -> seco de la Sala] + [envíos]
-    this.chOut.connect(this.level); this.level.connect(this.muteG);
+    this.chOut.connect(this.acCoup); this.acCoup.connect(this.level); this.level.connect(this.muteG);   // sin continua, venga de donde venga (ver AC_HZ)
     this.muteG.connect(this.partPan); this.partPan.connect(this.sala.dry);
     this.muteG.connect(this.sendDly); this.sendDly.connect(this.sala.dlyIn);
     this.muteG.connect(this.sendRev); this.sendRev.connect(this.sala.revIn);

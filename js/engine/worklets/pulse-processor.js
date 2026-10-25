@@ -384,6 +384,9 @@ class PulseProcessor extends AudioWorkletProcessor {
     } else if (type === 'square') {
       let duty = params.pulseWidth[0];
       if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
+      // centrado: un pulso de ancho d tiene media 2d − 1 (el de 20 %, −0,6): se resta, así el
+      // PWM no mueve la continua de la salida (a 50 %, exactamente 0: la cuadrada de siempre)
+      const dcOff = 2 * duty - 1;
       for (let k = 0; k < oct; k++) {
         const base = fs * (1 << k);
         if (base >= nyq) continue;
@@ -394,7 +397,7 @@ class PulseProcessor extends AudioWorkletProcessor {
             let v = p < duty ? 1 : -1;
             v += polyBlep(p, dt);
             v -= polyBlep(fract(p - duty), dt);
-            ch[i] += v * lvl;
+            ch[i] += (v - dcOff) * lvl;
             p += dt; if (p >= 1) p -= 1;
           }
           this.phases[idx] = p;

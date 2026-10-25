@@ -2383,3 +2383,30 @@ la línea de octava del editor (en el grado que la cierra). Tres frases nuevas
 semitonos. Check «notas por grado» (correspondencias; el Seq en dórica, medido:
 pasos a 300 y 711 cents — 300 y 700 —; las partes ven la armonía) y pares
 **GRD 1-2** (la misma frase en mayor y en dórica).
+
+## Pulir y asentar (antes de la 1.3.0)
+
+**Auditoría de la fábrica** (2026-10-25): los 124 presets, cada uno en su uso
+previsto (una nota en bajos, leads, percusión y FX; un acorde de tres en el
+resto), medidos: cuánto aprieta el limitador (sus propios datos de medidor),
+clics al atacar (donde el ataque no es 0 a propósito) y al soltar (la segunda
+diferencia de la señal frente a la de la nota sostenida, y frente al pico),
+continua (la media frente al RMS del tramo sostenido), NaN. Resultado: ningún
+preset aprieta el limitador en su uso, ninguno hace clic, ninguno da NaN — y 19
+llevaban **continua**, hasta el 61 % de su nivel. (Ojo al medir: en un sonido que
+ya se ha apagado, los cocientes se disparan sobre restos a −100 dB o menos; hay
+que mirarlos también respecto al pico.)
+
+**Sin continua.** Un pulso de ancho d tiene media 2d − 1 (el de 20 %, −0,6): en
+un sinte analógico la salida va acoplada en alterna y eso no sale; aquí llegaba
+entera a la cinta, al limitador (margen perdido por un lado) y al bucle del
+delay, donde se acumula. Dos arreglos: (1) el **pulso sale centrado** del
+oscilador (pulse-processor: resta 2d − 1 en cada bloque; a 50 %, exactamente
+0), así que el PWM ya no mueve la continua al ritmo de su LFO — lo que un paso
+alto no puede quitar sin comerse graves —; (2) **acoplamiento en alterna** al
+final de cada parte (AudioEngine: paso alto de un polo a 5 Hz tras distorsión,
+flanger y chorus, antes de los envíos), que recoge lo que añada cualquier otra
+cosa. A 20 Hz quita 0,25 dB. Medido: «Lead cuadrado» de 57 % a 0,25 %, «Hoover
+rave» de 61 % a 0,16 %, «Ensemble PWM» de 59 % a 0,31 %. El pulso centrado tiene
+picos algo más altos (hasta +1,6 dB en «Lead cuadrado»), pero el más alto de la
+fábrica sigue en −1,0 dBFS y ninguno llega a comprimir. Check «sin continua».

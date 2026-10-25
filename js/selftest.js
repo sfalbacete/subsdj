@@ -3956,6 +3956,34 @@ export async function runSelfTest() {
   }
 
   {
+    // Sin continua (pulir, 2026-10-25): cada parte sale acoplada en alterna (AudioEngine,
+    // AC_HZ). Un pulso estrecho lleva media ≠ 0 — en la auditoría de la fábrica, 19 presets
+    // por encima del 5 % de su nivel y «Lead cuadrado» al 57 % —; a la salida, por debajo
+    // del 2 %. Una nota de cada uno, la media frente al RMS entre 0,55 y 1 s.
+    body.appendChild(el('st-cat', 'Sin continua'));
+    const NAME = 'sin continua (los pulsos estrechos salen centrados: < 2 % del nivel)';
+    let r;
+    try {
+      const probs = [], meds = [];
+      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
+      for (const n of ['Lead cuadrado', 'Hoover rave', 'Ensemble PWM']) {
+        const S = applyPreset(makeDefaultState(), find(n));
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
+        const eng = new AudioEngine(); eng.S = S; await eng.init(ctx);
+        eng.noteOn('d', 130.81, 1);
+        const d = (await ctx.startRendering()).getChannelData(0);
+        let sum = 0, sq = 0, k = 0; for (let i = Math.floor(0.55 * SR); i < Math.floor(1.0 * SR); i++) { sum += d[i]; sq += d[i] * d[i]; k++; }
+        const dc = Math.abs(sum / k) / Math.max(1e-9, Math.sqrt(sq / k));
+        meds.push(n + ' ' + (dc * 100).toFixed(2) + ' %');
+        if (!(dc < 0.02)) probs.push(n + ': continua al ' + (dc * 100).toFixed(1) + ' % del nivel');
+      }
+      console.log('sin continua: ' + meds.join(' · '));
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
     // Medidor de salida (Roadmap 7.0 · 1.3). Motor: con 'meter-on', el limitador manda
     // cada 50 ms los máximos del intervalo; una ráfaga a +12 dB en L marca > 6 dB de
     // reducción y su pico de entrada, ningún pico de salida pasa del techo y en el
