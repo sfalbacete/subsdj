@@ -159,7 +159,12 @@ export const PARAMS = {
   chAmt:   { def: 0, min: 0, max: 1, act: true },   // chorus/ensemble (mezcla wet)
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus a 3 fases)
-  dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },
+  dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },   // cuánto entra en el eco (envío)
+  // Realimentación (Roadmap 7.0 · 4.1): antes era 0,85·Amount con tope 0,8; ahora su knob, hasta 1,1.
+  // Por encima de 1 cada repetición vuelve más fuerte y el eco se desboca (lo sujeta la saturación
+  // del bucle: Sala). Un preset sin dlyFb es de antes y la recibe calculada (state.migrateFb).
+  dlyFb:   { def: 0.4, min: 0, max: 1.1, fmt: v => Math.round(v * 100) + ' %' },
+  dlySat:  { def: 0, min: 0, max: 1, act: true },      // saturación de cinta DENTRO del bucle del eco (clave de la Sala)
   dlyTime: { def: 0.3, min: 0.02, max: 4, log: true, fmt: secFmt },   // hasta 4 s (ecos en el horizonte); Sala.DLY_MAX acompaña
   dlySync: { def: 'libre' },                        // 'libre' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (usa bpm)
   dlyDamp: { def: 0, min: 0, max: 1, act: true },   // filtro EN EL BUCLE: cada repetición pierde agudos (y algo de graves), como cinta/BBD

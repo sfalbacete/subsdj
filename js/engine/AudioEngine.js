@@ -134,7 +134,7 @@ export class AudioEngine {
     // recibe la Sala COMPARTIDA; `master` pasa a ser el fader de la parte y
     // los knobs de la sala (tiempo, damp, size, bpm…) la editan para todas.
     this.ownsSala = !sala;
-    this.sala = sala || new Sala(ctx, S, { fb: Math.min(0.8, S.dlyAmt * 0.85), dlyToRev: S.reverbMix, master: S.master });
+    this.sala = sala || new Sala(ctx, S, { fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
     this.sala.engines.push(this);
     this.level = ctx.createGain(); this.level.gain.value = this.ownsSala ? 1 : S.master;
     this.muteG = ctx.createGain();                                            // mute de la parte (mezclador)
@@ -608,7 +608,8 @@ export class AudioEngine {
       // Envíos a la Sala. En modo único la realimentación del eco sigue al
       // Amount y los ecos entran en la reverb según el Mix — como siempre; en
       // modo Partes eso lo gobierna la columna Sala del mezclador.
-      case 'dlyAmt': smooth(this.sendDly.gain, value); if (this.ownsSala) this.sala.setFeedback(Math.min(0.8, value * 0.85)); break;
+      case 'dlyAmt': smooth(this.sendDly.gain, value); break;
+      case 'dlyFb': if (this.ownsSala) this.sala.setFeedback(value); break;   // en Partes manda la Realim. de la sala (mezclador)
       case 'width': this._forVoices(v => v.setWidth(value)); break;
       case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsSala) this.sala.setDlyToRev(value); break;
       case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Partes: fader de la parte

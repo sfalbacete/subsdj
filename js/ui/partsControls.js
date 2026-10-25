@@ -74,7 +74,7 @@ function buildStrips() {
   host.appendChild(sala);
   const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
   attachKnob(kM, { ...PARAMS.master, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
-  attachKnob(kFb, { min: 0, max: 0.85, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });
+  attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });   // por encima de 1, el eco se desboca (Sala)
   attachKnob(kToRev, { min: 0, max: 1, def: sc.salaCfg.dlyToRev, act: true }, v => { sc.salaCfg.dlyToRev = v; sc.sala.setDlyToRev(v); });
   $('layerChk').addEventListener('change', e => setLayer(e.target.checked));
   silent = false;

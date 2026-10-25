@@ -3,8 +3,23 @@
 Fecha: 2026-10-24 · **publicada la 1.2.0**: mezclador a la Minimoog, velocity con el ratón, checks
 fiables y del Roadmap 7.0 los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1 (194/194). Lo que se haga
 a partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente (1.3.0 si son funciones).
-1.3 medidor, 2.5 macros y 2.6 tacto hechos el 2026-10-25. Siguiente en el orden: 3.2-3.5, 4.1, 5.x, 6.x, 1.4 y 7.2-7.4
-intercalados (punto 6 del orden propuesto).
+1.3 medidor, 2.5 macros, 2.6 tacto, 3.2 sync y 3.3 cuerda hechos el 2026-10-25.
+
+**Rumbo acordado el 2026-10-25 (Sergio):** el synth ya tiene mucha maquinaria y la combinatoria
+crece; ahora toca APROVECHARLA. Criterio para cualquier feature nueva: que aporte algo diferencial,
+más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra. Orden:
+1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** Y se para.
+2. **Pulir y asentar** (antes de la 1.3.0): revisar la maquinaria para que dé sonido limpio — sin
+   clics, sin saturaciones raras —, que sea fiable y que invite a tocar, a experimentar, a cambiar
+   aquí y allá. Revisar y optimizar lo que hay, no añadir.
+3. **Publicar la 1.3.0.**
+4. **Exportación:** 6.1 (SFZ con bucles y variaciones) y 6.2 (WAV).
+5. **Inglés** (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —
+   no multi-idioma: los soft-synths y las serigrafías de los teclados van en inglés como idioma neutro,
+   y otros idiomas (alemán) alargan las palabras en un panel fijo—. Antes del banco nuevo, para que
+   los presets nuevos nazcan ya en inglés (todos los de hoy se van a caer).
+6. **Banco nuevo (8)**, con su propio plan (ver el bloque 8).
+Descartados por el criterio: 3.4, 3.5, 4.2, 4.3 y 5.5 (ver «Lo que NO haremos»); 5.3 sin fecha.
 
 ## Roadmap 7.0 «el instrumento» (propuesto 2026-10-17 · pendiente de acordar)
 
@@ -53,7 +68,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 3.4 | Distorsión de fase | la síntesis de los Casio CZ | bajo-medio | — |
 | 3.5 | Aditiva: editor de armónicos | dibujar el espectro | medio | — |
 | **4** | **Carácter y espacio** | | | |
-| 4.1 | Delay que se desboca | autooscilación estable, sirenas dub | bajo | — |
+| 4.1 | Delay que se desboca ✔ | autooscilación estable, sirenas dub — HECHO 2026-10-25 (realim. y satur. al pie del Delay) | bajo | — |
 | 4.2 | Placa: graves y modulación aleatoria | colas oscuras, menos «chorus» | medio | opcional |
 | 4.3 | Phaser | el efecto que falta junto a flanger y chorus | bajo-medio | opcional |
 | **5** | **Acompañamiento ligero** | | | |
@@ -79,8 +94,9 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 3. **7.1** y la medida de **0.3** (barato; hace más estrictos los checks de todo lo que sigue). ✔
 4. **3.1 + 2.4** (sorpresa barata: plegado y morph vectorial con lo que ya hay). ✔
 5. **0.4 → 2.2 → 2.1 → 2.3** (el bloque grande: reloj, LFO a tempo, envolvente en bucle, Pasos). ✔
-6. **1.3, 2.5, 2.6**; después **3.2-3.5**, **4.1**, **5.x**, **6.x**, **1.4** y **7.2-7.4** intercalados.
-7. **8** (banco nuevo) cuando el synth tenga lo de las fases 2 y 3.
+6. **1.3, 2.5, 2.6, 3.2, 3.3** ✔ (2026-10-25).
+7. **Revisado el 2026-10-25** (arriba, «Rumbo acordado»): 4.1, 5.1, 5.4, 5.2; pulir; 1.3.0; 6.1/6.2;
+   banco nuevo (8). 1.4 y 7.2-7.4 se deciden al llegar (1.4 encaja con el banco nuevo).
 
 ### Cabos sueltos (sin fecha; pequeños o de la recámara)
 
@@ -476,7 +492,7 @@ conversiones baratas (v1 → v2, Mix → niveles) en una tabla ordenada. Pedir a
 (`navigator.storage.persist()`) para que el navegador no vacíe la biblioteca por falta de espacio.
 *Coste:* bajo.
 
-### 8 · Banco nuevo desde cero + idioma es/en (idea futura)
+### 8 · Banco nuevo desde cero (idea futura; el idioma se decidió aparte: solo inglés, antes)
 
 - *Propósito:* sustituir el banco de fábrica actual (que creció bloque a bloque, muchas veces como
   demostración de cada mejora) por uno pensado entero: solo presets interesantes, útiles, que gusten
@@ -488,12 +504,23 @@ conversiones baratas (v1 → v2, Mix → niveles) en una tabla ordenada. Pedir a
   la sonoridad igualada por medida (como en la 1.1.0); los pares A/B de `subsdj-demos.json` siguen
   siendo el sitio de las demostraciones técnicas, separados del banco. El banco actual se retira
   (como mucho, exportado una vez a un JSON por si se quiere recuperar alguno).
-- *Idioma (en la misma tanda):* capa de textos de la interfaz (`t()` y los textos en tablas aparte;
+- *Idioma — SUPERADO el 2026-10-25: solo inglés, traducción entera antes del banco (punto 5 del
+  rumbo).* Lo que se pensó entonces: capa de textos de la interfaz (`t()` y los textos en tablas aparte;
   ids, claves de parámetros y campos JSON intactos; «jugador» → «músico» como etiqueta) y el banco
   nuevo escrito ya en los dos idiomas: nombre, descripción de cómo tocarlo y etiquetas con su
   versión inglesa en el propio preset (las etiquetas como ids traducidos por tabla, para que buscar
   funcione en cualquier idioma). Así cada preset se escribe una vez, no se traduce después.
 - *Coste:* medio-alto (diseño y oído en el banco; la capa de textos es mecánica pero toca toda la UI).
+- **Lo que pide Sergio (2026-10-25), para su plan propio cuando lleguemos:**
+  - Antes de nada, el banco actual entero a un JSON de copia, como referencia.
+  - Presets ricos, sólidos, contundentes y útiles, organizados por categorías, que exploren y
+    exploten lo que el synth sabe hacer; un banco limpio en el que cada preset diga algo y se
+    pueda usar. No es obvio ni es solo trabajo de máquina: plan con objetivos clásicos y no tan
+    clásicos, inspirado en bancos de synths conocidos, y ver hasta dónde se llega (quizá con
+    ayuda de un modelo para explorar). Aviso del compañero de Windsor: un banco bueno es
+    difícil; en el suyo muchos presets suenan parecido.
+  - Demos y pruebas FUERA del banco principal: cargables desde su .json, pero no sembradas en la
+    biblioteca.
 
 ---
 
@@ -1113,5 +1140,11 @@ como fuentes de la matriz; generalizar lo que la secuencia de tabla ya hace para
   por pistas, ni mezclador con inserciones por canal. SubSDJ es un instrumento de diseño y
   generación de sonido; las canciones se hacen en un DAW con los sonidos exportados (SFZ, WAV).
 - **Piano acústico** y **generación estática de samples** del synth original: aparcados.
+- **Descartados el 2026-10-25 por el criterio «que aporte algo diferencial»** (el synth ya lo cubre):
+  **3.4 distorsión de fase** (su barrido es el del filtro o el morph de la tabla, y sus formas
+  resonantes, las del filtro resonante y el sync); **3.5 editor de armónicos** (otra forma de
+  dibujar lo que ya dibuja el Editor de ondas); **4.2 placa con graves propios** (retoque, solo si
+  se oye un fallo); **4.3 phaser** (se solapa con flanger, chorus y el notch con LFO); **5.5 modos
+  del arpegiador** (poco). **5.3 acordes encadenados**: sin fecha.
 - **El teclado se queda**: es el banco de pruebas para confeccionar un sonido antes de guardarlo
   como preset y usarlo en una escena.

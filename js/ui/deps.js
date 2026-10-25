@@ -145,7 +145,8 @@ export const RULES = [
   // ---------- Efectos ----------
   ...live(['flSpd'], S => S.flAmt > 0, 'Fl.Amount a 0'),
   ...live(['chMode', 'chSpd'], S => S.chAmt > 0, 'Amount a 0'),
-  ...live(['dlyDamp', 'dlyWow', 'dlySync'], dlyLive, DLY_IDLE),
+  ...live(['dlyDamp', 'dlyWow', 'dlySync', 'dlySat'], dlyLive, DLY_IDLE),
+  ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'en Partes manda la Realim. de la Sala (mezclador)' : null)],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'libre' ? 'sincronizado: manda la división del BPM' : null)],
   ...live(['bpm'], bpmUsed, 'nada va a tempo: delay libre o apagado, sin arpegiador ni secuenciadores'),
   ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE),

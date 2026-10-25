@@ -21,9 +21,16 @@ export function migrateMix(p) {
   return q;
 }
 
+// Delay (Roadmap 7.0 · 4.1): la realimentación era 0,85·Amount (tope 0,8) y ahora tiene su
+// knob (dlyFb). Un preset SIN dlyFb es de antes: la recibe calculada así — el mismo eco, exacto.
+export function migrateFb(p) {
+  if (!p || 'dlyFb' in p) return p;
+  return { ...p, dlyFb: r6(Math.min(0.8, ('dlyAmt' in p ? p.dlyAmt : PARAMS.dlyAmt.def) * 0.85)) };
+}
+
 // Un preset es una DIFERENCIA sobre PRESET_BASE (params.js), no sobre los
 // defaults neutros: así los de siempre suenan igual. {} = Reset (sin base).
-export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateMix(p) } : {});
+export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFb(migrateMix(p)) } : {});
 
 export function makeDefaultState() {
   const S = { oscA: {}, oscB: {} };

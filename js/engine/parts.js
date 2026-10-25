@@ -135,7 +135,7 @@ export async function enableScene() {
   if (!single.ready) throw new Error('el audio aún no está listo');
   const S = single.S;
   scene = await createScene(single.ctx, [toControls(S)],
-    { salaS: S, fb: Math.min(0.8, S.dlyAmt * 0.85), dlyToRev: S.reverbMix, master: S.master });
+    { salaS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
   single.allNotesOff(); router.clear();
   single.sala.setMaster(0);
   current = scene.parts[0].engine;

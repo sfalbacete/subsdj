@@ -2296,3 +2296,26 @@ rigidez) y categoría de fábrica **Cuerdas** (nailon, doce cuerdas, arpa, koto,
 bajo, piano y campana de cuerda), con el Master medido por el PICO del rasgueo
 (−3 dBFS) y no por la sonoridad media: una púa es casi todo ataque, y
 llevarla a −14 LUFS haría que el limitador se comiera el golpe.
+
+**4.1 · Delay que se desboca.** La realimentación del delay deja de ir atada al
+Amount (era 0,85·Amount con tope 0,8): knob propio **realim.** (0-110 %), al pie
+del Delay junto a **satur.** (saturación de cinta DENTRO del bucle). Amount es
+solo el envío. Por encima de 100 % cada repetición vuelve más fuerte y el eco
+crece hasta que la saturación lo sujeta: se queda oscilando estable (la sirena
+del dub; con Time en movimiento, el tono resbala). En la Sala, cada rama de la
+realimentación cruzada del ping-pong se reparte entre el camino limpio (1 − w)
+y uno saturado tanh(D·x)/D (w) — ganancia 1 en pequeña señal, techo 1/D —, con
+w = la Saturación o, si es mayor, la que exige la realimentación (de 0 a 1
+entre 90 y 100 %): por encima de 1 el bucle es acotado por construcción. D = 1
++ 9·sat² (la mitad baja es color). Sin sobremuestreo en el WaveShaper: su
+retraso descuadraría los dos caminos (peine). Compatibilidad: un preset sin
+`dlyFb` la recibe calculada como antes (`state.migrateFb`, en
+`withPresetBase`) y con Saturación 0 la rama saturada vale 0: los ecos de
+siempre, exactos. En Partes, el knob Realim. de la columna Sala del mezclador
+es el mismo control (hasta 110 %) y la Saturación es de la sala. La rueda y
+las macros no llegan aquí (la matriz modula la voz; el eco está en la sala):
+para tocarlo, MIDI map. En Secuenciación la banda es más baja: el pie del
+Delay va con 2 px de margen. Medido: a 110 % el nivel pasa de −19,8 a −18,6 dB
+entre los segundos 5-6 y 9-10 (estable, pico 0,22); a 50 % cae más de 150 dB;
+el 3er armónico de las repeticiones de un seno fuerte, de −150 a −13,9 dB con
+Saturación 1. Check «delay que se desboca»; pares **DUB 1-4**.

@@ -30,7 +30,7 @@ export const LIM_LOOKAHEAD = 0.006, LIM_CEIL_DB = -1, LIM_MAKEUP_DB = 1.71, LIM_
 // vuelve a ser red de seguridad. Calibrado midiendo los presets de fábrica.
 export const HEADROOM_DB = -9;
 
-export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow',
+export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow', 'dlySat',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
                                   'tapeSat', 'tapeWow']);
 
@@ -130,6 +130,18 @@ const PLATE_MOD = 0.5;   // excursión de los allpass modulados (0..1): descorre
 const DLY_DAMP_LP_MIN = 1200;                        // Hz: LP del bucle a Damp 1
 const DLY_DAMP_HP_MIN = 20, DLY_DAMP_HP_MAX = 200;   // Hz: HP del bucle (Damp 0+ … Damp 1)
 const DLY_WOW_HZ = 0.6, DLY_WOW_DEPTH = 0.0025;      // s: ±2,5 ms a Wow 1
+// Delay que se desboca (Roadmap 7.0 · 4.1): saturación DENTRO del bucle del ping-pong. Cada rama de
+// realimentación se reparte entre un camino limpio (1 − w) y uno saturado (w), tanh(D·x)/D: ganancia 1
+// en pequeña señal (los dos caminos suenan igual de fuertes) y techo 1/D. w es la Saturación, pero
+// sube SOLA cuando la realimentación pasa de DLY_SAT_AUTO[0]: por encima de 1 cada vuelta crecería sin
+// fin, y con el tanh dentro crece hasta que el techo la sujeta y se queda oscilando estable (la sirena
+// del dub). Con w = 0 el camino limpio es el de siempre: los ecos de antes, exactos. Sin sobremuestreo:
+// el retraso del sobremuestreo descuadraría los dos caminos (peine) en la mezcla.
+const DLY_SAT_AUTO = [0.9, 1];     // la saturación entra sola entre estas realimentaciones (a 1, entera)
+const DLY_SAT_DRIVE = 9;           // Saturación 1 → drive ×10, en cuadrado (la mitad baja es color; a tope, ecos sucios ya a −20 dBFS)
+const DLY_SAT_RANGE = 8;           // la curva cubre ±8 a la entrada (el bucle desbocado no pasa de ~2)
+const DLY_SAT_CURVE = (() => { const n = 8193, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) c[i] = Math.tanh(DLY_SAT_RANGE * (2 * i / (n - 1) - 1)); return c; })();
 
 export class Sala {
   // S: estado con las SALA_KEYS (modo único: el S del propio motor; modo
@@ -152,6 +164,15 @@ export class Sala {
     this.dlyR = ctx.createDelay(DLY_MAX); this.dlyR.delayTime.value = this._effDelay();
     this.ppFbL = ctx.createGain(); this.ppFbR = ctx.createGain();
     this.ppFbL.gain.value = this.ppFbR.gain.value = fb;
+    this._fb = fb;
+    // saturación del bucle (ver DLY_SAT_*): limpio (1 − w) + tanh(D·x)/D (w), en cada rama
+    const mkSat = () => {
+      const dry = ctx.createGain(), pre = ctx.createGain(), sh = ctx.createWaveShaper(), post = ctx.createGain(), wet = ctx.createGain();
+      sh.curve = DLY_SAT_CURVE; pre.connect(sh); sh.connect(post); post.connect(wet);
+      return { dry, pre, sh, post, wet };
+    };
+    this.fbSatL = mkSat(); this.fbSatR = mkSat();
+    this._dlySatGains((p, v) => { p.value = v; });
     this.ppMerge = ctx.createChannelMerger(2);
     this.dlRet = ctx.createGain();                   // retorno a 1: el nivel lo pone el ENVÍO de cada parte
     // «Cinta»: LP+HP Butterworth (Q en dB: −3 = plano) a la ENTRADA de cada
@@ -228,8 +249,11 @@ export class Sala {
     this.dampL.hp.connect(this.dlyL); this.dampR.hp.connect(this.dlyR);
     this.dlyL.connect(this.ppMerge, 0, 0);                                    // dlyL -> canal izquierdo
     this.dlyR.connect(this.ppMerge, 0, 1);                                    // dlyR -> canal derecho
-    this.dlyL.connect(this.ppFbL); this.ppFbL.connect(this.dampR.lp);         // realimentación cruzada L->R (filtrada otra vez)
-    this.dlyR.connect(this.ppFbR); this.ppFbR.connect(this.dampL.lp);         // realimentación cruzada R->L
+    this.dlyL.connect(this.ppFbL); this.dlyR.connect(this.ppFbR);
+    for (const [fb, sat, damp] of [[this.ppFbL, this.fbSatL, this.dampR], [this.ppFbR, this.fbSatR, this.dampL]]) {
+      fb.connect(sat.dry); sat.dry.connect(damp.lp);                         // realimentación cruzada L->R / R->L (filtrada otra vez)…
+      fb.connect(sat.pre); sat.wet.connect(damp.lp);                         // …limpia y saturada, mezcladas por w
+    }
     this.ppMerge.connect(this.dlRet); this.dlRet.connect(this.sum);
     this.dlRet.connect(this.dlyToRev); this.dlyToRev.connect(this.revIn);     // los ecos también reverberan
     this.revIn.connect(this.revPre);
@@ -301,6 +325,7 @@ export class Sala {
       case 'dlyDamp': { const f = this._dampFreqs(value);
         [this.dampL, this.dampR].forEach(d => { smooth(d.lp.frequency, f.lp); smooth(d.hp.frequency, f.hp); }); break; }
       case 'dlyWow': smooth(this.wowL.depth.gain, value * DLY_WOW_DEPTH); smooth(this.wowR.depth.gain, value * DLY_WOW_DEPTH); break;
+      case 'dlySat': this._dlySatGains(smooth); break;
       case 'dlyTime':                                      // con sync activo manda el bpm, no el knob
       case 'dlySync':
       case 'bpm': { const tt = this._effDelay(); smooth(this.dlyL.delayTime, tt); smooth(this.dlyR.delayTime, tt); break; }
@@ -357,7 +382,21 @@ export class Sala {
       for (const n of off) { try { if (n) this.revPre.disconnect(n); } catch (e) {} }
     }, 400);
   }
-  setFeedback(fb) { const t = this.ctx.currentTime; this.ppFbL.gain.setTargetAtTime(fb, t, 0.02); this.ppFbR.gain.setTargetAtTime(fb, t, 0.02); }
+  setFeedback(fb) {
+    const t = this.ctx.currentTime, smooth = (p, v) => p.setTargetAtTime(v, t, 0.02);
+    this._fb = fb; smooth(this.ppFbL.gain, fb); smooth(this.ppFbR.gain, fb);
+    this._dlySatGains(smooth);                       // por encima de DLY_SAT_AUTO[0], la saturación entra sola
+  }
+  // Saturación del bucle: w = la del knob, o la que exige la realimentación; drive D por el knob
+  _dlySatGains(apply) {
+    const sat = +this.S.dlySat || 0, fb = this._fb || 0;
+    const w = Math.max(sat, Math.min(1, Math.max(0, (fb - DLY_SAT_AUTO[0]) / (DLY_SAT_AUTO[1] - DLY_SAT_AUTO[0]))));
+    const D = 1 + DLY_SAT_DRIVE * sat * sat;
+    for (const s of [this.fbSatL, this.fbSatR]) {
+      apply(s.dry.gain, 1 - w); apply(s.wet.gain, w);
+      apply(s.pre.gain, D / DLY_SAT_RANGE); apply(s.post.gain, 1 / D);
+    }
+  }
   setDlyToRev(v)  { this.dlyToRev.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
   setMaster(v)    { this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
 
@@ -406,6 +445,7 @@ export class Sala {
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
     try { this.comp.port.postMessage('stop'); } catch (e) {}   // el limitador es un worklet: que deje de procesar
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
+    for (const s of [this.fbSatL, this.fbSatR]) for (const n of [s.dry, s.pre, s.sh, s.post, s.wet]) { try { n.disconnect(); } catch (e) {} }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,
                      this.ppMerge, this.dlRet, this.dlyToRev, this.revPre, this.convA, this.convB, this.irMix, this.plateMix,
                      this.revRet, this.headroom, this.comp, this.master, this.analyser]) { try { n.disconnect(); } catch (e) {} }

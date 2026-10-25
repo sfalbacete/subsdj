@@ -8,6 +8,12 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Delay que se desboca**: la realimentación tiene su propio knob (**realim.**,
+  hasta 110 %), separada del Amount, que pasa a ser solo cuánto entra en el eco.
+  Por encima de 100 % el eco crece hasta que la saturación de cinta del bucle lo
+  sujeta y se queda sonando solo — mueve Time y el tono resbala, como en el dub.
+  **satur.** ensucia cada repetición. Los presets de antes suenan igual (reciben
+  la realimentación que tenían). Pares de demos DUB 1-4.
 - **Cuerda**: una fuente nueva, la onda «Cuerda» (en los dos osciladores), que
   simula una cuerda pulsada (Karplus-Strong): cada nota es una púa, y la cuerda
   se apaga sola, con los agudos yéndose antes que la fundamental. Módulo Cuerda

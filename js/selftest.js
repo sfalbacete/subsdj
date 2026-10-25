@@ -1735,6 +1735,58 @@ export async function runSelfTest() {
   }
 
   {
+    // Delay que se desboca (Roadmap 7.0 · 4.1). (1) Migración exacta: un preset sin
+    // dlyFb recibe la realimentación de antes, 0,85·Amount con tope 0,8; uno con dlyFb la
+    // conserva; {} sigue siendo Reset. (2) Con Saturación 0 y realimentación ≤ 0,9 el
+    // bucle va entero por el camino limpio (el de siempre: rama saturada a 0). (3) Por la
+    // Sala, con una ráfaga en el envío: a realimentación 1,1 el eco crece y se ESTABILIZA
+    // (menos de 1,5 dB entre los segundos 5-6 y 9-10, y sigue sonando, sin NaN ni pasar del
+    // techo); a 0,5 se apaga. (4) La Saturación ensucia los ecos: con 1, el 3er armónico de
+    // las repeticiones de un seno fuerte sube más de 20 dB.
+    body.appendChild(el('st-cat', 'Delay que se desboca'));
+    const NAME = 'delay que se desboca (migración exacta · camino limpio a 0 · a 110 % se estabiliza · a 50 % se apaga · la saturación ensucia)';
+    let r;
+    try {
+      const probs = [];
+      // (1) migración
+      const m1 = withPresetBase({ dlyAmt: 0.5 }).dlyFb, m2 = withPresetBase({ dlyAmt: 0.9 }).dlyFb, m3 = withPresetBase({ dlyAmt: 0.3, dlyFb: 1.05 }).dlyFb;
+      if (m1 !== 0.425 || m2 !== 0.765 || m3 !== 1.05 || 'dlyFb' in withPresetBase({})) probs.push('migración: ' + m1 + ' / ' + m2 + ' / ' + m3);
+      // (2) y (3): la Sala sola, con una ráfaga de seno en el envío del delay
+      const salaRun = async (fb, sat, secs, amp = 0.3, f = 440) => {
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        await loadWorklets(ctx);
+        const st = makeDefaultState(); st.dlyTime = 0.3; st.dlySync = 'libre'; st.dlyDamp = 0; st.dlyWow = 0; st.dlySat = sat;
+        const sala = new Sala(ctx, st, { fb, dlyToRev: 0, master: 1 });
+        const o = ctx.createOscillator(); o.frequency.value = f; const g = ctx.createGain(); g.gain.value = amp;
+        o.connect(g); g.connect(sala.dlyIn); o.start(0); o.stop(0.2);
+        const limpio = sala.fbSatL.wet.gain.value === 0 && sala.fbSatL.dry.gain.value === 1;
+        return { buf: await ctx.startRendering(), limpio };
+      };
+      const rms = (b, t0, t1) => { let s = 0, n = 0; for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) { s += d[i] * d[i]; n++; } } return 10 * Math.log10(s / n + 1e-30); };
+      const sano = b => { let pk = 0, bad = 0; for (let ch = 0; ch < 2; ch++) for (const x of b.getChannelData(ch)) { if (!Number.isFinite(x)) bad++; else pk = Math.max(pk, Math.abs(x)); } return { pk, bad }; };
+      const n0 = await salaRun(0.6, 0, 1);
+      if (!n0.limpio) probs.push('con Saturación 0 y realimentación 0,6 la rama saturada no está a 0');
+      const run = await salaRun(1.1, 0, 10.5), dec = await salaRun(0.5, 0, 10.5);
+      const L56 = rms(run.buf, 5, 6), L910 = rms(run.buf, 9, 10), D12 = rms(dec.buf, 1, 2), D910 = rms(dec.buf, 9, 10);
+      const sr = sano(run.buf);
+      if (run.limpio) probs.push('a 110 % la saturación no ha entrado sola');
+      if (!(Math.abs(L910 - L56) < 1.5)) probs.push('a 110 % el nivel no se estabiliza (' + L56.toFixed(1) + ' → ' + L910.toFixed(1) + ' dB)');
+      if (!(L910 > -40)) probs.push('a 110 % el eco se apaga (' + L910.toFixed(1) + ' dB a los 9 s)');
+      if (sr.bad || sr.pk > 1) probs.push('a 110 %: ' + sr.bad + ' muestras NaN, pico ' + sr.pk.toFixed(3));
+      if (!(D910 < D12 - 40)) probs.push('a 50 % el eco no se apaga (' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB)');
+      // (4) la saturación ensucia: 3er armónico de las repeticiones (0,6-1,8 s) de un seno de 300 Hz fuerte
+      const h3 = b => { const d = b.getChannelData(0), i0 = Math.floor(0.6 * SR), n = Math.floor(1.2 * SR);
+        const at = f => { let re = 0, im = 0; const w = 2 * Math.PI * f / SR; for (let i = 0; i < n; i++) { const x = d[i0 + i]; re += x * Math.cos(w * i); im -= x * Math.sin(w * i); } return Math.hypot(re, im); };
+        return 20 * Math.log10(at(900) / at(300)); };
+      const s0 = h3((await salaRun(0.5, 0, 2, 0.9, 300)).buf), s1 = h3((await salaRun(0.5, 1, 2, 0.9, 300)).buf);
+      if (!(s1 > s0 + 20)) probs.push('la saturación apenas ensucia (3er armónico ' + s0.toFixed(1) + ' → ' + s1.toFixed(1) + ' dB)');
+      console.log('delay desbocado: 110 % ' + L56.toFixed(1) + ' / ' + L910.toFixed(1) + ' dB (s 5-6 / 9-10), pico ' + sr.pk.toFixed(2) + ' · 50 % ' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB · 3er armónico sat 0/1 ' + s0.toFixed(1) + ' / ' + s1.toFixed(1) + ' dB');
+      r = { name: NAME, peak: sr.pk, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
     // FM en la matriz + feedback: (1) env→«FM índice»: el índice cabalga la
     // envolvente ⇒ el tilt espectral del ARRANQUE es claramente mayor que el
     // del SOSTENIDO (control: con índice fijo ese cociente se queda ≈ 1 — la
