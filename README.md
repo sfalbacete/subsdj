@@ -3,7 +3,7 @@
 Sintetizador para el navegador hecho con la **Web Audio API**, sin dependencias
 ni paso de build. Empezó como recreación del viejo SubSDJ, un soft-synth
 sustractivo que hice en VB.Net, y ha crecido hasta incluir FM, tablas de
-ondas, formantes, resonadores, modulación a tempo y por pasos, efectos,
+ondas, formantes, resonadores, cuerda pulsada, modulación a tempo y por pasos, efectos,
 partes y música generativa.
 
 *A browser synthesizer built on the Web Audio API, with no dependencies and no
