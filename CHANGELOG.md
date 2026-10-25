@@ -8,6 +8,10 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Arreglado**: con las Partes encendidas, el Jugador se metía en el panel Arreglo
+  en todos sus modos, y el Mezclador cortaba la M de cada parte y la casilla «Capa».
+  El arreglo de la parte (Entra · Deriva · Cantidad) pasa al panel Arreglo, como
+  una fila de la parte que edita el rack; la M, junto al nombre de cada tira.
 - **Escenas**: «amanecer-dórico», «coro-robótico» y «techno-hipnótico» sonaban ~10 dB más flojas que
   el resto; ahora llegan al mismo pico (−4 dBFS) sin tocar el limitador. Robo de voz, Pánico y
   repetir una tecla en su release, auditados: sin clics.

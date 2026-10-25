@@ -36,9 +36,9 @@ function buildStrips() {
   sc.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
-    div.innerHTML = `<button class="pname" title="Editar esta parte en el rack"></button>` +
-      `<div class="row tight">${knobHtml('Nivel')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>` +
-      `<button class="mute" title="Silenciar la parte">M</button>`;
+    div.innerHTML = `<div class="shead"><button class="pname" title="Editar esta parte en el rack"></button>` +
+      `<button class="mute" title="Silenciar la parte">M</button></div>` +   // la M junto al nombre: una fila menos (panel fijo)
+      `<div class="row tight">${knobHtml('Nivel')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
     host.appendChild(div);
     const [kLevel, kPan, kDly, kRev] = div.querySelectorAll('.knob');
     const S = p.engine.S;

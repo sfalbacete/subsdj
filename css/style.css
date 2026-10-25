@@ -206,7 +206,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   font-size:11px;color:var(--dim);}
 .mix{display:flex;gap:10px;flex-wrap:nowrap;align-items:stretch;}
 .strip{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;
-  padding:8px;display:flex;flex-direction:column;gap:6px;}
+  padding:6px 8px;display:flex;flex-direction:column;gap:4px;}   /* justo: con las cuatro partes, el panel fijo no da para más */
 .strip.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
 .strip.muted .row{opacity:.45;}
 .strip .pname{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);padding:5px 8px;
@@ -215,7 +215,9 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .strip.cur .pname{color:var(--accent);}
 .strip .pname.static{cursor:default;color:var(--accent);text-transform:var(--title-case);letter-spacing:var(--title-space);text-align:center;}
 .strip.sala{flex:0 1 200px;}
-.strip .mute{align-self:flex-start;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
+.strip .shead{display:flex;gap:6px;align-items:center;}   /* nombre + M en una fila */
+.strip .shead .pname{flex:1;min-width:0;}
+.strip .mute{flex:none;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
 .strip .mute.on{color:var(--hot);border-color:var(--hot);}
 .chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
@@ -231,7 +233,13 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .harmlay .vcol{gap:7px;min-width:200px;}
 #harmRoot{width:70px;flex:none;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
-#playerArr select{font-size:11px;height:44px;max-width:92px;}   /* a la altura del knob de al lado */
+/* Arreglo de la parte (en el panel Arreglo): fila compacta como los pies de la Matriz y el Delay */
+.arr-part{gap:10px;margin-top:6px;align-items:center;}
+.arr-part .fieldlab{flex:none;color:var(--accent);}   /* de quién es la fila */
+#playerArr{gap:10px;align-items:center;}
+#playerArr .ks .th{width:auto;}
+#playerArr .ks .val{width:30px;}
+#playerArr select{font-size:10px;padding:2px 4px;max-width:96px;}
 /* Presets en la cabecera: ‹ selector › nombre Guardar «Archivo ▾» */
 #presetBar{display:flex;align-items:center;gap:8px;}
 #presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);width:150px;
@@ -457,9 +465,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: con 4 columnas no caben 46 px por valor */
 .lfo-row{display:contents;}
 /* Pasos (Roadmap 7.0 · 2.3): una fila por carril; canvas de ancho FIJO (32 pasos) */
-.ps-grid{grid-template-columns:12px 384px auto auto auto auto auto;gap:2px 8px;}
+.ps-grid{grid-template-columns:12px 288px auto auto auto auto auto;gap:2px 8px;}   /* 288: el Jugador necesitaba el sitio (9 px por paso con 32) */
 .ps-row{display:contents;}
-.ps-canvas{width:384px;height:32px;display:block;cursor:crosshair;touch-action:none;}
+.ps-canvas{width:288px;height:32px;display:block;cursor:crosshair;touch-action:none;}
 .ps-grid select{font-size:9px;line-height:1.2;padding:2px 3px;}
 .ps-grid .stepper .num{min-width:16px;}
 .ps-head{gap:8px;align-items:center;margin-bottom:6px;}

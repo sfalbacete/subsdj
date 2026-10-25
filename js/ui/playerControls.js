@@ -1,7 +1,8 @@
 /* =====================================================================
    SubSDJ · UI de la escena generativa: módulos «Armonía» (raíz, escala,
    progresión, modo lista/funciones, semilla, ▶ Tocar), «Jugador» (el de la
-   parte que edita el rack: modo + sus knobs + su arreglo: Entra / Deriva)
+   parte que edita el rack: modo + sus knobs; su arreglo,
+   Entra / Deriva, es una fila del módulo Arreglo)
    y «Arreglo» (energía, vaivén, ciclo, apertura, sorpresa + la ESCENA:
    ⇩ exportar, ⇧ importar, ↺ última — se autoguarda cada pocos segundos).
    Solo visibles con la escena encendida (partsControls los muestra/oculta).
@@ -37,6 +38,9 @@ const depsRefresh = () => document.dispatchEvent(new Event('deps-refresh'));
 
 const knobEl = lab => { const ctl = document.createElement('div'); ctl.className = 'ctl';
   ctl.innerHTML = `<div class="knob"><div class="ind"></div></div><div class="lab">${lab}</div><div class="val"></div>`; return ctl; };
+// knob pequeño con la etiqueta delante (las filas compactas: el arreglo de la parte)
+const ksEl = lab => { const ctl = document.createElement('div'); ctl.className = 'ctl ks'; ctl.dataset.lab = lab;
+  ctl.innerHTML = `<span class="th">${lab}</span><div class="knob"><div class="ind"></div></div><div class="val"></div>`; return ctl; };
 function knobRow(host, specs, cfg, onSet) {
   host.innerHTML = '';
   for (const [key, lab, min, max, isInt] of specs) {
@@ -53,18 +57,17 @@ function buildPlayerUI() {
   $('playerWho').textContent = 'Parte ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : '');
   document.querySelectorAll('#playerMode button').forEach(b => b.classList.toggle('active', b.dataset.pm === pl.cfg.mode));
   knobRow($('playerKnobs'), KNOBS[pl.cfg.mode] || [], pl.cfg);
-  // arreglo de la parte: Entra (umbral) · Deriva (parámetro) · Cantidad
+  // arreglo de la parte (fila compacta del panel Arreglo): Entra (umbral) · Deriva (parámetro) · Cantidad
+  $('arrPartWho').textContent = 'parte ' + (sc.sel + 1);
   const host = $('playerArr'); host.innerHTML = '';
-  const kU = knobEl('Entra'); kU.dataset.key = 'umbral'; host.appendChild(kU);
+  const kU = ksEl('entra'); kU.dataset.key = 'umbral'; host.appendChild(kU);
   attachKnob(kU.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.umbral }, v => { pl.cfg.umbral = v; });
-  const selWrap = document.createElement('div'); selWrap.className = 'ctl'; selWrap.style.width = 'auto';
-  selWrap.innerHTML = `<select id="derivaSel" title="Parámetro del preset que pasea despacio"></select><div class="lab">Deriva</div>`;
-  host.appendChild(selWrap);
-  const sel = selWrap.querySelector('select');
+  const sel = document.createElement('select'); sel.id = 'derivaSel'; sel.title = 'Deriva: un parámetro del preset de la parte que pasea despacio («—» = ninguno)';
+  host.appendChild(sel);
   DERIVA_KEYS.forEach(k => sel.add(new Option(k === 'off' ? '—' : k, k)));
   sel.value = pl.cfg.deriva || 'off';
   sel.addEventListener('change', () => { pl.setDeriva(sel.value); depsRefresh(); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
-  const kA = knobEl('Cantidad'); kA.dataset.key = 'derivaAmt'; host.appendChild(kA);
+  const kA = ksEl('cant.'); kA.dataset.key = 'derivaAmt'; kA.title = 'Cantidad de la deriva'; host.appendChild(kA);
   attachKnob(kA.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.derivaAmt, act: true }, v => { pl.cfg.derivaAmt = v; });
   depsRefresh();
 }

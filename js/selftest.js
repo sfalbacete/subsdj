@@ -506,6 +506,10 @@ export async function runSelfTest() {
       if (inst && over(inst)) probs.push(s + ': el instrumento desborda (' + inst.scrollWidth + '×' + inst.scrollHeight + ')');
       for (const b of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .band'))
         if (over(b)) probs.push(s + ': banda ' + (b.id || '?') + ' recorta (' + b.scrollWidth + '×' + b.scrollHeight + ' en ' + b.clientWidth + '×' + b.clientHeight + ')');
+      // un módulo que se sale pisa al de al lado o lo corta la banda (los que tienen scroll, como la Biblioteca, no cuentan)
+      for (const p of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .panel'))
+        if (p.offsetParent && !/auto|scroll/.test(getComputedStyle(p).overflow) && over(p))
+          probs.push(s + ': el módulo ' + title(p) + ' se sale (' + p.scrollWidth + '×' + p.scrollHeight + ' en ' + p.clientWidth + '×' + p.clientHeight + ')');
     }
     showScreen('presets');
     const items = [...document.querySelectorAll('#presetList .pl-item')];
@@ -518,6 +522,41 @@ export async function runSelfTest() {
     }
     showScreen(before);
     push({ name: 'pantallas (panel fijo · huecos · memoria · nada recortado · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // Nada recortado CON LAS PARTES (2026-10-25). El check de pantallas mira con las
+    // Partes apagadas, y ahí los módulos de la escena están vacíos o en «off»: encendidas,
+    // el Jugador se metía en el Arreglo en todos sus modos y el Mezclador cortaba la M de
+    // cada parte y la casilla Capa de la Sala sin que nada fallara. Aquí: Partes
+    // encendidas, cada modo del jugador, y ningún módulo ni banda de Secuenciación se sale.
+    const NAME = 'nada recortado con las Partes (Mezclador · Jugador en cada modo · Arreglo)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
+    const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();
+    const before = currentScreen(), wasOn = isOn(), bad = new Map(), probs = [];
+    try {
+      showScreen('secuenciacion');
+      if (!wasOn) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      if (!isOn()) probs.push('las Partes no se encienden');
+      else {
+        const btns = [...document.querySelectorAll('#playerMode button')], mode0 = btns.find(b => b.classList.contains('active'));
+        for (const b of btns) {
+          b.click();
+          for (const p of document.querySelectorAll('.screen[data-screen-body="secuenciacion"] .panel, .screen[data-screen-body="secuenciacion"] .band'))
+            if (p.offsetParent && over(p)) {
+              const k = (p.classList.contains('band') ? 'banda ' + (p.id || '?') : title(p)) + ' (' + p.scrollWidth + '×' + p.scrollHeight + ' en ' + p.clientWidth + '×' + p.clientHeight + ')';
+              bad.set(k, [...(bad.get(k) || []), b.dataset.pm]);
+            }
+        }
+        if (mode0) mode0.click();
+      }
+      for (const [k, modos] of bad) probs.push(k + ' se sale · modos: ' + modos.join(', '));
+    } catch (e2) { probs.push('excepción: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (!wasOn && isOn()) document.getElementById('partsBtn').click();
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !probs.length, problems: probs });
   }
   {
     // canvas: el tamaño en pantalla lo pone SOLO el CSS. fitCanvas pone el

@@ -687,17 +687,14 @@
           <button data-pm="raiz" title="Fundamental mantenida (con Seq: raíz de la frase)">Raíz</button>
         </div><div class="lab">Modo</div></div>
       </div>
-      <div class="g" id="playerKnobs" style="--c:4"></div>
-      <div class="vcol" style="align-items:flex-start">
-        <div class="fieldlab">Arreglo de la parte</div>
-        <div class="hrow" id="playerArr"></div>
-      </div>
+      <div class="g" id="playerKnobs" style="--c:5"></div>
     </div>
-    <div class="help"><b>Jugador de la parte que edita el instrumento</b> (los ajustes son del músico, no del preset). <b>Pulso</b>: E(k, n) reparte k golpes en n pasos por compás lo más uniformemente posible (Bjorklund): E(3,8) es el tresillo. <b>Respira</b>: el pulso se llena y se vacía solo — los golpes suben compás a compás hasta k + Respira y vuelven, en un vaivén de <b>Ciclo</b> compases. <b>Acorde</b>: 3-4 notas del acorde mantenidas; con el Arp de la parte encendido, las arpegia. <b>Melodía</b>: paseo por la escala; Gravedad = probabilidad de caer en nota del acorde en tiempo fuerte; Densidad acorta las notas; Silencio = probabilidad de pausa. <b>Raíz</b>: la fundamental (+ Quinta) re-disparada cada N compases; con el Seq encendido es la raíz que transpone la frase. <b>Arreglo de la parte</b>: Entra = energía mínima para que toque (0 = siempre); Deriva = un parámetro del preset que pasea despacio alrededor del valor que tenía, Cantidad = cuánto.</div>
+    <div class="help"><b>Jugador de la parte que edita el instrumento</b> (los ajustes son del músico, no del preset). <b>Pulso</b>: E(k, n) reparte k golpes en n pasos por compás lo más uniformemente posible (Bjorklund): E(3,8) es el tresillo. <b>Respira</b>: el pulso se llena y se vacía solo — los golpes suben compás a compás hasta k + Respira y vuelven, en un vaivén de <b>Ciclo</b> compases. <b>Acorde</b>: 3-4 notas del acorde mantenidas; con el Arp de la parte encendido, las arpegia. <b>Melodía</b>: paseo por la escala; Gravedad = probabilidad de caer en nota del acorde en tiempo fuerte; Densidad acorta las notas; Silencio = probabilidad de pausa. <b>Raíz</b>: la fundamental (+ Quinta) re-disparada cada N compases; con el Seq encendido es la raíz que transpone la frase. Su arreglo (Entra, Deriva) está en el módulo Arreglo.</div>
   </div>
   <div class="panel parts-off" id="arrange">
     <h2>Arreglo</h2>
     <div class="hrow" id="arrKnobs"></div>
+    <div class="hrow arr-part"><span class="fieldlab" id="arrPartWho" title="El arreglo de la parte que edita el rack: Entra = energía mínima para que toque; Deriva = un parámetro de su preset que pasea despacio, y Cantidad, cuánto">parte 1</span><div class="hrow" id="playerArr"></div></div>
     <div class="badge" id="arrInfo" style="margin-top:6px">—</div>
     <div class="row" style="gap:6px;margin-top:8px">
       <button class="btn" id="sceneExp" title="Descargar la escena completa (presets, mezcla, sala, armonía, jugadores, arreglo, semilla) como JSON">⇩ Escena</button>
@@ -705,7 +702,7 @@
       <button class="btn" id="sceneLast" title="Recuperar la última escena: se guarda sola cada pocos segundos y al cerrar">↺ Última</button>
       <input type="file" id="sceneFile" accept="application/json,.json" style="display:none">
     </div>
-    <div class="help"><b>Arreglo de la escena</b> — la forma a escala de minutos. Energía = centro y Vaivén = amplitud de un vaivén en coseno de Ciclo compases (sube, culmina a mitad, baja): cada parte entra cuando la energía supera su umbral («Entra» en Jugador); la energía también escala velocity, probabilidad del pulso y densidad de la melodía. Apertura = cuánto abre (o cierra) la energía el filtro de todas las partes (±1 octava a tope). Sorpresa = silencios de un compás repartidos al azar. Todo determinista con la semilla. <b>Escena</b> = sala + armonía + arreglo + jugadores + los 4 presets con su mezcla: ⇩ exporta, ⇧ importa, ↺ recupera la última (autoguardada).</div>
+    <div class="help"><b>Arreglo de la escena</b> — la forma a escala de minutos. Energía = centro y Vaivén = amplitud de un vaivén en coseno de Ciclo compases (sube, culmina a mitad, baja): cada parte entra cuando la energía supera su umbral; la energía también escala velocity, probabilidad del pulso y densidad de la melodía. Apertura = cuánto abre (o cierra) la energía el filtro de todas las partes (±1 octava a tope). Sorpresa = silencios de un compás repartidos al azar. <b>Fila «parte N»</b> (la parte que edita el instrumento): <b>entra</b> = energía mínima para que toque (0 = siempre); <b>Deriva</b> = un parámetro de su preset que pasea despacio alrededor del valor que tenía, <b>cant.</b> = cuánto. Todo determinista con la semilla. <b>Escena</b> = sala + armonía + arreglo + jugadores + los 4 presets con su mezcla: ⇩ exporta, ⇧ importa, ↺ recupera la última (autoguardada).</div>
   </div>
 </div>
 

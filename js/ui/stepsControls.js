@@ -51,8 +51,8 @@ export function bindStepsControls() {
 function initLane(i, canvas) {
   if (!canvas) return;
   const g = canvas.getContext('2d'), PAD = 3;
-  let W = 384, H = 32;
-  const fit = () => { ({ w: W, h: H } = fitCanvas(canvas, g, 384, 32)); };
+  let W = 288, H = 32;
+  const fit = () => { ({ w: W, h: H } = fitCanvas(canvas, g, 288, 32)); };
   const cw = () => (W - 2 * PAD) / ST_MAX;
   const yOf = v => PAD + (1 - (v + 1) / 2) * (H - 2 * PAD);
   function draw() {

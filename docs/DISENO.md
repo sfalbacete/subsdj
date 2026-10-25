@@ -532,7 +532,7 @@ js/ui/
   registry.js                  registro CONTROLS {get,set,def,el,opts} → reset/snapshot/presets/midimap
   theme.js                     piel: token()/tint()/hue() sirven los tokens CSS a los canvas; selector de tema (lee los temas de las hojas)
   partsControls.js             botón Partes + selector 1-4 en la cabecera + módulo Mezclador
-  playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs + Entra/Deriva)
+  playerControls.js            módulos Armonía (▶ Tocar, escala, progresión, semilla), Jugador (modo + knobs), Arreglo (+ fila Entra/Deriva de la parte)
                                y Arreglo (energía, vaivén, ciclo, apertura, sorpresa; ⇩⇧↺ escena)
 escenas/*.json                 escenas del repo (⇧ Escena en el módulo Arreglo): ambient nocturno, amanecer
                                dórico, techno hipnótico, coro robótico — el selftest las renderiza todas
@@ -2431,3 +2431,16 @@ pico: máster de la sala de 0,7 a 1,93 (amanecer-dórico), 1,12 (coro-robótico)
 (techno-hipnótico), para picos en torno a −4 dBFS; medido el coro: pico −4,1, RMS −21,4, limitador
 sin trabajar. (Las copias de las escenas que ya estén en una biblioteca no cambian solas: borrarlas
 y ⟲ Traer de fábrica.)
+
+**Nada recortado con las Partes.** El check de pantallas medía con las Partes apagadas, y ahí los
+módulos de la escena están vacíos o en «off». Encendidas, el **Jugador** se metía en el Arreglo en
+todos sus modos (su contenido medía 487-545 px en un panel de 349: los knobs del modo más la columna
+«Arreglo de la parte») y el **Mezclador** se pasaba 27 px por abajo: el panel fijo cortaba la M de
+cada parte y la casilla «Capa» de la Sala sin que nada fallara. Ahora: el arreglo de la parte (Entra ·
+Deriva · Cantidad) es una fila compacta en el panel **Arreglo** («parte N», la que edita el rack),
+el Jugador deja solo el modo y sus knobs en cinco columnas (el Pulso, con diez, en dos filas), los
+lienzos de los Pasos pasan de 384 a 288 px (9 px por paso con 32) para darle el sitio, y en el
+Mezclador la M sube a la fila del nombre. Dos checks: «pantallas» mira además que ningún módulo se
+salga (los que tienen scroll, como la Biblioteca, no cuentan) y uno nuevo enciende las Partes y
+recorre los modos del Jugador. Sobre el código de antes, falla con el Jugador en acorde, melodía,
+raíz y pulso, y con el Mezclador.
