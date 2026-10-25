@@ -6,6 +6,11 @@ no se ha publicado va en «Sin publicar». Numeración X.Y.Z:
 cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
 de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
+## Sin publicar
+
+- **Editor de ondas**: con la ventana estrecha (el instrumento a escala menor que 1),
+  su barra partía el último botón a una segunda fila; ahora va siempre en una.
+
 ## [1.3.0] — 2026-10-25
 
 Más expresión y sonidos nuevos, y una pasada de pulido. Dos fuentes nuevas (la

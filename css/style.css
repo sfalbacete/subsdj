@@ -180,7 +180,8 @@ header .sp{flex:1;}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;}
 .btn.ico{padding:7px 11px;line-height:0;}   /* botón-icono (editor de ondas): el SVG mide lo que una línea de texto de 12 px */
-.we-bar .btn.ico{padding:7px 6px;}   /* el editor de ondas, estrecho desde que entró el módulo Cuerda: la barra en una fila */
+.row.we-bar{flex-wrap:nowrap;}   /* el editor de ondas, estrecho desde que entró el módulo Cuerda: la barra en una fila… */
+.we-bar .btn.ico{padding:7px 6px;min-width:0;flex:0 1 auto;}   /* …también a zoom < 1, donde el redondeo de píxeles la partía: los iconos ceden 1 px */
 .btn.ico svg{display:block;width:17px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 /* Selects: un solo hueco para todos, a la altura de un .btn (mismo padding y
    cuerpo de letra). Antes cada select llevaba el suyo (3-4 px, 11 px) y salía
