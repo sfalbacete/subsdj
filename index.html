@@ -130,6 +130,7 @@
         <button data-w="supersaw" title="Supersaw (7 sierras detunadas)"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/><polyline points="3,10 10,3.5 10,10 15,6" opacity=".45"/></svg></button>
         <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
         <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
+        <button data-w="cuerda" title="Cuerda pulsada (Karplus-Strong): la púa y cómo se apaga, en el módulo Cuerda"><svg viewBox="0 0 16 12"><polyline points="1,6 2.5,1 4,11 5.5,2.5 7,9.5 8.5,4 10,8 11.5,5 13,7 15,6"/></svg></button>
       </div><div class="lab">Onda</div></div>
       <div class="ctl rotc"><div class="seg rot" id="oscAOct">
         <button data-oct="-2" title="−2 octavas">32'</button><button data-oct="-1" title="−1 octava (suboscilador)">16'</button><button data-oct="0" title="Octava natural">8'</button><button data-oct="1" title="+1 octava">4'</button><button data-oct="2" title="+2 octavas">2'</button>
@@ -142,7 +143,7 @@
         <button data-stk="1" title="Una octava (sin apilar)">1</button><button data-stk="2" title="2 octavas apiladas">2</button><button data-stk="3" title="3 octavas apiladas">3</button><button data-stk="4" title="4 octavas apiladas">4</button>
       </div><div class="lab">Apiladas</div></div>
     </div>
-    <div class="help"><b>Oscilador A.</b> <b>Sync</b> (botón de la cabecera): el A vuelve a empezar su ciclo cada vez que el B empieza el suyo. La nota que suena es la del B — que puede estar a nivel 0: marca el tiempo sin sonar — y el tono del A deja de ser nota y pasa a ser TIMBRE: subirlo añade armónicos alrededor de su frecuencia, como un filtro resonante pero más áspero. Para oírlo, mueve el A solo con la matriz (destino «Pitch A» desde Env filtro, un LFO, Pasos, la rueda o una macro): es el chillido de los leads de sync. Funciona en sierra, cuadrada, triángulo, seno (sin FM) y tabla; la Súper y FM4 no tienen sync. Onda: sierra · cuadrada · seno · triángulo · «Súper» (7 sierras detunadas; anchura con Spread en Mezcla) · «Tabla» (tabla de ondas) · FM4 (módulo FM4). <b>Octava</b> transpone el oscilador −2..+2 octavas, en pies de órgano como el RANGE del Minimoog: 8' = la nota, 16' = una abajo (el suboscilador clásico), 4' = una arriba; aplica por nota. <b>Apiladas</b> apila 1-4 octavas hacia arriba dentro del oscilador. Detune en cents (±50) · Phase = fase inicial del ciclo. Selector: clic en una posición, o arrastra / pulsa el knob.</div>
+    <div class="help"><b>Oscilador A.</b> <b>Sync</b> (botón de la cabecera): el A vuelve a empezar su ciclo cada vez que el B empieza el suyo. La nota que suena es la del B — que puede estar a nivel 0: marca el tiempo sin sonar — y el tono del A deja de ser nota y pasa a ser TIMBRE: subirlo añade armónicos alrededor de su frecuencia, como un filtro resonante pero más áspero. Para oírlo, mueve el A solo con la matriz (destino «Pitch A» desde Env filtro, un LFO, Pasos, la rueda o una macro): es el chillido de los leads de sync. Funciona en sierra, cuadrada, triángulo, seno (sin FM) y tabla; la Súper, FM4 y la Cuerda no tienen sync. Onda: sierra · cuadrada · seno · triángulo · «Súper» (7 sierras detunadas; anchura con Spread en Mezcla) · «Tabla» (tabla de ondas) · FM4 (módulo FM4) · Cuerda (pulsada, módulo Cuerda). <b>Octava</b> transpone el oscilador −2..+2 octavas, en pies de órgano como el RANGE del Minimoog: 8' = la nota, 16' = una abajo (el suboscilador clásico), 4' = una arriba; aplica por nota. <b>Apiladas</b> apila 1-4 octavas hacia arriba dentro del oscilador. Detune en cents (±50) · Phase = fase inicial del ciclo. Selector: clic en una posición, o arrastra / pulsa el knob.</div>
   </div>
   <div class="panel osc">
     <h2>Osc B</h2>
@@ -155,6 +156,7 @@
         <button data-w="supersaw" title="Supersaw (7 sierras detunadas)"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/><polyline points="3,10 10,3.5 10,10 15,6" opacity=".45"/></svg></button>
         <button data-w="tabla" title="Tabla de ondas (morph)"><svg viewBox="0 0 16 12"><path d="M1,6 Q3.5,0 6,6"/><polyline points="6,6 6,10 10,10 10,2 14,2 14,6"/></svg></button>
         <button data-w="fm4" title="FM de 4 operadores (módulo FM4)">FM4</button>
+        <button data-w="cuerda" title="Cuerda pulsada (Karplus-Strong): la púa y cómo se apaga, en el módulo Cuerda"><svg viewBox="0 0 16 12"><polyline points="1,6 2.5,1 4,11 5.5,2.5 7,9.5 8.5,4 10,8 11.5,5 13,7 15,6"/></svg></button>
       </div><div class="lab">Onda</div></div>
       <div class="ctl rotc"><div class="seg rot" id="oscBOct">
         <button data-oct="-2" title="−2 octavas">32'</button><button data-oct="-1" title="−1 octava (suboscilador)">16'</button><button data-oct="0" title="Octava natural">8'</button><button data-oct="1" title="+1 octava">4'</button><button data-oct="2" title="+2 octavas">2'</button>
@@ -242,6 +244,16 @@
     <div class="help"><b>FM de 4 operadores</b> (onda «FM4» en Osc A/B; el módulo se atenúa si ninguno la usa). Un algoritmo es un grafo de quién modula a quién, y bajo el selector se dibuja como en los Yamaha: las <b>portadoras</b> (lo que suena) abajo, sobre la línea de salida; cada <b>modulador</b> encima del operador al que modula, unido por su cable; el lazo sobre el op 4 es el feedback (se enciende con el Feedback del módulo FM). Cada operador: Ratio = múltiplo de la nota (entero = armónico, no entero = campana), Nivel = cuánto modula (o cuánto suena, si es portadora), Decay = su nivel cae con e^(−t/decay); a tope (∞) es constante. La receta del DX7: modulador con decay corto = ataque brillante que se apaga. <b>Vel</b> = sensibilidad a la velocity (la «key velocity sensitivity» del DX7): el nivel del operador se multiplica por 1 − vel + vel·velocity; a 0 da igual cómo pegues, a 1 es proporcional. En una PORTADORA eso es volumen; en un MODULADOR el nivel es el índice de modulación, así que pegar más fuerte abre armónicos: el timbre cambia con el tacto, que en sustractiva solo se consigue con el filtro. Hace falta un teclado MIDI (el del ordenador manda siempre velocity 1). El Feedback del módulo FM realimenta el op. 4.</div>
   </div>
   <div class="panel osc">
+    <h2>Cuerda</h2>
+    <div class="g" style="--c:2">
+      <div class="ctl"><div class="knob" data-knob="strBright"><div class="ind"></div></div><div class="lab">Brillo</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="strDecay"><div class="ind"></div></div><div class="lab">Decay</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="strPos"><div class="ind"></div></div><div class="lab">Posición</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="strStiff"><div class="ind"></div></div><div class="lab">Rigidez</div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Cuerda</b> (para osciladores en «Cuerda»; se atenúa si ninguno la usa) — una cuerda pulsada de verdad, por Karplus-Strong: un bucle de retardo de un periodo de la nota por el que circula una ráfaga de ruido (la púa); en cada vuelta pierde un poco de agudos, así que el brillo del ataque se va y queda un tono redondo que se apaga despacio, cada armónico a su ritmo. Cada nota es una pulsación nueva; con Mono legato la cuerda sigue sonando y resbala con el Glide. La velocity es la FUERZA de la púa: flojo, más oscuro. <b>Brillo</b>: cuánto aguantan los agudos frente a la fundamental (abajo, apagada como el nailon; arriba, metálica: el 8º armónico dura casi lo que la fundamental). <b>Decay</b>: lo que tarda la fundamental en caer 60 dB en Do4 (más agudo, menos, como en una cuerda real); para que la nota se apague sola, pon la Env amp con sustain 1 y release largo. <b>Posición</b>: dónde se pulsa — cerca del puente (pocos %), fino y metálico; en el centro (50 %), redondo y hueco (sin armónicos pares). <b>Rigidez</b>: estira los armónicos hacia arriba como en una cuerda gruesa y tensa — a la mitad, un piano; a tope, una campana. Unison = varias cuerdas algo desafinadas (doce cuerdas); Apiladas = cuerdas en octavas.</div>
+  </div>
+  <div class="panel osc">
     <h2>Tabla de ondas</h2>
     <select id="wtSetSel"></select>
     <div class="hrow" style="margin-top:8px">
@@ -251,8 +263,8 @@
   </div>
   <div class="panel osc grow">
     <h2>Editor de ondas</h2>
-    <div class="row" style="align-items:center;gap:6px">
-      <div class="seg" id="weFrameSel" style="width:90px">
+    <div class="row we-bar" style="align-items:center;gap:4px">
+      <div class="seg" id="weFrameSel" style="width:54px">
         <button data-wf="0">A</button>
         <button data-wf="1">B</button>
       </div>

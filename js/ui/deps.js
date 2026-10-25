@@ -83,10 +83,12 @@ export const RULES = [
   ['sec:Osc B', S => (oscOn(S, 'B') || S.syncA === 'on' ? null : 'nivel B y Ring a 0 en Mezcla: el B no llega a la salida')],
   ...live(['waveB', 'octavesB'], S => oscOn(S, 'B'), 'el B no suena (nivel 0): con Sync solo marca el tiempo del A, y para eso cuentan su octava, su detune y su fase'),
   ['phaseA', S => (S.oscA.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar'
+    : S.oscA.wave === 'cuerda' ? 'la Cuerda arranca con la púa: no tiene fase'
     : S.syncA === 'on' ? 'con Sync, el A vuelve a 0 con cada ciclo del B: su fase de arranque no cuenta' : null)],
-  ['syncA', S => (S.oscA.wave === 'supersaw' || S.oscA.wave === 'fm4' ? 'la Súper y FM4 no tienen sync'
+  ['syncA', S => (['supersaw', 'fm4', 'cuerda'].includes(S.oscA.wave) ? 'la Súper, FM4 y la Cuerda no tienen sync'
     : S.oscA.wave === 'sine' && S.fmIndex > 0 ? 'el Seno con FM (Index > 0) va sin sync' : null)],
-  ['phaseB', S => (S.oscB.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar' : null)],
+  ['phaseB', S => (S.oscB.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar'
+    : S.oscB.wave === 'cuerda' ? 'la Cuerda arranca con la púa: no tiene fase' : null)],
   ['noiseColor', S => (S.noise > 0 ? null : 'Ruido a 0')],
   ['spread', S => (has(S, 'supersaw') ? null : 'solo abre la Súper: ' + NO('Súper'))],
   ['pulseWidth', S => (has(S, 'square') ? null : 'solo mueve la Cuadrada: ' + NO('Cuadrada'))],
@@ -98,6 +100,7 @@ export const RULES = [
   ['fmFb', S => (has(S, 'fm4') || !has(S, 'sine') ? null : fmIdle(S) ? 'Index a 0: no hay modulador que realimentar' : null)],
   ['sec:FM4', S => (has(S, 'fm4') ? null : NO('FM4'))],
   ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i, 'fm4V' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' con nivel 0: ni suena ni modula')),
+  ['sec:Cuerda', S => (has(S, 'cuerda') ? null : NO('Cuerda'))],
   ['sec:Tabla de ondas', S => (has(S, 'tabla') ? null : NO('Tabla'))],
   ['sec:Editor de ondas', S => (!has(S, 'tabla') ? NO('Tabla')
     : S.wtSet !== 'usuario' ? 'dibuja la tabla «usuario»: elígela en Tabla de ondas' : null)],

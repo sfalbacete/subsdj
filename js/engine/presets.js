@@ -394,6 +394,28 @@ export const FACTORY = {
       a: 0.002, d: 0.2, s: 0.0, r: 0.15, dlyAmt: 0.3, dlyTime: 0.4, width: 0.2, master: 0.99 },
   },
 
+  /* Cuerdas (Roadmap 7.0 · 3.3): la onda «Cuerda» (Karplus-Strong). Envolvente en
+     puerta (sustain 1): la cuerda se apaga sola con su Decay; el release es la mano
+     que la apaga al soltar. Master medido por el PICO del rasgueo (−3 dBFS), no por
+     la sonoridad media: una púa es casi todo ataque, y llevarla a −14 LUFS haría que
+     el limitador se comiera el golpe. */
+  'Cuerdas': {
+    'Guitarra de nailon': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.3, strDecay: 2.5, strPos: 0.18,
+      cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.35, reverbMix: 0.2, width: 0.3, master: 1.76 },
+    'Guitarra de doce cuerdas': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.7, strDecay: 4, strPos: 0.1,
+      uniVoices: '2', uniDetune: 6, octavesA: 2, cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.5, reverbMix: 0.2, width: 0.5, master: 1.4 },
+    'Arpa': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.55, strDecay: 5, strPos: 0.3,
+      cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 2.5, reverbMix: 0.35, width: 0.4, master: 1.19 },
+    'Koto': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.6, strDecay: 2, strPos: 0.06,
+      cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.6, dlyAmt: 0.2, dlyTime: 0.3, reverbMix: 0.2, width: 0.3, master: 1.38 },
+    'Bajo pulsado': { waveA: 'cuerda', octA: -1, levelA: 0.8, levelB: 0, strBright: 0.25, strDecay: 2.5, strPos: 0.2,
+      cutoff: 3000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.15, master: 2.9 },
+    'Piano de cuerda': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.45, strDecay: 6, strPos: 0.12, strStiff: 0.6,
+      uniVoices: '3', uniDetune: 2, cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.6, reverbMix: 0.25, width: 0.4, master: 1.44 },
+    'Campana de cuerda': { waveA: 'cuerda', levelA: 0.8, levelB: 0, strBright: 0.85, strDecay: 8, strPos: 0.25, strStiff: 1,
+      cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 3, reverbMix: 0.4, width: 0.4, master: 1.19 },
+  },
+
   'FM': {
     'Piano FM (Rhodes)': { waveA: 'sine', waveB: 'sine', levelA: 0.65, levelB: 0.35, fmRatio: 1, fmIndex: 2.2,
       filterEnvAmt: 1200, a: 0.003, d: 0.6, s: 0.25, r: 0.4, width: 0.3, reverbMix: 0.22, master: 0.78 },

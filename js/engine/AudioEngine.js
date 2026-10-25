@@ -20,7 +20,7 @@ import { Steps } from './Steps.js';
 import { getWtSet } from './wavetable.js';
 
 import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
-import { LFO_KEYS, lfoHz, lfoBeats } from './params.js';
+import { LFO_KEYS, lfoHz, lfoBeats, STR_KEYS } from './params.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 
 const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
@@ -61,7 +61,7 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matri
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=13';  // v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=14';  // v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -502,6 +502,7 @@ export class AudioEngine {
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
     if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
     if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: params del worklet por nombre
+    if (STR_KEYS.includes(name)) { this._forVoices(v => v.setStr(name, value)); return; }   // Cuerda: ídem (la Posición solo cuenta en la púa)
     // Claves de la SALA (bpm, tiempo/damp/wow del eco, size/damp/pre de la
     // reverb): las aplica la Sala, que en modo Partes es compartida — y
     // propaga el valor al S de todas las partes (un solo reloj).

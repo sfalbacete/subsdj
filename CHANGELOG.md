@@ -8,6 +8,14 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Cuerda**: una fuente nueva, la onda «Cuerda» (en los dos osciladores), que
+  simula una cuerda pulsada (Karplus-Strong): cada nota es una púa, y la cuerda
+  se apaga sola, con los agudos yéndose antes que la fundamental. Módulo Cuerda
+  con Brillo, Decay, Posición (cerca del puente, metálica; en el centro,
+  redonda) y Rigidez (de cuerda de guitarra a piano y a campana). La velocity
+  es la fuerza de la púa. Categoría de fábrica Cuerdas (nailon, doce cuerdas,
+  arpa, koto, bajo, piano y campana de cuerda) y pares de demos CUERDA 1-6.
+  El Editor de ondas estrecha para hacerle sitio.
 - **Sync duro** en el Osc A (botón «sync» en su cabecera): el A vuelve a empezar
   su ciclo con cada ciclo del B. La nota la pone el B (que puede estar a nivel
   0) y el tono del A pasa a ser timbre: barriéndolo con la matriz («Pitch A»

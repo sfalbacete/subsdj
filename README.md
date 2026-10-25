@@ -66,7 +66,9 @@ node tools/serve.mjs
 ```
 
 → <http://127.0.0.1:8000/>. El selftest, en <http://127.0.0.1:8000/?selftest=1>,
-o sin ventana con `node tools/run-selftest.mjs` (Node ≥ 22 y Chrome).
+o sin ventana con `node tools/run-selftest.mjs` (Node ≥ 22 y Chrome), que lo pasa en
+dos tandas (`?selftest=1&tanda=checks` y `&tanda=fabrica`): todo seguido en una
+sola página puede colgar el navegador por la cantidad de renders.
 
 ## Documentación
 

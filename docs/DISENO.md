@@ -95,7 +95,14 @@ Sin abrir el navegador: `node tools/run-selftest.mjs ["selftest=1&demos=DLY"]` l
 Chrome headless por CDP con un servidor estático propio (8001), espera el ping «done»
 e imprime resumen, filas fallidas con su motivo, pares de demos (diff y picos), logs
 de medida y errores JS; sale con 1 si algo falla. Solo Node ≥ 22 y Chrome (ruta por la
-variable `CHROME` si no es la habitual).
+variable `CHROME` si no es la habitual). Va en DOS TANDAS (`?tanda=checks` y
+`?tanda=fabrica`), cada una en un Chrome nuevo, y suma: cientos de OfflineAudioContext
+en una sola página la cuelgan sin error (ni los temporizadores ni el depurador
+responden; con la cuerda y el sync se quedaba en el render ~330), porque cada uno
+arrastra el hilo de su worklet y no se suelta a tiempo — llamar a `gc()` cada 5
+renders (Chrome con `--expose-gc`) no lo arreglaba. Si una página deja de contestar,
+el runner lo dice y cuenta como fallo, en vez de esperar para siempre. En el
+navegador, `?selftest=1` sin tanda lo hace todo seguido (puede no llegar al final).
 
 ## Grabación, presets y arpegiador
 
@@ -2247,3 +2254,45 @@ y da un salto de altura completa. Coste: ×1,3-1,9 por copia (`COST.syncMul`
 2). Check «sync duro» (por el motor y con el oscilador suelto; en vivo, el
 botón llega a las notas que suenan con la razón de las octavas) y pares
 **SYNC 1-4** (env y LFO a Pitch A, sin y con sync; diff 1,38 y 1,35).
+
+**3.3 · Cuerda (Karplus-Strong extendido).** Onda **Cuerda** en los rotativos
+de onda (A y B) y módulo **Cuerda** (Brillo, Decay, Posición, Rigidez; común a
+los dos osciladores) junto a FM4: no cabía, y el Editor de ondas, el más ancho
+de la banda, cedió sus 139 px (su lienzo baja a 150 px de mínimo y su barra se
+aprieta en una fila). Por dentro (`pulse-processor`, `_string`): una línea de
+retardo de un periodo por copia (4096 muestras: hasta ~12 Hz) en la que, al
+nacer la nota, se inyecta un periodo de ruido — la púa — y que en cada vuelta
+pasa por un paso todo FRACCIONARIO (la parte no entera del periodo; su
+coeficiente se calcula para dar el retardo de fase justo EN la nota, no la
+aproximación de Thiran de 0 Hz), un paso bajo de un polo (Brillo), cuatro paso
+todo de dispersión (Rigidez) y la ganancia de la vuelta (Decay). La afinación
+cuadra el retardo de fase de toda la vuelta en la nota con sr/f: medido,
+0,00 cents (resolución 0,05) en C2, C4 y C6, con y sin rigidez; y de C2 a C7 en la sonda.
+- **Decay** = T60 de la fundamental en Do4, que se acorta hacia los agudos
+  (×(261,63/f)^0,5, como en las cuerdas reales); la ganancia descuenta la
+  pérdida del paso bajo en la nota y nunca pasa de 0,9995 (estable).
+- **Brillo** NO es un corte: es cuánto dura el 8º armónico respecto a la
+  fundamental (del 3 % al 90 %, log), y el polo se calcula por nota y por Decay
+  para conseguirlo (cuadrática en b: (1−R²)b² − 2(cos ω − R²cos hω)b + (1−R²) =
+  0). Así Decay alarga sin cambiar el color y el color es igual en toda la
+  tesitura; con un corte fijo, los agudos de una nota larga morían igual de
+  deprisa. Primera versión (corte a 1-7 octavas sobre la nota): descartada por
+  eso.
+- **Posición**: peine sobre la púa (pulsar a una fracción β anula los
+  armónicos múltiplos de 1/β: en el centro, los pares).
+- **Rigidez**: el retardo en continua de cada paso todo va de 1 a 19 muestras
+  en escala log (lineal en el coeficiente, de 0 a 0,5 no pasaba nada y todo
+  ocurría al final): a 0,5 el 10º armónico sube 3 cents (un piano), a 0,75 26 y
+  a 1 casi semitono y medio (campana). En notas agudas se limita para que
+  quepa en la vuelta.
+- **Velocity** = fuerza de la púa: un paso bajo de dos polos sobre el ruido de
+  0,5 a 6 octavas sobre la nota; de 0,3 a 1, los agudos del ataque suben
+  14,9 dB. La púa se normaliza en nivel: el volumen es cosa del VCA.
+
+Coste: ×1,2 una sierra por copia, ×1,8 con Rigidez (`COST.string` 0,01).
+Check «cuerda» (afinación, cómo se apaga, Decay sin cambiar el color, velocity
+y rigidez, por la voz entera); pares **CUERDA 1-6** (brillo, posición,
+rigidez) y categoría de fábrica **Cuerdas** (nailon, doce cuerdas, arpa, koto,
+bajo, piano y campana de cuerda), con el Master medido por el PICO del rasgueo
+(−3 dBFS) y no por la sonoridad media: una púa es casi todo ataque, y
+llevarla a −14 LUFS haría que el limitador se comiera el golpe.

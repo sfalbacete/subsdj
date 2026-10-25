@@ -13,7 +13,7 @@
    Matriz de modulación: slots fuente→GainNode(amt·span)→AudioParams del
    destino — la misma fontanería que las rutas dedicadas, generalizada.
    ===================================================================== */
-import { MX_SLOTS, MX_SPAN, FM4_KEYS } from './params.js';
+import { MX_SLOTS, MX_SPAN, FM4_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
 import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
@@ -91,6 +91,7 @@ const COST = {
   drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: lo que suma el plegado (sobremuestreo 4x; medido 2026-10-20, la Asimetría no suma)
   vocDyn: 0.26,       // Vocal dinámico por el Golpe: 10 WaveShapers (biquads aún en k-rate)
   vocMx: 0.8,         // Vocal movido por la matriz: WaveShapers + biquads a-rate (medido en «Madrigal»)
+  string: 0.01,       // cada copia en Cuerda: la línea, dos filtros y, con Rigidez, cuatro paso todo (×1,2-1,8 una sierra; medido 2026-10-25)
   syncMul: 2,         // el A con Sync: cada copia ×1,3-1,9 (sierra-cuadrada) y ×1,4 en seno (medido 2026-10-25)
 };
 const mxDst = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === d) return true; return false; };
@@ -319,7 +320,7 @@ export class Voice {
     const c = COST;
     const osc = o => {
       const copies = (o.wave === 'supersaw' ? 7 : (+S.uniVoices || 1)) * Math.max(1, o.octaves || 1);
-      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : c.copy;
+      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : o.wave === 'cuerda' ? c.string : c.copy;
       return copies * w;
     };
     let k = c.base + osc(S.oscA) * (S.syncA === 'on' ? c.syncMul : 1) + osc(S.oscB);
@@ -341,6 +342,7 @@ export class Voice {
         t0: t,                                 // arranque de la nota: las envolventes por operador (FM4) cuentan desde aquí
         seed: (this.rnd() * 4294967296) >>> 0,  // semilla del azar del worklet (fases libres, deriva): repetible offline
         ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // el A: su maestro fantasma (sync) arranca en la fase del B
+        ...(cfg.wave === 'cuerda' ? { vel: this.vel } : {}),   // la cuerda: la fuerza de la pulsación colorea la púa
         // tablas mip (clonadas por el postMessage de opciones, ~290 KB por nodo: 0,3 ms)
         ...(cfg.wave === 'tabla' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
@@ -363,6 +365,8 @@ export class Voice {
     // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
     const syncParam = node.parameters.get('syncRatio'), slaveParam = node.parameters.get('slave');   // sync (solo el A los usa)
+    const strP = {};   // cuerda: Brillo, Decay, Posición y Rigidez, al nacer y en vivo (setStr)
+    for (const k of STR_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = +this.S[k]; strP[k] = ap; } }
 
     // Octava (cfg.oct, −2..+2): el oscilador suena a freq·2^oct — −1 es el
     // suboscilador clásico, +1/+2 apilan hacia arriba sin recurrir a Apiladas.
@@ -390,7 +394,7 @@ export class Voice {
 
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
-      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P, syncR: syncParam, slave: slaveParam,
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P, syncR: syncParam, slave: slaveParam, strP,
       isWt: cfg.wave === 'tabla', ratio });   // isWt: la secuencia de tabla solo automatiza estos · ratio: octava (glideTo)
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
@@ -882,6 +886,7 @@ export class Voice {
     const lv = /^fm4[LV](\d)$/.exec(key);   // Nivel y Vel mueven el mismo param del worklet
     if (lv) { key = 'fm4L' + lv[1]; v = this._fm4Lvl(+lv[1]); }
     const tc = this.ctx.currentTime; this.oscs.forEach(o => { const ap = o.fm4P && o.fm4P[key]; if (!ap) return; if (key === 'fm4Alg') ap.setValueAtTime(+v, tc); else ap.setTargetAtTime(+v, tc, 0.02); }); }
+  setStr(key, v)      { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.strP && o.strP[key] && o.strP[key].setTargetAtTime(+v, tc, 0.02)); }
   setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt && o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 

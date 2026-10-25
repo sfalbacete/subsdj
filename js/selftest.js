@@ -182,7 +182,16 @@ export async function runSelfTest() {
   const results = [];
   let ok = 0;
   const push = r => { results.push(r); if (r.ok) ok++; addRow(body, r); };
+  // TANDAS (?tanda=checks | ?tanda=fabrica). Cientos de OfflineAudioContext en UNA página la
+  // cuelgan sin error — ni los temporizadores ni el depurador responden: se quedaba en el
+  // render ~330, en un preset cualquiera — porque cada uno arrastra el hilo de su worklet y
+  // no se suelta a tiempo (ni llamando a gc() cada 5 renders). Cada tanda va por debajo del
+  // límite y el runner (tools/run-selftest.mjs) pasa cada una en un navegador nuevo. Sin
+  // ?tanda va todo seguido en la misma página, como antes: puede no llegar al final.
+  const TANDA = new URLSearchParams(location.search).get('tanda');
+  const enTanda = t => !TANDA || TANDA === t;
 
+  if (enTanda('checks')) {   // ---------- tanda «checks»: todo menos el banco de fábrica ----------
   // check estático: migración de presets de usuario v1 (cutoff 0..1) -> v2 (Hz)
   {
     body.appendChild(el('st-cat', 'Estático'));
@@ -1097,6 +1106,78 @@ export async function runSelfTest() {
       if (!panelB || panelB.classList.contains('dep-off') || !waveB || !waveB.closest('.dep-off')) probs.push('con Sync y el B a nivel 0, el Osc B debería seguir vivo (salvo onda y apiladas)');
       loadState(keep);
       console.log('sync: motor fuera de armónicos con/sin ' + mOn.inh.toFixed(1) + '/' + mOff.inh.toFixed(1) + ' dB (fund ' + mOn.fund.toFixed(1) + ') · sierra Do4 +702 sync ' + sSync.toFixed(1) + ' · libre a 1,5× ' + sLibre.toFixed(1) + ' · a pelo ' + sPelo.toFixed(1) + ' · seno sync ' + seno.toFixed(1) + ' dB · en vivo ' + r0 + ' → ' + r1);
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Cuerda (Roadmap 7.0 · 3.3: Karplus-Strong extendido), por el motor (la voz entera,
+    // con el filtro abierto): (1) afinación: la cumbre de la fundamental (DFT con Hann,
+    // barrido fino) a ±2 cents de la nota de C2 a C6, con y sin Rigidez — el paso todo
+    // fraccionario y los retardos de fase del bucle, compensados EN la nota; (2) se apaga
+    // como una cuerda: en C3 la fundamental pierde lo que manda su T60 (Decay 3 s en Do4,
+    // ×√2 una octava abajo: 18,4 dB en 1,3 s, ±2) y el 5º armónico pierde más; con Decay
+    // 20 s la proporción se mantiene (el Brillo es relativo); (3) la velocity es la
+    // fuerza de la púa: a 0,3 los agudos del ataque quedan ≥ 6 dB más bajos que a 1;
+    // (4) la Rigidez estira los armónicos: con 1, el 10º sube más de un semitono.
+    body.appendChild(el('st-cat', 'Cuerda'));
+    const NAME = 'cuerda (afinación ±2 ct C2-C6 · la fundamental dura más que el 5º · Decay sin cambiar el color · velocity = brillo · rigidez estira)';
+    let r;
+    try {
+      const probs = [], keep = snapshot(), log = [];
+      const render = async (st, f, vel = 1, secs = 2) => {
+        loadState({ waveA: 'cuerda', levelA: 0.8, levelB: 0, cutoff: 20000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.05, amplitude: 0.3, master: 0.4, ...st });
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.noteOn('c', f, vel);
+        return (await ctx.startRendering()).getChannelData(0);
+      };
+      const hann = new Map();   // ventanas por tamaño (se reutilizan)
+      const mag = (d, f, i0, n) => {   // DFT con ventana Hann en la frecuencia f (el fasor gira por multiplicación: sin trigonometría por muestra)
+        let wv = hann.get(n); if (!wv) { wv = new Float32Array(n); for (let i = 0; i < n; i++) wv[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); hann.set(n, wv); }
+        const w = 2 * Math.PI * f / SR, cr = Math.cos(w), ci = Math.sin(w);
+        let re = 0, im = 0, pr = 1, pi = 0;
+        for (let i = 0; i < n; i++) { const x = d[i0 + i] * wv[i]; re += x * pr; im -= x * pi; const t = pr * cr - pi * ci; pi = pr * ci + pi * cr; pr = t; }
+        return Math.hypot(re, im);
+      };
+      const cumbre = (d, f, i0, n, ancho = 30) => {   // cents de la cumbre cerca de f
+        let best = -1, bc = 0;
+        for (let c = -ancho; c <= ancho; c += 4) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        for (let c = bc - 4, c1 = bc + 4; c <= c1; c += 0.5) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        for (let c = bc - 0.5, c1 = bc + 0.5; c <= c1; c += 0.05) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        return bc;
+      };
+      // (1) afinación
+      for (const stiff of [0, 1]) {
+        const row = [];
+        for (const [n, f] of [['C2', 65.406], ['C4', 261.63], ['C6', 1046.5]]) {
+          const d = await render({ strStiff: stiff }, f, 1, 1.6);
+          const c = cumbre(d, f, Math.round(0.1 * SR), 65536);
+          row.push(n + ' ' + c.toFixed(2));
+          if (!(Math.abs(c) <= 2)) probs.push('rigidez ' + stiff + ', ' + n + ': ' + c.toFixed(2) + ' cents');
+        }
+        log.push('rigidez ' + stiff + ' ' + row.join(' '));
+      }
+      // (2) cómo se apaga (C3)
+      const f3 = 130.81, W = Math.round(0.3 * SR), t0 = Math.round(0.1 * SR), t1 = Math.round(1.4 * SR);
+      const caida = (d, h) => 20 * Math.log10(mag(d, h * f3, t0, W) / mag(d, h * f3, t1, W));
+      const dN = await render({}, f3), dL = await render({ strDecay: 20 }, f3);
+      const h1 = caida(dN, 1), h5 = caida(dN, 5), h1L = caida(dL, 1), h5L = caida(dL, 5);
+      if (!(Math.abs(h1 - 18.4) < 2)) probs.push('la fundamental cae ' + h1.toFixed(1) + ' dB en 1,3 s (esperado 18,4: Decay 3 s en Do4, ×√2 en Do3)');
+      if (!(h5 > h1 + 10)) probs.push('el 5º armónico no se apaga antes (' + h5.toFixed(1) + ' frente a ' + h1.toFixed(1) + ' dB)');
+      const prop = (h5 / h1), propL = (h5L / h1L);
+      if (!(Math.abs(propL / prop - 1) < 0.2)) probs.push('con Decay 20 s cambia el color: 5º/1º ' + propL.toFixed(2) + ' frente a ' + prop.toFixed(2));
+      // (3) velocity = fuerza de la púa (agudos del ataque, h6-30 frente a h1-3, primeros 50 ms)
+      const agudos = async vel => { const d = await render({}, f3, vel, 0.3); let lo = 0, hi = 0;
+        for (let h = 1; h <= 3; h++) lo += mag(d, h * f3, 0, 2400) ** 2; for (let h = 6; h <= 30; h++) hi += mag(d, h * f3, 0, 2400) ** 2; return 10 * Math.log10(hi / lo); };
+      const v03 = await agudos(0.3), v1 = await agudos(1);
+      if (!(v1 - v03 >= 6)) probs.push('la velocity apenas cambia el brillo: ' + v03.toFixed(1) + ' / ' + v1.toFixed(1) + ' dB');
+      // (4) rigidez: el 10º armónico
+      const dS = await render({ strStiff: 1, strBright: 1 }, f3, 1, 1.2);
+      const h10 = cumbre(dS, 10 * f3, Math.round(0.05 * SR), 32768, 300);
+      if (!(h10 > 100)) probs.push('con Rigidez 1 el 10º armónico sube solo ' + h10.toFixed(1) + ' cents');
+      loadState(keep);
+      console.log('cuerda: afinación ' + log.join(' · ') + ' ct · C3 en 1,3 s h1 ' + h1.toFixed(1) + ' dB h5 ' + h5.toFixed(1) + ' · Decay 20 s h1 ' + h1L.toFixed(1) + ' h5 ' + h5L.toFixed(1) + ' · agudos vel 0,3/1 ' + v03.toFixed(1) + '/' + v1.toFixed(1) + ' dB · rigidez 1: h10 +' + h10.toFixed(0) + ' ct');
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
@@ -3786,6 +3867,9 @@ export async function runSelfTest() {
     push({ name: 'tarjeta para redes (Open Graph, imagen ' + (w ? w + '×' + h : '—') + ')', peak: 0, ok: !probs.length, problems: probs });
   }
 
+  }   // ---------- fin de la tanda «checks» ----------
+
+  if (enTanda('fabrica')) {   // ---------- tanda «fabrica»: el banco entero, el estrés y la sonda de pares ----------
   // el estado {} equivale al botón Reset; después, todo el banco de fábrica
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);
@@ -3855,6 +3939,8 @@ export async function runSelfTest() {
       }
     } catch (e) { ping('demo_error=' + encodeURIComponent((e && e.message) || e)); }
   }
+
+  }   // ---------- fin de la tanda «fabrica» ----------
 
   loadState({});                             // deja el synth en valores por defecto
   const fails = results.length - ok;

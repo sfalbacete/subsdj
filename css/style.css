@@ -180,6 +180,7 @@ header .sp{flex:1;}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;}
 .btn.ico{padding:7px 11px;line-height:0;}   /* botón-icono (editor de ondas): el SVG mide lo que una línea de texto de 12 px */
+.we-bar .btn.ico{padding:7px 6px;}   /* el editor de ondas, estrecho desde que entró el módulo Cuerda: la barra en una fila */
 .btn.ico svg{display:block;width:17px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 /* Selects: un solo hueco para todos, a la altura de un .btn (mismo padding y
    cuerpo de letra). Antes cada select llevaba el suyo (3-4 px, 11 px) y salía
@@ -600,7 +601,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
 /* Editor de ondas (tabla «usuario») */
-#weCanvas{width:100%;flex:1;min-height:0;min-width:300px;background:var(--screen);border:1px solid var(--edge);
+#weCanvas{width:100%;flex:1;min-height:0;min-width:150px;background:var(--screen);border:1px solid var(--edge);
   border-radius:8px;margin-top:8px;cursor:crosshair;touch-action:none;display:block;}
 
 /* Ayuda por módulo: el texto vive oculto (.help) y sale en el tooltip del «?» */

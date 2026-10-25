@@ -66,6 +66,11 @@ export const PARAMS = {
   fmFb:     { def: 0, min: 0, max: 1, act: true },   // realimentación del modulador (op. 6 del DX7): su seno se acerca a una sierra; a tope, ruido
   // FM4 (onda 'fm4'): algoritmo + ratio / nivel / decay de cada operador (el 1 es la portadora básica)
   fm4Alg: { def: '0' },                             // índice en FM4_ALGS del worklet (seg de 8 botones)
+  // Cuerda (Roadmap 7.0 · 3.3): la onda «Cuerda» de los osciladores (Karplus-Strong), común a A y B
+  strBright: { def: 0.5, min: 0, max: 1 },                                  // lo que aguantan los agudos frente a la fundamental
+  strDecay:  { def: 3, min: 0.05, max: 30, log: true, fmt: secFmt },        // T60 de la fundamental en Do4 (más agudo, menos)
+  strPos:    { def: 0.12, min: 0.02, max: 0.5, fmt: v => Math.round(v * 100) + ' %' },   // dónde se pulsa: % de la cuerda (50 = el centro)
+  strStiff:  { def: 0, min: 0, max: 1 },                                    // rigidez: armónicos estirados (piano, campana)
   fm4R1: { def: 1, min: 0.25, max: 12 }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
@@ -235,6 +240,7 @@ export const PARAMS = {
    El cutoff se modula por el DETUNE del filtro (cents ⇒ exponencial, octavas
    simétricas): matemáticamente incapaz de cruzar 0 Hz — la lección del
    cutLFO (presets que se apagaban) garantizada por construcción. */
+export const STR_KEYS = ['strBright', 'strDecay', 'strPos', 'strStiff'];   // los params del worklet se llaman igual
 export const FM4_KEYS = ['fm4Alg', 'fm4R1', 'fm4L1', 'fm4D1', 'fm4R2', 'fm4L2', 'fm4D2', 'fm4R3', 'fm4L3', 'fm4D3', 'fm4R4', 'fm4L4', 'fm4D4'];
 
 export const MX_SLOTS = 6;

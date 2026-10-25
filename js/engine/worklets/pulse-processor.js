@@ -1,7 +1,7 @@
 /* =====================================================================
    SubSDJ · pulse-processor (AudioWorklet)
    Oscilador band-limited (PolyBLEP). Tipos (processorOptions.type):
-     sawtooth | square | sine | triangle | supersaw | tabla | fm4
+     sawtooth | square | sine | triangle | supersaw | tabla | fm4 | cuerda
    FM4: síntesis FM de 4 operadores a la DX7/TX81Z. Un ALGORITMO es solo un
    grafo dirigido de quién modula a quién (FM4_ALGS): las hojas modulan, las
    raíces (portadoras) suenan. Cada operador tiene ratio (múltiplo de la
@@ -32,6 +32,10 @@
    AZAR (fases de las copias y del supersaw, deriva): processorOptions.seed
    (la manda la voz; offline sale de un generador con semilla: renders
    repetibles). Sin seed, Math.random.
+   CUERDA (Roadmap 7.0 · 3.3): Karplus-Strong extendido — una cuerda pulsada
+   simulada con un bucle de retardo de un periodo. Ver _string. Params
+   strBright / strDecay / strPos / strStiff; la velocity llega en
+   processorOptions.vel (fija por nota: la fuerza de la pulsación).
    SYNC DURO (Roadmap 7.0 · 3.2): con syncRatio > 0 este oscilador (el A) es
    ESCLAVO del B: vuelve a empezar su ciclo con cada ciclo del B. Ver _synced.
    slave = cents que mueven SOLO al esclavo (la matriz «Pitch A»): el barrido
@@ -64,7 +68,17 @@ function wtHermite(dA, dB, ff, len, p) {
   const c1 = 0.5 * (y2 - y0), c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3, c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
   return ((c3 * w + c2) * w + c1) * w + y1;
 }
-const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'tabla']);   // supersaw y FM4: sin sync
+const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'tabla']);   // supersaw, FM4 y cuerda: sin sync
+
+// CUERDA (Karplus-Strong extendido, Jaffe y Smith 1983). Constantes:
+const STR_LEN = 4096;          // muestras de la línea (potencia de 2): hasta ~12 Hz a 48 kHz
+const STR_BRIGHT = [0.03, 0.9]; // Brillo 0..1 → lo que dura el 8º armónico respecto a la fundamental (log): 3 % apagado, 90 % metálico
+const STR_HREF = 8;             // el armónico de referencia del Brillo
+const STR_VEL_OCT = [0.5, 6];   // velocity 0..1 → corte de la púa (dos polos), en octavas sobre la nota: flojo, oscuro; fuerte, casi todo el ruido
+const STR_DECAY_TRACK = 0.5;   // el Decay es el de Do4; una octava más arriba dura ×0,71 (las cuerdas agudas se apagan antes)
+const STR_DISP = 19;           // Rigidez 0..1 → retardo en continua de cada paso todo de la dispersión, de 1 a 19 muestras (log: el
+                               // estiramiento crece muy deprisa al final; así 0,5 ya es un piano y 1 una campana)
+const STR_EXC_RMS = 0.5;       // la púa se normaliza a este nivel: el color lo pone la velocity, el volumen el VCA
 
 // Offsets de detune del Super Saw (curva del JP-8000, según el análisis de Adam Szabo).
 const SS_DETUNE = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01952356, 0.06288439, 0.11002313];
@@ -108,6 +122,10 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'fm4Alg',    defaultValue: 0,   minValue: 0,     maxValue: 7,     automationRate: 'k-rate' },
       { name: 'syncRatio', defaultValue: 0,   minValue: 0,     maxValue: 64,    automationRate: 'k-rate' },   // 0 = libre; si no, f(B)/f(A sin slave)
       { name: 'slave',     defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'k-rate' },   // cents solo del esclavo (Pitch A)
+      { name: 'strBright', defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // cuerda: brillo del bucle
+      { name: 'strDecay',  defaultValue: 3,   minValue: 0.05,  maxValue: 30,    automationRate: 'k-rate' },   // cuerda: T60 de la fundamental en Do4 (s)
+      { name: 'strPos',    defaultValue: 0.12,minValue: 0.02,  maxValue: 0.5,   automationRate: 'k-rate' },   // cuerda: punto de pulsación (0,5 = el centro)
+      { name: 'strStiff',  defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // cuerda: rigidez (armónicos estirados)
       ...[1, 2, 3, 4].flatMap(n => [
         { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 12,  automationRate: 'k-rate' },
         { name: 'fm4L' + n, defaultValue: 0.5, minValue: 0,     maxValue: 1,   automationRate: 'k-rate' },
@@ -149,6 +167,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
     this.gph = (typeof o.gphase === 'number') ? (o.gphase % 1 + 1) % 1 : 0;   // fase fantasma del maestro (sync): arranca donde el B
     this.pend = null;   // sync: residuo PolyBLEP pendiente para la muestra siguiente, por copia
+    this.vel = typeof o.vel === 'number' ? o.vel : 1;   // cuerda: fuerza de la pulsación
+    this.str = null;    // cuerda: el estado de cada cuerda (una por copia), creado en el primer bloque
     this.stopped = false;
     this.t = 0;         // segundos desde que nació el nodo (reserva: si la Voice no manda t0)
     // t0: instante (reloj de audio) en que ARRANCA la nota — el VCA abre ahí. Las
@@ -203,7 +223,9 @@ class PulseProcessor extends AudioWorkletProcessor {
     const uniMul = j => (uv < 2 || uniCt <= 0) ? 1
       : Math.pow(2, ((2 * j / (uv - 1) - 1) * uniCt) / 1200);
 
-    if (syncR > 0 && SYNC_TYPES.has(type) && !(type === 'sine' && params.fmIndex[0] > 0)) {
+    if (type === 'cuerda') {
+      this._string(ch, N, params, fs, uv, lvl, uniMul);
+    } else if (syncR > 0 && SYNC_TYPES.has(type) && !(type === 'sine' && params.fmIndex[0] > 0)) {
       this._synced(ch, N, params, fs, f0 * syncR, uv, lvl, uniMul);
     } else if (type === 'supersaw') {
       const spread = params.spread[0], phases = this.phases;
@@ -481,6 +503,109 @@ class PulseProcessor extends AudioWorkletProcessor {
         this.phases[idx] = p; this.pend[idx] = pend;
       }
     }
+  }
+
+  // CUERDA (Karplus-Strong extendido). Una cuerda por copia: una línea de retardo
+  // por la que circula la onda; cada vuelta dura exactamente un periodo de la nota,
+  // así que lo que circula se repite y suena a esa nota. Al nacer se le inyecta una
+  // ráfaga de ruido de un periodo (la púa) y, en cada vuelta, pasa por:
+  //   · un paso todo FRACCIONARIO: la línea solo mide muestras enteras y en los
+  //     agudos el redondeo desafina (a 2 kHz, ~70 cents); el paso todo pone la
+  //     fracción. Su coeficiente se calcula para que su retardo de fase EN LA NOTA
+  //     sea el que falta (no la aproximación de Thiran, que vale cerca de 0 Hz).
+  //   · un paso bajo de un polo (BRILLO): cada vuelta quita algo de agudos, así que
+  //     los armónicos altos se apagan antes que la fundamental — lo que hace una
+  //     cuerda de verdad sin programarlo. El Brillo no es un corte: es CUÁNTO DURA el
+  //     8º armónico respecto a la fundamental (r), y el polo se calcula por nota para
+  //     conseguirlo — así Decay alarga la nota sin cambiar su color, y el color es el
+  //     mismo en toda la tesitura. (Un polo no apaga más de ~1/8 por vuelta en el 8º:
+  //     si se pide más, se queda en eso.)
+  //   · cuatro paso todo de DISPERSIÓN (RIGIDEZ): retrasan más los graves que los
+  //     agudos, y los armónicos altos quedan algo más agudos que n·f0: la cuerda
+  //     tensa y gruesa del piano; al extremo, campana.
+  //   · la ganancia del bucle (DECAY): fija cuánto tarda la fundamental en caer
+  //     60 dB, descontada la pérdida del paso bajo en la nota.
+  // La afinación: el retardo total de la vuelta EN LA NOTA (línea + fraccionario +
+  // retardo de fase del paso bajo + el de la dispersión) es exactamente sr/f.
+  // La púa: ruido con semilla, oscurecido por la velocity (un polo), con el peine de
+  // la POSICIÓN (pulsar a una fracción β de la cuerda anula los armónicos múltiplos
+  // de 1/β: en el centro, los pares — redondo, hueco —; cerca del puente quedan
+  // casi todos — fino, metálico), sin continua y normalizada en nivel.
+  _string(ch, N, params, fs, uv, lvl, uniMul) {
+    const sr = sampleRate, M = STR_LEN - 1, TWO_PI = Math.PI * 2;
+    const bright = params.strBright[0], decay = params.strDecay[0], pos = params.strPos[0], stiff = params.strStiff[0];
+    if (!this.str) this.str = [];
+    for (let k = 0; k < this.octaves; k++) {
+      for (let j = 0; j < uv; j++) {
+        const idx = k * 7 + j;
+        let f = fs * (1 << k) * uniMul(j);
+        if (!(f > 0)) continue;
+        let P = sr / f;
+        if (P < 6) continue;                             // por encima de ~8 kHz no cabe una cuerda: silencio, no alias
+        if (P > STR_LEN - 8) { P = STR_LEN - 8; f = sr / P; }
+        let st = this.str[idx];
+        if (!st) st = this.str[idx] = { buf: new Float32Array(STR_LEN), w: 0, exc: null, ei: 0, apX: 0, apY: 0, lp: 0, dx: new Float64Array(4), dy: new Float64Array(4) };
+        if (!st.exc) st.exc = this._pluck(P, f, pos);
+        const w0 = TWO_PI * f / sr, sw = Math.sin(w0), cw = Math.cos(w0);
+        // paso bajo del bucle: el polo b que deja al armónico de referencia r veces lo que dura la
+        // fundamental. Por vuelta, ese armónico debe perder (60/(T60·f))·(1/r − 1) dB más que ella:
+        // R = |H(h·ω)| / |H(ω)|; con |H|² = a² / (1 − 2b·cos ω + b²) sale una cuadrática en b
+        // (raíces b y 1/b): (1 − R²)·b² − 2(cos ω − R²·cos hω)·b + (1 − R²) = 0
+        const T60 = decay * Math.pow(261.63 / f, STR_DECAY_TRACK);
+        const r = STR_BRIGHT[0] * Math.pow(STR_BRIGHT[1] / STR_BRIGHT[0], bright);
+        const h = Math.min(STR_HREF, Math.floor(0.45 * sr / f));
+        let b1 = 0;
+        if (h >= 2 && r < 1) {
+          const R = Math.pow(10, -(60 / (T60 * f)) * (1 / r - 1) / 20), q = 1 - R * R, C = cw - R * R * Math.cos(h * w0);
+          const disc = C * C - q * q;
+          b1 = disc > 0 && C > 0 ? Math.min(0.9999, (C - Math.sqrt(disc)) / q) : 0.9999;
+        }
+        const a = 1 - b1;
+        const lpMag = a / Math.hypot(1 - b1 * cw, b1 * sw), lpDel = Math.atan2(b1 * sw, 1 - b1 * cw) / w0;
+        // dispersión: el coeficiente se limita para que su retardo quepa en la vuelta (notas agudas)
+        const dd = Math.pow(STR_DISP, stiff);           // retardo en continua de cada paso todo; coeficiente c = (1 − d)/(1 + d)
+        let c = (1 - dd) / (1 + dd);
+        const cMin = (1 - P / 8) / (1 + P / 8); if (c < cMin) c = cMin;
+        const disp = c < -1e-4;
+        const dispDel = disp ? 4 * (w0 - 2 * Math.atan(c * sw / (1 + c * cw))) / w0 : 0;
+        // línea entera + paso todo fraccionario (su retardo en [0,5, 1,5): coeficiente estable)
+        const rest = P - lpDel - dispDel;
+        const Ni = Math.max(1, Math.floor(rest - 0.5)), D = rest - Ni;
+        const t = Math.tan(w0 * (1 - D) / 2), eta = t / (sw - t * cw);
+        // ganancia por vuelta: −60 dB en el T60 de esta altura, descontado el paso bajo; < 1 siempre (estable)
+        const g = Math.min(0.9995, Math.pow(10, -3 / (T60 * f)) / lpMag);
+        const buf = st.buf, exc = st.exc, dx = st.dx, dy = st.dy;
+        let w = st.w, ei = st.ei, apX = st.apX, apY = st.apY, lp = st.lp;
+        for (let i = 0; i < N; i++) {
+          const x = buf[(w - Ni) & M];
+          const ap = eta * x + apX - eta * apY; apX = x; apY = ap;
+          lp += a * (ap - lp);
+          let v = lp;
+          if (disp) for (let m = 0; m < 4; m++) { const y = c * v + dx[m] - c * dy[m]; dx[m] = v; dy[m] = y; v = y; }
+          const y = g * v + (ei < exc.length ? exc[ei++] : 0);
+          buf[w] = y; w = (w + 1) & M;
+          ch[i] += y * lvl;
+        }
+        st.w = w; st.ei = ei; st.apX = apX; st.apY = apY; st.lp = lp;
+      }
+    }
+  }
+  // La púa: un periodo de ruido, oscurecido por la velocity (dos polos), con el peine
+  // de la posición de pulsación, sin continua y a nivel fijo.
+  _pluck(P, f, pos) {
+    const L = Math.max(2, Math.round(P)), raw = new Float32Array(L), e = new Float32Array(L);
+    const fc = Math.min(sampleRate * 0.45, f * Math.pow(2, STR_VEL_OCT[0] + (STR_VEL_OCT[1] - STR_VEL_OCT[0]) * this.vel));
+    const a = 1 - Math.exp(-2 * Math.PI * fc / sampleRate);
+    let l1 = 0, l2 = 0;
+    for (let n = 0; n < L; n++) { l1 += a * ((this.rnd() * 2 - 1) - l1); l2 += a * (l1 - l2); raw[n] = l2; }
+    const m = Math.max(1, Math.round(pos * L));
+    let mean = 0;
+    for (let n = 0; n < L; n++) { e[n] = raw[n] - (n >= m ? raw[n - m] : 0); mean += e[n]; }
+    mean /= L;
+    let pw = 0; for (let n = 0; n < L; n++) { e[n] -= mean; pw += e[n] * e[n]; }
+    const k = pw > 0 ? STR_EXC_RMS / Math.sqrt(pw / L) : 0;
+    for (let n = 0; n < L; n++) e[n] *= k;
+    return e;
   }
 
   // Morph de la tabla: par de frames adyacentes, peso y compensación de sonoridad

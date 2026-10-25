@@ -49,7 +49,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | **3** | **Generadores nuevos** | | | |
 | 3.1 | Drive con carácter: asimétrico y plegado ✔ | suave/plegado + Asimetría — HECHO 2026-10-20 | bajo-medio | — |
 | 3.2 | Sincronización dura ✔ | el barrido de sync clásico — HECHO 2026-10-25 (botón en la cabecera del Osc A) | medio | 2.4 |
-| 3.3 | Cuerda física | cuerdas pulsadas de verdad | medio | — |
+| 3.3 | Cuerda física ✔ | cuerdas pulsadas de verdad — HECHO 2026-10-25 (onda Cuerda + módulo Cuerda) | medio | — |
 | 3.4 | Distorsión de fase | la síntesis de los Casio CZ | bajo-medio | — |
 | 3.5 | Aditiva: editor de armónicos | dibujar el espectro | medio | — |
 | **4** | **Carácter y espacio** | | | |
