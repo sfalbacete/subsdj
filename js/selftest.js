@@ -35,7 +35,7 @@ import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
-import { Harmony } from './engine/Harmony.js';
+import { Harmony, ESCALAS } from './engine/Harmony.js';
 import { euclid, Player, PLAYER_DEF } from './engine/Player.js';
 import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState, snapshot } from './ui/registry.js';
@@ -3674,6 +3674,51 @@ export async function runSelfTest() {
       if ([0, 1, 2, 3].some(bar => pl.kAt(bar) !== 2)) probs.push('con Respira 0 el pulso cambia');
       loadState({});
       console.log('swing: Seq a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms · pulso que respira ' + ks.join('-'));
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Notas por grado (Roadmap 7.0 · 5.2). (1) La correspondencia: mayor 0 2 4 5 7 9 11
+    // 12 (y el −1 baja a la sensible); pentatónica menor: el grado 5 es la octava;
+    // «armonía» en Do mayor desde un Fa: 0 2 4 6 7 (Fa lidio, dentro de la tonalidad);
+    // semitonos, como siempre. (2) Por el camino real: Seq en dórica con '0 2 4 .' —
+    // el tercer paso suena 7 semitonos sobre la tecla (dórica: 0 2 3 5 7) y el segundo
+    // 3. (3) Las partes de una escena ven la armonía del director.
+    body.appendChild(el('st-cat', 'Notas por grado'));
+    const NAME = 'notas por grado (mayor · pentatónica · armonía de la escena · semitonos igual · el Seq en dórica · las partes ven la armonía)';
+    let r;
+    try {
+      const probs = [];
+      const e = { S: { seqNotes: 'mayor' } }, q = new Seq(e), sem = ds => ds.map(d => q.semis(d, 261.63)).join(' ');
+      if (sem([0, 1, 2, 3, 4, 5, 6, 7, -1]) !== '0 2 4 5 7 9 11 12 -1') probs.push('mayor: ' + sem([0, 1, 2, 3, 4, 5, 6, 7, -1]));
+      e.S.seqNotes = 'penta menor';
+      if (sem([0, 1, 4, 5]) !== '0 3 10 12') probs.push('pentatónica menor: ' + sem([0, 1, 4, 5]));
+      e.S.seqNotes = 'armonía'; e.harmony = () => ({ root: 0, notes: ESCALAS.mayor });
+      const fa = [0, 1, 2, 3, 4].map(d => q.semis(d, 349.23)).join(' ');
+      if (fa !== '0 2 4 6 7') probs.push('armonía desde Fa: ' + fa);
+      e.S.seqNotes = 'semitonos';
+      if (sem([0, 3, 7, -5]) !== '0 3 7 -5') probs.push('semitonos: ' + sem([0, 3, 7, -5]));
+      // (2) el Seq en dórica, medido
+      loadState({ mode: 'poly', waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.01,
+        bpm: 120, seqOn: 'on', seqDiv: '1/8', seqGate: 0.9, seqPat: '0 2 4 .', seqNotes: 'dórica' });
+      const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
+      const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+      const sq = eng.seq; sq.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; sq._begin(0.03); sq.timer = 'sim';
+      for (let i = 1; i * 0.025 < 0.66; i++) c.suspend(i * 0.025).then(() => { sq._tick(); c.resume(); });   // pasos de 0,03 a 0,53 s
+      c.suspend(0.8).then(() => { sq.held = []; sq._maybeStop(); c.resume(); });
+      const b = await c.startRendering(), d = b.getChannelData(0);
+      const hz = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR) + 1; i < Math.floor(t1 * SR); i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / (t1 - t0); };
+      const ct = f => 1200 * Math.log2(f / NOTE1);
+      const p2 = ct(hz(0.30, 0.48)), p3 = ct(hz(0.55, 0.73));   // pasos 2 (0,28-0,50 s) y 3 (0,53-0,75 s)
+      if (!(Math.abs(p2 - 300) < 30 && Math.abs(p3 - 700) < 30))   /* cruces por cero en 0,18 s: ±12 ct de resolución; un grado de más o de menos está a ≥ 100 */ probs.push('Seq en dórica: pasos 2 y 3 a ' + p2.toFixed(0) + ' y ' + p3.toFixed(0) + ' cents (esperado 300 y 700)');
+      // (3) las partes de una escena ven la armonía del director
+      const cs = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(cs, [{}, {}]);
+      if (!(sc.parts.every(p => typeof p.engine.harmony === 'function' && p.engine.harmony() === sc.conductor.harmony))) probs.push('las partes no ven la armonía de la escena');
+      loadState({});
+      console.log('grados: dórica pasos 2/3 a ' + p2.toFixed(0) + ' / ' + p3.toFixed(0) + ' ct · armonía desde Fa ' + fa);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);

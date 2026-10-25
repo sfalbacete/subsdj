@@ -80,6 +80,7 @@ export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, d
   }
   const scene = { ctx, sala, parts, S, sel: 0, salaCfg: { fb, dlyToRev, master } };
   scene.conductor = new Conductor(scene, { seed: 1 });   // armonía + jugadores + arreglo (C2/C3)
+  for (const p of parts) p.engine.harmony = () => scene.conductor.harmony;   // el Seq por grados «armonía» (5.2)
   return scene;
 }
 

@@ -8,7 +8,7 @@ a partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente (1.3.
 **Rumbo acordado el 2026-10-25 (Sergio):** el synth ya tiene mucha maquinaria y la combinatoria
 crece; ahora toca APROVECHARLA. Criterio para cualquier feature nueva: que aporte algo diferencial,
 más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra. Orden:
-1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** Y se para.
+1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** ✔ (2026-10-25) Y se para.
 2. **Pulir y asentar** (antes de la 1.3.0): revisar la maquinaria para que dé sonido limpio — sin
    clics, sin saturaciones raras —, que sea fiable y que invite a tocar, a experimentar, a cambiar
    aquí y allá. Revisar y optimizar lo que hay, no añadir.
@@ -73,7 +73,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 4.3 | Phaser | el efecto que falta junto a flanger y chorus | bajo-medio | opcional |
 | **5** | **Acompañamiento ligero** | | | |
 | 5.1 | Secuenciador: acento, ligadura, slide, repeticiones ✔ | la línea de 303 — HECHO 2026-10-25 (Mayús/Alt/Ctrl + clic en el editor) | bajo | 0.4 |
-| 5.2 | Notas por grado | el patrón sigue a la escala | bajo-medio | — |
+| 5.2 | Notas por grado ✔ | el patrón sigue a la escala — HECHO 2026-10-25 | bajo-medio | — |
 | 5.3 | Acordes que se encadenan | conducción de voces y disposiciones | bajo | — |
 | 5.4 | Pulso que respira y swing ✔ | densidad que cambia por compás; swing global — HECHO 2026-10-25 (swing al pie del Arp; Respira y Ciclo en el Pulso) | bajo | 0.4 |
 | 5.5 | Arpegiador: modos y repeticiones | convergente, divergente | bajo | 0.4 |
@@ -433,7 +433,7 @@ modos, «carácter» suave | plegado + knob Asimetría (el sesgo, en los dos): s
   legato con glide hacia la siguiente: el 303); `x2`…`x4` = repeticiones dentro del paso.
 - *Coste:* bajo. Depende de 0.4.
 
-**5.2 · Notas por grado.** Opción del Seq «grados»: los números son grados de la escala (la de la
+**5.2 · Notas por grado.** ✔ *HECHO 2026-10-25 (selector junto a las frases).* Opción del Seq «grados»: los números son grados de la escala (la de la
 Armonía con Partes, o una elegida en el Seq). «0 2 4 2» suena en mayor, dórico o pentatónica sin
 reescribirlo; pasar del último grado sube de octava, no se recorta. *Coste:* bajo-medio.
 

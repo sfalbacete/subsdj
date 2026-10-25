@@ -21,8 +21,14 @@
          siguiente (el Glide del preset, o SEQ_SLIDE si está a 0): el 303
      x2…x4  repeticiones: el paso se dispara 2-4 veces dentro de su tiempo
    Se combinan: «7!/», «0x3», «3!~».
+   NOTAS POR GRADO (Roadmap 7.0 · 5.2): con seqNotes = una escala, el número
+   del paso es un GRADO contado desde la tecla mantenida (pasar del último sube
+   de octava); con 'armonía', los grados de la escala de la ESCENA (Partes) a
+   partir de la tecla — la raíz del acorde si la pone el jugador —: la frase se
+   mueve dentro de la tonalidad. 'semitonos' = como siempre.
    ===================================================================== */
 import { clockOf, DIV_BEATS } from './Clock.js';
+import { ESCALAS } from './Harmony.js';
 export const SEQ_MAX_STEPS = 16, SEQ_OFF_MIN = -12, SEQ_OFF_MAX = 24;
 const SEQ_UNACCENT = 0.6;   // con acentos en el patrón, los pasos sin acento suenan a este factor de la velocity
 const SEQ_SLIDE = 0.06;     // s: el slide con el Glide a 0 (el tiempo fijo del 303)
@@ -111,6 +117,26 @@ export class Seq {
     return this.latched;
   }
 
+  // Escala de los grados (intervalos desde su tónica) e índice de la tecla en ella; null = semitonos
+  _scale(rootFreq) {
+    const mode = this.e.S.seqNotes;
+    if (!mode || mode === 'semitonos') return null;
+    if (mode !== 'armonía') return { I: ESCALAS[mode] || ESCALAS.mayor, i0: 0 };
+    const h = this.e.harmony ? this.e.harmony() : null;
+    if (!h) return { I: ESCALAS.mayor, i0: 0 };      // sin escena no hay armonía: mayor desde la tecla
+    const I = h.notes, pc = ((Math.round(69 + 12 * Math.log2(rootFreq / 440)) - h.root) % 12 + 12) % 12;
+    let i0 = 0; for (let i = 0; i < I.length; i++) if (I[i] <= pc) i0 = i;   // la tecla (o el grado de debajo, si no es de la escala)
+    return { I, i0 };
+  }
+  // Semitonos sobre la tecla del paso «off» (con grados: su grado; el grado 0 es la tecla)
+  semis(off, rootFreq) {
+    const sc = this._scale(rootFreq); if (!sc) return off;
+    const { I, i0 } = sc, len = I.length, j = i0 + off, oct = Math.floor(j / len), idx = j - oct * len;
+    return 12 * oct + I[idx] - I[i0];
+  }
+  // Pasos de una octava en el editor: 12 semitonos o los grados de la escala
+  octaveSteps() { const sc = this._scale(261.63); return sc ? sc.I.length : 12; }
+
   _steps() {
     const s = this.e.S.seqPat;
     if (s !== this._patStr) { this._patStr = s; this._pat = parsePattern(s); }
@@ -139,7 +165,7 @@ export class Seq {
       this.playQ.push({ i: this.idx % steps.length, t0: this.nextT, t1: this.nextT + dur });
       if (this.playQ.length > 64) this.playQ.shift();  // tope por si la UI no consume (panel colapsado)
       if (st) {                                        // null = silencio: el tiempo avanza igual
-        const gate = Math.max(0.05, Math.min(1, S.seqGate)), f = stepFreq(root.freq, st.off), t = this.nextT;
+        const gate = Math.max(0.05, Math.min(1, S.seqGate)), f = stepFreq(root.freq, this.semis(st.off, root.freq)), t = this.nextT;
         const linkNext = st.slide ? 'slide' : st.tie ? 'tie' : null;
         if (this.link) {                               // el paso anterior pidió ligadura o slide: este CONTINÚA su nota
           const { id, mode } = this.link; this.link = null;

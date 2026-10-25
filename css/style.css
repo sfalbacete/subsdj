@@ -482,7 +482,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
   touch-action:none;cursor:crosshair;}
 .seqlay{align-items:stretch;gap:14px;flex:1;min-height:0;}
 .seqcanvas{flex:none;width:340px;align-items:stretch;}
-#seqPatSel{width:100%;}
+.seq-sel{gap:6px;flex:none;}
+#seqPatSel{flex:1;min-width:0;width:auto;}
+#seqNotesSel{flex:none;width:116px;}   /* notas por grado (5.2) */
 #mxRows{display:flex;flex-direction:column;gap:4px;}
 
 /* Salida: la pantalla del instrumento (ui/display.js) + osciloscopio y espectro del máster (ui/scope.js) */

@@ -3,7 +3,8 @@
    La frase son offsets en semitonos sobre la tecla mantenida ('.' = silencio). */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
-import { CONTROLS, applyTarget } from './registry.js';
+import { CONTROLS, applyTarget, bindSelect } from './registry.js';
+import { ESCALAS } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken } from '../engine/Seq.js';
 import { token, tint } from './theme.js';
@@ -30,6 +31,10 @@ export const SEQ_PATTERNS = [
   { name: 'Ácido que pregunta', pat: '0 0! . 0/ 12 . 3! 5/ 7 . 0 10! . 12/ 0 .',    div: '1/16' },
   { name: 'Ligaduras largas',   pat: '0~ 0 7/ 5 3~ 3 . -2/',                         div: '1/8' },
   { name: 'Redobles',           pat: '0! . 0 0x2 0! . 0x3 0x4',                      div: '1/8' },
+  // Por grados (5.2): al elegirlas, si las notas están en semitonos pasan a la escala mayor
+  { grp: 'Por grados', name: 'Arpegio de la escala',  pat: '0 2 4 7 4 2 0 -3',            div: '1/16', notas: 'mayor' },
+  { grp: 'Por grados', name: 'Escala que sube y baja', pat: '0 1 2 3 4 5 6 7 6 5 4 3 2 1 0 -1', div: '1/16', notas: 'mayor' },
+  { grp: 'Por grados', name: 'Terceras rodando',      pat: '0 2 1 3 2 4 3 5',             div: '1/16', notas: 'mayor' },
   { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
   // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
   // personal). Relativos a la tecla mantenida; bpm = tempo del original.
@@ -60,6 +65,9 @@ export function bindSeqControls() {
   };
   CONTROLS.seqPat.set(PARAMS.seqPat.def);
 
+  const notes = document.getElementById('seqNotesSel');   // notas por grado (5.2)
+  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitonos', label: 'semitonos' }, { id: 'armonía', label: 'grados · armonía' },
+    ...Object.keys(ESCALAS).map(k => ({ id: k, label: 'grados · ' + k }))]);
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
   initSeqPatterns();
@@ -93,6 +101,7 @@ function initSeqPatterns() {
     part().resume();
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
+    if (p.notas && CONTROLS.seqNotes.get() === 'semitonos') CONTROLS.seqNotes.set(p.notas);   // una frase por grados necesita escala
     if (p.bpm) CONTROLS.bpm.set(p.bpm);       // las clásicas caen en su tempo
   });
   document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });
@@ -119,7 +128,8 @@ function initSeqEditor(canvas) {
     g.strokeRect(PAD, PAD, w - 2 * PAD, h - 2 * PAD);
     const hline = y => { g.beginPath(); g.moveTo(PAD, y); g.lineTo(w - PAD, y); g.stroke(); };
     g.strokeStyle = tint('--dim', .35); hline(yOf(0));                       // raíz
-    g.setLineDash([3, 4]); g.strokeStyle = tint('--dim', .22); hline(yOf(12)); g.setLineDash([]);
+    const oct = part().ready ? part().seq.octaveSteps() : 12;                  // la octava: 12 semitonos o los grados de la escala
+    g.setLineDash([3, 4]); g.strokeStyle = tint('--dim', .22); hline(yOf(oct)); g.setLineDash([]);
     if (!steps.length) return;
     const cw = (w - 2 * PAD) / steps.length;
     g.font = '8px system-ui';
@@ -161,7 +171,7 @@ function initSeqEditor(canvas) {
   function preview(off) {
     if (!part().ready || part().seq.timer) return;
     if (part().S.mode === 'mono' && part().heldStack.length) return;   // no robar una voz mono en uso
-    part()._directOn('seqprev', stepFreq(261.63, off), 0.8);
+    part()._directOn('seqprev', stepFreq(261.63, part().seq.semis(off, 261.63)), 0.8);   // con grados, su nota en la escala
     clearTimeout(prevTimer);
     prevTimer = setTimeout(() => part()._directOff('seqprev'), 180);
   }
@@ -218,7 +228,7 @@ function initSeqEditor(canvas) {
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
 
-  document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') draw(); });
+  document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat' || e.detail.target === 'seqNotes') draw(); });
   window.addEventListener('resize', draw);           // screens.js dispara resize al cambiar de pestaña
   let lastPlay = -1;                                 // marcador: redibuja solo al cambiar de paso
   setInterval(() => {

@@ -153,6 +153,7 @@ export const RULES = [
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'en Partes manda la Realim. de la Sala (mezclador)' : null)],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'libre' ? 'sincronizado: manda la división del BPM' : null)],
   ...live(['bpm'], bpmUsed, 'nada va a tempo: delay libre o apagado, sin arpegiador ni secuenciadores'),
+  ['seqNotes', S => (S.seqNotes === 'armonía' && !sceneOn() ? 'sin Partes no hay armonía de escena: los grados van en mayor desde la tecla' : null)],
   ...live(['swing'], swingUsed, 'nada va a tempo que columpiar: sin arpegiador, secuenciador, Pasos ni jugadores'),
   ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE),
   ['shimInt', S => (!revLive(S) ? REV_IDLE() : S.shimAmt > 0 ? null : 'Shimmer a 0')],

@@ -2368,3 +2368,18 @@ k sube compás a compás hasta k + Respira y vuelve, en el coseno del Vaivén de
 Arreglo; con Respira 0, el pulso de siempre. Check «swing y pulso que
 respira» (las cuentas del reloj; el Seq a 0 / 166 / 249 / 415 ms con 2/3 de
 swing — esperado 0 / 167 / 250 / 417 —; golpes 2-4-6-4) y pares **SWG 1-2**.
+
+**5.2 · Notas por grado.** Selector junto a las frases del Seq (`seqNotes`):
+«semitonos» (como siempre) o GRADOS de una escala de la Armonía, contados desde
+la tecla mantenida — el grado 0 es la tecla, pasar del último sube de octava y
+los negativos bajan —, o «armonía»: la escala de la ESCENA (Partes; cada parte
+recibe `engine.harmony` al crearse) a partir de la tecla, que se sitúa en esa
+escala (o en el grado de debajo si no es suyo): con la raíz que da el jugador,
+la frase se mueve dentro de la tonalidad (desde el Fa de Do mayor, Fa lidio).
+Sin escena, «armonía» va en mayor desde la tecla (atenuado, con el motivo).
+`Seq.semis(off, raíz)` lo calcula y lo usan el motor, el preview del editor y
+la línea de octava del editor (en el grado que la cierra). Tres frases nuevas
+«por grados» que, al elegirlas, ponen la escala mayor si las notas estaban en
+semitonos. Check «notas por grado» (correspondencias; el Seq en dórica, medido:
+pasos a 300 y 711 cents — 300 y 700 —; las partes ven la armonía) y pares
+**GRD 1-2** (la misma frase en mayor y en dórica).
