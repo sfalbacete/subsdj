@@ -8,6 +8,12 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Sync duro** en el Osc A (botón «sync» en su cabecera): el A vuelve a empezar
+  su ciclo con cada ciclo del B. La nota la pone el B (que puede estar a nivel
+  0) y el tono del A pasa a ser timbre: barriéndolo con la matriz («Pitch A»
+  desde la envolvente, un LFO, Pasos, la rueda o una macro) sale el chillido
+  clásico de los leads de sync. «Pitch A» ya no mueve al maestro. Pares de
+  demos SYNC 1-4.
 - **Respuesta al tacto**, en la barra del teclado: **Tacto** (suave · lineal ·
   dura), la curva de velocity de tu teclado MIDI y del ratón, que se recuerda
   en el navegador; y **Bend**, el rango del pitch bend (±1 a ±24 semitonos),

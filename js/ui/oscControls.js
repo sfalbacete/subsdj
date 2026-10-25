@@ -63,7 +63,19 @@ function bindFreeze() {
   fz.disabled = PARAMS.reverbType.def !== 'placa';
 }
 
+// Sync del Osc A (Roadmap 7.0 · 3.2): un botón en la cabecera del módulo que
+// alterna off / on. No pliega el módulo (el clic en la cabecera lo haría).
+function bindSync() {
+  const b = document.getElementById('syncA'); if (!b) return;
+  const on = () => b.classList.contains('active');
+  const set = v => { b.classList.toggle('active', v === 'on'); b.setAttribute('aria-pressed', String(v === 'on')); applyTarget('syncA', v === 'on' ? 'on' : 'off'); };
+  b.addEventListener('click', e => { e.stopPropagation(); part().resume(); set(on() ? 'off' : 'on'); });
+  CONTROLS.syncA = { get: () => (on() ? 'on' : 'off'), set, def: PARAMS.syncA.def, el: b, opts: ['off', 'on'] };
+  set(PARAMS.syncA.def);
+}
+
 export function bindOscControls() {
+  bindSync();
   bindSeg('waveA', 'w', 'waveA', 'oscA.wave');
   bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poli / Mono

@@ -79,8 +79,13 @@ const live = (keys, test, why) => all(keys, S => (test(S) ? null : (typeof why =
 export const RULES = [
   // ---------- Fuente ----------
   ['sec:Osc A', S => (oscOn(S, 'A') ? null : 'nivel A y Ring a 0 en Mezcla: el A no llega a la salida')],
-  ['sec:Osc B', S => (oscOn(S, 'B') ? null : 'nivel B y Ring a 0 en Mezcla: el B no llega a la salida')],
-  ['phaseA', S => (S.oscA.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar' : null)],
+  // con Sync el B manda aunque no suene (nivel 0): su octava, su detune y su fase marcan el tiempo del A
+  ['sec:Osc B', S => (oscOn(S, 'B') || S.syncA === 'on' ? null : 'nivel B y Ring a 0 en Mezcla: el B no llega a la salida')],
+  ...live(['waveB', 'octavesB'], S => oscOn(S, 'B'), 'el B no suena (nivel 0): con Sync solo marca el tiempo del A, y para eso cuentan su octava, su detune y su fase'),
+  ['phaseA', S => (S.oscA.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar'
+    : S.syncA === 'on' ? 'con Sync, el A vuelve a 0 con cada ciclo del B: su fase de arranque no cuenta' : null)],
+  ['syncA', S => (S.oscA.wave === 'supersaw' || S.oscA.wave === 'fm4' ? 'la Súper y FM4 no tienen sync'
+    : S.oscA.wave === 'sine' && S.fmIndex > 0 ? 'el Seno con FM (Index > 0) va sin sync' : null)],
   ['phaseB', S => (S.oscB.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar' : null)],
   ['noiseColor', S => (S.noise > 0 ? null : 'Ruido a 0')],
   ['spread', S => (has(S, 'supersaw') ? null : 'solo abre la Súper: ' + NO('Súper'))],

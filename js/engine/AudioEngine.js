@@ -61,7 +61,7 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matri
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=12';  // v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=13';  // v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -614,6 +614,7 @@ export class AudioEngine {
       case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
       case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // un bend ya movido se reescala
+      case 'syncA': this._forVoices(v => v.setSync(value === 'on')); break;      // sync duro: también a las notas que suenan
       case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;

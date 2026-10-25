@@ -42,6 +42,7 @@ export const PARAMS = {
   phaseA:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscA.phase' },
   octA:     { def: 0, min: -2, max: 2, t: 'oscA.oct' },        // Octava: transposición ±2 (−1 = suboscilador; por nota)
   octavesA: { def: 1, min: 1, max: 4, t: 'oscA.octaves' },    // Apiladas: 1-4 octavas hacia ARRIBA dentro del oscilador
+  syncA:    { def: 'off' },   // Sync duro (Roadmap 7.0 · 3.2): 'on' = el A vuelve a empezar su ciclo con cada ciclo del B
   waveB:    { def: 'square', t: 'oscB.wave' },
   detuneB:  { def: 0, min: -50, max: 50, unit: ' ct', t: 'oscB.detune' },
   phaseB:   { def: 0, min: 0, max: 360, unit: '°', t: 'oscB.phase' },

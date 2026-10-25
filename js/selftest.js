@@ -1004,6 +1004,104 @@ export async function runSelfTest() {
     push(r);
   }
 
+  {
+    // Sync duro (Roadmap 7.0 · 3.2), medido a f0 = k·SR/N como la tabla limpia: todo lo
+    // que no cae en un múltiplo de k es aliasing (o error). (1) Por el motor: A sierra con
+    // Sync, B callado (nivel 0: solo marca el tiempo) y la matriz «Pitch A» a +702 ct desde
+    // la Macro 1. Con sync la onda se repite al ritmo del B — energía en sus armónicos y la
+    // fundamental presente —; sin sync el A suena a 1,5× y casi todo cae fuera. Si «Pitch
+    // A» moviera también al maestro, el sync daría 1,5× y fallaría. (2) Oscilador suelto a
+    // Do4: el sync de sierra no ensucia más que la sierra LIBRE a la misma altura (+1,5 dB
+    // de margen) y quita ≥ 15 dB al sync sin corrección (calculado aquí); el seno con sync,
+    // con su corrección de pendiente, por debajo de −75 dB. (3) En vivo: el botón llega a
+    // las notas que suenan con la razón de las octavas (B a −1: 0,5) y la Súper lo atenúa.
+    body.appendChild(el('st-cat', 'Sync duro'));
+    const NAME = 'sync duro (la nota es la del B · Pitch A mueve solo al esclavo · aliasing como el oscilador libre · seno limpio · en vivo)';
+    let r;
+    try {
+      const N = 32768, probs = [], keep = snapshot();
+      const fft = (re, im) => {
+        const n = re.length;
+        for (let i = 1, j = 0; i < n; i++) { let b = n >> 1; for (; j & b; b >>= 1) j ^= b; j ^= b; if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; } }
+        for (let len = 2; len <= n; len <<= 1) {
+          const a = -2 * Math.PI / len, wr = Math.cos(a), wi = Math.sin(a);
+          for (let i = 0; i < n; i += len) { let cr = 1, ci = 0;
+            for (let q = 0; q < len / 2; q++) { const p = i + q, s = p + len / 2, tr = re[s] * cr - im[s] * ci, ti = re[s] * ci + im[s] * cr;
+              re[s] = re[p] - tr; im[s] = im[p] - ti; re[p] += tr; im[p] += ti; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
+        }
+      };
+      // energía fuera de los múltiplos de k y la fundamental, ambas respecto a la de los armónicos (dB)
+      const floor = (d, k) => {
+        const re = Float64Array.from(d), im = new Float64Array(N); fft(re, im);
+        const P = b => re[b] * re[b] + im[b] * im[b];
+        let inh = 0, harm = 0; for (let b = 1; b <= Math.floor(20000 * N / SR); b++) if (b % k) inh += P(b); else harm += P(b);
+        return { inh: 10 * Math.log10(inh / harm + 1e-30), fund: 10 * Math.log10(P(k) / harm + 1e-30) };
+      };
+      const k = 179, fB = k * SR / N, ST = 702;   // Do4 (bin exacto) · el A una quinta por encima
+      // (1) por el motor
+      const motor = async sync => {
+        loadState({ waveA: 'sawtooth', waveB: 'square', levelA: 1, levelB: 0, detuneA: 0, detuneB: 0, syncA: sync, cutoff: 20000, reso: 0.7,
+          a: 0.005, d: 0.05, s: 1, r: 0.05, amplitude: 0.3, master: 0.4, mx1src: 'mac1', mx1dst: 'pitchA', mx1amt: ST / 1200, macro1: 1 });
+        const ctx = new OfflineAudioContext(2, 8192 + N, SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.noteOn('s', fB);
+        return floor((await ctx.startRendering()).getChannelData(0).subarray(8192, 8192 + N), k);
+      };
+      const mOn = await motor('on'), mOff = await motor('off');
+      if (!(mOn.inh < -35)) probs.push('con sync la onda no se repite al ritmo del B (fuera de sus armónicos ' + mOn.inh.toFixed(1) + ' dB)');
+      if (!(mOn.fund > -10)) probs.push('con sync falta la fundamental del B (' + mOn.fund.toFixed(1) + ' dB)');
+      if (!(mOff.inh > -10)) probs.push('sin sync el A debería sonar a 1,5× (fuera de los armónicos del B ' + mOff.inh.toFixed(1) + ' dB)');
+      // (2) el oscilador suelto: sync frente a la onda libre a su altura y frente al sync sin corrección
+      const osc = async (type, f, sync, slave) => {
+        const ctx = new OfflineAudioContext(1, 4096 + N, SR);
+        await loadWorklets(ctx);
+        const node = new AudioWorkletNode(ctx, 'pulse-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { type, octaves: 1 } });
+        node.parameters.get('frequency').value = f;
+        node.parameters.get('syncRatio').value = sync; node.parameters.get('slave').value = slave;
+        node.connect(ctx.destination);
+        return (await ctx.startRendering()).getChannelData(0).subarray(4096, 4096 + N);
+      };
+      const naive = ratio => {   // sierra con sync a pelo: el escalón sin corregir
+        const d = new Float64Array(N); let p = 0, g = 0; const dt = fB * ratio / SR, dtm = fB / SR;
+        for (let i = 0; i < 4096 + N; i++) {
+          if (i >= 4096) d[i - 4096] = 2 * p - 1;
+          p += dt; if (p >= 1) p -= 1;
+          g += dtm; if (g >= 1) { g -= 1; p = g / dtm * dt; }
+        }
+        return d;
+      };
+      const kLibre = 268;   // la sierra libre a 1,5× Do4 (bin exacto más cercano a la quinta)
+      const sSync = floor(await osc('sawtooth', fB, 1, ST), k).inh, sLibre = floor(await osc('sawtooth', kLibre * SR / N, 0, 0), kLibre).inh;
+      const sPelo = floor(naive(Math.pow(2, ST / 1200)), k).inh;
+      const seno = floor(await osc('sine', fB, 1, ST), k).inh;
+      if (!(sSync <= sLibre + 1.5)) probs.push('sierra con sync ' + sSync.toFixed(1) + ' dB fuera de los armónicos, más sucia que la libre (' + sLibre.toFixed(1) + ')');
+      if (!(sSync <= sPelo - 15)) probs.push('la corrección del reinicio quita poco: ' + sSync.toFixed(1) + ' frente a ' + sPelo.toFixed(1) + ' dB a pelo');
+      if (!(seno < -75)) probs.push('seno con sync ' + seno.toFixed(1) + ' dB fuera de los armónicos (esperado < −75)');
+      // (3) en vivo: el botón a las notas que suenan; atenuado con la Súper
+      loadState({ waveA: 'sawtooth', octB: -1, detuneA: 0, detuneB: 0, syncA: 'off' });
+      engine.noteOn('syncLive', 220);
+      const v = engine.voices.get('syncLive'), a = v && v.oscs[0];
+      const r0 = a && a.syncR ? a.syncR.value : NaN;
+      CONTROLS.syncA.set('on');
+      const r1 = a && a.syncR ? a.syncR.value : NaN;
+      engine.allNotesOff();
+      if (!(r0 === 0 && Math.abs(r1 - 0.5) < 1e-6)) probs.push('en vivo: razón ' + r0 + ' → ' + r1 + ' (esperado 0 → 0,5: el B una octava abajo)');
+      loadState({ waveA: 'supersaw', syncA: 'on' });
+      await new Promise(res => setTimeout(res, 50));
+      const btn = document.getElementById('syncA');
+      if (!btn || !btn.classList.contains('dep-off')) probs.push('con la Súper el botón Sync no sale atenuado');
+      // con Sync el B manda aunque esté callado: su módulo sigue vivo, salvo la onda y las apiladas
+      loadState({ waveA: 'sawtooth', levelB: 0, syncA: 'on' });
+      await new Promise(res => setTimeout(res, 50));
+      const h2B = [...document.querySelectorAll('.panel h2')].find(h => [...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() === 'Osc B');
+      const panelB = h2B && h2B.closest('.panel'), waveB = document.getElementById('waveB');
+      if (!panelB || panelB.classList.contains('dep-off') || !waveB || !waveB.closest('.dep-off')) probs.push('con Sync y el B a nivel 0, el Osc B debería seguir vivo (salvo onda y apiladas)');
+      loadState(keep);
+      console.log('sync: motor fuera de armónicos con/sin ' + mOn.inh.toFixed(1) + '/' + mOff.inh.toFixed(1) + ' dB (fund ' + mOn.fund.toFixed(1) + ') · sierra Do4 +702 sync ' + sSync.toFixed(1) + ' · libre a 1,5× ' + sLibre.toFixed(1) + ' · a pelo ' + sPelo.toFixed(1) + ' · seno sync ' + seno.toFixed(1) + ' dB · en vivo ' + r0 + ' → ' + r1);
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
   // Render de una nota a f0 = SR/336 (131,25 Hz: un periodo = 336 muestras) y su
   // espectro EXACTO en una ventana de 60 periodos (de 0,4 s en adelante): cada
   // armónico cae en su bin y la media de la ventana es la continua de verdad.

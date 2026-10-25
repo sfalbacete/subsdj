@@ -91,6 +91,7 @@ const COST = {
   drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: lo que suma el plegado (sobremuestreo 4x; medido 2026-10-20, la Asimetría no suma)
   vocDyn: 0.26,       // Vocal dinámico por el Golpe: 10 WaveShapers (biquads aún en k-rate)
   vocMx: 0.8,         // Vocal movido por la matriz: WaveShapers + biquads a-rate (medido en «Madrigal»)
+  syncMul: 2,         // el A con Sync: cada copia ×1,3-1,9 (sierra-cuadrada) y ×1,4 en seno (medido 2026-10-25)
 };
 const mxDst = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === d) return true; return false; };
 
@@ -139,6 +140,7 @@ export class Voice {
     const busB = ctx.createGain(); busB.gain.value = 1 / Math.max(1, S.oscB.octaves);
     this._buildOscGroup(S.oscA, busA, freq, startFreq, glide, t);
     this._buildOscGroup(S.oscB, busB, freq, startFreq, glide, t);
+    if (S.syncA === 'on') this.setSync(true);
     this._connPitch = this._connVib = this._connPwm = false;
     if (S.freqCents) this.ensurePitch();
     if (S.freqLfoLvl) this.ensureVib();
@@ -320,7 +322,7 @@ export class Voice {
       const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : c.copy;
       return copies * w;
     };
-    let k = c.base + osc(S.oscA) + osc(S.oscB);
+    let k = c.base + osc(S.oscA) * (S.syncA === 'on' ? c.syncMul : 1) + osc(S.oscB);
     const fmod = S.filterEnvAmt || S.cutLfoLvl > 0 || S.resLfoLvl > 0 || mxDst(S, 'cutoff') || mxDst(S, 'reso');
     if (fmod) k += S.filterSlope === '24' && S.filterType !== 'notch' ? c.filterMod24 : c.filterMod;
     if (S.filterDrive > 0) k += c.drive + (S.driveChar === 'plegado' ? c.fold : 0);
@@ -338,6 +340,7 @@ export class Voice {
         type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves,
         t0: t,                                 // arranque de la nota: las envolventes por operador (FM4) cuentan desde aquí
         seed: (this.rnd() * 4294967296) >>> 0,  // semilla del azar del worklet (fases libres, deriva): repetible offline
+        ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // el A: su maestro fantasma (sync) arranca en la fase del B
         // tablas mip (clonadas por el postMessage de opciones, ~290 KB por nodo: 0,3 ms)
         ...(cfg.wave === 'tabla' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
@@ -359,6 +362,7 @@ export class Voice {
     for (const k of FM4_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = /^fm4L\d$/.test(k) ? this._fm4Lvl(+k[4]) : +this.S[k]; fm4P[k] = ap; } }
     // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
+    const syncParam = node.parameters.get('syncRatio'), slaveParam = node.parameters.get('slave');   // sync (solo el A los usa)
 
     // Octava (cfg.oct, −2..+2): el oscilador suena a freq·2^oct — −1 es el
     // suboscilador clásico, +1/+2 apilan hacia arriba sin recurrir a Apiladas.
@@ -386,10 +390,21 @@ export class Voice {
 
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
-      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P,
+      uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P, syncR: syncParam, slave: slaveParam,
       isWt: cfg.wave === 'tabla', ratio });   // isWt: la secuencia de tabla solo automatiza estos · ratio: octava (glideTo)
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
+
+  // Sync duro (Roadmap 7.0 · 3.2): el A, esclavo del B. El worklet del A solo
+  // necesita la razón de frecuencias B / A (sin Pitch A): las octavas y los
+  // detunes de los dos, que se fijan por nota igual que en los osciladores. Lo
+  // demás (vibrato, pitch env, glide, bend, la matriz «Pitch») mueve a los dos
+  // a la vez y no cambia la razón. 0 = libre. En vivo: el botón Sync.
+  setSync(on) {
+    const a = this.oscs[0]; if (!a || !a.syncR) return;   // worklet viejo de caché: sin sync
+    const { oscA, oscB } = this.S;
+    a.syncR.value = on ? Math.pow(2, (oscB.oct || 0) - (oscA.oct || 0) + ((oscB.detune || 0) - (oscA.detune || 0)) / 1200) : 0;
+  }
 
   // Ataque y decay de una envolvente: lineales (envCurve 0: bit-idéntico a
   // siempre) o con curva RC (envCurve > 0) aproximada por ENV_SEG rampas por tramo.
@@ -796,7 +811,7 @@ export class Voice {
       case 'lvlB':   return [this.gB.gain];
       case 'lvlRing':return [this.ringX.gain];
       case 'lvlNoise': return [this.noiseGain.gain];
-      case 'pitchA': return [this.oscs[0].detune];               // solo el A (oscs[0]): el barrido del sync
+      case 'pitchA': return [this.oscs[0].slave || this.oscs[0].detune];   // solo el A, y solo como ESCLAVO: el barrido del sync no mueve al maestro
       case 'drive':  this.ensureDrive(); return [this.dvMod];    // ganancia de entrada de la curva (suena con Drive > 0)
       case 'resMat': this.ensureReson(); return this._resMatMods();
       // vocal: el slot suma su señal en la ENTRADA de los WaveShapers (junto

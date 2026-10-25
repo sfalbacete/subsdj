@@ -2212,3 +2212,38 @@ reescala en vivo. Check «respuesta al tacto»: las tres curvas por MIDI y por
 ratón, botones y memoria; bend a tope con ±12: 130,8 → 261,3 Hz (la octava),
 con ±2: 146,9; en vivo +0,5 da 100 ct con ±2 y 600 con ±12. Sin par A/B: la
 sonda no mueve el bend ni toca flojo.
+
+**3.2 · Sincronización dura (sync).** Botón **sync** en la cabecera del Osc A
+(no cabía en sus filas): el A vuelve a empezar su ciclo con cada ciclo del B.
+La onda resultante se repite al ritmo del B, así que la NOTA es la del B, y el
+tono del A pasa a ser TIMBRE: cuántos trozos de su onda caben en cada ciclo
+del B antes del corte. Barrer el tono del A (matriz «Pitch A») da el chillido
+del lead de sync; mover los dos (vibrato, pitch env, «Pitch») cambia la nota
+y deja el timbre. Por dentro (`pulse-processor`, `_synced`): el A no oye al
+B; lleva una fase FANTASMA a la frecuencia del B — la suya sin Pitch A ×
+`syncRatio` = 2^(octB−octA)·2^((detB−detA)/1200), que la voz fija por nota
+como las octavas y los detunes; lo demás mueve a los dos y se cancela — y al
+darse la vuelta reinicia la suya. Para eso «Pitch A» va ahora a un parámetro
+aparte del A, `slave`, que no toca al maestro (sin sync, todo suena igual que
+antes). Cada reinicio es un escalón de altura H = w(0) − w(fase al cortar):
+se corrige con el residuo PolyBLEP del escalón (el de las aristas, con su
+altura real: H/2·(1−τ)² a la muestra de antes, −H/2·τ² a la de después) y su
+cambio de pendiente con el PolyBLAMP (ΔS·(1−τ)³/6 y ΔS·τ³/6); las aristas
+naturales van por el mismo camino, así que sin reinicios es el PolyBLEP de
+siempre. Un solo maestro para todas las copias (apiladas y unison se
+reinician juntas). Ondas: sierra, cuadrada, triángulo, seno sin FM y tabla; la
+Súper y FM4, sin sync (el botón sale atenuado). Con el B a nivel 0 el módulo
+Osc B sigue vivo — marca el tiempo — salvo su onda y sus apiladas; la Phase
+del A se atenúa (vuelve a 0 con cada ciclo del B).
+
+Medido a f0 = k·SR/N (energía fuera de los armónicos del B): el objetivo del
+plan era −60 dB, y no era realista con PolyBLEP de dos muestras — la sierra
+LIBRE ya está en −43 dB a Do4 —; el criterio pasa a ser «tan limpio como el
+oscilador libre a su altura». Sierra a Do4 con el A a +702 ct: −41,5 dB con
+sync, −41,3 la sierra libre a 1,5×, −21,4 el sync sin corregir (20 dB menos);
+cuadrada −44,2; seno −82,1 (−65,7 sin la corrección de pendiente). El
+triángulo a 1,5× queda como la sierra (−42,8): el corte le pilla en el valle
+y da un salto de altura completa. Coste: ×1,3-1,9 por copia (`COST.syncMul`
+2). Check «sync duro» (por el motor y con el oscilador suelto; en vivo, el
+botón llega a las notas que suenan con la razón de las octavas) y pares
+**SYNC 1-4** (env y LFO a Pitch A, sin y con sync; diff 1,38 y 1,35).

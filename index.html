@@ -120,7 +120,7 @@
 <!-- BANDA 1 · FUENTE: los osciladores y sus motores (los que no aplican a la onda elegida se atenúan EN SU SITIO) -->
 <div class="band" id="bandFuente">
   <div class="panel osc">
-    <h2>Osc A</h2>
+    <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Sync duro: el A vuelve a empezar su ciclo con cada ciclo del B. La nota la pone el B (puede estar a nivel 0: marca el tiempo sin sonar) y el tono del A pasa a ser TIMBRE: barre «Pitch A» con la matriz (Env filtro, LFO, Pasos, rueda, macro) para el chillido clásico del lead de sync">sync</button></h2>
     <div class="hrow">
       <div class="ctl rotc"><div class="seg rot waves" id="waveA">
         <button data-w="sawtooth" title="Sierra"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/></svg></button>
@@ -142,7 +142,7 @@
         <button data-stk="1" title="Una octava (sin apilar)">1</button><button data-stk="2" title="2 octavas apiladas">2</button><button data-stk="3" title="3 octavas apiladas">3</button><button data-stk="4" title="4 octavas apiladas">4</button>
       </div><div class="lab">Apiladas</div></div>
     </div>
-    <div class="help"><b>Oscilador A.</b> Onda: sierra · cuadrada · seno · triángulo · «Súper» (7 sierras detunadas; anchura con Spread en Mezcla) · «Tabla» (tabla de ondas) · FM4 (módulo FM4). <b>Octava</b> transpone el oscilador −2..+2 octavas, en pies de órgano como el RANGE del Minimoog: 8' = la nota, 16' = una abajo (el suboscilador clásico), 4' = una arriba; aplica por nota. <b>Apiladas</b> apila 1-4 octavas hacia arriba dentro del oscilador. Detune en cents (±50) · Phase = fase inicial del ciclo. Selector: clic en una posición, o arrastra / pulsa el knob.</div>
+    <div class="help"><b>Oscilador A.</b> <b>Sync</b> (botón de la cabecera): el A vuelve a empezar su ciclo cada vez que el B empieza el suyo. La nota que suena es la del B — que puede estar a nivel 0: marca el tiempo sin sonar — y el tono del A deja de ser nota y pasa a ser TIMBRE: subirlo añade armónicos alrededor de su frecuencia, como un filtro resonante pero más áspero. Para oírlo, mueve el A solo con la matriz (destino «Pitch A» desde Env filtro, un LFO, Pasos, la rueda o una macro): es el chillido de los leads de sync. Funciona en sierra, cuadrada, triángulo, seno (sin FM) y tabla; la Súper y FM4 no tienen sync. Onda: sierra · cuadrada · seno · triángulo · «Súper» (7 sierras detunadas; anchura con Spread en Mezcla) · «Tabla» (tabla de ondas) · FM4 (módulo FM4). <b>Octava</b> transpone el oscilador −2..+2 octavas, en pies de órgano como el RANGE del Minimoog: 8' = la nota, 16' = una abajo (el suboscilador clásico), 4' = una arriba; aplica por nota. <b>Apiladas</b> apila 1-4 octavas hacia arriba dentro del oscilador. Detune en cents (±50) · Phase = fase inicial del ciclo. Selector: clic en una posición, o arrastra / pulsa el knob.</div>
   </div>
   <div class="panel osc">
     <h2>Osc B</h2>

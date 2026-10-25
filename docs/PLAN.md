@@ -48,7 +48,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 2.6 | Respuesta al tacto ✔ | curva de velocity, rango del bend — HECHO 2026-10-25 (barra del teclado) | bajo | — |
 | **3** | **Generadores nuevos** | | | |
 | 3.1 | Drive con carácter: asimétrico y plegado ✔ | suave/plegado + Asimetría — HECHO 2026-10-20 | bajo-medio | — |
-| 3.2 | Sincronización dura | el barrido de sync clásico | medio | 2.4 |
+| 3.2 | Sincronización dura ✔ | el barrido de sync clásico — HECHO 2026-10-25 (botón en la cabecera del Osc A) | medio | 2.4 |
 | 3.3 | Cuerda física | cuerdas pulsadas de verdad | medio | — |
 | 3.4 | Distorsión de fase | la síntesis de los Casio CZ | bajo-medio | — |
 | 3.5 | Aditiva: editor de armónicos | dibujar el espectro | medio | — |
@@ -350,7 +350,8 @@ modos, «carácter» suave | plegado + knob Asimetría (el sesgo, en los dos): s
   se le pasan) y reinicia su fase al cruzarla, con la corrección PolyBLEP del salto (como ya hace
   en las aristas).
 - *Verificación:* check: con A a 1,5× B, la fundamental es la de B; sin aliasing por encima de
-  −60 dB. Pares SYNC.
+  −60 dB. Pares SYNC. **Hecho:** los −60 dB no eran realistas con PolyBLEP (la sierra libre ya
+  está en −43 a Do4); criterio: tan limpio como el oscilador libre a su altura (ver DISENO).
 - *Coste:* medio. Depende de 2.4 (Pitch A).
 
 **3.3 · Cuerda física (Karplus-Strong extendido).**
