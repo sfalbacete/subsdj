@@ -2352,3 +2352,19 @@ un ataque, Poli y Mono; legato con Glide sin moverse antes de la tecla) y pares
 **ART 1-2** (línea plana / con acentos y slides; mantener una tecla). Cuatro
 frases nuevas en el banco del Seq: «Ácido con slides», «Ácido que pregunta»,
 «Ligaduras largas», «Redobles».
+
+**5.4 · Swing y pulso que respira.** **Swing** global (clave de la Sala, como el
+BPM; knob al pie del Arpegiador): en cada par de pasos de una rejilla binaria
+de corchea o menos, el segundo llega tarde — cae en la fracción `swing` del
+par (50 % recto, 67 % tresillo, 75 % puntillo) — y el par mide lo mismo. Lo
+aplica el RELOJ COMÚN (`Clock`: `swingDelay`, `swingLen`, `swungTime`, y
+`stepAt`/`nextGrid` columpiados), así que el arpegiador, el secuenciador (y sus
+repeticiones), los Pasos y los jugadores (Pulso y Melodía) columpian a la vez;
+cada paso dura lo que dura de verdad (`stepSecs`), así que el gate no pisa al
+siguiente. Negras y tresillos no se columpian; el delay y los LFO a tempo
+tampoco (no van por pasos). **Pulso que respira**: dos knobs más del Pulso
+del Jugador — **Respira** (golpes de más en la cima) y **Ciclo** (compases) —:
+k sube compás a compás hasta k + Respira y vuelve, en el coseno del Vaivén del
+Arreglo; con Respira 0, el pulso de siempre. Check «swing y pulso que
+respira» (las cuentas del reloj; el Seq a 0 / 166 / 249 / 415 ms con 2/3 de
+swing — esperado 0 / 167 / 250 / 417 —; golpes 2-4-6-4) y pares **SWG 1-2**.

@@ -75,7 +75,7 @@ tiene que caber en su banda (check «nada recortado») o desplazar algo de forma
 | 5.1 | Secuenciador: acento, ligadura, slide, repeticiones ✔ | la línea de 303 — HECHO 2026-10-25 (Mayús/Alt/Ctrl + clic en el editor) | bajo | 0.4 |
 | 5.2 | Notas por grado | el patrón sigue a la escala | bajo-medio | — |
 | 5.3 | Acordes que se encadenan | conducción de voces y disposiciones | bajo | — |
-| 5.4 | Pulso que respira y swing | densidad que cambia por compás; swing global | bajo | 0.4 |
+| 5.4 | Pulso que respira y swing ✔ | densidad que cambia por compás; swing global — HECHO 2026-10-25 (swing al pie del Arp; Respira y Ciclo en el Pulso) | bajo | 0.4 |
 | 5.5 | Arpegiador: modos y repeticiones | convergente, divergente | bajo | 0.4 |
 | **6** | **Exportar al DAW** | | | |
 | 6.1 | SFZ con bucles y variaciones | samples cortos que sostienen; round robin | medio | 0.2 |

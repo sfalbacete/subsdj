@@ -30,7 +30,7 @@ export const LIM_LOOKAHEAD = 0.006, LIM_CEIL_DB = -1, LIM_MAKEUP_DB = 1.71, LIM_
 // vuelve a ser red de seguridad. Calibrado midiendo los presets de fábrica.
 export const HEADROOM_DB = -9;
 
-export const SALA_KEYS = new Set(['bpm', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow', 'dlySat',
+export const SALA_KEYS = new Set(['bpm', 'swing', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow', 'dlySat',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
                                   'tapeSat', 'tapeWow']);
 

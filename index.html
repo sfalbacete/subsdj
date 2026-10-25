@@ -533,7 +533,10 @@
       </div><div class="lab">Octavas</div></div>
       <div class="ctl"><div class="knob" data-knob="arpGate"><div class="ind"></div></div><div class="lab">Gate</div><div class="val"></div></div>
     </div>
-    <div class="help"><b>Arpegiador.</b> Mantén notas pulsadas y las secuencia al BPM (knob en Delay). Gate = duración de cada paso: en Mono, por debajo de 1 cada paso redispara; a 1 los pasos se tocan y, con Disparo en Legato, ligan deslizando. Los pasos (y sus note-off) entran con precisión de reloj de audio.</div>
+    <div class="hrow arp-foot">
+      <div class="ctl ks" data-lab="Swing" title="Swing GLOBAL, como el BPM: en cada par de corcheas o semicorcheas, la segunda llega tarde (50 % = recto, 67 % = tresillo, 75 % = puntillo). Columpia a la vez el arpegiador, el secuenciador, los Pasos y los jugadores"><span class="th">swing</span><div class="knob" data-knob="swing"><div class="ind"></div></div><div class="val"></div></div>
+    </div>
+    <div class="help"><b>Arpegiador.</b> Mantén notas pulsadas y las secuencia al BPM (knob en Delay). <b>Swing</b> (abajo) es GLOBAL, como el BPM: en cada par de corcheas o semicorcheas la segunda llega tarde — 50 % recto, 67 % tresillo, 75 % puntillo — y columpia a la vez el arpegiador, el secuenciador, los Pasos y los jugadores (las negras y los tresillos no se columpian). Gate = duración de cada paso: en Mono, por debajo de 1 cada paso redispara; a 1 los pasos se tocan y, con Disparo en Legato, ligan deslizando. Los pasos (y sus note-off) entran con precisión de reloj de audio.</div>
   </div>
   <div class="panel">
     <h2>Secuenciador</h2>
@@ -690,7 +693,7 @@
         <div class="hrow" id="playerArr"></div>
       </div>
     </div>
-    <div class="help"><b>Jugador de la parte que edita el instrumento</b> (los ajustes son del músico, no del preset). <b>Pulso</b>: E(k, n) reparte k golpes en n pasos por compás lo más uniformemente posible (Bjorklund): E(3,8) es el tresillo. <b>Acorde</b>: 3-4 notas del acorde mantenidas; con el Arp de la parte encendido, las arpegia. <b>Melodía</b>: paseo por la escala; Gravedad = probabilidad de caer en nota del acorde en tiempo fuerte; Densidad acorta las notas; Silencio = probabilidad de pausa. <b>Raíz</b>: la fundamental (+ Quinta) re-disparada cada N compases; con el Seq encendido es la raíz que transpone la frase. <b>Arreglo de la parte</b>: Entra = energía mínima para que toque (0 = siempre); Deriva = un parámetro del preset que pasea despacio alrededor del valor que tenía, Cantidad = cuánto.</div>
+    <div class="help"><b>Jugador de la parte que edita el instrumento</b> (los ajustes son del músico, no del preset). <b>Pulso</b>: E(k, n) reparte k golpes en n pasos por compás lo más uniformemente posible (Bjorklund): E(3,8) es el tresillo. <b>Respira</b>: el pulso se llena y se vacía solo — los golpes suben compás a compás hasta k + Respira y vuelven, en un vaivén de <b>Ciclo</b> compases. <b>Acorde</b>: 3-4 notas del acorde mantenidas; con el Arp de la parte encendido, las arpegia. <b>Melodía</b>: paseo por la escala; Gravedad = probabilidad de caer en nota del acorde en tiempo fuerte; Densidad acorta las notas; Silencio = probabilidad de pausa. <b>Raíz</b>: la fundamental (+ Quinta) re-disparada cada N compases; con el Seq encendido es la raíz que transpone la frase. <b>Arreglo de la parte</b>: Entra = energía mínima para que toque (0 = siempre); Deriva = un parámetro del preset que pasea despacio alrededor del valor que tenía, Cantidad = cuánto.</div>
   </div>
   <div class="panel parts-off" id="arrange">
     <h2>Arreglo</h2>

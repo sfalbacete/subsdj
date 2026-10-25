@@ -36,7 +36,7 @@ import { feedMeter, meterLedOn } from './ui/meter.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony } from './engine/Harmony.js';
-import { euclid } from './engine/Player.js';
+import { euclid, Player, PLAYER_DEF } from './engine/Player.js';
 import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
@@ -3623,6 +3623,57 @@ export async function runSelfTest() {
       if (!ok4) probs.push('parser: ' + p.map(stepToken).join(' '));
       loadState({});
       console.log('articulaciones: ' + log.join(' · '));
+      r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Swing y pulso que respira (Roadmap 7.0 · 5.4). (1) El reloj: con swing 2/3 en
+    // semicorcheas los pasos caen a 0, 1/3, 1/2, 5/6 de pulso (el segundo de cada par,
+    // tarde), duran 1/3 y 1/6, stepAt los encuentra y nextGrid no se salta el impar
+    // retrasado; negras y tresillos no se columpian; a 0,5, recto. (2) El secuenciador,
+    // por el camino real (offline, avanzado a mano): 4 semicorcheas a 120 BPM con swing
+    // 2/3 atacan a 0 / 167 / 250 / 417 ms (± 5). (3) El pulso que respira: k = 2,
+    // Respira 4, Ciclo 4 → golpes 2, 4, 6, 4 en los compases 0-3; y Respira 0, siempre k.
+    body.appendChild(el('st-cat', 'Swing y pulso que respira'));
+    const NAME = 'swing y pulso que respira (el reloj columpia corcheas y semicorcheas, no negras ni tresillos · el Seq a 0/167/250/417 ms · golpes 2-4-6-4)';
+    let r;
+    try {
+      const probs = [], near = (a, b, e = 1e-9) => Math.abs(a - b) < e;
+      // (1) el reloj
+      const ck = new Clock({ currentTime: 0 }); ck.bpm = 60; ck.origin = 0; ck.swing = 2 / 3;   // 1 pulso = 1 s
+      const ts = [0, 1, 2, 3].map(k => ck.swungTime(k * 0.25, 0.25)), ls = [0, 1].map(k => ck.swingLen(k * 0.25, 0.25));
+      if (!(near(ts[0], 0) && near(ts[1], 1 / 3) && near(ts[2], 0.5) && near(ts[3], 5 / 6))) probs.push('semicorcheas a ' + ts.map(t => t.toFixed(3)).join(' '));
+      if (!(near(ls[0], 1 / 3) && near(ls[1], 1 / 6))) probs.push('duraciones ' + ls.map(t => t.toFixed(3)).join(' '));
+      if (ck.stepAt(0.32, 0.25) !== 0 || ck.stepAt(0.34, 0.25) !== 1 || ck.stepAt(0.84, 0.25) !== 3) probs.push('stepAt con swing');
+      if (!near(ck.nextGrid(0.26, 0.25), 1 / 3)) probs.push('nextGrid se salta el impar retrasado (' + ck.nextGrid(0.26, 0.25).toFixed(3) + ')');
+      if (!near(ck.swungTime(1, 1), 1) || !near(ck.swungTime(1 / 3, 1 / 3), 1 / 3)) probs.push('negras o tresillos columpiados');
+      ck.swing = 0.5;
+      if (!near(ck.swungTime(0.25, 0.25), 0.25)) probs.push('a 50 % no va recto');
+      // (2) el secuenciador columpiado
+      loadState({ mode: 'poly', waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.01,
+        bpm: 120, swing: 2 / 3, seqOn: 'on', seqDiv: '1/16', seqGate: 0.4, seqPat: '0 0 0 0' });
+      const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 0.8), SR);
+      const eng = new AudioEngine(); eng.S = S; await eng.init(c);
+      const q = eng.seq; q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';
+      for (let i = 1; i * 0.025 < 0.36; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // planifica los pasos de 0,03 a 0,45 s
+      c.suspend(0.6).then(() => { q.held = []; q._maybeStop(); c.resume(); });
+      const b = await c.startRendering(), d = b.getChannelData(0), HOP = Math.round(0.001 * SR);
+      const e = []; for (let i = 0; i + HOP <= d.length; i += HOP) { let s = 0; for (let k = i; k < i + HOP; k++) s += d[k] * d[k]; e.push(Math.sqrt(s / HOP)); }
+      const top = Math.max(...e), at = []; let up = false;
+      e.forEach((v, i) => { if (!up && v > top * 0.2) { up = true; at.push(i * HOP / SR); } else if (up && v < top * 0.05) up = false; });
+      const rel = at.map(t => (t - at[0]) * 1000), esp = [0, 166.7, 250, 416.7];
+      if (at.length !== 4 || rel.some((t, i) => Math.abs(t - esp[i]) > 5)) probs.push('Seq con swing: ataques a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms (esperado 0 / 167 / 250 / 417)');
+      // (3) el pulso que respira
+      const pl = Object.create(Player.prototype);
+      pl.cfg = { ...PLAYER_DEF, k: 2, n: 16, respira: 4, cicloP: 4 };
+      const ks = [0, 1, 2, 3].map(bar => pl.kAt(bar));
+      if (ks.join() !== '2,4,6,4') probs.push('pulso que respira: golpes ' + ks.join(' '));
+      pl.cfg.respira = 0;
+      if ([0, 1, 2, 3].some(bar => pl.kAt(bar) !== 2)) probs.push('con Respira 0 el pulso cambia');
+      loadState({});
+      console.log('swing: Seq a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms · pulso que respira ' + ks.join('-'));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
     push(r);

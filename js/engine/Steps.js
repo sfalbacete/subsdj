@@ -130,7 +130,7 @@ export class Steps {
     for (let i = 1; i <= ST_LANES; i++) {
       if (!this.src[i] || this.lane[i]) continue;
       const div = this._div(i), u = { prev: this.src[i].offset.value };
-      u.nextT = clock.nextGrid(Math.max(t, ctx.currentTime), div); u.nextB = Math.round(clock.beatAt(u.nextT) / div) * div; u.epoch = clock.epoch;
+      u.nextB = clock.nextGridB(Math.max(t, ctx.currentTime), div); u.nextT = clock.swungTime(u.nextB, div); u.epoch = clock.epoch;
       this.lane[i] = u;
     }
     if (this.e.offline) { this._tick(ctx.length / ctx.sampleRate); return; }   // offline: todo de golpe, hasta el final del render
@@ -147,7 +147,7 @@ export class Steps {
       if (until === null) clock.sync(u, div, this.e.bpm);
       const p = src.offset;
       while (u.nextT < end) {
-        const v = this.valueAt(i, u.nextT + 1e-6), dur = div * clock.beatLen();
+        const v = this.valueAt(i, u.nextT + 1e-6), dur = clock.stepSecs(u, div);   // con swing, el paso real
         const r = MICRO + sm * Math.max(0, dur - MICRO);
         p.setValueAtTime(u.prev, u.nextT); p.linearRampToValueAtTime(v, u.nextT + r);
         u.prev = v;

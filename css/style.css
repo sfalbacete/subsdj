@@ -470,7 +470,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .lfoShape{cursor:pointer;}
 .lfoShape:hover{border-color:var(--accent2);}
 .noshape{color:var(--dim);border-style:dashed;}
-.lfo-foot,.mx-foot,.dly-foot{gap:14px;margin-top:8px;align-items:center;}
+.lfo-foot,.mx-foot,.dly-foot,.arp-foot{gap:14px;margin-top:8px;align-items:center;}
 .dly-foot{margin-top:2px;}   /* el Delay también vive en Secuenciación, cuya banda es más baja: cabe justo */
 .lfo-foot .seg.tog{gap:2px;}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}

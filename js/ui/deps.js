@@ -71,6 +71,8 @@ const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'libre';
 const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'libre') || sceneOn()
   || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'tabla'))
     || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)));   // un LFO a tempo en uso
+// el swing columpia lo que va por PASOS (Arp, Seq, Pasos en la matriz, jugadores); el delay y los LFO a tempo, no
+const swingUsed = S => sceneOn() || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || [1, 2, 3, 4, 5, 6].some(j => /^st\d/.test(s['mx' + j + 'src'] || '') && s['mx' + j + 'amt']));
 const NO = w => 'ningún oscilador que suene está en ' + w;
 const DLY_IDLE = () => (sceneOn() ? 'ninguna parte envía al delay' : 'Amount a 0: no entra nada en el delay');
 const REV_IDLE = () => (sceneOn() ? 'ninguna parte envía a la reverb' : 'Mix a 0: no entra nada en la reverb');
@@ -151,6 +153,7 @@ export const RULES = [
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'en Partes manda la Realim. de la Sala (mezclador)' : null)],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'libre' ? 'sincronizado: manda la división del BPM' : null)],
   ...live(['bpm'], bpmUsed, 'nada va a tempo: delay libre o apagado, sin arpegiador ni secuenciadores'),
+  ...live(['swing'], swingUsed, 'nada va a tempo que columpiar: sin arpegiador, secuenciador, Pasos ni jugadores'),
   ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE),
   ['shimInt', S => (!revLive(S) ? REV_IDLE() : S.shimAmt > 0 ? null : 'Shimmer a 0')],
 
@@ -163,6 +166,7 @@ export const RULES = [
   ['#harmProg', () => (conductor() && conductor().harmony.modo === 'funciones' ? 'Funciones: el paseo no usa la lista' : null)],
   ['#arrKnobs [data-key="ciclo"]', () => (conductor() && !(conductor().arr.cfg.vaiven > 0) ? 'Vaivén a 0: no hay ciclo' : null)],
   ['#playerArr', () => { const c = conductor(); return c && c.players[getScene().sel].cfg.mode === 'off' ? 'el jugador está en Off' : null; }],
+  ['#playerKnobs [data-key="cicloP"]', () => { const c = conductor(); return c && !(c.players[getScene().sel].cfg.respira > 0) ? 'Respira a 0: el pulso no cambia de un compás a otro' : null; }],
   ['#playerArr [data-key="derivaAmt"]', () => { const c = conductor(); return c && (c.players[getScene().sel].cfg.deriva || 'off') === 'off' ? 'Deriva «—»: no hay parámetro que pasee' : null; }],
 ];
 

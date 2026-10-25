@@ -170,6 +170,8 @@ export const PARAMS = {
   dlyDamp: { def: 0, min: 0, max: 1, act: true },   // filtro EN EL BUCLE: cada repetición pierde agudos (y algo de graves), como cinta/BBD
   dlyWow:  { def: 0, min: 0, max: 1, act: true },   // modulación lenta del tiempo: cada repetición se desafina un pelo (wow de cinta)
   bpm:     { def: 120, min: 40, max: 220, unit: ' bpm' },
+  // Swing (Roadmap 7.0 · 5.4): clave de la Sala, como el BPM; lo aplica el reloj común a todo lo que va a tempo
+  swing:   { def: 0.5, min: 0.5, max: 0.75, fmt: v => Math.round(v * 100) + ' %' },
 
   // --- Espacio ---
   width:      { def: 0, min: 0, max: 1, act: true },

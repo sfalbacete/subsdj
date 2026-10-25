@@ -172,6 +172,7 @@ export class AudioEngine {
     // origen, y los LFO sincronizados (globales y propios de cada voz) vuelven a su rejilla
     const clock = clockOf(ctx);
     clock.setBpm(this.bpm, ctx.currentTime);
+    clock.swing = (this.sala && this.sala.S.swing) || S.swing || 0.5;   // swing: de la sala, como el BPM
     this._unlisten = clock.listen(() => this._lfoClock());
     this._lfoClock();
 
@@ -507,6 +508,7 @@ export class AudioEngine {
     this.S[name] = value;
     if (!this.ready) return;
     if (name === 'bpm') clockOf(this.ctx).setBpm(value, this.ctx.currentTime);   // reloj común: el Arp/Seq siguen el tempo nuevo desde el pulso de ahora
+    if (name === 'swing') clockOf(this.ctx).swing = value;                       // reloj común: columpia todo lo que va a tempo
     // Matriz de modulación (claves planas mx{1..6}{src,dst,amt}): amt reajusta
     // la ganancia del slot en vivo; src/dst recablean el slot en las voces vivas.
     // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.

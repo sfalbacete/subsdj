@@ -10,6 +10,9 @@
               una recta en píxeles (Bresenham). E(3,8) es el tresillo, E(5,8)
               la clave cubana… (Toussaint: casi todos los ritmos del mundo).
               Toca la fundamental del acorde en su octava (bombo, hat, perc).
+              RESPIRA (Roadmap 7.0 · 5.4): k sube compás a compás hasta k +
+              respira y vuelve, en un coseno de cicloP compases (como el
+              Vaivén del Arreglo): el ritmo se llena y se vacía solo.
      acorde   mantiene las notas del acorde vigente (3 o 4); con el Arp de la
               parte encendido, las arpegia; sin él, es un pad de acordes.
      melodia  paseo aleatorio por grados de la escala con GRAVEDAD hacia las
@@ -37,6 +40,7 @@ export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseW
 export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
   k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, acento: 0.3,     // pulso
+  respira: 0, cicloP: 4,                                    // pulso que respira: golpes de más en la cima de un ciclo de N compases
   notas: 3,                                                 // acorde
   densidad: 0.5, silencio: 0.2, gravedad: 0.6, rango: 1, legato: 0.8,   // melodía
   quinta: 0, cada: 2,                                       // raíz
@@ -133,16 +137,23 @@ export class Player {
     while (this.nextBeat < untilBeat && guard++ < 4096) fn.call(this, nowB);
   }
 
+  // Golpes del pulso en el compás «bar»: k, o k + lo que respira en su ciclo
+  kAt(bar) {
+    const c = this.cfg, r = Math.max(0, Math.round(c.respira || 0));
+    if (!r) return c.k;
+    const N = Math.max(1, Math.round(c.cicloP || 4));
+    return Math.min(c.n, c.k + Math.round(r * (1 - Math.cos(2 * Math.PI * (bar % N) / N)) / 2));
+  }
   _pulso(nowB) {
     const c = this.cfg, step = BAR / Math.max(1, c.n);
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / step) * step;
     const b = this.nextBeat, idx = Math.round(b / step) % c.n, a = this._arr(b);
-    if (a.active && euclid(c.k, c.n, c.rot)[idx] && this.rng() < c.prob * a.probMul) {
-      const t = this.c.timeAt(b), onBeat = Math.abs(b - Math.round(b)) < 1e-6;
+    if (a.active && euclid(this.kAt(Math.floor(b / BAR + 1e-9)), c.n, c.rot)[idx] && this.rng() < c.prob * a.probMul) {
+      const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // swing del reloj (si la rejilla es binaria)
       const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.acento) * (0.92 + 0.16 * this.rng()));
       const id = this._id();
       this._on(id, this.base() + this.c.chordAtBeat(b).rootPc, vel, t);
-      this._off(id, t + step * c.gate * this.c.beatLen());
+      this._off(id, t + this.c.swingLen(b, step) * c.gate * this.c.beatLen());
     }
     this.nextBeat = b + step;
   }
@@ -222,11 +233,11 @@ export class Player {
       idx = Math.max(0, Math.min(pool.length - 1, idx));
     }
     this.melIdx = idx;
-    const t = this.c.timeAt(b), bar1 = Math.abs(b % BAR) < 1e-6;
+    const t = this.c.swungTime(b, step), bar1 = Math.abs(b % BAR) < 1e-6;   // corcheas con el swing del reloj
     const vel = Math.min(1, c.vel * a.velMul * (bar1 ? 1 : 0.85) * (0.9 + 0.2 * this.rng()));
     const id = this._id();
     this._on(id, pool[idx], vel, t);
-    this._off(id, t + len * step * this.c.beatLen() * c.legato);
+    this._off(id, t + (this.c.swungTime(b + len * step, step) - t) * c.legato);
     this.busy = (len - 1) * step;
     this.nextBeat = b + step;
   }

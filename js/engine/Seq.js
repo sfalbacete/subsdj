@@ -134,7 +134,7 @@ export class Seq {
       if (this.retrigAt !== null && this.retrigAt <= this.nextT + 1e-6) { this.idx = 0; this.retrigAt = null; }
       const steps = this._steps(), root = this._root();
       if (!steps.length || !root) return;              // (una raíz que aún no ha entrado: el paso espera)
-      const dur = div * clock.beatLen();
+      const dur = clock.stepSecs(this, div);           // con swing, el par se reparte desigual
       const st = steps[this.idx % steps.length];       // módulo en cada paso: patrón editable en vivo
       this.playQ.push({ i: this.idx % steps.length, t0: this.nextT, t1: this.nextT + dur });
       if (this.playQ.length > 64) this.playQ.shift();  // tope por si la UI no consume (panel colapsado)

@@ -71,7 +71,7 @@ export class Arp {
       else if (S.arpMode === 'updown') { const m = Math.max(1, 2 * n - 2), k = this.idx % m; i = k < n ? k : m - k; }
       else i = this.idx % n;                                  // 'up'
       const note = seq[i];
-      const dur = div * clock.beatLen();
+      const dur = clock.stepSecs(this, div);                  // con swing, el par se reparte desigual
       const id = 'arp' + (this.idx % 8);                      // ids rotatorios (gate<=1 => sin solapes)
       this.e._directOn(id, note.freq, note.vel, this.nextT);
       this._flushTie();                                       // la ligada del paso anterior se suelta tras este on

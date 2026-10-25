@@ -8,6 +8,11 @@ de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
 
 ## Sin publicar
 
+- **Swing** global (al pie del Arpegiador; se guarda como el BPM): la segunda
+  corchea o semicorchea de cada par llega tarde, de recto (50 %) a puntillo
+  (75 %), en el arpegiador, el secuenciador, los Pasos y los jugadores a la vez.
+- **Pulso que respira**: el Pulso del Jugador gana Respira y Ciclo — los golpes
+  suben y bajan solos compás a compás, y el ritmo se llena y se vacía.
 - **Articulaciones en el secuenciador**, como en un 303: **acento** (Mayús + clic
   en un paso: más fuerte, y la fuente «Acento (Seq)» de la matriz para que el
   preset decida qué hace — abrir el filtro, más drive…), **ligadura** y **slide**

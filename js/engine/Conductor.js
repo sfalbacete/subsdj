@@ -39,6 +39,8 @@ export class Conductor {
   get bpm() { return this.scene.S.bpm || 120; }
   beatLen() { return this.clock.beatLen(); }
   timeAt(beat) { return this.clock.timeAt(beat); }
+  swungTime(beat, div) { return this.clock.swungTime(beat, div); }   // el paso de `div` en `beat`, con el swing del reloj
+  swingLen(beat, div) { return this.clock.swingLen(beat, div); }
   beatAt(t) { return this.clock.beatAt(t); }
   chordAtBeat(b) { return this.harmony.chordAt(Math.floor(b / BEATS_PER_BAR + 1e-9)); }
   arrangeFor(player, b) { return this.arr.stateAt(Math.floor(b / BEATS_PER_BAR + 1e-9), player.i, player.cfg); }

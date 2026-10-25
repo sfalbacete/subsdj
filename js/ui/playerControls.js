@@ -22,7 +22,8 @@ const int = v => String(Math.round(v));
 // knobs por modo: [clave, etiqueta, min, max, entero?]
 const KNOBS = {
   pulso:   [['k', 'Golpes', 1, 16, 1], ['n', 'Pasos', 4, 32, 1], ['rot', 'Rot', 0, 31, 1], ['prob', 'Prob', 0, 1],
-            ['gate', 'Gate', 0.05, 1], ['acento', 'Acento', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
+            ['gate', 'Gate', 0.05, 1], ['acento', 'Acento', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1],
+            ['respira', 'Respira', 0, 8, 1], ['cicloP', 'Ciclo', 2, 16, 1]],   // el pulso que respira (Roadmap 7.0 · 5.4)
   acorde:  [['notas', 'Notas', 3, 4, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
   melodia: [['densidad', 'Densidad', 0, 1], ['silencio', 'Silencio', 0, 1], ['gravedad', 'Gravedad', 0, 1],
             ['rango', 'Rango', 1, 3, 1], ['legato', 'Legato', 0.1, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
