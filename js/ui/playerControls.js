@@ -143,9 +143,9 @@ export function initPlayerControls() {
   // scene
   $('sceneExp').addEventListener('click', () => {
     const sc = getScene(); if (!sc) return;
-    const d = new Date(), p = x => String(x).padStart(2, '0');
-    download(new Blob([JSON.stringify(sceneToJSON(sc), null, 1)], { type: 'application/json' }),
-             `subsdj-scene-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`);
+    const d = new Date(), p = x => String(x).padStart(2, '0'), stamp = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+    const j = sceneToJSON(sc); if (!j.name) j.name = 'Scene ' + stamp;   // a scene built by hand has no name yet: the file's date is its name
+    download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), `subsdj-scene-${stamp}.json`);
   });
   $('sceneImp').addEventListener('click', () => $('sceneFile').click());
   $('sceneFile').addEventListener('change', async e => {

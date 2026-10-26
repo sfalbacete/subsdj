@@ -46,6 +46,9 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
   there when the scene loads. The synth accompanies, you play.
 - Fixed: a part whose player was set to «off» crashed the offline scheduler of the
   selftest (never seen live).
+- Fixed: an exported scene did not carry its name, so importing it into the library gave
+  «Imported scene» («Escena importada» before 1.4.0). Scenes keep their name through
+  export and import; one built by hand is exported as «Scene <date>».
 - Fixed: a Pulse player at **100 % probability lost hits** — one in eight at the bottom
   of the energy sway, more at low Energy — because the arrangement multiplied the knob
   by its own 75-100 % thinning. Now 100 % means every hit, whatever the energy; below

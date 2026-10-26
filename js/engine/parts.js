@@ -101,7 +101,7 @@ export function applyStateToEngine(e, state) {
 export function sceneToJSON(sc) {
   const room = {}; for (const k of ROOM_KEYS) room[k] = sc.S[k];
   return {
-    format: SCENE_FORMAT, date: new Date().toISOString(),
+    format: SCENE_FORMAT, name: sc.name || undefined, date: new Date().toISOString(),   // the name travels with the scene (an exported one used to come back as «Imported scene»)
     room: { ...room, ...sc.roomCfg },
     conductor: sc.conductor.toJSON(),
     parts: sc.parts.map(p => ({ name: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
@@ -113,6 +113,7 @@ export function sceneToJSON(sc) {
 export function applySceneJSON(sc, j) {
   j = migrateScene(j);   // those up to 1.3.0, in Spanish
   if (!j || j.format !== SCENE_FORMAT) throw new Error('not a SubSDJ scene (' + SCENE_FORMAT + ')');
+  if (typeof j.name === 'string' && j.name) sc.name = j.name;
   const s = j.room || {};
   for (const k of ROOM_KEYS) if (k in s) sc.room.set(k, s[k]);
   if (typeof s.fb === 'number') { sc.roomCfg.fb = s.fb; sc.room.setFeedback(s.fb); }
