@@ -1,17 +1,17 @@
 /* =====================================================================
-   SubSDJ · Voice — una nota polifónica.
-   Cadena por voz:
-     osc A/B (worklet; cada uno a freq·2^oct — Octava ±2), A×B, ruido --mezclador (un nivel cada uno)--> preFilter --> drive(tanh | pliegue, sesgo, dry/wet)
-        --> VOCAL (banco de formantes, dry/wet; el ruido ya sumado = aliento)
-        --> RESONADOR (banco modal afinado a la nota, dry/wet; engine/reson.js)
-        --> filtro LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + envFiltro + LFO)
-        --> VCA(ADSR) --> ampMod(matriz, base 1) --> pan --> bus
-   Modulación global conectada por voz: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
-   Con lfoPhase 'voice' los LFO de cutoff/reso/vibrato/PWM/pan son COPIAS por voz
-   (nodes.mkVoiceLFO) arrancadas en la fase que le toca a la voz (Weyl), y la
-   fuente «Deriva (voz)» de la matriz es un paseo lento propio de cada voz.
-   Matriz de modulación: slots fuente→GainNode(amt·span)→AudioParams del
-   destino — la misma fontanería que las rutas dedicadas, generalizada.
+   SubSDJ · Voice — one polyphonic note.
+   Per-voice chain:
+     osc A/B (worklet; each at freq·2^oct — Octave ±2), A×B, noise --Mixer (one level each)--> preFilter --> drive(tanh | fold, bias, dry/wet)
+        --> VOCAL (formant bank, dry/wet; the noise already summed in = breath)
+        --> RESONATOR (modal bank tuned to the note, dry/wet; engine/reson.js)
+        --> filter LP↔HP morph | BP | notch, 12|24 dB (cutoff = base + filter env + LFO)
+        --> VCA(ADSR) --> ampMod(matrix, base 1) --> pan --> bus
+   Global modulation connected per voice: pitchOffset, freqLFO, pwmLFO, cutLFO, resLFO.
+   With lfoPhase 'voice' the cutoff/reso/vibrato/PWM/pan LFOs are per-voice COPIES
+   (nodes.mkVoiceLFO) started at the phase due to the voice (Weyl), and the
+   matrix source «Drift (voice)» is a slow walk of each voice's own.
+   Modulation matrix: slots source→GainNode(amt·span)→AudioParams of the
+   target — the same plumbing as the dedicated routes, generalized.
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN, FM4_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
@@ -21,37 +21,37 @@ import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
          VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
          VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
 
-// Curva de saturación del drive pre-filtro, COMPARTIDA por todas las voces
-// (tanh k=3 normalizada a ±1; el nivel de entrada vive en dvPre, como en el FX).
+// Saturation curve of the pre-filter drive, SHARED by all voices
+// (tanh k=3 normalized to ±1; the input level lives in dvPre, as in the FX).
 const DRIVE_CURVE = (() => {
   const n = 1024, c = new Float32Array(n), k = 3;
   for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
   return c;
 })();
-// Carácter «plegado» (Roadmap 7.0 · 3.1): pliegue senoidal y = sin(π/2·x) para x en
-// ±FOLD_R (la curva del WaveShaper cubre [−1, 1]: dvPre divide la entrada por FOLD_R).
-// Con ganancia 1 es una saturación suave; a 10 la onda se dobla varias veces por
-// semiciclo y los armónicos suben y BAJAN con el Drive (Bessel): un barrido que no se
-// parece al de un filtro. Puntos impares: la entrada 0 cae en el centro y sale 0 exacto.
+// «Fold» character (Roadmap 7.0 · 3.1): sine fold y = sin(π/2·x) for x in
+// ±FOLD_R (the WaveShaper curve covers [−1, 1]: dvPre divides the input by FOLD_R).
+// At gain 1 it is a soft saturation; at 10 the wave folds over several times per
+// half cycle and the harmonics rise and FALL with the Drive (Bessel): a sweep that doesn't
+// sound like a filter's. Odd number of points: input 0 falls in the centre and gives exactly 0.
 const FOLD_R = 24;
 const FOLD_CURVE = (() => {
   const n = 8193, c = new Float32Array(n);
   for (let i = 0; i < n; i++) c[i] = Math.sin(Math.PI / 2 * FOLD_R * ((i / (n - 1)) * 2 - 1));
   return c;
 })();
-// Ganancia de entrada a Drive 1 (1 + G·v) y sesgo a Asimetría 1, en unidades de la
-// entrada x (medidos con un seno a 0,6): en el tanh, 2.º armónico de −31 dB (sesgo
-// 0,05) a −16 dB (0,3); en el pliegue, sesgo 1 = un cuarto de onda: la curva queda
-// PAR y solo salen armónicos pares (la octava). El plegado suena ~3 dB por debajo
-// del tanh al mismo Drive (su nivel no crece al apretar): DRV_FOLD_MK lo iguala.
+// Input gain at Drive 1 (1 + G·v) and bias at Asym 1, in units of the
+// input x (measured with a sine at 0.6): in the tanh, 2nd harmonic from −31 dB (bias
+// 0.05) to −16 dB (0.3); in the fold, bias 1 = a quarter wave: the curve becomes
+// EVEN and only even harmonics come out (the octave). The fold sounds ~3 dB below
+// the tanh at the same Drive (its level doesn't grow when pushed): DRV_FOLD_MK evens it out.
 const DRV_GAIN = { soft: 4, fold: 9 }, DRV_BIAS = { soft: 0.3, fold: 1 }, DRV_FOLD_MK = 1.4;
-const DRV_DC_HZ = 5;   // bloqueo de continua del camino saturado: el sesgo crea continua con la señal
-// Valor de la curva en u, interpolado como lo hace el WaveShaper (lo usa la compensación del sesgo)
+const DRV_DC_HZ = 5;   // DC block of the saturated path: the bias creates DC along with the signal
+// Value of the curve at u, interpolated the way the WaveShaper does (used by the bias compensation)
 const curveAt = (c, u) => { const x = (c.length - 1) * (Math.max(-1, Math.min(1, u)) + 1) / 2, i = Math.min(c.length - 2, Math.floor(x)); return c[i] + (c[i + 1] - c[i]) * (x - i); };
 
-// Env mod en bucle: UN ciclo (ataque 0 → 1 en la fracción fa, caída 1 → 0 en el resto, con la
-// curva RC si la hay) en un buffer de 4096 muestras a 8 kHz; la voz lo lee en loop con
-// playbackRate = duración/(A + D), así el periodo es A + D exacto. Cacheado por contexto y forma.
+// Looping Mod Env: ONE cycle (attack 0 → 1 over the fraction fa, fall 1 → 0 over the rest, with the
+// RC curve if any) in a buffer of 4096 samples at 8 kHz; the voice reads it in a loop with
+// playbackRate = duration/(A + D), so the period is exactly A + D. Cached per context and shape.
 const ENVM_N = 4096, ENVM_SR = 8000, envmCache = new WeakMap();
 function envmCycle(ctx, fa, curve) {
   let m = envmCache.get(ctx); if (!m) { m = new Map(); envmCache.set(ctx, m); }
@@ -64,35 +64,35 @@ function envmCycle(ctx, fa, curve) {
   return b;
 }
 
-// Curva de la envolvente (envCurve 0..1): 0 = rampas LINEALES (como siempre);
-// > 0 = tramos exponenciales tipo RC, como en un ADSR analógico (el condensador
-// se carga hacia el objetivo): el ataque sube deprisa y frena al llegar, el
-// decay cae deprisa y se posa despacio. k = curvatura = ENV_K·envCurve. Por qué
-// suena mejor: la sonoridad es logarítmica — un decay lineal en amplitud «se
-// queda colgado y luego cae de golpe»; el exponencial se oye parejo. El release
-// sigue al MISMO knob (lineal a 0, RC a 1; hasta la revisión tras el bloque 13
-// era exponencial fijo con τ = r/4). Cada tramo va como CADENA de ENV_SEG rampas
-// lineales que siguen la exponencial — NO como setValueCurveAtTime: en Chrome
-// una curva en curso no se puede cancelar ni anclar (setValueAtTime dentro de
-// su tramo lanza NotSupportedError), así que soltar la nota durante el ataque
-// o el decay dejaba la voz colgada. Las rampas se cortan sin problema.
+// Envelope curve (envCurve 0..1): 0 = LINEAR ramps (as always);
+// > 0 = RC-like exponential segments, as in an analog ADSR (the capacitor
+// charges towards the target): the attack rises fast and slows down on arrival, the
+// decay falls fast and settles slowly. k = curvature = ENV_K·envCurve. Why it
+// sounds better: loudness is logarithmic — a decay linear in amplitude «hangs
+// and then drops all at once»; the exponential one sounds even. The release
+// follows the SAME knob (linear at 0, RC at 1; until the revision after block 13
+// it was a fixed exponential with τ = r/4). Each segment is a CHAIN of ENV_SEG
+// linear ramps that follow the exponential — NOT setValueCurveAtTime: in Chrome
+// a running curve can't be cancelled or anchored (setValueAtTime inside
+// its span throws NotSupportedError), so releasing the note during the attack
+// or the decay left the voice hanging. Ramps can be cut without trouble.
 const ENV_K = 6, ENV_SEG = 12;
 
-// Pesos de Voice.cost, en «voces simples» (dos sierras con el filtro quieto =
-// 1 ≈ 1,6 % de un núcleo en el PC de referencia, render offline). Medidos con
-// 12 voces por variante (2026-10-12). Lo que más pesa es el NÚMERO DE NODOS de
-// la voz, no la matemática del oscilador: una copia más de unison o una Súper
-// apenas suma (copy); lo que va por muestra en JS con senos sí (FM, FM4).
+// Weights for Voice.cost, in «simple voices» (two saws with a static filter =
+// 1 ≈ 1.6 % of a core on the reference PC, offline render). Measured with
+// 12 voices per variant (2026-10-12). What weighs most is the NUMBER OF NODES of
+// the voice, not the oscillator's math: one more unison copy or a Supersaw
+// barely adds (copy); what runs per sample in JS with sines does (FM, FM4).
 const COST = {
-  base: 1,            // la voz: ~30 nodos (mezcla, ruido, filtro, VCA, pan) + 2 worklets
-  copy: 0.005,        // cada copia de oscilador (unison, Súper = 7, octavas apiladas): PolyBLEP, barato
-  sine: 0.06, sineFm: 0.18, fm4: 0.47,   // por copia: senos por muestra (FM con índice: dos; FM4: cuatro)
-  filterMod: 0.07, filterMod24: 0.16,     // filtro modulado (env, LFO, matriz): coeficientes por muestra
-  drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: lo que suma el plegado (sobremuestreo 4x; medido 2026-10-20, la Asimetría no suma)
-  vocDyn: 0.26,       // Vocal dinámico por el Golpe: 10 WaveShapers (biquads aún en k-rate)
-  vocMx: 0.8,         // Vocal movido por la matriz: WaveShapers + biquads a-rate (medido en «Madrigal»)
-  string: 0.01,       // cada copia en Cuerda: la línea, dos filtros y, con Rigidez, cuatro paso todo (×1,2-1,8 una sierra; medido 2026-10-25)
-  syncMul: 2,         // el A con Sync: cada copia ×1,3-1,9 (sierra-cuadrada) y ×1,4 en seno (medido 2026-10-25)
+  base: 1,            // the voice: ~30 nodes (mixer, noise, filter, VCA, pan) + 2 worklets
+  copy: 0.005,        // each oscillator copy (unison, Supersaw = 7, stacked octaves): PolyBLEP, cheap
+  sine: 0.06, sineFm: 0.18, fm4: 0.47,   // per copy: sines per sample (FM with index: two; FM4: four)
+  filterMod: 0.07, filterMod24: 0.16,     // modulated filter (env, LFO, matrix): coefficients per sample
+  drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: what the fold adds (4x oversampling; measured 2026-10-20, Asym adds nothing)
+  vocDyn: 0.26,       // Vocal made dynamic by Bite: 10 WaveShapers (biquads still k-rate)
+  vocMx: 0.8,         // Vocal moved by the matrix: WaveShapers + a-rate biquads (measured on «Madrigal»)
+  string: 0.01,       // each copy in String: the line, two filters and, with Stiffness, four allpasses (×1.2-1.8 a saw; measured 2026-10-25)
+  syncMul: 2,         // A with Sync: each copy ×1.3-1.9 (saw-square) and ×1.4 on sine (measured 2026-10-25)
 };
 const mxDst = (S, d) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === d) return true; return false; };
 
@@ -102,43 +102,43 @@ export class Voice {
     this.mod = mod;
     this.S = S;
     this.disposed = false;
-    // Look-ahead: programamos un pelín en el futuro para que el ataque arranque SIEMPRE
-    // desde 0 limpio. Sin esto, si construir la voz tarda más que el attack (p.ej. un
-    // supersaw con 14 nodos), la rampa caería "en el pasado" y la ganancia saltaría de
-    // golpe, exponiendo el oscilador a media onda -> click. Por eso clicaba "a veces".
-    // El margen lo pone el motor (mod.lookahead): 5 ms offline; en directo depende del
-    // dispositivo (5 ms + 2·baseLatency), porque el reloj del hilo principal va por
-    // detrás del de audio y 5 ms fijos no bastaban en algunas tarjetas (el blip de
-    // pitch y el VCA del bombo caían en el pasado: golpeaba solo a veces).
-    // startAt (opcional): inicio programado en el reloj de audio (lo usa el arpegiador).
-    // Cuantizado a frontera de bloque de render (128 muestras): el worklet abre su
-    // puerta de arranque por bloques, así la onda empieza en su fase configurada
-    // EXACTAMENTE cuando abre el VCA (golpe idéntico en cada nota).
+    // Look-ahead: we schedule a tiny bit into the future so that the attack ALWAYS starts
+    // cleanly from 0. Without this, if building the voice takes longer than the attack (e.g. a
+    // supersaw with 14 nodes), the ramp would land "in the past" and the gain would jump
+    // at once, exposing the oscillator mid-wave -> click. That's why it clicked "sometimes".
+    // The margin is set by the engine (mod.lookahead): 5 ms offline; live it depends on the
+    // device (5 ms + 2·baseLatency), because the main thread's clock lags
+    // behind the audio one and a fixed 5 ms wasn't enough on some cards (the pitch
+    // blip and the kick's VCA landed in the past: it only hit sometimes).
+    // startAt (optional): scheduled start on the audio clock (used by the arpeggiator).
+    // Quantized to a render block boundary (128 samples): the worklet opens its
+    // start gate per block, so the wave starts at its configured phase
+    // EXACTLY when the VCA opens (identical hit on every note).
     const Q = 128 / ctx.sampleRate;
     const t = Math.ceil(((startAt || ctx.currentTime) + (mod.lookahead || 0.005)) / Q - 1e-6) * Q;
-    this.t0 = t;                          // referencia para el fade-in de LFOs (lfoFade)
-    // Lo que la voz suena DESPUÉS de su hora musical (look-ahead + frontera de bloque).
-    // Los eventos programados posteriores (note-off, glide) se trasladan lo mismo: así
-    // la puerta dura lo que dice el gate, y un gate más corto que el look-ahead no
-    // cierra el VCA antes de abrirlo (el golpe mudo de los jugadores).
+    this.t0 = t;                          // reference for the LFO fade-in (lfoFade)
+    // How late the voice sounds AFTER its musical time (look-ahead + block boundary).
+    // Later scheduled events (note-off, glide) are shifted by the same amount: that way
+    // the gate lasts what the gate says, and a gate shorter than the look-ahead doesn't
+    // close the VCA before opening it (the players' silent hit).
     this.lag = t - (startAt || ctx.currentTime);
-    this.vel = vel;                       // fija por nota: la leen la matriz (fuente Velocity) y los niveles FM4
-    this.acc = acc;                       // 1 = paso acentuado del secuenciador (fuente «Acento» de la matriz)
+    this.vel = vel;                       // fixed per note: read by the matrix (Velocity source) and the FM4 levels
+    this.acc = acc;                       // 1 = accented sequencer step (matrix source «Accent»)
     const glide = (startFreq && S.glide > 0) ? S.glide : 0;
 
-    // --- Modulación por voz (Roadmap 5.0 · bloque 2) ---
-    // Fase de esta voz (secuencia de Weyl, nodes.js): la usan sus LFO propios
-    // (lfoPhase 'voice', creados bajo demanda en _vlfo) y su deriva (fuente 'drift').
+    // --- Per-voice modulation (Roadmap 5.0 · block 2) ---
+    // Phase of this voice (Weyl sequence, nodes.js): used by its own LFOs
+    // (lfoPhase 'voice', created on demand in _vlfo) and its drift ('drift' source).
     this.phase = nextVoicePhase(ctx);
-    this.rnd = ctxRandom(ctx);            // azar de la voz: Math.random en directo, con semilla offline (7.1)
-    // k -> LFO propio (null = los globales del motor): 'voice' los arranca en la fase de la voz,
-    // 'retrig' y 'once' en fase 0 con la nota ('once': un solo ciclo, Roadmap 7.0 · 2.2)
+    this.rnd = ctxRandom(ctx);            // the voice's randomness: Math.random live, seeded offline (7.1)
+    // k -> own LFO (null = the engine's global ones): 'voice' starts them at the voice's phase,
+    // 'retrig' and 'once' at phase 0 with the note ('once': a single cycle, Roadmap 7.0 · 2.2)
     this.vlfo = ['voice', 'retrig', 'once'].includes(S.lfoPhase) ? {} : null;
-    this.drift = null;                              // fuente «Deriva (voz)» de la matriz, si algún slot la usa
+    this.drift = null;                              // matrix source «Drift (voice)», if any slot uses it
 
-    // --- Osciladores (worklet) ---
+    // --- Oscillators (worklet) ---
     this.oscs = [];                       // {node, detune, pw, ratio}
-    this._glideLast = new Map();          // AudioParam → {value, end}: su última altura y hasta cuándo dura su rampa (glideTo)
+    this._glideLast = new Map();          // AudioParam → {value, end}: its last pitch and until when its ramp lasts (glideTo)
     const busA = ctx.createGain(); busA.gain.value = 1 / Math.max(1, S.oscA.octaves);
     const busB = ctx.createGain(); busB.gain.value = 1 / Math.max(1, S.oscB.octaves);
     this._buildOscGroup(S.oscA, busA, freq, startFreq, glide, t);
@@ -149,24 +149,24 @@ export class Voice {
     if (S.freqLfoLvl) this.ensureVib();
     if (S.pwmLfoLvl) this.ensurePwm();
 
-    // --- Mezclador a la Minimoog: cada fuente con SU nivel (A, B, ring, ruido),
-    // sumadas en preFilter. Subir una no baja las otras: A y B a tope suman
-    // (+3 dB desafinados, +6 dB en fase) y con Drive saturan más, como el
-    // truco de subir el mezclador del Minimoog para apretar el filtro. ---
+    // --- Minimoog-style Mixer: each source with ITS level (A, B, ring, noise),
+    // summed in preFilter. Raising one doesn't lower the others: A and B at max add up
+    // (+3 dB detuned, +6 dB in phase) and with Drive they saturate more, like the
+    // trick of turning up the Minimoog's mixer to push the filter. ---
     const gA = ctx.createGain(); gA.gain.value = S.levelA;
     const gB = ctx.createGain(); gB.gain.value = S.levelB;
     busA.connect(gA); busB.connect(gB);
 
-    // --- Ring mod: A * B (la ganancia a 0 + B en su AudioParam = el producto) ---
+    // --- Ring mod: A * B (gain at 0 + B on its AudioParam = the product) ---
     const ring = ctx.createGain(); ring.gain.value = 0;
     busA.connect(ring); busB.connect(ring.gain);
     const ringX = ctx.createGain(); ringX.gain.value = S.ring;
     ring.connect(ringX);
 
-    // --- Ruido con color: LP+HP en serie (color<0 cierra el LP = oscuro/viento;
-    // color>0 sube el HP = "aire"; a 0 ambos abiertos = blanco). Q a -3 dB
-    // (Butterworth plano: la Q de LP/HP va en dB). La ganancia lleva una
-    // compensación (mk) para que el color cambie el timbre, no el volumen. ---
+    // --- Colored noise: LP+HP in series (color<0 closes the LP = dark/wind;
+    // color>0 raises the HP = "air"; at 0 both open = white). Q at -3 dB
+    // (flat Butterworth: the LP/HP Q is in dB). The gain carries a
+    // compensation (mk) so that the color changes the timbre, not the volume. ---
     const noiseSrc = ctx.createBufferSource();
     noiseSrc.buffer = mod.noiseBuffer; noiseSrc.loop = true;
     const nf = Voice._noiseColorCfg(S.noiseColor);
@@ -175,56 +175,56 @@ export class Voice {
     const noiseGain = ctx.createGain(); noiseGain.gain.value = S.noise * nf.mk;
     noiseSrc.connect(nLP); nLP.connect(nHP); nHP.connect(noiseGain);
 
-    // --- Suma pre-filtro ---
+    // --- Pre-filter sum ---
     const preFilter = ctx.createGain();
     gA.connect(preFilter); gB.connect(preFilter); ringX.connect(preFilter); noiseGain.connect(preFilter);
 
-    // --- Drive pre-filtro (saturación tanh por voz, dry/wet). Solo el camino
-    // seco existe siempre: a 0 pasa a ganancia 1 (transparente EXACTO). El wet
-    // — un WaveShaper sobremuestreado ×2, caro aunque su salida valga 0 — nace
-    // bajo demanda (ensureDrive) cuando el knob sube de 0. ---
+    // --- Pre-filter drive (per-voice tanh saturation, dry/wet). Only the dry
+    // path always exists: at 0 it passes at gain 1 (EXACTLY transparent). The wet
+    // — a ×2 oversampled WaveShaper, costly even when its output is 0 — is born
+    // on demand (ensureDrive) when the knob rises above 0. ---
     const dvDry = ctx.createGain(); dvDry.gain.value = 1 - S.filterDrive;
     const dvOut = ctx.createGain();
     preFilter.connect(dvDry); dvDry.connect(dvOut);
 
-    // --- Vocal: banco de formantes dry/wet ANTES del filtro (los formantes
-    // enriquecen la fuente; el LP/HP conserva su papel de brillo global).
-    // Solo el crossfade existe siempre: el banco (biquads + WaveShapers) se
-    // crea bajo demanda (ensureVocal) — el caso común vocAmt=0 no paga nodos.
+    // --- Vocal: dry/wet formant bank BEFORE the filter (the formants
+    // enrich the source; the LP/HP keeps its role as global brightness).
+    // Only the crossfade always exists: the bank (biquads + WaveShapers) is
+    // created on demand (ensureVocal) — the common case vocAmt=0 pays no nodes.
     const vocDry = ctx.createGain(); vocDry.gain.value = 1 - S.vocAmt;
     const vocOut = ctx.createGain();
     dvOut.connect(vocDry); vocDry.connect(vocOut);
 
-    // --- Resonador: banco modal dry/wet TRAS el Vocal (engine/reson.js). Como el
-    // Vocal, solo el crossfade existe siempre: el banco nace bajo demanda (ensureReson).
+    // --- Resonator: dry/wet modal bank AFTER the Vocal (engine/reson.js). Like the
+    // Vocal, only the crossfade always exists: the bank is born on demand (ensureReson).
     const resDry = ctx.createGain(); resDry.gain.value = 1 - S.resAmt;
     const resOut = ctx.createGain();
     vocOut.connect(resDry); resDry.connect(resOut);
 
-    // --- Filtro por voz: LP + HP en paralelo con crossfade (morph) ---
-    // keytrack: el cutoff sigue la altura de la nota (0 = fijo, 1 = 1:1 con el tono)
-    // Pendiente 24 dB: 2ª etapa en CASCADA delante, plana. OJO doble: en WebAudio
-    // la Q de lowpass/highpass va EN dB, y 0 dB = Q lineal 1.0 (pico de ~1.25 dB);
-    // el Butterworth plano (Q lineal 0.707) son -3 dB. La resonancia vive en la
-    // etapa final, así el knob Reso se comporta igual que a 12 dB.
-    // filterSlope se lee al crear la voz (cambia la estructura: aplica por nota).
+    // --- Per-voice filter: LP + HP in parallel with crossfade (morph) ---
+    // keytrack: the cutoff follows the note's pitch (0 = fixed, 1 = 1:1 with the pitch)
+    // 24 dB slope: a 2nd stage in CASCADE in front, flat. DOUBLE WATCH OUT: in WebAudio
+    // the lowpass/highpass Q is IN dB, and 0 dB = linear Q 1.0 (peak of ~1.25 dB);
+    // the flat Butterworth (linear Q 0.707) is -3 dB. The resonance lives in the
+    // final stage, so the Reso knob behaves the same as at 12 dB.
+    // filterSlope is read when the voice is created (it changes the structure: applies per note).
     this.noteFreq = freq;
     this.ktMul = S.keytrack ? Math.pow(freq / 261.63, S.keytrack) : 1;
     const cutHz = Math.min(20000, S.cutoff * this.ktMul);
-    // Tipo (filterType, por nota): 'morph' = LP + HP en PARALELO con crossfade
-    // (Low↔Hi); 'bp' = LP y HP en SERIE con el mismo corte (paso-banda: cada
-    // flanco 12 dB; con pendiente 24 cada uno lleva su 2ª etapa); 'notch' = LP
-    // + HP en paralelo a ganancia 1 cada uno. Los numeradores RBJ de LP y HP
-    // con el mismo corte suman 1 − 2cos·z⁻¹ + z⁻²: el notch del cookbook, cero
-    // exacto en el corte sea cual sea la Q (la Q solo lo estrecha). Es el
-    // morph al 50 % (0,5 + 0,5 = −6 dB) con +6 dB. Sin 2ª etapa en el notch:
-    // en cascada los dos flancos llegarían EN FASE al corte y el cero se
-    // llenaría (la pendiente no aplica).
+    // Type (filterType, per note): 'morph' = LP + HP in PARALLEL with crossfade
+    // (Low↔Hi); 'bp' = LP and HP in SERIES with the same cutoff (band-pass: each
+    // skirt 12 dB; with slope 24 each one carries its 2nd stage); 'notch' = LP
+    // + HP in parallel at gain 1 each. The RBJ numerators of LP and HP
+    // with the same cutoff add up to 1 − 2cos·z⁻¹ + z⁻²: the cookbook notch, an exact
+    // zero at the cutoff whatever the Q (the Q only narrows it). It is the
+    // morph at 50 % (0.5 + 0.5 = −6 dB) with +6 dB. No 2nd stage on the notch:
+    // in cascade both skirts would reach the cutoff IN PHASE and the zero would
+    // fill in (the slope doesn't apply).
     const ft = S.filterType || 'morph';
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
     lp.frequency.value = hp.frequency.value = cutHz;
-    lp.Q.value = hp.Q.value = ft === 'bp' ? S.reso / 2 : S.reso;   // BP: la resonancia se reparte entre los dos flancos (el knob sigue siendo dB en el corte)
+    lp.Q.value = hp.Q.value = ft === 'bp' ? S.reso / 2 : S.reso;   // BP: the resonance is split between the two skirts (the knob is still dB at the cutoff)
     let lp2 = null, hp2 = null, lpIn = lp, hpIn = hp;
     if (S.filterSlope === '24' && ft !== 'notch') {
       lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';
@@ -237,55 +237,55 @@ export class Voice {
     const lpMix = ctx.createGain(); lpMix.gain.value = ft === 'morph' ? 1 - S.morph : 1;
     const hpMix = ctx.createGain(); hpMix.gain.value = ft === 'morph' ? S.morph : 1;
     const filterOut = ctx.createGain();
-    if (ft === 'bp') { resOut.connect(lpIn); lp.connect(hpIn); hp.connect(filterOut); }   // serie
-    else {                                                                                  // paralelo (morph / notch)
+    if (ft === 'bp') { resOut.connect(lpIn); lp.connect(hpIn); hp.connect(filterOut); }   // series
+    else {                                                                                  // parallel (morph / notch)
       resOut.connect(lpIn); lp.connect(lpMix); lpMix.connect(filterOut);
       resOut.connect(hpIn); hp.connect(hpMix); hpMix.connect(filterOut);
     }
 
-    // Modulación del filtro — LFO de cutoff (todas las etapas) y de reso (la
-    // etapa con resonancia), envolvente de filtro y macro de apertura del
-    // arreglo — se CONECTA solo cuando mueve algo (ensureCutLfo, ensureResLfo,
-    // ensureFenv, ensureMacro; también en vivo, al subir su knob). Una conexión
-    // a un AudioParam del biquad, aunque traiga ceros, obliga al navegador a
-    // recalcular los coeficientes en CADA muestra en vez de una vez por bloque:
-    // medido, el filtro de la voz costaba más del doble con todo a 0.
-    // Desconectada, la salida es exactamente la misma (sumaba 0).
+    // Filter modulation — cutoff LFO (all stages) and reso LFO (the
+    // stage with resonance), filter envelope and the arrangement's opening
+    // macro — is CONNECTED only when it moves something (ensureCutLfo, ensureResLfo,
+    // ensureFenv, ensureMacro; also live, when its knob goes up). A connection
+    // to an AudioParam of the biquad, even one carrying zeros, forces the browser to
+    // recompute the coefficients on EVERY sample instead of once per block:
+    // measured, the voice's filter cost more than twice as much with everything at 0.
+    // Disconnected, the output is exactly the same (it added 0).
 
-    // Envolvente de filtro: ConstantSource(0..1) * envAmt(Hz) -> cutoff. La fuente
-    // existe siempre: es también la fuente «Env filtro» de la matriz.
+    // Filter envelope: ConstantSource(0..1) * envAmt(Hz) -> cutoff. The source
+    // always exists: it is also the matrix source «Filter env».
     const fenv = ctx.createConstantSource(); fenv.offset.value = 0;
     const fenvGain = ctx.createGain(); fenvGain.gain.value = S.filterEnvAmt;
     fenv.connect(fenvGain);
     fenv.start(t);
 
-    // --- VCA (envolvente de amplitud) + colocación estéreo ---
+    // --- VCA (amplitude envelope) + stereo placement ---
     const vca = ctx.createGain(); vca.gain.value = 0;
-    // ampMod: destino 'amp' de la matriz (1 ± mod). Va TRAS el VCA a propósito:
-    // al soltar la nota el VCA baja a 0 y silencia pase lo que pase el slot
-    // (sumado al propio VCA, un trémolo ±  seguiría sonando tras el release).
+    // ampMod: the matrix's 'amp' target (1 ± mod). It sits AFTER the VCA on purpose:
+    // on note release the VCA goes down to 0 and silences whatever the slot does
+    // (summed into the VCA itself, a ± tremolo would keep sounding after the release).
     const ampMod = ctx.createGain(); ampMod.gain.value = 1;
     const panner = ctx.createStereoPanner();
-    // posición base por altura de nota (±2 octavas desde C4 => ±1), escalada por Width
+    // base position by note pitch (±2 octaves from C4 => ±1), scaled by Width
     this.basePan = Math.max(-1, Math.min(1, Math.log2(freq / 261.63) / 2));
     panner.pan.value = this.basePan * S.width;
     filterOut.connect(vca); vca.connect(ampMod); ampMod.connect(panner); panner.connect(mod.voicesBus);
     noiseSrc.start(t);
 
-    // --- Programación de envolventes ADSR (amp + filtro comparten A/D/S/R) ---
+    // --- ADSR envelope scheduling (amp + filter share A/D/S/R) ---
     const peak = vel, sus = S.s * vel;
     const g = vca.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(0, t);
-    // Flam (hits > 1): antes del ADSR, hits−1 ráfagas cortas separadas hitGap —
-    // el tren de pulsos del clap de la 808 (tres o cuatro golpes a ~10 ms sobre
-    // el VCA del ruido, y luego la cola). El ADSR completo es el ÚLTIMO golpe;
-    // con hits = 1 el camino es el de siempre (bit-idéntico).
+    // Flam (hits > 1): before the ADSR, hits−1 short bursts hitGap apart —
+    // the pulse train of the 808 clap (three or four hits ~10 ms apart on
+    // the noise VCA, and then the tail). The full ADSR is the LAST hit;
+    // with hits = 1 the path is the usual one (bit-identical).
     const tEnv = this._flam(g, t, peak);
     this._envSegs(g, 0, peak, sus, tEnv, S.a, S.d);
-    this._envAmp = { t: tEnv, peak, sus, a: S.a, d: S.d };   // para estimar el valor en un release programado en el futuro
+    this._envAmp = { t: tEnv, peak, sus, a: S.a, d: S.d };   // to estimate the value at a release scheduled in the future
 
-    // Env del filtro: enlazada al ADSR de amplitud (link) o con tiempos propios.
-    // El pico escala con velocity (MIDI): pegar más fuerte abre más el filtro.
+    // Filter env: linked to the amplitude ADSR (link) or with its own times.
+    // The peak scales with velocity (MIDI): hitting harder opens the filter more.
     const own = S.fenvMode === 'own';
     const FA = own ? S.fa : S.a, FD = own ? S.fd : S.d, FS = own ? S.fs : S.s;
     const fo = fenv.offset;
@@ -293,31 +293,31 @@ export class Voice {
     this._envSegs(fo, 0, vel, FS * vel, t, FA, FD);
     this._envFil = { t, peak: vel, sus: FS * vel, a: FA, d: FD };
 
-    // guardar refs para updates en vivo y limpieza
+    // keep refs for live updates and cleanup
     Object.assign(this, { busA, busB, gA, gB, ringX, noiseGain, noiseSrc, nLP, nHP,
       filterType: ft, lp, hp, lp2, hp2, lpMix, hpMix, fenv, fenvGain, vca, ampMod, panner,
       preFilter, dvDry, dvOut, vocDry, vocOut, resDry, resOut });
-    if (S.filterDrive > 0) this.ensureDrive();  // el wet del drive (WaveShaper 2x) solo si muerde
-    if (S.cutLfoLvl > 0) this.ensureCutLfo();   // modulación del filtro: solo lo que mueve algo (ver arriba)
+    if (S.filterDrive > 0) this.ensureDrive();  // the drive's wet (2x WaveShaper) only if it bites
+    if (S.cutLfoLvl > 0) this.ensureCutLfo();   // filter modulation: only what moves something (see above)
     if (S.resLfoLvl > 0) this.ensureResLfo();
     if (S.filterEnvAmt) this.ensureFenv();
     if (mod.macroOn && mod.macroOn()) this.ensureMacro();
-    if (S.panLfoLvl) this.ensurePan();          // autopan (necesita this.panner ya asignado)
-    if (S.vocAmt > 0) this.ensureVocal();       // banco de formantes (también lo crea la matriz vía 'vow')
-    if (S.resAmt > 0) this.ensureReson();       // banco modal (necesita vocOut y noiseGain ya asignados)
+    if (S.panLfoLvl) this.ensurePan();          // autopan (needs this.panner already assigned)
+    if (S.vocAmt > 0) this.ensureVocal();       // formant bank (the matrix also creates it via 'vow')
+    if (S.resAmt > 0) this.ensureReson();       // modal bank (needs vocOut and noiseGain already assigned)
     if (S.vocLife > 0) this.ensureVida();
-    if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // golpe consonántico (evento de arranque)
+    if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // consonant bite (note-start event)
 
-    // matriz de modulación (necesita todas las refs ya asignadas)
+    // modulation matrix (needs all the refs already assigned)
     this.mxSlots = [];                          // slot i -> {src, gain, dst}
-    this._mxConsts = {};                        // fuentes escalares por voz (vel/note/rnd), cacheadas
+    this._mxConsts = {};                        // per-voice scalar sources (vel/note/rnd), cached
     for (let i = 1; i <= MX_SLOTS; i++) this.mxRewire(i);
   }
 
-  // Coste estimado de una voz en CPU de audio, en «voces simples» (dos sierras
-  // con el filtro quieto y sin módulos = 1): lo usa el presupuesto común de
-  // AudioEngine (VOICE_BUDGET). Pesos MEDIDOS (render offline de 12 voces por
-  // variante; ver docs/DISENO.md): lo caro es lo que se calcula por muestra.
+  // Estimated cost of a voice in audio CPU, in «simple voices» (two saws
+  // with a static filter and no modules = 1): used by AudioEngine's shared
+  // budget (VOICE_BUDGET). MEASURED weights (offline render of 12 voices per
+  // variant; see docs/DISENO.md): what's expensive is what is computed per sample.
   static cost(S) {
     const c = COST;
     const osc = o => {
@@ -329,23 +329,23 @@ export class Voice {
     const fmod = S.filterEnvAmt || S.cutLfoLvl > 0 || S.resLfoLvl > 0 || mxDst(S, 'cutoff') || mxDst(S, 'reso');
     if (fmod) k += S.filterSlope === '24' && S.filterType !== 'notch' ? c.filterMod24 : c.filterMod;
     if (S.filterDrive > 0) k += c.drive + (S.driveChar === 'fold' ? c.fold : 0);
-    if (S.vocAmt > 0) k += c.vocal + (mxDst(S, 'vow') ? c.vocMx : S.vocAtk > 0 ? c.vocDyn : 0);   // la Vida, medida, no suma
+    if (S.vocAmt > 0) k += c.vocal + (mxDst(S, 'vow') ? c.vocMx : S.vocAtk > 0 ? c.vocDyn : 0);   // Life, measured, adds nothing
     if (S.resAmt > 0) k += c.reson;
     return k;
   }
 
   _buildOscGroup(cfg, dest, freq, startFreq, glide, t) {
-    // UN nodo por grupo: las octavas se apilan DENTRO del processor (antes,
-    // un AudioWorkletNode por octava: hasta 8 worklets por voz; ahora 2).
+    // ONE node per group: the octaves are stacked INSIDE the processor (before,
+    // one AudioWorkletNode per octave: up to 8 worklets per voice; now 2).
     const node = new AudioWorkletNode(this.ctx, 'pulse-processor', {
       numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
       processorOptions: {
         type: cfg.wave, phase: (cfg.phase || 0) / 360, octaves: cfg.octaves,
-        t0: t,                                 // arranque de la nota: las envolventes por operador (FM4) cuentan desde aquí
-        seed: (this.rnd() * 4294967296) >>> 0,  // semilla del azar del worklet (fases libres, deriva): repetible offline
-        ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // el A: su maestro fantasma (sync) arranca en la fase del B
-        ...(cfg.wave === 'string' ? { vel: this.vel } : {}),   // la cuerda: la fuerza de la pulsación colorea la púa
-        // tablas mip (clonadas por el postMessage de opciones, ~290 KB por nodo: 0,3 ms)
+        t0: t,                                 // note start: the per-operator envelopes (FM4) count from here
+        seed: (this.rnd() * 4294967296) >>> 0,  // seed of the worklet's randomness (free phases, drift): repeatable offline
+        ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // A: its ghost master (sync) starts at B's phase
+        ...(cfg.wave === 'string' ? { vel: this.vel } : {}),   // the string: the strength of the pluck colors the plectrum
+        // mip tables (cloned by the options postMessage, ~290 KB per node: 0.3 ms)
         ...(cfg.wave === 'wavetable' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
     });
@@ -360,25 +360,25 @@ export class Voice {
     const udParam = node.parameters.get('uniDetune'); udParam.value = this.S.uniDetune;
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
-    const fmFParam = node.parameters.get('fmFb'); if (fmFParam) fmFParam.value = this.S.fmFb;   // puede faltar (worklet viejo en caché)
-    // FM4: algoritmo + ratio/nivel/decay × 4, fijados al nacer y en vivo por nombre (setFm4)
+    const fmFParam = node.parameters.get('fmFb'); if (fmFParam) fmFParam.value = this.S.fmFb;   // may be missing (old cached worklet)
+    // FM4: algorithm + ratio/level/decay × 4, set at birth and live by name (setFm4)
     const fm4P = {};
     for (const k of FM4_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = /^fm4L\d$/.test(k) ? this._fm4Lvl(+k[4]) : +this.S[k]; fm4P[k] = ap; } }
-    // puede faltar si el navegador sirvió un worklet viejo de caché: degradar sin crash
+    // may be missing if the browser served an old worklet from cache: degrade without crashing
     const wtParam = node.parameters.get('wtPos'); if (wtParam) wtParam.value = this.S.wtPos;
-    const syncParam = node.parameters.get('syncRatio'), slaveParam = node.parameters.get('slave');   // sync (solo el A los usa)
-    const strP = {};   // cuerda: Brillo, Decay, Posición y Rigidez, al nacer y en vivo (setStr)
+    const syncParam = node.parameters.get('syncRatio'), slaveParam = node.parameters.get('slave');   // sync (only A uses them)
+    const strP = {};   // string: Bright, Decay, Position and Stiffness, at birth and live (setStr)
     for (const k of STR_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = +this.S[k]; strP[k] = ap; } }
 
-    // Octava (cfg.oct, −2..+2): el oscilador suena a freq·2^oct — −1 es el
-    // suboscilador clásico, +1/+2 apilan hacia arriba sin recurrir a Apiladas.
-    // Va como RATIO de frecuencia (no en cents): así el glide (glideTo usa o.ratio)
-    // y el detune en cents siguen significando lo mismo que a la octava base.
+    // Octave (cfg.oct, −2..+2): the oscillator sounds at freq·2^oct — −1 is the
+    // classic sub-oscillator, +1/+2 stack upwards without resorting to Stack.
+    // It goes as a frequency RATIO (not in cents): so the glide (glideTo uses o.ratio)
+    // and the detune in cents still mean the same as at the base octave.
     const ratio = Math.pow(2, cfg.oct || 0);
     const fEnd = freq * ratio, fStart = startFreq ? startFreq * ratio : fEnd;
-    // afina ya el oscilador (durante el pre-roll de look-ahead la voz está en silencio)
+    // tune the oscillator right away (during the look-ahead pre-roll the voice is silent)
     fParam.value = glide > 0 ? fStart : fEnd;
-    // glide (portamento): rampa exponencial desde la nota anterior
+    // glide (portamento): exponential ramp from the previous note
     if (glide > 0) {
       fParam.setValueAtTime(fStart, t);
       fParam.exponentialRampToValueAtTime(fEnd, t + glide);
@@ -387,8 +387,8 @@ export class Voice {
     }
     this._glideLast.set(fParam, { value: fEnd, end: t + glide });
     dParam.value = cfg.detune;
-    // Pitch envelope por nota: arranca desviado pitchEnvAmt cents y decae
-    // exponencialmente al detune base (percusión, zaps, láseres)
+    // Per-note pitch envelope: it starts pitchEnvAmt cents off and decays
+    // exponentially to the base detune (percussion, zaps, lasers)
     if (this.S.pitchEnvAmt) {
       dParam.setValueAtTime(cfg.detune + this.S.pitchEnvAmt, t);
       dParam.setTargetAtTime(cfg.detune, t, Math.max(0.001, this.S.pitchEnvDec) / 4);
@@ -398,29 +398,29 @@ export class Voice {
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
       uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P, syncR: syncParam, slave: slaveParam, strP,
-      isWt: cfg.wave === 'wavetable', ratio });   // isWt: la secuencia de tabla solo automatiza estos · ratio: octava (glideTo)
+      isWt: cfg.wave === 'wavetable', ratio });   // isWt: the wave sequence only automates these · ratio: octave (glideTo)
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
-  // Sync duro (Roadmap 7.0 · 3.2): el A, esclavo del B. El worklet del A solo
-  // necesita la razón de frecuencias B / A (sin Pitch A): las octavas y los
-  // detunes de los dos, que se fijan por nota igual que en los osciladores. Lo
-  // demás (vibrato, pitch env, glide, bend, la matriz «Pitch») mueve a los dos
-  // a la vez y no cambia la razón. 0 = libre. En vivo: el botón Sync.
+  // Hard sync (Roadmap 7.0 · 3.2): A, slave to B. A's worklet only
+  // needs the frequency ratio B / A (without Pitch A): the octaves and the
+  // detunes of both, which are set per note just like in the oscillators. The
+  // rest (vibrato, pitch env, glide, bend, the matrix's «Pitch») moves both
+  // at once and doesn't change the ratio. 0 = free. Live: the Sync button.
   setSync(on) {
-    const a = this.oscs[0]; if (!a || !a.syncR) return;   // worklet viejo de caché: sin sync
+    const a = this.oscs[0]; if (!a || !a.syncR) return;   // old cached worklet: no sync
     const { oscA, oscB } = this.S;
     a.syncR.value = on ? Math.pow(2, (oscB.oct || 0) - (oscA.oct || 0) + ((oscB.detune || 0) - (oscA.detune || 0)) / 1200) : 0;
   }
 
-  // Ataque y decay de una envolvente: lineales (envCurve 0: bit-idéntico a
-  // siempre) o con curva RC (envCurve > 0) aproximada por ENV_SEG rampas por tramo.
+  // Attack and decay of an envelope: linear (envCurve 0: bit-identical to
+  // always) or with an RC curve (envCurve > 0) approximated by ENV_SEG ramps per segment.
   _envSegs(p, from, peak, sus, t, a, d, curve = this.S.envCurve) {
     const k = ENV_K * (curve || 0);
-    // Ataque 0 = ESCALÓN (percusión): el «golpe» de un parche es ese escalón — una
-    // rampa, aunque sea de 1 ms, se come el primer milisegundo del transitorio, que
-    // es donde vive el crack (lo cazó el usuario: el bombo solo golpeaba cuando, por
-    // azar, el VCA ya estaba abierto al nacer el oscilador).
+    // Attack 0 = STEP (percussion): the «hit» of a drumhead is that step — a
+    // ramp, even a 1 ms one, eats the first millisecond of the transient, which
+    // is where the crack lives (the user caught it: the kick only hit when, by
+    // chance, the VCA was already open when the oscillator was born).
     if (!(a > 0)) { p.setValueAtTime(peak, t); a = 0; }
     if (!(k > 0)) { if (a > 0) p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
     const den = 1 - Math.exp(-k);
@@ -430,13 +430,13 @@ export class Voice {
     if (a > 0) tramo(from, peak, t, a);
     tramo(peak, sus, t + a, d);
   }
-  // Flam: hits−1 ráfagas sobre el param p desde t; devuelve el instante en que
-  // arranca el ADSR (t si no hay flam). Cada ráfaga sube 0 → peak en el ataque
-  // (acotado a un tercio del hueco: una ráfaga tiene que ser un golpe) y cae a 0
-  // en el resto del hueco con la curva del knob (lineal o RC, como el release),
-  // así la siguiente arranca de 0 limpio y entre golpe y golpe hay un valle.
-  // Soltar la nota durante el flam funciona como siempre: release() ancla el
-  // valor en curso y cancela las ráfagas que quedaban.
+  // Flam: hits−1 bursts on param p from t; returns the instant at which
+  // the ADSR starts (t if there is no flam). Each burst rises 0 → peak during the attack
+  // (bounded to a third of the gap: a burst has to be a hit) and falls to 0
+  // over the rest of the gap with the knob's curve (linear or RC, like the release),
+  // so the next one starts cleanly from 0 and there is a valley between hits.
+  // Releasing the note during the flam works as always: release() anchors the
+  // current value and cancels the remaining bursts.
   _flam(p, t, peak) {
     const n = Math.round(this.S.hits || 1);
     if (!(n > 1)) return t;
@@ -444,15 +444,15 @@ export class Voice {
     for (let i = 0; i < n - 1; i++) {
       const ti = t + i * gap;
       if (atk > 0) { p.setValueAtTime(0, ti); p.linearRampToValueAtTime(peak, ti + atk); }
-      else p.setValueAtTime(peak, ti);          // ataque 0: pulsos de verdad (el clap de la 808)
+      else p.setValueAtTime(peak, ti);          // attack 0: real pulses (the 808 clap)
       this._relChain(p, ti + atk, peak, gap - atk);
     }
     const tEnv = t + (n - 1) * gap;
     p.setValueAtTime(0, tEnv);
     return tEnv;
   }
-  // Valor que tendrá la envolvente en el instante t (release programado en el
-  // futuro por los jugadores: el AudioParam aún no lo sabe). Misma curva que _envSegs.
+  // Value the envelope will have at instant t (release scheduled in the
+  // future by the players: the AudioParam doesn't know it yet). Same curve as _envSegs.
   _envValueAt(e, t) {
     if (!e) return 0;
     const k = ENV_K * ((e.curve !== undefined ? e.curve : this.S.envCurve) || 0), den = 1 - Math.exp(-k);
@@ -463,8 +463,8 @@ export class Voice {
     if (x < e.a + e.d) return e.peak + (e.sus - e.peak) * rc((x - e.a) / e.d);
     return e.sus;
   }
-  // Release desde cur hasta 0 en rel segundos con la curva del knob: lineal (k = 0) o RC
-  // como cadena de ENV_SEG rampas (cae deprisa y se posa). Llega a 0 EXACTO en t + rel.
+  // Release from cur to 0 in rel seconds with the knob's curve: linear (k = 0) or RC
+  // as a chain of ENV_SEG ramps (falls fast and settles). Reaches EXACTLY 0 at t + rel.
   _relChain(p, t, cur, rel, curve = this.S.envCurve) {
     const k = ENV_K * (curve || 0);
     if (!(k > 0) || !(cur > 0)) { p.linearRampToValueAtTime(0, t + rel); return; }
@@ -475,8 +475,8 @@ export class Voice {
     }
   }
 
-  // Color del ruido -> cutoffs de LP/HP (barridos exponenciales) + makeup de
-  // ganancia (el LP cerrado quita mucha más energía que el HP: compensa más).
+  // Noise color -> LP/HP cutoffs (exponential sweeps) + gain makeup
+  // (the closed LP removes much more energy than the HP: it compensates more).
   static _noiseColorCfg(c) {
     return {
       lp: c < 0 ? 18000 * Math.pow(150 / 18000, -c) : 18000,
@@ -485,13 +485,13 @@ export class Voice {
     };
   }
 
-  // Modulación global -> params del worklet SOLO cuando está activa: con todo
-  // a 0 (el caso común) el param queda constante y sin edges que computar.
-  // Si un knob pasa de 0 a activo, el engine llama a estos ensure* en vivo.
-  // Vibrato y PWM pasan por una ganancia de fade POR VOZ (lfoFade): el LFO
-  // entra en rampa 0->1 desde el noteOn, como el vibrato retardado de un
-  // intérprete. Programar la rampa anclada a t0 también funciona si el LFO se
-  // conecta a mitad de nota (eventos en el pasado = valor ya alcanzado).
+  // Global modulation -> worklet params ONLY when it is active: with everything
+  // at 0 (the common case) the param stays constant with no edges to compute.
+  // If a knob goes from 0 to active, the engine calls these ensure* live.
+  // Vibrato and PWM go through a PER-VOICE fade gain (lfoFade): the LFO
+  // comes in on a 0->1 ramp from the noteOn, like a performer's delayed
+  // vibrato. Scheduling the ramp anchored at t0 also works if the LFO is
+  // connected mid-note (events in the past = value already reached).
   _lfoFadeGain() {
     const g = this.ctx.createGain();
     if (this.S.lfoFade > 0) {
@@ -514,15 +514,15 @@ export class Voice {
     this.oscs.forEach(o => this.pwmFade.connect(o.pw));
   }
   ensurePan()   { if (this._connPan   || this.disposed) return; this._connPan   = true; this.panG = this._lfoGain('pan'); this.panG.connect(this.panner.pan); }
-  // Modulación del filtro y drive, bajo demanda (el porqué, en el constructor)
+  // Filter and drive modulation, on demand (the reason why, in the constructor)
   _filters() { return [this.lp, this.hp, this.lp2, this.hp2].filter(Boolean); }
   ensureCutLfo() { if (this.cutG || this.disposed) return; this.cutG = this._lfoGain('cut'); this._filters().forEach(f => this.cutG.connect(f.frequency)); }
   ensureResLfo() { if (this.resG || this.disposed) return; this.resG = this._lfoGain('res'); this.resG.connect(this.lp.Q); this.resG.connect(this.hp.Q); }
   ensureFenv()   { if (this._connFenv || this.disposed) return; this._connFenv = true; this._filters().forEach(f => this.fenvGain.connect(f.frequency)); }
   ensureMacro()  { if (this._connMacro || this.disposed || !this.mod.macroCut) return; this._connMacro = true; this._filters().forEach(f => this.mod.macroCut.connect(f.detune)); }
-  // Drive con carácter: la entrada de la curva es u = pre·x + sesgo, y la salida
-  // post·(f(u) − f(sesgo)) — en silencio, 0 exacto (y = f(g·x + b) − f(b)). Sesgo y
-  // compensación son ConstantSources: Asimetría se mueve sin regenerar curvas.
+  // Drive with character: the curve's input is u = pre·x + bias, and the output
+  // post·(f(u) − f(bias)) — in silence, exactly 0 (y = f(g·x + b) − f(b)). Bias and
+  // compensation are ConstantSources: Asym moves without regenerating curves.
   _driveCfg() {
     const S = this.S, v = S.filterDrive, ch = S.driveChar === 'fold' ? 'fold' : 'soft';
     const R = ch === 'fold' ? FOLD_R : 1, curve = ch === 'fold' ? FOLD_CURVE : DRIVE_CURVE;
@@ -538,19 +538,19 @@ export class Voice {
     this.dvBias = ctx.createConstantSource(); this.dvBias.offset.value = c.bias; this.dvBias.start(now);
     this.dvComp = ctx.createConstantSource(); this.dvComp.offset.value = c.comp; this.dvComp.start(now);
     this.dvPost = ctx.createGain(); this.dvPost.gain.value = c.post;
-    this.dvDC = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * DRV_DC_HZ / ctx.sampleRate)]);   // 1er orden: −0,1 dB a 40 Hz
+    this.dvDC = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * DRV_DC_HZ / ctx.sampleRate)]);   // 1st order: −0.1 dB at 40 Hz
     this.dvWet = ctx.createGain(); this.dvWet.gain.value = this.S.filterDrive;
     this.preFilter.connect(this.dvPre); this.dvPre.connect(this.dvShaper); this.dvBias.connect(this.dvShaper);
     this.dvShaper.connect(this.dvPost); this.dvComp.connect(this.dvPost);
     this.dvPost.connect(this.dvDC); this.dvDC.connect(this.dvWet); this.dvWet.connect(this.dvOut);
-    // matriz (destino Drive): el slot entra por dvMod — su ganancia es el recorrido del
-    // knob en unidades de la curva — a la ganancia de entrada (barridos de plegado)
+    // matrix (Drive target): the slot comes in through dvMod — its gain is the knob's travel
+    // in curve units — onto the input gain (fold sweeps)
     this.dvMod = ctx.createGain(); this.dvMod.gain.value = c.mod; this.dvMod.connect(this.dvPre.gain);
   }
   _driveApply(tau = 0.02) {
     if (!this.dvShaper) return;
     const c = this._driveCfg(), tc = this.ctx.currentTime;
-    if (this.dvChar !== c.ch) { this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvChar = c.ch; }   // cambio de carácter (la curva salta: un clic, como cambiar de onda)
+    if (this.dvChar !== c.ch) { this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvChar = c.ch; }   // character change (the curve jumps: a click, like changing waveform)
     this.dvPre.gain.setTargetAtTime(c.pre, tc, tau);
     this.dvPost.gain.setTargetAtTime(c.post, tc, tau);
     this.dvMod.gain.setTargetAtTime(c.mod, tc, tau);
@@ -560,26 +560,26 @@ export class Voice {
   setDriveChar() { this._driveApply(); }
   setDriveAsym() { this._driveApply(); }
 
-  // ---------- LFOs y deriva POR VOZ (Roadmap 5.0 · bloque 2) ----------
-  // _vlfo(k): el LFO propio k ('cut'|'res'|'freq'|'pwm'|'pan'), creado al primer
-  // uso leyendo el estado (forma, velocidad, Level) y arrancado en la fase que toca.
-  // _lfoGain(k): la ganancia de profundidad que hay que conectar al destino —
-  // la del LFO propio con lfoPhase 'voice', la global del motor si no.
+  // ---------- PER-VOICE LFOs and drift (Roadmap 5.0 · block 2) ----------
+  // _vlfo(k): the own LFO k ('cut'|'res'|'freq'|'pwm'|'pan'), created on first
+  // use reading the state (shape, speed, Level) and started at the phase that is due.
+  // _lfoGain(k): the depth gain to be connected to the target —
+  // the own LFO's with lfoPhase 'voice', the engine's global one otherwise.
   _vlfo(k) {
     const S = this.S;
     if (!this.vlfo[k]) this.vlfo[k] = mkVoiceLFO(this.ctx, S[k + 'LfoShape'] || 'sine', this.mod.lfoHz(k), S[k + 'LfoLvl'], this.t0,
-      S.lfoPhase === 'voice' ? this.phase : 0, S.lfoPhase === 'once');   // la velocidad efectiva: a tempo, la división al BPM
+      S.lfoPhase === 'voice' ? this.phase : 0, S.lfoPhase === 'once');   // the effective speed: in tempo, the division at the BPM
     return this.vlfo[k];
   }
   _lfoGain(k) { return this.vlfo ? this._vlfo(k).depth : this.mod[k + 'LFOGain']; }
-  // Fuente «Deriva (voz)»: el buffer de deriva (nodes.lfoBuffers) leído desde la
-  // fase de la voz a la velocidad mxDriftSpd, ±1 crudo (la cantidad la pone el slot).
+  // «Drift (voice)» source: the drift buffer (nodes.lfoBuffers) read from the
+  // voice's phase at speed mxDriftSpd, raw ±1 (the amount is set by the slot).
   _driftSrc() {
     if (!this.drift) this.drift = mkVoiceLFO(this.ctx, 'drift', this.S.mxDriftSpd, 1, this.t0, this.phase);
     return this.drift.out;
   }
-  // Level / Speed / forma del LFO k en vivo (los llama el engine; con lfoPhase
-  // 'global' no hay copia propia y no hace nada: el global ya cambió).
+  // Level / Speed / shape of LFO k live (called by the engine; with lfoPhase
+  // 'global' there is no own copy and it does nothing: the global one already changed).
   setLfo(k, what, value) {
     if (!this.vlfo || !this.vlfo[k] || this.disposed) return;
     const l = this.vlfo[k], tc = this.ctx.currentTime;
@@ -589,26 +589,26 @@ export class Voice {
   }
   setMxDriftSpd(hz) { if (this.drift && !this.disposed) setVoiceLfoRate(this.ctx, this.drift, hz, this.ctx.currentTime); }
 
-  // ---------- vocal: banco de formantes (tabla y curvas en vocal.js) ----------
-  // 3 bandpass en paralelo anclados a la frecuencia REF de cada formante; el
-  // morph vocálico viaja por su DETUNE (cents ⇒ exponencial, 0 Hz imposible).
-  // Señal de control (dominio ±1): ConstantSource del knob Vocal + los slots
-  // de matriz 'vow' SUMAN en la entrada de los WaveShapers; cada shaper mapea
-  // control → cents (freqCurve) o → ganancia lineal (gainCurve). OJO WebAudio:
-  // la Q del bandpass es LINEAL (f/BW), no en dB como lowpass/highpass.
+  // ---------- vocal: formant bank (table and curves in vocal.js) ----------
+  // 3 bandpasses in parallel anchored at each formant's REF frequency; the
+  // vowel morph travels through their DETUNE (cents ⇒ exponential, 0 Hz impossible).
+  // Control signal (±1 domain): ConstantSource of the Vowel knob + the matrix
+  // slots 'vow' ADD UP at the input of the WaveShapers; each shaper maps
+  // control → cents (freqCurve) or → linear gain (gainCurve). WATCH OUT, WebAudio:
+  // the bandpass Q is LINEAR (f/BW), not in dB like lowpass/highpass.
   //
-  // DOS MODOS, por coste. ESTÁTICO (el normal: solo el knob mueve la vocal): los
-  // formantes se fijan con el valor de las curvas en el control (Voice._shape,
-  // misma interpolación que un WaveShaper) y se deslizan con setTargetAtTime.
-  // DINÁMICO (Golpe > 0, o un slot de la matriz hacia 'Vocal'): como siempre —
-  // ConstantSource del knob + slots → 10 WaveShapers → cents y ganancias a
-  // audio-rate (_vocGoDynamic; también a mitad de nota si llega un slot).
-  // Y los 5 biquads van en K-RATE (coeficientes una vez por bloque de 128
-  // muestras, 2,7 ms) salvo con la matriz: la Vida (paseo lento), el knob
-  // (~50 ms) y la transición del Golpe (τ 24 ms) son mucho más lentos que un
-  // bloque, y recalcular por muestra era la mitad del CPU de una voz de coro
-  // (medido: banco + Vida a audio-rate ×4 frente a k-rate sin shapers). Un
-  // LFO hacia 'Vocal' sí puede barrer deprisa: con matriz, a-rate.
+  // TWO MODES, for cost. STATIC (the normal one: only the knob moves the vowel): the
+  // formants are set with the curves' value at the control (Voice._shape,
+  // same interpolation as a WaveShaper) and glide with setTargetAtTime.
+  // DYNAMIC (Bite > 0, or a matrix slot towards 'Vowel'): as always —
+  // ConstantSource of the knob + slots → 10 WaveShapers → cents and gains at
+  // audio rate (_vocGoDynamic; also mid-note if a slot arrives).
+  // And the 5 biquads run at K-RATE (coefficients once per block of 128
+  // samples, 2.7 ms) except with the matrix: Life (slow walk), the knob
+  // (~50 ms) and the Bite transition (τ 24 ms) are much slower than a
+  // block, and recomputing per sample was half the CPU of a choir voice
+  // (measured: bank + Life at audio rate ×4 versus k-rate without shapers). An
+  // LFO towards 'Vowel' can indeed sweep fast: with the matrix, a-rate.
   ensureVocal() {
     if (this.vocBqs || this.disposed) return;
     const ctx = this.ctx, S = this.S, bank = getVocalBank(), mul = bwMul(S.vocQ), x = S.vocVowel * 2 - 1;
@@ -619,43 +619,43 @@ export class Voice {
       Voice._rate(bq, 'k-rate');
       bq.frequency.value = f.ref;
       bq.detune.value = S.vocSize + Voice._shape(f.freqCurve, x);
-      bq.Q.value = f.ref / (f.bw * mul);          // Q constante: el BW escala con el shift (natural)
+      bq.Q.value = f.ref / (f.bw * mul);          // constant Q: the BW scales with the shift (natural)
       const g = ctx.createGain(); g.gain.value = Voice._shape(f.gainCurve, x) * this._vocBrillo(i, S.vocBright);
       this.dvOut.connect(bq); bq.connect(g); g.connect(this.vocWet);
       this.vocBqs.push(bq); this.vocGains.push(g);
     });
     this.vocWet.connect(this.vocOut);
     if (S.vocAtk > 0 || this._mxHasVow()) this._vocGoDynamic();
-    // (los slots 'vow' de la matriz no necesitan recableo: mxRewire pasa por
-    // _mxDestParams, que llama aquí ANTES de conectar — el banco siempre llega primero)
+    // (the matrix's 'vow' slots need no rewiring: mxRewire goes through
+    // _mxDestParams, which calls here BEFORE connecting — the bank always arrives first)
     if (this._needVida) this.ensureVida();
   }
-  // Paso a modo dinámico: la señal de control y sus 10 WaveShapers (ver arriba).
+  // Switch to dynamic mode: the control signal and its 10 WaveShapers (see above).
   _vocGoDynamic() {
     if (this.vocCtl || !this.vocBqs || this.disposed) return;
     const ctx = this.ctx, S = this.S, bank = getVocalBank();
     this.vocCtl = ctx.createConstantSource();
     const vTarget = S.vocVowel * 2 - 1;
     this.vocCtl.offset.value = vTarget;
-    // 'Golpe' parte 1 — transición de formantes: la boca ARRANCA cerrada
-    // (desplazada hacia /u/, proporcional al knob) y se abre a la vocal.
-    // Programada sobre t0 aunque el banco nazca a mitad de nota: eventos en
-    // el pasado = valor ya convergido (el truco del lfoFade).
+    // 'Bite' part 1 — formant transition: the mouth STARTS closed
+    // (shifted towards /u/, proportionally to the knob) and opens to the vowel.
+    // Scheduled at t0 even if the bank is born mid-note: events in
+    // the past = value already converged (the lfoFade trick).
     if (S.vocAtk > 0) {
       this.vocCtl.offset.setValueAtTime(Math.max(-1, vTarget - S.vocAtk * VOC_ATK_GLIDE), this.t0);
       this.vocCtl.offset.setTargetAtTime(vTarget, this.t0, VOC_ATK_TRANS);
     }
     this.vocCtl.start(this.t0);
-    if (this._mxHasVow()) this.vocBqs.forEach(bq => Voice._rate(bq, 'a-rate'));   // la matriz puede barrer deprisa
+    if (this._mxHasVow()) this.vocBqs.forEach(bq => Voice._rate(bq, 'a-rate'));   // the matrix can sweep fast
     bank.forEach((f, i) => {
       const bq = this.vocBqs[i], g = this.vocGains[i];
-      bq.detune.cancelScheduledValues(0); bq.detune.value = S.vocSize;   // base: el Tamaño; la vocal la suma su shaper
-      g.gain.cancelScheduledValues(0); g.gain.value = 0;                // la ganancia la pone su shaper
+      bq.detune.cancelScheduledValues(0); bq.detune.value = S.vocSize;   // base: the Size; the vowel is added by its shaper
+      g.gain.cancelScheduledValues(0); g.gain.value = 0;                // the gain is set by its shaper
       const shF = ctx.createWaveShaper(); shF.curve = f.freqCurve;
       const shG = ctx.createWaveShaper(); shG.curve = f.gainCurve;
       this.vocCtl.connect(shF); this.vocCtl.connect(shG);
       shF.connect(bq.detune);
-      // F4-F5 (racimo del cantante): su ganancia pasa por el escalado Brillo
+      // F4-F5 (the singer's cluster): their gain goes through the Bright scaling
       if (i >= VOC_BRILLO_IX) {
         const bg = ctx.createGain(); bg.gain.value = brilloMul(S.vocBright);
         shG.connect(bg); bg.connect(g.gain);
@@ -666,8 +666,8 @@ export class Voice {
   }
   _vocBrillo(i, b) { return i >= VOC_BRILLO_IX ? brilloMul(b) : 1; }
   _mxHasVow() { for (let i = 1; i <= MX_SLOTS; i++) if (this.S['mx' + i + 'src'] !== 'off' && this.S['mx' + i + 'dst'] === 'vow') return true; return false; }
-  // Valor de una curva en el control x ∈ [−1, 1] con la interpolación del
-  // WaveShaper (spec: índice (N−1)·(x+1)/2, lineal entre vecinos, recorte en los bordes).
+  // Value of a curve at control x ∈ [−1, 1] with the WaveShaper's
+  // interpolation (spec: index (N−1)·(x+1)/2, linear between neighbours, clipped at the edges).
   static _shape(curve, x) {
     const N = curve.length, v = (N - 1) * (x + 1) / 2;
     if (!(v > 0)) return curve[0];
@@ -675,14 +675,14 @@ export class Voice {
     const k = Math.floor(v), f = v - k;
     return curve[k] + (curve[k + 1] - curve[k]) * f;
   }
-  static _rate(bq, rate) { for (const p of [bq.frequency, bq.detune, bq.Q, bq.gain]) { try { p.automationRate = rate; } catch (e) { /* navegador sin automationRate: se queda a-rate */ } } }
-  // 'Vida': micro-deriva de los formantes — un paseo lento compartido
-  // (mod.wanderBuffer) leído desde un offset ALEATORIO por voz (coro
-  // descorrelacionado con un solo buffer), sumado en cents al detune de los
-  // 3 biquads a la vez (correlado dentro de la voz: la mandíbula es una).
+  static _rate(bq, rate) { for (const p of [bq.frequency, bq.detune, bq.Q, bq.gain]) { try { p.automationRate = rate; } catch (e) { /* browser without automationRate: stays a-rate */ } } }
+  // 'Life': micro-drift of the formants — a shared slow walk
+  // (mod.wanderBuffer) read from a RANDOM offset per voice (a
+  // decorrelated choir from a single buffer), added in cents to the detune of the
+  // 3 biquads at once (correlated within the voice: there's only one jaw).
   ensureVida() {
     if (this.vocWander || this.disposed) return;
-    if (!this.vocBqs) { this._needVida = true; return; }   // sin banco aún: se engancha al crearlo
+    if (!this.vocBqs) { this._needVida = true; return; }   // no bank yet: it hooks up when the bank is created
     const ctx = this.ctx, buf = this.mod.wanderBuffer;
     if (!buf) return;
     this.vocWander = ctx.createBufferSource();
@@ -693,13 +693,13 @@ export class Voice {
     this.vocBqs.forEach(bq => this.vocWanderGain.connect(bq.detune));
     this.vocWander.start(this.t0, this.rnd() * buf.duration);
   }
-  // 'Golpe' parte 2 — burst de ruido de una sola vez por un paso-banda ANCHO
-  // centrado en el F2 de la vocal actual (punto de articulación: «ka» ≠ «ku»);
-  // entra en vocOut = sigue pasando por LP/HP, VCA y pan como todo lo demás.
-  // Se agota en ~50 ms y se autolimpia; no toca el VCA ni el release.
+  // 'Bite' part 2 — one-shot noise burst through a WIDE band-pass
+  // centred on the current vowel's F2 (place of articulation: «ka» ≠ «ku»);
+  // it enters vocOut = it still goes through LP/HP, VCA and pan like everything else.
+  // It dies out in ~50 ms and cleans itself up; it doesn't touch the VCA or the release.
   _vocBurst(t, vel) {
     const S = this.S, bank = getVocalBank();
-    const f2 = bank[1];                       // F2: cents en la posición vocálica actual + Tamaño
+    const f2 = bank[1];                       // F2: cents at the current vowel position + Size
     const ix = Math.max(0, Math.min(f2.freqCurve.length - 1, Math.round(S.vocVowel * (f2.freqCurve.length - 1))));
     const hz = f2.ref * Math.pow(2, (f2.freqCurve[ix] + S.vocSize) / 1200);
     const src = this.ctx.createBufferSource();
@@ -710,16 +710,16 @@ export class Voice {
     const bp = this.ctx.createBiquadFilter();
     bp.type = 'bandpass'; bp.frequency.value = hz; bp.Q.value = VOC_ATK_Q;
     src.connect(g); g.connect(bp); bp.connect(this.vocOut);
-    src.start(t, this.rnd() * 1.5);           // offset aleatorio: cada consonante es distinta
-    src.stop(t + 0.25);                       // a ~16·τ el burst está a -140 dB: liberar
+    src.start(t, this.rnd() * 1.5);           // random offset: each consonant is different
+    src.stop(t + 0.25);                       // at ~16·τ the burst is at -140 dB: free it
     src.onended = () => { try { src.disconnect(); } catch (e) {} try { g.disconnect(); } catch (e) {} try { bp.disconnect(); } catch (e) {} };
     this.vocBurstSrc = src; this.vocBurstGain = g; this.vocBurstBp = bp;
   }
 
-  // ---------- resonador: banco modal (tablas y fórmulas en reson.js) ----------
-  // Seis bandpass en paralelo a f0·razón_i, entrada = la señal de la voz tras el
-  // Vocal (ganancia 1) + el ruido de la voz REFORZADO ∝ √Q (ver reson.js); la
-  // suma pasa por resWet (= Mezcla) a resOut, donde ya espera el camino seco.
+  // ---------- resonator: modal bank (tables and formulas in reson.js) ----------
+  // Six bandpasses in parallel at f0·ratio_i, input = the voice's signal after the
+  // Vocal (gain 1) + the voice's noise BOOSTED ∝ √Q (see reson.js); the
+  // sum goes through resWet (= Mix) to resOut, where the dry path is already waiting.
   ensureReson() {
     if (this.resBqs || this.disposed) return;
     const ctx = this.ctx, S = this.S, q = resQ(S.resDecay), nyq = ctx.sampleRate * 0.45;
@@ -732,14 +732,14 @@ export class Voice {
     this.resBqs = []; this.resGs = [];
     this.resRatios.forEach((r, i) => {
       const f = this.noteFreq * r, bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
-      bq.frequency.value = Math.min(nyq, f); bq.Q.value = q;                 // Q LINEAL en el bandpass (f/BW)
-      const g = ctx.createGain(); g.gain.value = f < nyq ? gains[i] : 0;     // modo sobre Nyquist: mudo
+      bq.frequency.value = Math.min(nyq, f); bq.Q.value = q;                 // LINEAR Q on the bandpass (f/BW)
+      const g = ctx.createGain(); g.gain.value = f < nyq ? gains[i] : 0;     // mode above Nyquist: muted
       this.resIn.connect(bq); bq.connect(g); g.connect(this.resWet);
       this.resBqs.push(bq); this.resGs.push(g);
     });
     this.resWet.connect(this.resOut);
   }
-  _resRetune(tau = 0.03) {       // frecuencias (nota actual × razones) y ganancias (Brillo), suavizadas
+  _resRetune(tau = 0.03) {       // frequencies (current note × ratios) and gains (Bright), smoothed
     if (!this.resBqs) return;
     const tc = this.ctx.currentTime, nyq = this.ctx.sampleRate * 0.45, gains = resGains(this.resRatios, this.S.resBright);
     this.resBqs.forEach((bq, i) => {
@@ -755,10 +755,10 @@ export class Voice {
     if (this.resWet) this.resWet.gain.setTargetAtTime(v, tc, 0.02);
   }
   setResMat(m)    { if (!this.resBqs) return; this.resRatios = resRatios(m); this._resRetune(); }
-  // Material por la matriz: el knob interpola el LOG de las razones (cuerda → barra),
-  // así que en cents es lineal y cada modo se mueve lo que separa sus dos razones
-  // (0, 555, 1019, 1391, 1699, 1962 ct): la afinación suma al knob sin aproximar. Los PESOS
-  // de los modos (resGains, que dependen de las razones) siguen los del knob: reafina, no cambia de material entero.
+  // Material via the matrix: the knob interpolates the LOG of the ratios (string → bar),
+  // so in cents it is linear and each mode moves by the gap between its two ratios
+  // (0, 555, 1019, 1391, 1699, 1962 ct): the tuning adds to the knob with no approximation. The WEIGHTS
+  // of the modes (resGains, which depend on the ratios) follow the knob's: it retunes, it doesn't change material entirely.
   _resMatMods() {
     if (!this.resBqs) return [];
     if (!this.resMatG) this.resMatG = this.resBqs.map((bq, i) => {
@@ -774,23 +774,23 @@ export class Voice {
     this.resNoise.gain.setTargetAtTime(resNoiseGain(q), tc, 0.03);
   }
 
-  // ---------- matriz de modulación (tablas en params.js) ----------
-  // Fuente de un slot: los LFO llegan CRUDOS (el oscilador global, ±1, sin
-  // pasar por su knob Level); 'env' es el ConstantSource de la env de filtro;
-  // vel/note/rnd son un valor fijo por nota => ConstantSource propio ("CV").
+  // ---------- modulation matrix (tables in params.js) ----------
+  // Source of a slot: the LFOs come in RAW (the global oscillator, ±1, without
+  // going through its Level knob); 'env' is the filter env's ConstantSource;
+  // vel/note/rnd are a fixed value per note => their own ConstantSource ("CV").
   _mxSrcNode(src) {
-    if (src.startsWith('lfo')) {        // con lfoPhase 'voice', el LFO propio (crudo, ±1); el trémolo es siempre el global (va tras la mezcla)
+    if (src.startsWith('lfo')) {        // with lfoPhase 'voice', the own LFO (raw, ±1); the tremolo is always the global one (it sits after the mix)
       const k = { lfoCut: 'cut', lfoRes: 'res', lfoFreq: 'freq', lfoPwm: 'pwm' }[src];
       return (this.vlfo && k) ? this._vlfo(k).out : (this.mod.mxLfo[src] || null);
     }
     if (src === 'drift') return this._driftSrc();
-    if (this.mod.perf && this.mod.perf[src]) return this.mod.perf[src];   // rueda / aftertouch / expresión (0..1, del motor)
+    if (this.mod.perf && this.mod.perf[src]) return this.mod.perf[src];   // wheel / aftertouch / expression (0..1, from the engine)
     if (src === 'env') return this.fenv;
     if (src === 'envm') return this._envmSrc();
     if (this._mxConsts[src]) return this._mxConsts[src];
-    const st = /^st(\d)(n?)$/.exec(src);              // Pasos (Roadmap 7.0 · 2.3)
-    if (st && !st[2]) return this.mod.stepSrc(+st[1], this.t0);   // continuo: la fuente del motor
-    if (st) {                                          // · nota: el valor del paso en que empieza la nota, fijo
+    const st = /^st(\d)(n?)$/.exec(src);              // Steps (Roadmap 7.0 · 2.3)
+    if (st && !st[2]) return this.mod.stepSrc(+st[1], this.t0);   // continuous: the engine's source
+    if (st) {                                          // · note: the value of the step in which the note starts, fixed
       const c = this.ctx.createConstantSource(); c.offset.value = this.mod.stepVal(+st[1], this.t0); c.start(this.t0);
       return this._mxConsts[src] = c;
     }
@@ -806,30 +806,30 @@ export class Voice {
     switch (dst) {
       case 'pitch':  return this.oscs.map(o => o.detune);
       case 'pw':     return this.oscs.map(o => o.pw);
-      // cutoff por el DETUNE del biquad (cents): computedFreq = freq·2^(det/1200),
-      // exponencial y sin cruce por 0 Hz. Todas las etapas, como el cutLFO.
+      // cutoff through the biquad's DETUNE (cents): computedFreq = freq·2^(det/1200),
+      // exponential and never crossing 0 Hz. All the stages, like the cutLFO.
       case 'cutoff': return [this.lp, this.hp, this.lp2, this.hp2].filter(Boolean).map(f => f.detune);
       case 'reso':   return [this.lp.Q, this.hp.Q];
       case 'amp':    return [this.ampMod.gain];
       case 'pan':    return [this.panner.pan];
       case 'wt':     return this.oscs.map(o => o.wt).filter(Boolean);
-      case 'fm':     return this.oscs.map(o => o.fmI);           // índice FM (k-rate; su min 0 recorta)
-      // Roadmap 7.0 · 2.4 — mezclador: la ganancia de cada fuente (bajo 0, fase invertida)
+      case 'fm':     return this.oscs.map(o => o.fmI);           // FM index (k-rate; its min 0 clips)
+      // Roadmap 7.0 · 2.4 — Mixer: the gain of each source (below 0, inverted phase)
       case 'lvlA':   return [this.gA.gain];
       case 'lvlB':   return [this.gB.gain];
       case 'lvlRing':return [this.ringX.gain];
       case 'lvlNoise': return [this.noiseGain.gain];
-      case 'pitchA': return [this.oscs[0].slave || this.oscs[0].detune];   // solo el A, y solo como ESCLAVO: el barrido del sync no mueve al maestro
-      case 'drive':  this.ensureDrive(); return [this.dvMod];    // ganancia de entrada de la curva (suena con Drive > 0)
+      case 'pitchA': return [this.oscs[0].slave || this.oscs[0].detune];   // only A, and only as SLAVE: the sync sweep doesn't move the master
+      case 'drive':  this.ensureDrive(); return [this.dvMod];    // input gain of the curve (audible with Drive > 0)
       case 'resMat': this.ensureReson(); return this._resMatMods();
-      // vocal: el slot suma su señal en la ENTRADA de los WaveShapers (junto
-      // al ConstantSource del knob) — connect() acepta nodos igual que params.
-      // Fuera de [-1,1] el shaper satura: el barrido se queda en u / i.
+      // vocal: the slot adds its signal at the INPUT of the WaveShapers (next
+      // to the knob's ConstantSource) — connect() accepts nodes just like params.
+      // Outside [-1,1] the shaper saturates: the sweep stops at u / i.
       case 'vow':    this.ensureVocal(); this._vocGoDynamic(); (this.vocBqs || []).forEach(bq => Voice._rate(bq, 'a-rate')); return this.vocShapers || [];
     }
     return [];
   }
-  mxRewire(i) {                 // (re)cablea el slot i leyendo el estado actual
+  mxRewire(i) {                 // (re)wires slot i reading the current state
     if (this.disposed) return;
     const old = this.mxSlots[i];
     if (old) {
@@ -847,12 +847,12 @@ export class Voice {
     params.forEach(p => gain.connect(p));
     this.mxSlots[i] = { src, gain, dst: dstId };
   }
-  mxSetAmt(i) {                 // sólo cambia la ganancia del slot (barato, en vivo)
+  mxSetAmt(i) {                 // only changes the slot's gain (cheap, live)
     const slot = this.mxSlots[i]; if (!slot || this.disposed) return;
     slot.gain.gain.setTargetAtTime((this.S['mx' + i + 'amt'] || 0) * (MX_SPAN[slot.dst] || 0), this.ctx.currentTime, 0.02);
   }
 
-  // ---------- updates en vivo (los llama el engine al girar knobs) ----------
+  // ---------- live updates (called by the engine when knobs are turned) ----------
   setLevel(o, v) { (o === 'A' ? this.gA : this.gB).gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
   setRing(r)   { this.ringX.gain.setTargetAtTime(r, this.ctx.currentTime, 0.02); }
   setNoise(n)  { this.noiseGain.gain.setTargetAtTime(n * Voice._noiseColorCfg(this.S.noiseColor).mk, this.ctx.currentTime, 0.02); }
@@ -881,29 +881,29 @@ export class Voice {
   setDrift(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.dr.setTargetAtTime(v, tc, 0.02)); }
   setUnison(n, ct)    { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.uv.setValueAtTime(+n || 1, tc); o.ud.setTargetAtTime(ct, tc, 0.02); }); }
   setFM(ratio, index, fb = 0) { const tc = this.ctx.currentTime; this.oscs.forEach(o => { o.fmR.setValueAtTime(ratio, tc); o.fmI.setTargetAtTime(index, tc, 0.02); if (o.fmF) o.fmF.setTargetAtTime(fb, tc, 0.02); }); }
-  // Nivel del operador i con su sensibilidad a la velocity (fm4V, la «key velocity
-  // sensitivity» del DX7): a 0 el nivel no depende de cómo pegues; a 1 es
-  // proporcional a la velocity. En un modulador el nivel ES el índice: pegar
-  // más fuerte = más armónicos, no solo más volumen.
+  // Level of operator i with its velocity sensitivity (fm4V, the DX7's «key velocity
+  // sensitivity»): at 0 the level doesn't depend on how hard you hit; at 1 it is
+  // proportional to velocity. In a modulator the level IS the index: hitting
+  // harder = more harmonics, not just more volume.
   _fm4Lvl(i) { const s = +this.S['fm4V' + i] || 0; return +this.S['fm4L' + i] * (1 - s + s * this.vel); }
   setFm4(key, v) {
-    const lv = /^fm4[LV](\d)$/.exec(key);   // Nivel y Vel mueven el mismo param del worklet
+    const lv = /^fm4[LV](\d)$/.exec(key);   // Level and Vel move the same worklet param
     if (lv) { key = 'fm4L' + lv[1]; v = this._fm4Lvl(+lv[1]); }
     const tc = this.ctx.currentTime; this.oscs.forEach(o => { const ap = o.fm4P && o.fm4P[key]; if (!ap) return; if (key === 'fm4Alg') ap.setValueAtTime(+v, tc); else ap.setTargetAtTime(+v, tc, 0.02); }); }
   setStr(key, v)      { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.strP && o.strP[key] && o.strP[key].setTargetAtTime(+v, tc, 0.02)); }
   setWtPos(v)         { const tc = this.ctx.currentTime; this.oscs.forEach(o => o.wt && o.wt.setTargetAtTime(v, tc, 0.02)); }
   setWidth(w)         { this.panner.pan.setTargetAtTime(this.basePan * w, this.ctx.currentTime, 0.03); }
 
-  // ---------- vocal en vivo ----------
+  // ---------- live vocal ----------
   setVocAmt(v) {
     if (v > 0) this.ensureVocal();
     const tc = this.ctx.currentTime;
     this.vocDry.gain.setTargetAtTime(1 - v, tc, 0.02);
     if (this.vocWet) this.vocWet.gain.setTargetAtTime(v * vocMakeup(this.S.vocQ), tc, 0.02);
   }
-  setVocVowel(v) {   // articulación ~50 ms: el knob "pronuncia", no salta
+  setVocVowel(v) {   // ~50 ms articulation: the knob "pronounces", it doesn't jump
     if (this.vocCtl) { this.vocCtl.offset.setTargetAtTime(v * 2 - 1, this.ctx.currentTime, VOC_SMOOTH); return; }
-    this._vocStatic(v * 2 - 1, VOC_SMOOTH);          // modo estático: los formantes, directamente
+    this._vocStatic(v * 2 - 1, VOC_SMOOTH);          // static mode: the formants, directly
   }
   setVocSize(ct) {
     const tc = this.ctx.currentTime;
@@ -911,7 +911,7 @@ export class Voice {
     if (this.vocCtl) this.vocBqs.forEach(bq => bq.detune.setTargetAtTime(ct, tc, 0.02));
     else this._vocStatic(this.S.vocVowel * 2 - 1, 0.02, ct);
   }
-  // Modo estático: lleva frecuencias (cents) y ganancias al punto x de las curvas
+  // Static mode: takes frequencies (cents) and gains to point x of the curves
   _vocStatic(x, tau, size = this.S.vocSize) {
     if (!this.vocBqs || this.vocCtl) return;
     const tc = this.ctx.currentTime, bank = getVocalBank();
@@ -928,7 +928,7 @@ export class Voice {
   }
   setVocBrillo(b) {
     if (!this.vocBqs) return;
-    if (!this.vocCtl) { this._vocStatic(this.S.vocVowel * 2 - 1, 0.02); return; }   // estático: Brillo va en la ganancia de F4-F5
+    if (!this.vocCtl) { this._vocStatic(this.S.vocVowel * 2 - 1, 0.02); return; }   // static: Bright goes into the gain of F4-F5
     const tc = this.ctx.currentTime;
     this.vocBrillos.forEach(g => g.gain.setTargetAtTime(brilloMul(b), tc, 0.02));
   }
@@ -937,19 +937,19 @@ export class Voice {
     if (this.vocWanderGain) this.vocWanderGain.gain.setTargetAtTime(v * VOC_VIDA_CENTS, this.ctx.currentTime, 0.02);
   }
 
-  // Desliza la afinación a una nueva nota (mono/legato), SIN retrigger de envolvente.
-  // `at` (opcional): hora musical de la nota (arp/Seq/jugadores la programan por
-  // adelantado): el cambio cae en su sitio de la rejilla, no al planificarlo.
+  // Glides the tuning to a new note (mono/legato), WITHOUT retriggering the envelope.
+  // `at` (optional): musical time of the note (arp/Seq/players schedule it
+  // ahead): the change lands at its place on the grid, not when it is scheduled.
   glideTo(freq, time, at = null) {
     const now = this.ctx.currentTime;
     const t = at !== null ? Math.max(now, at + this.lag) : now;
-    // Punto de partida de la rampa. cancelAndHoldAtTime solo deja uno si hay una
-    // automatización DESPUÉS de t que cortar; si no (la nota ya llegó a su altura),
-    // la rampa salía del último evento — el arranque de la nota — y el glide
-    // empezaba antes de tiempo (el slide del secuenciador subía desde el principio
-    // del paso; el legato del Mono, igual). Cada parámetro recuerda su última altura
-    // y hasta cuándo dura su rampa: con una rampa en curso en t, cancelAndHold la
-    // corta donde va; sin ella, el punto se fija a mano con la altura a la que llegó.
+    // Starting point of the ramp. cancelAndHoldAtTime only leaves one if there is an
+    // automation AFTER t to cut; if not (the note already reached its pitch),
+    // the ramp started from the last event — the note's start — and the glide
+    // began early (the sequencer slide rose from the beginning
+    // of the step; the Mono legato, the same). Each parameter remembers its last pitch
+    // and until when its ramp lasts: with a ramp running at t, cancelAndHold cuts it
+    // where it is; without one, the point is set by hand at the pitch it reached.
     const slide = (p, target) => {
       const last = this._glideLast.get(p) || { value: p.value, end: 0 };
       if (time > 0) {
@@ -962,17 +962,17 @@ export class Voice {
       this._glideLast.set(p, { value: target, end: t + time });
     };
     this.oscs.forEach(o => slide(o.freq, Math.max(1, freq * o.ratio)));
-    // el banco de resonadores sigue la nota: sus modos resbalan con los osciladores
+    // the resonator bank follows the note: its modes slide with the oscillators
     if (this.resBqs) { const nyq = this.ctx.sampleRate * 0.45; this.resFreq = freq; this.resBqs.forEach((bq, i) => slide(bq.frequency, Math.min(nyq, freq * this.resRatios[i]))); }
   }
 
-  // ---------- Env mod (Roadmap 7.0 · 2.1): la envolvente libre de la matriz ----------
-  // Nace bajo demanda (un slot con fuente «Env mod»), 0..1 y sin velocity, con su
-  // curva. normal = ADSR (como la de filtro); disparo = A → D → R seguidos, el
-  // note-off no la toca; bucle = A (0 → 1) + D (1 → 0) repetidos mientras dura la
-  // nota: UN ciclo en un buffer en loop arrancado en t0 — exacto a la muestra y sin
-  // nodos por repetición —; al soltar, el buffer para y una ConstantSource sigue
-  // desde el valor que tenía (calculado: la forma es conocida) con el release.
+  // ---------- Mod Env (Roadmap 7.0 · 2.1): the matrix's free envelope ----------
+  // Born on demand (a slot with source «Mod env»), 0..1 and without velocity, with its
+  // curve. normal = ADSR (like the filter one); trigger = A → D → R in a row, the
+  // note-off doesn't touch it; loop = A (0 → 1) + D (1 → 0) repeated while the
+  // note lasts: ONE cycle in a looped buffer started at t0 — sample-exact and with no
+  // nodes per repetition —; on release, the buffer stops and a ConstantSource carries on
+  // from the value it had (computed: the shape is known) with the release.
   _envmSrc() {
     if (this.envm) return this.envm.out;
     const ctx = this.ctx, S = this.S, now = ctx.currentTime, t0 = this.t0;
@@ -983,7 +983,7 @@ export class Voice {
       const T = A + D, cyc = envmCycle(ctx, A / T, curve), src = ctx.createBufferSource();
       src.buffer = cyc; src.loop = true; src.playbackRate.value = cyc.duration / T;
       src.connect(out);
-      if (t0 >= now) src.start(t0); else src.start(now, (((now - t0) % T) / T) * cyc.duration);   // nacido a mitad de nota (la matriz cambió)
+      if (t0 >= now) src.start(t0); else src.start(now, (((now - t0) % T) / T) * cyc.duration);   // born mid-note (the matrix changed)
       e.loop = src; e.T = T;
     } else {
       const p = c.offset;
@@ -995,7 +995,7 @@ export class Voice {
     this.envm = e;
     return out;
   }
-  // Valor del bucle en t (la forma del ciclo: ataque y caída con la curva)
+  // Value of the loop at t (the cycle's shape: attack and fall with the curve)
   _envmLoopAt(t) {
     const e = this.envm, x = (((t - e.t0) % e.T) + e.T) % e.T, fa = e.A / e.T, k = ENV_K * e.curve, den = 1 - Math.exp(-k);
     const rc = u => (k > 0 ? (1 - Math.exp(-k * u)) / den : u);
@@ -1003,7 +1003,7 @@ export class Voice {
   }
   _envmRelease(t) {
     const e = this.envm, now = this.ctx.currentTime;
-    if (e.mode === 'trigger') return;                 // ignora el note-off: la curva sigue entera
+    if (e.mode === 'trigger') return;                 // ignores the note-off: the curve runs in full
     if (e.mode === 'loop') {
       const v = this._envmLoopAt(t), p = e.c.offset;
       try { e.loop.stop(t); } catch (err) {}
@@ -1014,37 +1014,37 @@ export class Voice {
   }
 
   // ---------- release ----------
-  // `at` (opcional): hora MUSICAL del note-off (la escala de startAt); suena `lag` después.
+  // `at` (optional): MUSICAL time of the note-off (the scale of startAt); it sounds `lag` later.
   release(rel, at = null) {
     rel = Math.max(0.006, rel);
     const now = this.ctx.currentTime;
-    const t = at !== null ? Math.max(now, at + this.lag) : now;   // arp/Seq/jugadores programan el note-off en el reloj de audio
+    const t = at !== null ? Math.max(now, at + this.lag) : now;   // arp/Seq/players schedule the note-off on the audio clock
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
-    // Release con la curva del knob, anclando el valor ACTUAL. Clave: si sueltas a mitad de una rampa
-    // (p.ej. el decay de un pluck con sustain 0), cancelScheduledValues a secas borra la
-    // rampa-destino y el parámetro se queda clavado en el ÚLTIMO evento (el pico del attack)
-    // -> la ganancia saltaría de golpe a peak = re-disparo audible al soltar. Anclar primero
-    // el valor en curso evita ese salto; y al no usar cancelAndHoldAtTime tampoco hay click.
+    // Release with the knob's curve, anchoring the CURRENT value. Key: if you release mid-ramp
+    // (e.g. the decay of a pluck with sustain 0), a bare cancelScheduledValues erases the
+    // target ramp and the parameter stays stuck at the LAST event (the attack peak)
+    // -> the gain would jump at once to peak = audible retrigger on release. Anchoring the
+    // current value first avoids that jump; and since cancelAndHoldAtTime isn't used there's no click either.
     if (t > now) { this._releaseParamAt(this.vca.gain, t, rel, this._envAmp); this._releaseParamAt(this.fenv.offset, t, fRel, this._envFil); }
     else { this._releaseParam(this.vca.gain, t, rel); this._releaseParam(this.fenv.offset, t, fRel); }
     if (this.envm) this._envmRelease(t);
-    return t + rel + 0.03;  // la cadena llega a 0 exacto en t + rel: liberar los nodos ahí es inaudible
-                            // (manda el release de amplitud: con el VCA cerrado el filtro no suena)
+    return t + rel + 0.03;  // the chain reaches exactly 0 at t + rel: freeing the nodes there is inaudible
+                            // (the amplitude release rules: with the VCA closed the filter isn't heard)
   }
   _releaseParam(param, t, rel, curve) {
-    const cur = param.value;            // refleja el valor de la rampa en curso
+    const cur = param.value;            // reflects the value of the running ramp
     param.cancelScheduledValues(t);
-    param.setValueAtTime(cur, t);       // ancla aquí -> sin salto
+    param.setValueAtTime(cur, t);       // anchor here -> no jump
     this._relChain(param, t, cur, rel, curve);
   }
-  // Release programado en el FUTURO (arp, Seq, jugadores): el valor que tendrá la
-  // rampa en t aún no se puede leer — se calcula. cancelAndHoldAtTime recorta en t
-  // la rampa que lo cruce (cancelScheduledValues(t) la borraría: si es la del
-  // ataque, la nota callaría). Pero OJO: según la especificación solo deja un
-  // evento en t si una rampa lo CRUZA; si la envolvente ya se había posado en el
-  // sostenido, no añade nada y la rampa del release saldría del ÚLTIMO evento (el
-  // fin del decay, en el pasado): la ganancia caería en recta desde allí, de golpe
-  // al programarlo. De ahí el ancla explícita en t.
+  // Release scheduled in the FUTURE (arp, Seq, players): the value the ramp
+  // will have at t can't be read yet — it is computed. cancelAndHoldAtTime cuts at t
+  // the ramp that crosses it (cancelScheduledValues(t) would erase it: if it's the
+  // attack's, the note would go silent). But WATCH OUT: per the spec it only leaves an
+  // event at t if a ramp CROSSES it; if the envelope had already settled on the
+  // sustain, it adds nothing and the release ramp would start from the LAST event (the
+  // end of the decay, in the past): the gain would fall in a straight line from there, all at once
+  // when scheduled. Hence the explicit anchor at t.
   _releaseParamAt(param, t, rel, env) {
     const v = this._envValueAt(env, t);
     if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
@@ -1053,7 +1053,7 @@ export class Voice {
     this._relChain(param, t, v, rel, env.curve);
   }
 
-  // Corte rápido sin click (robo de voz / recorte de colas): re-rampa el VCA a cero.
+  // Fast click-free cut (voice stealing / tail trimming): re-ramps the VCA to zero.
   fadeOut(tau = 0.01) {
     const t = this.ctx.currentTime;
     this._releaseParam(this.vca.gain, t, tau);
@@ -1065,8 +1065,8 @@ export class Voice {
     this.disposed = true;
     const m = this.mod;
     if (m.stats) m.stats.worklets -= this.oscs.length;
-    // desconectar la modulación global de los params de esta voz y parar worklets
-    // (vibrato/PWM llegan a través de las ganancias de fade por voz)
+    // disconnect the global modulation from this voice's params and stop worklets
+    // (vibrato/PWM arrive through the per-voice fade gains)
     if (this.vibFade) { try { this.vibG.disconnect(this.vibFade); } catch (e) {} try { this.vibFade.disconnect(); } catch (e) {} }
     if (this.pwmFade) { try { this.pwmG.disconnect(this.pwmFade); } catch (e) {} try { this.pwmFade.disconnect(); } catch (e) {} }
     this.oscs.forEach(o => {
@@ -1074,16 +1074,16 @@ export class Voice {
       try { o.node.port.postMessage('stop'); } catch (e) {}
       try { o.node.disconnect(); } catch (e) {}
     });
-    // (cutG/resG/panG son los gains globales del motor o los propios de la voz: la misma desconexión)
+    // (cutG/resG/panG are the engine's global gains or the voice's own: the same disconnection)
     if (this.panG) { try { this.panG.disconnect(this.panner.pan); } catch (e) {} }
     if (this.cutG) this._filters().forEach(f => { try { this.cutG.disconnect(f.frequency); } catch (e) {} });
     if (this.resG) { try { this.resG.disconnect(this.lp.Q); } catch (e) {} try { this.resG.disconnect(this.hp.Q); } catch (e) {} }
-    if (this._connMacro) this._filters().forEach(f => { try { this.mod.macroCut.disconnect(f.detune); } catch (e) {} });   // la macro es del motor: soltar solo lo de esta voz
-    // LFOs y deriva propios de la voz: parar sus buffers (un BufferSource en loop no se para solo)
+    if (this._connMacro) this._filters().forEach(f => { try { this.mod.macroCut.disconnect(f.detune); } catch (e) {} });   // the macro belongs to the engine: release only this voice's part
+    // the voice's own LFOs and drift: stop their buffers (a looped BufferSource doesn't stop by itself)
     if (this.vlfo) for (const k in this.vlfo) stopVoiceLFO(this.vlfo[k]);
     stopVoiceLFO(this.drift);
-    // matriz: soltar los slots (la fuente puede ser un LFO global: hay que
-    // desconectarla del gain del slot para no dejar basura en el grafo)
+    // matrix: release the slots (the source may be a global LFO: it must be
+    // disconnected from the slot's gain so as not to leave garbage in the graph)
     this.mxSlots.forEach(s => {
       if (!s) return;
       try { s.src.disconnect(s.gain); } catch (e) {}

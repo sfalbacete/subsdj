@@ -1,32 +1,32 @@
 /* =====================================================================
-   SubSDJ · vocal — banco de formantes (el tracto vocal como filtro).
-   Modelo fuente-filtro del habla: la glotis es un tren de pulsos rico en
-   armónicos (≈ sierra) y el tracto vocal un filtro con 3-5 resonancias,
-   los FORMANTES. La identidad de una vocal son las posiciones de F1/F2
-   (F3 añade naturalidad) y sus amplitudes relativas. La propiedad clave:
-   los formantes NO dependen de la nota (cantar /a/ en Do2 o Do4 mueve
-   qué armónico cae dentro de la campana, no la campana). Por eso esto es
-   una etapa de FILTRADO a frecuencias absolutas por voz — el set
-   wavetable 'formant' no puede cantar: sus picos viven en el armónico n
-   y se transponen con el pitch (efecto ardilla).
+   SubSDJ · vocal — formant bank (the vocal tract as a filter).
+   Source-filter model of speech: the glottis is a pulse train rich in
+   harmonics (≈ saw) and the vocal tract a filter with 3-5 resonances,
+   the FORMANTS. The identity of a vowel is the position of F1/F2
+   (F3 adds naturalness) and their relative amplitudes. The key property:
+   formants do NOT depend on the note (singing /a/ at C2 or C4 changes
+   which harmonic falls inside the bell, not the bell). That's why this is
+   a FILTERING stage at absolute frequencies per voice — the 'formant'
+   wavetable set can't sing: its peaks live at harmonic n and are
+   transposed with the pitch (chipmunk effect).
 
-   Aquí viven la tabla de vocales y las CURVAS de morph: el recorrido de
-   cada formante (frecuencia y ganancia) a lo largo de u→o→a→e→i,
-   muestreado en VOC_N puntos. Cada curva se monta en un WaveShaper por
-   voz: señal de control (knob Vocal + matriz, dominio ±1) → curva →
-   AudioParam (detune del biquad en cents / ganancia lineal). Así el
-   morph vocálico es fontanería pura y funciona a audio-rate.
+   Here live the vowel table and the morph CURVES: the path of each
+   formant (frequency and gain) along u→o→a→e→i, sampled at VOC_N
+   points. Each curve is mounted in a WaveShaper per voice: control
+   signal (Vowel knob + matrix, ±1 domain) → curve → AudioParam (biquad
+   detune in cents / linear gain). So the vowel morph is pure plumbing
+   and works at audio rate.
    ===================================================================== */
 
-/* Tabla de vocales (5 formantes: [Hz], [dB]) — valores clásicos de canto
-   estilo Csound (tenor), redondeados: la percepción vocálica es robusta,
-   manda la ZONA de F1/F2, no el Hz exacto. F4-F5 apenas cambian de vocal:
-   se APIÑAN con F3 hacia 2.8-3.4 kHz y ese racimo es el «formante del
-   cantante» — el brillo fijo que deja oír una voz lírica sobre una
-   orquesta (knob Brillo: escala la ganancia de F4-F5). ORDEN del recorrido
-   u→o→a→e→i: F2 sube monótono (700→2140) y F1 dibuja un arco (cerrada→
-   abierta→cerrada) — un solo knob barre sin zigzags; el orden alfabético
-   haría a F2 subir y desplomarse (a→o). */
+/* Vowel table (5 formants: [Hz], [dB]) — classic singing values in the
+   Csound style (tenor), rounded: vowel perception is robust, what matters
+   is the ZONE of F1/F2, not the exact Hz. F4-F5 barely change between
+   vowels: they CLUSTER with F3 around 2.8-3.4 kHz and that cluster is the
+   «singer's formant» — the fixed brilliance that lets an operatic voice be
+   heard over an orchestra (Bright knob: scales the gain of F4-F5). ORDER
+   of the path u→o→a→e→i: F2 rises monotonically (700→2140) and F1 draws an
+   arc (closed→open→closed) — a single knob sweeps without zigzags; the
+   alphabetical order would make F2 rise and collapse (a→o). */
 export const VOWELS = [
   { v: 'u', f: [325, 700, 2530, 2900, 3300], db: [0, -12, -17, -14, -22] },
   { v: 'o', f: [450, 800, 2830, 3000, 3350], db: [0, -10, -14, -12, -22] },
@@ -34,60 +34,60 @@ export const VOWELS = [
   { v: 'e', f: [440, 1800, 2700, 3100, 3400], db: [0, -9, -10, -8, -18] },
   { v: 'i', f: [270, 2140, 2950, 3300, 3600], db: [0, -12, -9, -10, -16] },
 ];
-export const VOC_ORDEN = VOWELS.map(w => w.v).join('');   // 'uoaei' (formato del knob)
+export const VOC_ORDEN = VOWELS.map(w => w.v).join('');   // 'uoaei' (knob format)
 const N_FORM = 5;
-export const VOC_BRILLO_IX = 3;   // desde este índice actúa Brillo (F4-F5, el racimo del cantante)
-// 0 = sin F4-F5 (el banco de 3 de siempre) · 0.5 = la tabla · 1 = +12 dB
+export const VOC_BRILLO_IX = 3;   // Bright acts from this index on (F4-F5, the singer's cluster)
+// 0 = no F4-F5 (the usual 3-band bank) · 0.5 = the table · 1 = +12 dB
 export const brilloMul = b => (2 * b) * (2 * b);
 
-/* Ancho de banda natural por formante (Hz). Fijo por formante (la
-   identidad vocálica vive en posición+amplitud; el BW es de segundo
-   orden) y escalado por el knob Q: bandas finas = electrónico/vocoder,
-   anchas = blando. OJO WebAudio: la Q del BANDPASS es LINEAL (Q = f/BW),
-   no en dB como lowpass/highpass — la trampa de julio, en espejo. */
+/* Natural bandwidth per formant (Hz). Fixed per formant (the vowel
+   identity lives in position+amplitude; the BW is second-order) and
+   scaled by the Q knob: narrow bands = electronic/vocoder, wide ones =
+   soft. WATCH OUT, WebAudio: the Q of the BANDPASS is LINEAR (Q = f/BW),
+   not in dB like lowpass/highpass — the July trap, mirrored. */
 const BWS = [75, 90, 120, 130, 140];
-const BW_MUL_MIN = 0.35;      // knob Q a 0: robot (Q ≈ 3× la natural)
-const BW_MUL_MAX = 2.5;       // knob Q a 1: suave, casi soplado
+const BW_MUL_MIN = 0.35;      // Q knob at 0: robot (Q ≈ 3× the natural one)
+const BW_MUL_MAX = 2.5;       // Q knob at 1: soft, almost breathy
 export const bwMul = q => BW_MUL_MIN * Math.pow(BW_MUL_MAX / BW_MUL_MIN, q);
 
-/* Makeup del camino wet: 3 bandas estrechas tiran mucha energía del
-   espectro completo (compensar = el knob cambia timbre, no volumen; la
-   misma medicina que noiseColor.mk). Al estrechar el BW por m la energía
-   que pasa cae ~m ⇒ amplitud ~√m: el makeup crece con 1/√m. */
+/* Makeup of the wet path: 3 narrow bands take a lot of energy out of the
+   full spectrum (compensating = the knob changes timbre, not volume; the
+   same medicine as noiseColor.mk). Narrowing the BW by m makes the energy
+   that passes drop ~m ⇒ amplitude ~√m: the makeup grows with 1/√m. */
 const VOC_MAKEUP = 3.0;
 export const vocMakeup = q => VOC_MAKEUP / Math.sqrt(bwMul(q));
 
-export const VOC_VIDA_CENTS = 60;   // 'Vida' a tope: los formantes vagan ±60 ct (~±3.5%)
-export const VOC_SMOOTH = 0.045;    // articulación del knob Vocal (la boca tarda ~50 ms)
+export const VOC_VIDA_CENTS = 60;   // 'Life' at max: the formants wander ±60 ct (~±3.5%)
+export const VOC_SMOOTH = 0.045;    // articulation of the Vowel knob (the mouth takes ~50 ms)
 
-/* 'Golpe': consonante percusiva al arrancar la nota, en DOS partes.
-   (1) La TRANSICIÓN de formantes: la boca sale de un cierre (posición
-   desplazada hacia /u/: F1 y F2 abajo) y se abre hacia la vocal en ~70 ms.
-   Los experimentos clásicos de percepción (Haskins) demostraron que ESTO
-   es lo que el oído usa para oír una oclusiva — la transición sola, sin
-   ruido, ya se percibe como consonante. (2) El BURST de ruido de la
-   explosión, por un paso-banda ANCHO centrado en el F2 de la vocal (el
-   «punto de articulación»: «ka» ≠ «ku»). Ancho a propósito: por el banco
-   fino la plosiva perdía ~97% de la energía y quedaba en click tímido
-   (medido: +3% de RMS). El knob escala AMBAS: bajo = «wa/da» blanda,
-   alto = «ka» dura; y escala con velocity y con Mix. Es un transitorio
-   pre-VCA: con attack lento del ADSR se pierde (como un coro real, que
-   tampoco articula /k/ en un crescendo). */
-export const VOC_ATK_GAIN = 6.0;    // nivel del burst a tope (banda ancha, sin makeup)
-export const VOC_ATK_TAU = 0.015;   // caída del burst (τ; audible ~50 ms: plosiva, no soplo)
-export const VOC_ATK_Q = 1.2;       // Q del paso-banda del burst (ancho: una explosión, no un silbido)
-export const VOC_ATK_GLIDE = 1.5;   // cierre a Golpe 1 (en el eje u↔i: desde /a/ llega hasta /u/)
-export const VOC_ATK_TRANS = 0.024; // τ de la transición cierre→vocal (~95% a 3τ ≈ 70 ms)
+/* 'Bite': percussive consonant at the note start, in TWO parts.
+   (1) The formant TRANSITION: the mouth comes out of a closure (position
+   shifted towards /u/: F1 and F2 down) and opens towards the vowel in
+   ~70 ms. The classic perception experiments (Haskins) showed that THIS
+   is what the ear uses to hear a stop consonant — the transition alone,
+   with no noise, is already heard as a consonant. (2) The noise BURST of
+   the release, through a WIDE band-pass centred on the vowel's F2 (the
+   «place of articulation»: «ka» ≠ «ku»). Wide on purpose: through the
+   narrow bank the plosive lost ~97% of its energy and was left as a timid
+   click (measured: +3% RMS). The knob scales BOTH: low = soft «wa/da»,
+   high = hard «ka»; and it scales with velocity and with Mix. It is a
+   pre-VCA transient: with a slow ADSR attack it gets lost (like a real
+   choir, which doesn't articulate /k/ in a crescendo either). */
+export const VOC_ATK_GAIN = 6.0;    // burst level at max (wide band, no makeup)
+export const VOC_ATK_TAU = 0.015;   // burst decay (τ; audible ~50 ms: a plosive, not a breath)
+export const VOC_ATK_Q = 1.2;       // Q of the burst band-pass (wide: an explosion, not a whistle)
+export const VOC_ATK_GLIDE = 1.5;   // closure at Bite 1 (on the u↔i axis: from /a/ it reaches /u/)
+export const VOC_ATK_TRANS = 0.024; // τ of the closure→vowel transition (~95% at 3τ ≈ 70 ms)
 
-/* ---------- curvas de morph (una vez, compartidas por todas las voces) ----------
-   Para cada formante: frecuencia REF = media geométrica de las 5 vocales
-   (el biquad se ancla ahí y el morph viaja por su detune, en cents ⇒
-   exponencial y sin cruzar 0 Hz — la lección del cutLFO otra vez) y dos
-   curvas de VOC_N puntos sobre el dominio de control [-1,1]:
-     freqCurve  cents respecto a REF (lineal a trozos en log-frecuencia)
-     gainCurve  ganancia lineal (interpolada en dB entre vocales)
-   VOC_N impar y múltiplo de (vocales−1)·2^k: las vocales caen EXACTAS en
-   la rejilla del WaveShaper y su interpolación lineal reproduce la curva. */
+/* ---------- morph curves (once, shared by all voices) ----------
+   For each formant: REF frequency = geometric mean of the 5 vowels
+   (the biquad is anchored there and the morph travels through its detune,
+   in cents ⇒ exponential and never crossing 0 Hz — the cutLFO lesson
+   again) and two curves of VOC_N points over the control domain [-1,1]:
+     freqCurve  cents relative to REF (piecewise linear in log-frequency)
+     gainCurve  linear gain (interpolated in dB between vowels)
+   VOC_N odd and a multiple of (vowels−1)·2^k: the vowels fall EXACTLY on
+   the WaveShaper grid and its linear interpolation reproduces the curve. */
 export const VOC_N = 257;
 
 let _bank = null;
@@ -101,7 +101,7 @@ export function getVocalBank() {
     const ref = Math.exp(lg / V);
     const fc = new Float32Array(VOC_N), gc = new Float32Array(VOC_N);
     for (let i = 0; i < VOC_N; i++) {
-      const p = (i / (VOC_N - 1)) * (V - 1);            // posición vocálica 0..4
+      const p = (i / (VOC_N - 1)) * (V - 1);            // vowel position 0..4
       const k = Math.min(V - 2, Math.floor(p)), w = p - k;
       const A = VOWELS[k], B = VOWELS[k + 1];
       fc[i] = 1200 * ((1 - w) * Math.log2(A.f[f] / ref) + w * Math.log2(B.f[f] / ref));

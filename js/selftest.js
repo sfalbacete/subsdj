@@ -1,24 +1,24 @@
 /* =====================================================================
    SubSDJ · self-test (?selftest=1)
-   Red de regresión sin herramientas externas: renderiza cada preset de
-   fábrica en un OfflineAudioContext (C3 en t=0, +G3 en t=0.5, suelta
-   ambas en t=1.0, cola = release del preset) y comprueba:
-     1) que todas las claves del preset existen en CONTROLS (caza typos),
-     2) que el render no contiene NaN/Infinity,
-     3) que no es silencio (pico > -40 dBFS),
-     4) que no hay clipping (pico <= 0 dBFS).
-   Además: check estático de la migración de presets v1->v2 y un estrés de
-   16 notas simultáneas que ejercita MAX_POLY (robo de voz) y MAX_TAILS.
-   Recorre el MISMO camino que al cargar un preset de verdad:
-   loadState() sobre los controles -> engine.S (espacio-motor) -> clon
-   -> motor nuevo sobre el contexto offline. Así valida también el mapeo
-   control->motor (logCut, rangos), no sólo el DSP.
-   Resultados: panel en pantalla + console.table + título de la pestaña.
+   Regression net with no external tools: renders every factory preset
+   in an OfflineAudioContext (C3 at t=0, +G3 at t=0.5, releases both
+   at t=1.0, tail = the preset's release) and checks:
+     1) that every key of the preset exists in CONTROLS (catches typos),
+     2) that the render contains no NaN/Infinity,
+     3) that it is not silence (peak > -40 dBFS),
+     4) that there is no clipping (peak <= 0 dBFS).
+   Also: a static check of the v1->v2 preset migration and a stress test of
+   16 simultaneous notes that exercises MAX_POLY (voice stealing) and MAX_TAILS.
+   It walks the SAME path as loading a real preset:
+   loadState() over the controls -> engine.S (engine space) -> clone
+   -> new engine on the offline context. So it also validates the
+   control->engine mapping (logCut, ranges), not only the DSP.
+   Results: on-screen panel + console.table + the tab title.
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
 import { Voice } from './engine/Voice.js';
 import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Sala.js';
-const HR = Math.pow(10, HEADROOM_DB / 20);   // margen fijo del máster (1.1.0): los umbrales ABSOLUTOS de nivel lo llevan dentro
+const HR = Math.pow(10, HEADROOM_DB / 20);   // fixed master headroom (1.1.0): the ABSOLUTE level thresholds include it
 import { Arp } from './engine/Arp.js';
 import { Clock, clockOf } from './engine/Clock.js';
 import { Steps, cycleBars } from './engine/Steps.js';
@@ -55,7 +55,7 @@ import { splashDate, SplashFx } from './ui/splash.js';
 import { FM4_ALGS, layout as fm4Layout, svgFor as fm4Svg } from './ui/fm4Graph.js';
 
 const SR = 44100;
-const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: acorde en poli, legato en mono
+const NOTE1 = 130.81, NOTE2 = 196.0;   // C3 + G3: a chord in poly, legato in mono
 const SILENCE = 0.01;                  // -40 dBFS
 
 const dB = v => v > 1e-6 ? (20 * Math.log10(v)).toFixed(1) + ' dB' : '−∞';
@@ -75,7 +75,7 @@ function analyze(buf) {
 }
 
 async function renderBuf(state, vel = 1) {
-  const dur = Math.min(6, 1.0 + (state.r || 0.3) + 0.3);   // 1 s de nota + cola de release
+  const dur = Math.min(6, 1.0 + (state.r || 0.3) + 0.3);   // 1 s of note + release tail
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * dur), SR);
   const eng = new AudioEngine();
   eng.S = state;
@@ -86,9 +86,9 @@ async function renderBuf(state, vel = 1) {
   return ctx.startRendering();
 }
 async function renderState(state) { return analyze(await renderBuf(state)); }
-// Render de UNA sola nota (C3, velocity `vel`) de `secs` segundos con noteOff
-// en `offAt`: para checks que miden ventanas temporales sin que la 2ª nota
-// del render estándar las contamine (delay de cinta, FM en la matriz).
+// Render of ONE note (C3, velocity `vel`) lasting `secs` seconds with noteOff
+// at `offAt`: for checks that measure time windows without the 2nd note
+// of the standard render polluting them (tape delay, FM in the matrix).
 async function renderOne(state, { secs = 2.2, offAt = 0.3, vel = 1 } = {}) {
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
   const eng = new AudioEngine(); eng.S = state;
@@ -97,8 +97,8 @@ async function renderOne(state, { secs = 2.2, offAt = 0.3, vel = 1 } = {}) {
   ctx.suspend(offAt).then(() => { eng.noteOff('t1'); ctx.resume(); });
   return ctx.startRendering();
 }
-// Tilt espectral de una ventana [t0,t1): energía de la 1ª diferencia / energía
-// (∝ centroide; independiente del nivel). Sube con el brillo.
+// Spectral tilt of a window [t0,t1): energy of the 1st difference / energy
+// (∝ centroid; level-independent). It rises with brightness.
 function tiltW(buf, t0, t1) {
   const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
   let hf = 0, en = 0;
@@ -106,8 +106,8 @@ function tiltW(buf, t0, t1) {
   return hf / Math.max(1e-12, en);
 }
 
-// Telemetría para ejecución headless: cada GET queda en el log del http.server
-// (aunque responda 404), así que un runner externo puede leer los resultados.
+// Telemetry for headless runs: every GET ends up in the http.server log
+// (even if it answers 404), so an external runner can read the results.
 const ping = q => { try { fetch('selftest.ping?' + q, { cache: 'no-store' }).catch(() => {}); } catch (e) {} };
 
 async function renderStress(state) {
@@ -123,22 +123,22 @@ async function renderStress(state) {
 async function testPreset(name, data) {
   const problems = [];
   const badKeys = Object.keys(data).filter(k => !(k in CONTROLS));
-  if (badKeys.length) problems.push('claves desconocidas: ' + badKeys.join(', '));
+  if (badKeys.length) problems.push('unknown keys: ' + badKeys.join(', '));
   let peak = 0;
   try {
-    loadState(data);                        // aplica el preset por el camino real (UI -> S)
+    loadState(data);                        // applies the preset through the real path (UI -> S)
     const r = await renderState(structuredClone(engine.S));
     peak = r.peak;
-    if (r.bad) problems.push(r.bad + ' muestras NaN/Inf');
-    else if (peak <= SILENCE) problems.push('silencio (pico ' + dB(peak) + ')');
-    else if (peak > 1.0) problems.push('clipping (pico ' + dB(peak) + ')');
+    if (r.bad) problems.push(r.bad + ' NaN/Inf samples');
+    else if (peak <= SILENCE) problems.push('silence (peak ' + dB(peak) + ')');
+    else if (peak > 1.0) problems.push('clipping (peak ' + dB(peak) + ')');
   } catch (e) {
-    problems.push('excepción: ' + ((e && e.message) || e));
+    problems.push('exception: ' + ((e && e.message) || e));
   }
   return { name, peak, problems, ok: problems.length === 0 };
 }
 
-// ---------- panel de resultados ----------
+// ---------- results panel ----------
 function el(cls, text) {
   const d = document.createElement('div');
   d.className = cls;
@@ -149,8 +149,8 @@ function makePanel() {
   const p = document.createElement('div');
   p.id = 'selftestPanel';
   p.innerHTML =
-    '<div class="st-head"><b>Self-test</b><span id="stSummary">preparando…</span>' +
-    '<button id="stClose" title="Cerrar">✕</button></div><div id="stBody"></div>';
+    '<div class="st-head"><b>Self-test</b><span id="stSummary">preparing…</span>' +
+    '<button id="stClose" title="Close">✕</button></div><div id="stBody"></div>';
   document.body.appendChild(p);
   p.querySelector('#stClose').addEventListener('click', () => p.remove());
   return p;
@@ -170,92 +170,92 @@ export async function runSelfTest() {
   const panel = makePanel();
   const body = panel.querySelector('#stBody');
   const summary = panel.querySelector('#stSummary');
-  await presetBankReady();   // la siembra de los bancos del repo es asíncrona: el selector, completo antes de contar
+  await presetBankReady();   // seeding the repo banks is asynchronous: the selector must be complete before counting
 
-  // nombres duplicados en el banco (el lookup de presets es plano, por nombre)
+  // duplicate names in the bank (the preset lookup is flat, by name)
   const seen = new Set(), dups = [];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) {
     if (seen.has(name)) dups.push(name); else seen.add(name);
   }
-  if (dups.length) body.appendChild(el('st-err', 'Nombres duplicados en FACTORY: ' + dups.join(', ')));
+  if (dups.length) body.appendChild(el('st-err', 'Duplicate names in FACTORY: ' + dups.join(', ')));
 
   const results = [];
   let ok = 0;
   const push = r => { results.push(r); if (r.ok) ok++; addRow(body, r); };
-  // TANDAS (?tanda=checks | ?tanda=fabrica). Cientos de OfflineAudioContext en UNA página la
-  // cuelgan sin error — ni los temporizadores ni el depurador responden: se quedaba en el
-  // render ~330, en un preset cualquiera — porque cada uno arrastra el hilo de su worklet y
-  // no se suelta a tiempo (ni llamando a gc() cada 5 renders). Cada tanda va por debajo del
-  // límite y el runner (tools/run-selftest.mjs) pasa cada una en un navegador nuevo. Sin
-  // ?tanda va todo seguido en la misma página, como antes: puede no llegar al final.
+  // BATCHES (?tanda=checks | ?tanda=fabrica). Hundreds of OfflineAudioContexts in ONE page
+  // hang it with no error — neither the timers nor the debugger respond: it got stuck at
+  // render ~330, on any preset — because each one drags along its worklet thread and
+  // it is not released in time (not even calling gc() every 5 renders). Each batch stays under
+  // the limit and the runner (tools/run-selftest.mjs) runs each one in a fresh browser. Without
+  // ?tanda everything runs in a row on the same page, as before: it may not reach the end.
   const TANDA = new URLSearchParams(location.search).get('tanda');
   const enTanda = t => !TANDA || TANDA === t;
 
-  if (enTanda('checks')) {   // ---------- tanda «checks»: todo menos el banco de fábrica ----------
-  // check estático: migración de presets de usuario v1 (cutoff 0..1) -> v2 (Hz)
+  if (enTanda('checks')) {   // ---------- «checks» batch: everything but the factory bank ----------
+  // static check: migration of v1 user presets (cutoff 0..1) -> v2 (Hz)
   {
-    body.appendChild(el('st-cat', 'Estático'));
+    body.appendChild(el('st-cat', 'Static'));
     const m = migrateV1({ cutoff: 0.5, reso: 3 }), keep = migrateV1({ cutoff: 6000 });
     const okM = m.reso === 3 && Math.abs(m.cutoff - 632.5) < 2 && keep.cutoff === 6000;
-    push({ name: 'migración presets v1→v2', peak: 0, ok: okM,
+    push({ name: 'preset migration v1→v2', peak: 0, ok: okM,
            problems: okM ? [] : ['migrateV1: ' + JSON.stringify([m, keep])] });
   }
   {
-    // mezclador (1.2.0): Mix A↔B y Ring en crossfade → niveles independientes,
-    // con los MISMOS coeficientes: (1−ring)(1−mix), (1−ring)·mix y ring
+    // mixer (1.2.0): Mix A↔B and Ring as a crossfade → independent levels,
+    // with the SAME coefficients: (1−ring)(1−mix), (1−ring)·mix and ring
     const probs = [], eq = (o, a, b) => o.levelA === a && o.levelB === b && !('mix' in o);
     const cases = [
-      [migrateMix({ mix: 0.35 }), 0.65, 0.35, 'solo Mix'],
+      [migrateMix({ mix: 0.35 }), 0.65, 0.35, 'Mix only'],
       [migrateMix({ mix: 0.5, ring: 0.3 }), 0.35, 0.35, 'Mix + Ring'],
-      [migrateMix({ ring: 0.8 }), 0.12, 0.08, 'Ring sin Mix (el Mix 0,4 de la base de antes)'],
-      [withPresetBase({ mix: 0 }), 1, 0, 'Mix 0 sobre la base'],
+      [migrateMix({ ring: 0.8 }), 0.12, 0.08, 'Ring without Mix (the Mix 0.4 of the old base)'],
+      [withPresetBase({ mix: 0 }), 1, 0, 'Mix 0 over the base'],
     ];
     for (const [o, a, b, what] of cases) if (!eq(o, a, b)) probs.push(what + ': ' + JSON.stringify(o));
     const nuevo = { levelB: 0.3, ring: 0.5 };
-    if (migrateMix(nuevo) !== nuevo) probs.push('un preset con niveles no se toca');
-    if (!('levelA' in withPresetBase({ cutoff: 1000 })) || withPresetBase({ cutoff: 1000 }).levelA !== PRESET_BASE.levelA) probs.push('sin Mix ni Ring: los niveles de la base');
-    if (Object.keys(withPresetBase({})).length) probs.push('{} ya no es Reset');
+    if (migrateMix(nuevo) !== nuevo) probs.push('a preset with levels is left untouched');
+    if (!('levelA' in withPresetBase({ cutoff: 1000 })) || withPresetBase({ cutoff: 1000 }).levelA !== PRESET_BASE.levelA) probs.push('no Mix or Ring: the base levels');
+    if (Object.keys(withPresetBase({})).length) probs.push('{} is no longer Reset');
     for (const cat in FACTORY) for (const n in FACTORY[cat]) {
       const p = FACTORY[cat][n];
-      if ('mix' in p) probs.push(n + ': fábrica con Mix');
-      if (p.ring > 0 && !('levelA' in p && 'levelB' in p)) probs.push(n + ': Ring sin niveles (se leería como de antes)');
+      if ('mix' in p) probs.push(n + ': factory preset with Mix');
+      if (p.ring > 0 && !('levelA' in p && 'levelB' in p)) probs.push(n + ': Ring without levels (it would be read as an old one)');
     }
-    push({ name: 'migración del mezclador (Mix/Ring → niveles A, B, Ring)', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
+    push({ name: 'mixer migration (Mix/Ring → levels A, B, Ring)', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
   }
   {
-    // arpegiador: secuencia 'up' con 2 octavas ordenada por altura
+    // arpeggiator: 'up' sequence over 2 octaves sorted by pitch
     const a = new Arp({ S: { arpOct: '2' }, ctx: null });
     a.held = [{ id: 1, freq: 200, vel: 1 }, { id: 2, freq: 100, vel: 1 }];
     const seq = a._seq().map(n => n.freq).join(',');
     const okA = seq === '100,200,200,400';
-    push({ name: 'arpegiador (secuencia ×2 oct)', peak: 0, ok: okA, problems: okA ? [] : ['seq: ' + seq] });
+    push({ name: 'arpeggiator (×2 oct sequence)', peak: 0, ok: okA, problems: okA ? [] : ['seq: ' + seq] });
   }
   {
-    // Reloj común (Roadmap 7.0 · 0.4). (1) Las cuentas: rejilla exacta, un BPM nuevo
-    // no mueve el pulso de ahora, el primero que se une fija el origen y los demás
-    // van a la rejilla. (2) En tiempo real (el Arp y el Seq van por temporizador: no
-    // corren offline), dos motores en un contexto con el _directOn interceptado:
-    // tocando a mano, el arpegio suena a +30 ms de la tecla (sin retraso añadido) y
-    // un Seq que entra 130 ms después cae en SU rejilla (|Δ| < 1 muestra); con el
-    // origen anclado como lo ancla el director, una tecla con instante (la de un
-    // jugador) empieza EXACTAMENTE ahí, no donde caiga un temporizador; y tras
-    // pasar de 120 a 90 BPM los pasos siguen en la rejilla, sin hueco ni salto.
+    // Common clock (Roadmap 7.0 · 0.4). (1) The arithmetic: exact grid, a new BPM
+    // does not move the current beat, the first one to join sets the origin and the others
+    // go to the grid. (2) In real time (the Arp and the Seq run on a timer: they do not
+    // run offline), two engines on one context with _directOn intercepted:
+    // playing by hand, the arpeggio sounds +30 ms after the key (no added delay) and
+    // a Seq that comes in 130 ms later lands on ITS grid (|Δ| < 1 sample); with the
+    // origin anchored the way the conductor anchors it, a key with a time (a
+    // Player's) starts EXACTLY there, not wherever a timer falls; and after
+    // going from 120 to 90 BPM the steps stay on the grid, with no gap or jump.
     const probs = [];
     const fake = { currentTime: 10 }, c = new Clock(fake);
     c.anchor('d', 10, 120);
     if (Math.abs(c.nextGrid(10.2, 0.25) - 10.25) > 1e-9 || Math.abs(c.nextGrid(10.25, 0.25) - 10.25) > 1e-9) probs.push('nextGrid: ' + c.nextGrid(10.2, 0.25) + ' / ' + c.nextGrid(10.25, 0.25));
     if (c.stepAt(10.37, 0.25) !== 2) probs.push('stepAt: ' + c.stepAt(10.37, 0.25));
     const b0 = c.beatAt(11.3); c.setBpm(90, 11.3);
-    if (Math.abs(c.beatAt(11.3) - b0) > 1e-9 || Math.abs(c.beatLen() - 60 / 90) > 1e-12) probs.push('setBpm: el pulso de ahora salta ' + (c.beatAt(11.3) - b0));
+    if (Math.abs(c.beatAt(11.3) - b0) > 1e-9 || Math.abs(c.beatLen() - 60 / 90) > 1e-12) probs.push('setBpm: the current beat jumps ' + (c.beatAt(11.3) - b0));
     const c2 = new Clock(fake), t1 = c2.join('a', 5.03, 0.25, 120), t2 = c2.join('b', 5.17, 0.5, 120);
     if (t1 !== 5.03 || Math.abs(t2 - 5.28) > 1e-9) probs.push('join: ' + t1 + ' / ' + t2);
-    // Partes: el knob BPM solo llega al S de la parte elegida; el tempo de todas es el de la sala
+    // Parts: the BPM knob only reaches the S of the chosen part; every part's tempo is the room's
     try {
       const scB = await createScene(new OfflineAudioContext(2, 128, SR), []);
       scB.parts[0].engine.set('bpm', 97);
       const bpms = scB.parts.map(p => p.engine.bpm);
-      if (!bpms.every(b => b === 97)) probs.push('Partes: el BPM de la sala no llega a todas (' + bpms.join(', ') + ')');
-    } catch (e2) { probs.push('Partes: ' + ((e2 && e2.message) || e2)); }
+      if (!bpms.every(b => b === 97)) probs.push('Parts: the room BPM does not reach all of them (' + bpms.join(', ') + ')');
+    } catch (e2) { probs.push('Parts: ' + ((e2 && e2.message) || e2)); }
     let live = null;
     try {
       live = new AudioContext(); await live.resume();
@@ -267,31 +267,31 @@ export async function runSelfTest() {
       await wait(130); eB.noteOn('k', 110, 1);
       await wait(420);
       const off = (t, div) => { const x = (t - clk.origin) / (div * clk.beatLen()); return Math.abs(x - Math.round(x)) * div * clk.beatLen(); };
-      if (!(Math.abs(eA.log[0] - (tHold + 0.03)) < 0.002)) probs.push('a mano: el arpegio arranca ' + ((eA.log[0] - tHold) * 1000).toFixed(1) + ' ms tras la tecla (esperado 30)');
+      if (!(Math.abs(eA.log[0] - (tHold + 0.03)) < 0.002)) probs.push('by hand: the arpeggio starts ' + ((eA.log[0] - tHold) * 1000).toFixed(1) + ' ms after the key (expected 30)');
       const dA = Math.max(...eA.log.map(t => off(t, 0.25))), dB = Math.max(...eB.log.map(t => off(t, 0.5)));
-      if (!(eA.log.length >= 4 && eB.log.length >= 2)) probs.push('pocos pasos: Arp ' + eA.log.length + ' · Seq ' + eB.log.length);
-      if (!(dA < 0.5 / SR && dB < 0.5 / SR)) probs.push('fuera de la rejilla: Arp ' + (dA * SR).toFixed(2) + ' · Seq ' + (dB * SR).toFixed(2) + ' muestras');
+      if (!(eA.log.length >= 4 && eB.log.length >= 2)) probs.push('too few steps: Arp ' + eA.log.length + ' · Seq ' + eB.log.length);
+      if (!(dA < 0.5 / SR && dB < 0.5 / SR)) probs.push('off the grid: Arp ' + (dA * SR).toFixed(2) + ' · Seq ' + (dB * SR).toFixed(2) + ' samples');
       eA.noteOff('k'); eB.noteOff('k');
-      // el director ancla; una tecla con instante (pulso 2) empieza ahí exacto
+      // the conductor anchors; a key with a time (beat 2) starts exactly there
       clk.anchor('director', live.currentTime + 0.05, 120);
       const eC = mk({ arpMode: 'up', arpDiv: '1/16', bpm: 120 }), when = clk.timeAt(2);
       eC.noteOn('j', 330, 1, when);
       await wait(1150);
-      if (!(eC.log.length && Math.abs(eC.log[0] - when) < 0.5 / SR)) probs.push('jugador: la tecla con instante empieza a ' + (eC.log.length ? ((eC.log[0] - when) * 1000).toFixed(2) + ' ms' : 'never') + ' de su pulso');
-      // cambio de tempo en marcha
+      if (!(eC.log.length && Math.abs(eC.log[0] - when) < 0.5 / SR)) probs.push('player: the key with a time starts ' + (eC.log.length ? ((eC.log[0] - when) * 1000).toFixed(2) + ' ms' : 'never') + ' from its beat');
+      // tempo change while running
       const nBefore = eC.log.length; clk.setBpm(90, live.currentTime); eC.S.bpm = 90;
       await wait(500);
       const after = eC.log.slice(nBefore), gaps = after.slice(1).map((t, i) => t - after[i]);
       const dC = Math.max(...after.map(t => off(t, 0.25)));
-      if (!(after.length >= 3 && dC < 0.5 / SR && gaps.every(g => Math.abs(g - 0.25 * 60 / 90) < 1e-6))) probs.push('tras 120 → 90 BPM: ' + after.length + ' pasos, fuera de rejilla ' + (dC * SR).toFixed(2) + ' muestras, huecos ' + gaps.map(g => (g * 1000).toFixed(1)).join(' ') + ' ms');
+      if (!(after.length >= 3 && dC < 0.5 / SR && gaps.every(g => Math.abs(g - 0.25 * 60 / 90) < 1e-6))) probs.push('after 120 → 90 BPM: ' + after.length + ' steps, off the grid ' + (dC * SR).toFixed(2) + ' samples, gaps ' + gaps.map(g => (g * 1000).toFixed(1)).join(' ') + ' ms');
       eC.noteOff('j'); clk.leave('director');
-      console.log('reloj común: a mano +' + ((eA.log[0] - tHold) * 1000).toFixed(1) + ' ms · Arp/Seq fuera de rejilla ' + (dA * SR).toFixed(3) + ' / ' + (dB * SR).toFixed(3) + ' muestras · jugador Δ ' + ((eC.log[0] - when) * SR).toFixed(3) + ' muestras · tras 90 BPM ' + (dC * SR).toFixed(3));
-    } catch (e2) { probs.push('excepción: ' + ((e2 && e2.message) || e2)); }
+      console.log('common clock: by hand +' + ((eA.log[0] - tHold) * 1000).toFixed(1) + ' ms · Arp/Seq off the grid ' + (dA * SR).toFixed(3) + ' / ' + (dB * SR).toFixed(3) + ' samples · player Δ ' + ((eC.log[0] - when) * SR).toFixed(3) + ' samples · after 90 BPM ' + (dC * SR).toFixed(3));
+    } catch (e2) { probs.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally { if (live) live.close(); }
-    push({ name: 'reloj común (rejilla · BPM sin saltos · Arp y Seq juntos · la tecla del jugador en su pulso)', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'common clock (grid · BPM without jumps · Arp and Seq together · the player\'s key on its beat)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // secuenciador: parser del patrón (silencios, inválidos, clamp ±, sufijos fase 2, tope 16)
+    // sequencer: pattern parser (rests, invalid tokens, ± clamp, phase-2 suffixes, 16 cap)
     const p1 = parsePattern('0 3 7 12 . 7 3 .').map(s => s ? s.off : '.').join(',');
     const p2 = parsePattern('x 1.5 40 -40 7! 5~');
     const okP = p1 === '0,3,7,12,.,7,3,.'
@@ -299,68 +299,68 @@ export async function runSelfTest() {
       && p2[4].off === 7 && p2[4].accent && p2[5].off === 5 && p2[5].tie
       && parsePattern('').length === 0
       && parsePattern(Array(20).fill('0').join(' ')).length === 16;
-    push({ name: 'secuenciador (parser del patrón)', peak: 0, ok: okP, problems: okP ? [] : ['p1: ' + p1 + ' p2: ' + JSON.stringify(p2)] });
+    push({ name: 'sequencer (pattern parser)', peak: 0, ok: okP, problems: okP ? [] : ['p1: ' + p1 + ' p2: ' + JSON.stringify(p2)] });
   }
   {
-    // secuenciador: transposición cromática (raíz × 2^(semis/12))
+    // sequencer: chromatic transposition (root × 2^(semis/12))
     const okT = Math.abs(stepFreq(110, 12) - 220) < 1e-9 && stepFreq(110, 0) === 110
       && Math.abs(stepFreq(220, -12) - 110) < 1e-9 && Math.abs(stepFreq(261.63, 7) - 391.995) < 0.02;
-    push({ name: 'secuenciador (transposición)', peak: 0, ok: okT, problems: okT ? [] : ['stepFreq'] });
+    push({ name: 'sequencer (transposition)', peak: 0, ok: okT, problems: okT ? [] : ['stepFreq'] });
   }
   {
-    // secuenciador: raíz last-note, latch y retrig (sin ctx, como el test del arp)
+    // sequencer: last-note root, latch and retrig (no ctx, like the arp test)
     const probs = [];
     const q = new Seq({ S: { seqLatch: 'on', seqRetrig: 'on' }, ctx: null });
     q.held = [{ id: 1, freq: 100, vel: 1 }, { id: 2, freq: 200, vel: 0.8 }];
     if (q._root().freq !== 200) probs.push('last-note priority');
     q.unhold(2);
-    if (q._root().freq !== 100) probs.push('vuelta a la nota anterior');
+    if (q._root().freq !== 100) probs.push('back to the previous note');
     q.unhold(1);
-    if (!q._root() || q._root().freq !== 100 || q._root().vel !== 1) probs.push('latch no captura la última');
-    q.timer = 1; q.idx = 5; q.hold(3, 300, 1);   // rama con timer vivo: no toca ctx
-    if (q.idx !== 0 || q._root().freq !== 300) probs.push('retrig no reinicia la frase');
+    if (!q._root() || q._root().freq !== 100 || q._root().vel !== 1) probs.push('latch does not capture the last one');
+    q.timer = 1; q.idx = 5; q.hold(3, 300, 1);   // branch with a live timer: does not touch ctx
+    if (q.idx !== 0 || q._root().freq !== 300) probs.push('retrig does not restart the phrase');
     const q2 = new Seq({ S: { seqLatch: 'off', seqRetrig: 'off' }, ctx: null });
     q2.held = [{ id: 1, freq: 100, vel: 1 }];
     q2.unhold(1);
-    if (q2._root() !== null) probs.push('sin latch debería quedar sin raíz');
-    push({ name: 'secuenciador (raíz/latch/retrig)', peak: 0, ok: !probs.length, problems: probs });
+    if (q2._root() !== null) probs.push('without latch it should be left with no root');
+    push({ name: 'sequencer (root/latch/retrig)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // marcador de paso: selección por reloj de audio y poda de pasos vencidos
+    // step marker: selection by the audio clock and pruning of expired steps
     const q = new Seq({ S: {}, ctx: { currentTime: 1.0 } });
     q.timer = 1;
     q.playQ = [{ i: 2, t0: 0.5, t1: 0.9 }, { i: 3, t0: 0.9, t1: 1.3 }, { i: 4, t0: 1.3, t1: 1.7 }];
-    const a = q.playingStep();                               // t=1.0: poda i=2, suena i=3
-    const q2 = new Seq({ S: {}, ctx: { currentTime: 0 } });  // parado (sin timer) → -1
+    const a = q.playingStep();                               // t=1.0: prunes i=2, i=3 is sounding
+    const q2 = new Seq({ S: {}, ctx: { currentTime: 0 } });  // stopped (no timer) → -1
     const okM = a === 3 && q.playQ.length === 2 && q2.playingStep() === -1;
-    push({ name: 'secuenciador (marcador de paso)', peak: 0, ok: okM,
+    push({ name: 'sequencer (step marker)', peak: 0, ok: okM,
            problems: okM ? [] : ['playingStep: ' + a + ' len ' + q.playQ.length] });
   }
   {
-    // banco de frases: tokens válidos, ≤16 pasos, alguna nota, offsets en rango, nombres únicos
+    // phrase bank: valid tokens, ≤16 steps, some note, offsets in range, unique names
     const bad = [], names = new Set();
     for (const p of SEQ_PATTERNS) {
       const toks = p.pat.trim().split(/\s+/), st = parsePattern(p.pat);
-      if (!toks.length || toks.length > 16) bad.push(p.name + ': longitud ' + toks.length);
-      if (!toks.every(t => t === '.' || /^-?\d+(?:!|~|\/|x[1-4])*$/.test(t))) bad.push(p.name + ': token inválido');   // sufijos de articulación (5.1)
-      if (!st.some(Boolean)) bad.push(p.name + ': sin notas');
-      if (st.some((s, i) => s && s.off !== parseInt(toks[i], 10))) bad.push(p.name + ': offset fuera de rango');
+      if (!toks.length || toks.length > 16) bad.push(p.name + ': length ' + toks.length);
+      if (!toks.every(t => t === '.' || /^-?\d+(?:!|~|\/|x[1-4])*$/.test(t))) bad.push(p.name + ': invalid token');   // articulation suffixes (5.1)
+      if (!st.some(Boolean)) bad.push(p.name + ': no notes');
+      if (st.some((s, i) => s && s.off !== parseInt(toks[i], 10))) bad.push(p.name + ': offset out of range');
       if (!['1/4', '1/8', '1/16'].includes(p.div)) bad.push(p.name + ': div ' + p.div);
       if (p.bpm != null && !(p.bpm >= 40 && p.bpm <= 220)) bad.push(p.name + ': bpm ' + p.bpm);
-      if (names.has(p.name)) bad.push(p.name + ': nombre duplicado'); names.add(p.name);
+      if (names.has(p.name)) bad.push(p.name + ': duplicate name'); names.add(p.name);
     }
-    push({ name: 'secuenciador (banco de frases)', peak: 0, ok: !bad.length, problems: bad });
+    push({ name: 'sequencer (phrase bank)', peak: 0, ok: !bad.length, problems: bad });
   }
   {
-    // codificador WAV: cabecera y tamaño (44 bytes + n·4 en 16-bit estéreo)
+    // WAV encoder: header and size (44 bytes + n·4 in 16-bit stereo)
     const blob = encodeWav([new Float32Array(128)], [new Float32Array(128)], 44100);
     const okW = blob.size === 44 + 128 * 4 && blob.type === 'audio/wav';
-    push({ name: 'codificador WAV', peak: 0, ok: okW, problems: okW ? [] : ['blob: ' + blob.size + ' ' + blob.type] });
+    push({ name: 'WAV encoder', peak: 0, ok: okW, problems: okW ? [] : ['blob: ' + blob.size + ' ' + blob.type] });
   }
   {
-    // exportador SFZ: kit mínimo por el camino real (2 renders offline →
-    // recorte + normalización → WAVs + texto .sfz → zip). Estado por defecto:
-    // filterEnvAmt=0 ⇒ 1 capa; rejilla A3..A4 ⇒ 2 samples.
+    // SFZ exporter: a minimal kit through the real path (2 offline renders →
+    // trim + normalization → WAVs + .sfz text → zip). Default state:
+    // filterEnvAmt=0 ⇒ 1 layer; A3..A4 grid ⇒ 2 samples.
     let r;
     try {
       loadState({});
@@ -377,159 +377,159 @@ export async function runSelfTest() {
         ...kit.samples.map(s => ({ name: 'samples/' + s.fname, data: s.bytes })),
       ]).arrayBuffer());
       const okZip = zip[0] === 0x50 && zip[1] === 0x4b && zip[2] === 3 && zip[3] === 4;
-      // pico del PCM del primer sample: ni silencio ni saturado (normaliza a −1 dB)
+      // PCM peak of the first sample: neither silent nor saturated (normalizes to −1 dB)
       const dvS = new DataView(kit.samples[0].bytes.buffer, kit.samples[0].bytes.byteOffset + 44);
       let pk = 0;
       for (let i = 0; i < (kit.samples[0].bytes.length - 44) / 2; i++) {
         const v = Math.abs(dvS.getInt16(i * 2, true)); if (v > pk) pk = v;
       }
       const okPk = pk > 327 && pk <= 32767;
-      // capas de velocity MEDIDAS: un preset cuya velocity mueve la FM por la matriz (antes
-      // salía con UNA capa: solo se miraba la env de filtro) da ≥ 2, con la suave subida a nivel
+      // MEASURED velocity layers: a preset whose velocity moves FM through the matrix (it used
+      // to come out with ONE layer: only the filter env was looked at) gives ≥ 2, with the soft one raised in level
       const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
       loadState(find('DX E-Piano (vel→FM)'));
       const vl = await velocityLayers(structuredClone(engine.S), 1.2);
       const okVel = vl.layers.length >= 2 && vl.layers[0].gain > 1;
-      console.log('sfz capas: Reset Δ ' + kit.timbre.toFixed(1) + ' dB →', kit.layers, '· E-piano DX Δ ' + vl.timbre.toFixed(1), 'dB →', vl.layers.length, '(ganancia suave ×' + vl.layers[0].gain.toFixed(2) + ')');
+      console.log('sfz layers: Reset Δ ' + kit.timbre.toFixed(1) + ' dB →', kit.layers, '· DX E-Piano Δ ' + vl.timbre.toFixed(1), 'dB →', vl.layers.length, '(soft gain ×' + vl.layers[0].gain.toFixed(2) + ')');
       loadState({});
       const okS = okN && okWav && okRef && okRange && okZip && okPk && okVel;
-      r = { name: 'exportador SFZ (render → sfz + zip · capas de velocity medidas)', peak: pk / 32767, ok: okS,
+      r = { name: 'SFZ exporter (render → sfz + zip · measured velocity layers)', peak: pk / 32767, ok: okS,
             problems: okS ? [] : ['n:' + okN + ' wav:' + okWav + ' ref:' + okRef +
-                                  ' rango:' + okRange + ' zip:' + okZip + ' pico:' + okPk + ' capas vel:' + okVel + ' (' + vl.layers.length + ')'] };
+                                  ' range:' + okRange + ' zip:' + okZip + ' peak:' + okPk + ' vel layers:' + okVel + ' (' + vl.layers.length + ')'] };
     } catch (e) {
-      r = { name: 'exportador SFZ (render → sfz + zip)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e && e.message) || e)] };
+      r = { name: 'SFZ exporter (render → sfz + zip)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e && e.message) || e)] };
     }
     push(r);
   }
   {
-    // mapeo MIDI: conversión CC→valor (lineal y log) y zonas discretas
+    // MIDI mapping: CC→value conversion (linear and log) and discrete zones
     const okM =
-      Math.abs(ccToVal(PARAMS.cutoff, 1) - 20000) < 0.5 &&      // log: extremo alto
-      Math.abs(ccToVal(PARAMS.cutoff, 0) - 20) < 0.01 &&        // log: extremo bajo
-      Math.abs(ccToVal(PARAMS.detuneA, 0.5)) < 1e-9 &&          // lineal: centro de ±50
+      Math.abs(ccToVal(PARAMS.cutoff, 1) - 20000) < 0.5 &&      // log: top end
+      Math.abs(ccToVal(PARAMS.cutoff, 0) - 20) < 0.01 &&        // log: bottom end
+      Math.abs(ccToVal(PARAMS.detuneA, 0.5)) < 1e-9 &&          // linear: center of ±50
       zoneOf(['a', 'b', 'c'], 0) === 'a' && zoneOf(['a', 'b', 'c'], 0.34) === 'b' &&
       zoneOf(['a', 'b', 'c'], 1) === 'c';
-    push({ name: 'mapeo MIDI (CC→valor y zonas)', peak: 0, ok: okM,
-           problems: okM ? [] : ['ccToVal/zoneOf devuelven valores inesperados'] });
+    push({ name: 'MIDI mapping (CC→value and zones)', peak: 0, ok: okM,
+           problems: okM ? [] : ['ccToVal/zoneOf return unexpected values'] });
   }
   {
-    // MIDI learn de punta a punta: ligar CC, mover control real (continuo y
-    // por zonas), persistencia por aparato en localStorage y modo pickup
+    // MIDI learn end to end: bind a CC, move a real control (continuous and
+    // by zones), per-device persistence in localStorage and pickup mode
     const prevDev = getDevice();
     const K = 'subsdj.midimap.v1:selftest';
     localStorage.removeItem(K);
-    setDevice('selftest');                        // mapa limpio (fábrica) para el aparato fake
+    setDevice('selftest');                        // clean (factory) map for the fake device
     armLearn('reso'); learnCapture(33);
     applyCC(33, 1);
-    const okBind = Math.abs(CONTROLS.reso.get() - 24) < 0.11;   // tope del rango (step 0.1)
+    const okBind = Math.abs(CONTROLS.reso.get() - 24) < 0.11;   // top of the range (step 0.1)
     armLearn('waveA'); learnCapture(34);
-    applyCC(34, 0.36);                            // zona 3 de 7 → 'sine' (7 ondas desde FM4: 0,36·7 = 2,5 → índice 2)
+    applyCC(34, 0.36);                            // zone 3 of 7 → 'sine' (7 waves since FM4: 0.36·7 = 2.5 → index 2)
     const okZone = CONTROLS.waveA.get() === 'sine';
-    const okFree = applyCC(99, 1) === false;      // CC sin ligar no se consume
-    setDevice('selftest');                        // relee de localStorage: el binding sobrevive
+    const okFree = applyCC(99, 1) === false;      // an unbound CC is not consumed
+    setDevice('selftest');                        // rereads from localStorage: the binding survives
     const okPersist = !!getMap().ccs[33] && getMap().ccs[33].id === 'reso' && !getMap().ccs[71];
-    getMap().pickup = true;                       // pickup: lejos y sin cruzar NO salta…
+    getMap().pickup = true;                       // pickup: far away and without crossing it does NOT jump…
     CONTROLS.levelB.set(0.5);
     armLearn('levelB'); learnCapture(35);
     applyCC(35, 0.9);
     const okHold = Math.abs(CONTROLS.levelB.get() - 0.5) < 1e-9;
-    applyCC(35, 0.4);                             // …pero al cruzar 0.5 engancha
+    applyCC(35, 0.4);                             // …but crossing 0.5 it catches
     const okCross = Math.abs(CONTROLS.levelB.get() - 0.4) < 1e-9;
-    // un mapa guardado antes del mezclador (CC → 'mix') sigue moviendo su sucesor
+    // a map saved before the mixer (CC → 'mix') still moves its successor
     localStorage.setItem(K, JSON.stringify({ pickup: false, ccs: { 36: { id: 'mix', lo: 0, hi: 1 } } }));
     setDevice('selftest');
     const okRen = !!getMap().ccs[36] && getMap().ccs[36].id === 'levelB';
     localStorage.removeItem(K);
-    setDevice(prevDev);                           // restaura el mapa real del usuario
+    setDevice(prevDev);                           // restores the user's real map
     const okL = okBind && okZone && okFree && okPersist && okHold && okCross && okRen;
-    push({ name: 'MIDI learn (ligar · zonas · persistencia · pickup · claves renombradas)', peak: 0, ok: okL,
-           problems: okL ? [] : ['bind:' + okBind + ' zona:' + okZone + ' libre:' + okFree +
+    push({ name: 'MIDI learn (bind · zones · persistence · pickup · renamed keys)', peak: 0, ok: okL,
+           problems: okL ? [] : ['bind:' + okBind + ' zone:' + okZone + ' free:' + okFree +
                                  ' persist:' + okPersist + ' pickup:' + okHold + '/' + okCross + ' mix→levelB:' + okRen] });
   }
   {
-    // acciones MIDI sobre el banco: ‹ › por flanco de subida y program change
+    // MIDI actions on the bank: ‹ › on the rising edge and program change
     const prevDev = getDevice();
     const K = 'subsdj.midimap.v1:selftest2';
     localStorage.removeItem(K);
     setDevice('selftest2');
-    const nav = navIds(), n = nav.length;         // ‹ › y program change recorren la biblioteca en orden
+    const nav = navIds(), n = nav.length;         // ‹ › and program change walk the library in order
     const i0 = Math.max(0, nav.indexOf(currentPresetId()));
     const at = i => nav[((i % n) + n) % n];
     armLearn('presetNext'); learnCapture(36);
-    applyCC(36, 1);                               // pulsar (127) → siguiente preset
+    applyCC(36, 1);                               // press (127) → next preset
     const okStep = currentPresetId() === at(i0 + 1);
-    applyCC(36, 1);                               // mantenido: NO repite
+    applyCC(36, 1);                               // held: does NOT repeat
     const okOnce = currentPresetId() === at(i0 + 1);
-    applyCC(36, 0); applyCC(36, 1);               // soltar y pulsar → avanza otra vez
+    applyCC(36, 0); applyCC(36, 1);               // release and press → advances again
     const okEdge = currentPresetId() === at(i0 + 2);
-    loadPresetIndex(i0 + 130);                    // program change: módulo del tamaño de la biblioteca
+    loadPresetIndex(i0 + 130);                    // program change: modulo the library size
     const okPC = currentPresetId() === at(i0 + 130);
     localStorage.removeItem(K);
     setDevice(prevDev);
     const okA = okStep && okOnce && okEdge && okPC;
-    push({ name: 'MIDI acciones (banco: ‹ › y program change)', peak: 0, ok: okA,
-           problems: okA ? [] : ['paso:' + okStep + ' única:' + okOnce + ' flanco:' + okEdge + ' pc:' + okPC] });
+    push({ name: 'MIDI actions (bank: ‹ › and program change)', peak: 0, ok: okA,
+           problems: okA ? [] : ['step:' + okStep + ' once:' + okOnce + ' edge:' + okEdge + ' pc:' + okPC] });
   }
   {
-    // pantallas (panel fijo): cada pestaña es un .screen propio, en el orden de
-    // SCREENS, y todo .panel vive dentro de uno. Cambiar de pestaña enseña
-    // EXACTAMENTE su cuerpo (estilo computado), marca la pestaña y se recuerda;
-    // los módulos compartidos (data-slot) pasan al hueco de la pantalla que lo
-    // declara y se ven; la cabecera con los presets está en todas. NADA
-    // RECORTADO: el instrumento mide lo que mide (1920 × 1000) y las bandas
-    // ocultan lo que desborda, así que un mando de más quedaría escondido en
-    // silencio — ni el instrumento ni ninguna banda pueden desbordar. La lista
-    // de la pantalla Presets refleja el banco y un clic carga por el mismo
-    // camino que el selector y queda marcado como actual.
-    body.appendChild(el('st-cat', 'Pantallas'));
+    // screens (fixed panel): each tab is its own .screen, in the order of
+    // SCREENS, and every .panel lives inside one. Switching tabs shows
+    // EXACTLY its body (computed style), marks the tab and is remembered;
+    // the shared modules (data-slot) move to the slot of the screen that
+    // declares it and are visible; the header with the presets is on all of them. NOTHING
+    // CLIPPED: the instrument measures what it measures (1920 × 1000) and the bands
+    // hide what overflows, so one control too many would be hidden
+    // silently — neither the instrument nor any band may overflow. The list
+    // on the Presets screen reflects the bank and a click loads through the same
+    // path as the selector and is marked as current.
+    body.appendChild(el('st-cat', 'Screens'));
     const bodies = [...document.querySelectorAll('.screen')];
-    const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();   // sin LED ni «?»
+    const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();   // without the LED or the «?»
     const probs = [];
-    if (bodies.map(b => b.dataset.screenBody).join() !== SCREENS.join()) probs.push('cuerpos: ' + bodies.map(b => b.dataset.screenBody).join() + ' ≠ ' + SCREENS.join());
+    if (bodies.map(b => b.dataset.screenBody).join() !== SCREENS.join()) probs.push('bodies: ' + bodies.map(b => b.dataset.screenBody).join() + ' ≠ ' + SCREENS.join());
     const orphans = [...document.querySelectorAll('.panel')].filter(p => !p.closest('.screen')).map(title);
-    if (orphans.length) probs.push('fuera de pantalla: ' + orphans.join(', '));
+    if (orphans.length) probs.push('outside any screen: ' + orphans.join(', '));
     const bar = document.getElementById('presetBar'), inst = document.getElementById('inst');
     const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
     const before = currentScreen();
     for (const s of SCREENS) {
       showScreen(s);
       const shown = bodies.filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.screenBody);
-      if (shown.join() !== s) probs.push(s + ': se ven ' + (shown.join(', ') || 'ninguna'));
-      if (localStorage.getItem('subsdj.screen.v1') !== s) probs.push(s + ': no se recuerda');
-      if (!document.querySelector('#screenTabs button.active[data-screen="' + s + '"]')) probs.push(s + ': pestaña sin marcar');
+      if (shown.join() !== s) probs.push(s + ': showing ' + (shown.join(', ') || 'none'));
+      if (localStorage.getItem('subsdj.screen.v1') !== s) probs.push(s + ': not remembered');
+      if (!document.querySelector('#screenTabs button.active[data-screen="' + s + '"]')) probs.push(s + ': tab not marked');
       for (const m of document.querySelectorAll('[data-slot]')) {
         const host = document.querySelector('.screen[data-screen-body="' + s + '"] [data-slot-host="' + m.dataset.slot + '"]');
-        if (host && (m.parentElement !== host || !m.offsetParent)) probs.push(s + ': «' + m.dataset.slot + '» no está en su hueco');
+        if (host && (m.parentElement !== host || !m.offsetParent)) probs.push(s + ': «' + m.dataset.slot + '» is not in its slot');
       }
-      if (getComputedStyle(bar).display === 'none') probs.push(s + ': sin barra de presets');
-      if (inst && over(inst)) probs.push(s + ': el instrumento desborda (' + inst.scrollWidth + '×' + inst.scrollHeight + ')');
+      if (getComputedStyle(bar).display === 'none') probs.push(s + ': no preset bar');
+      if (inst && over(inst)) probs.push(s + ': the instrument overflows (' + inst.scrollWidth + '×' + inst.scrollHeight + ')');
       for (const b of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .band'))
-        if (over(b)) probs.push(s + ': banda ' + (b.id || '?') + ' recorta (' + b.scrollWidth + '×' + b.scrollHeight + ' en ' + b.clientWidth + '×' + b.clientHeight + ')');
-      // un módulo que se sale pisa al de al lado o lo corta la banda (los que tienen scroll, como la Biblioteca, no cuentan)
+        if (over(b)) probs.push(s + ': band ' + (b.id || '?') + ' clips (' + b.scrollWidth + '×' + b.scrollHeight + ' in ' + b.clientWidth + '×' + b.clientHeight + ')');
+      // a module that spills out treads on its neighbor or gets cut by the band (those that scroll, like the Library, do not count)
       for (const p of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .panel'))
         if (p.offsetParent && !/auto|scroll/.test(getComputedStyle(p).overflow) && over(p))
-          probs.push(s + ': el módulo ' + title(p) + ' se sale (' + p.scrollWidth + '×' + p.scrollHeight + ' en ' + p.clientWidth + '×' + p.clientHeight + ')');
+          probs.push(s + ': the module ' + title(p) + ' spills out (' + p.scrollWidth + '×' + p.scrollHeight + ' in ' + p.clientWidth + '×' + p.clientHeight + ')');
     }
     showScreen('presets');
     const items = [...document.querySelectorAll('#presetList .pl-item')];
-    if (!items.length || items.length !== library.items().length) probs.push('lista: ' + items.length + ' ítems vs ' + library.items().length + ' en la biblioteca');
-    const target = items.find(b => !b.classList.contains('esc') && b.dataset.id !== currentPresetId());   // un preset (las escenas cargan otra cosa)
+    if (!items.length || items.length !== library.items().length) probs.push('list: ' + items.length + ' items vs ' + library.items().length + ' in the library');
+    const target = items.find(b => !b.classList.contains('esc') && b.dataset.id !== currentPresetId());   // a preset (scenes load something else)
     if (target) {
       target.click();
       const curs = document.querySelectorAll('#presetList .pl-item.cur');
-      if (currentPresetId() !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('clic no carga/marca (' + currentPresetId() + ')');
+      if (currentPresetId() !== target.dataset.id || curs.length !== 1 || curs[0] !== target) probs.push('click does not load/mark (' + currentPresetId() + ')');
     }
     showScreen(before);
-    push({ name: 'pantallas (panel fijo · huecos · memoria · nada recortado · lista de presets)', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'screens (fixed panel · slots · memory · nothing clipped · preset list)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // Nada recortado CON LAS PARTES (2026-10-25). El check de pantallas mira con las
-    // Partes apagadas, y ahí los módulos de la escena están vacíos o en «off»: encendidas,
-    // el Jugador se metía en el Arreglo en todos sus modos y el Mezclador cortaba la M de
-    // cada parte y la casilla Capa de la Sala sin que nada fallara. Aquí: Partes
-    // encendidas, cada modo del jugador, y ningún módulo ni banda de Secuenciación se sale.
-    const NAME = 'nada recortado con las Partes (Mezclador · Jugador en cada modo · Arreglo)';
+    // Nothing clipped WITH THE PARTS (2026-10-25). The screens check looks with the
+    // Parts off, and then the scene modules are empty or «off»: with them on,
+    // the Player spilled into the Arrangement in all its modes and the Part Mixer cut off each
+    // part's M and the Room's Layer checkbox without anything failing. Here: Parts
+    // on, every player mode, and no Sequencing module or band spills out.
+    const NAME = 'nothing clipped with the Parts (Part Mixer · Player in every mode · Arrangement)';
     const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
     const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
     const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();
@@ -537,21 +537,21 @@ export async function runSelfTest() {
     try {
       showScreen('secuenciacion');
       if (!wasOn) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
-      if (!isOn()) probs.push('las Partes no se encienden');
+      if (!isOn()) probs.push('the Parts do not turn on');
       else {
         const btns = [...document.querySelectorAll('#playerMode button')], mode0 = btns.find(b => b.classList.contains('active'));
         for (const b of btns) {
           b.click();
           for (const p of document.querySelectorAll('.screen[data-screen-body="secuenciacion"] .panel, .screen[data-screen-body="secuenciacion"] .band'))
             if (p.offsetParent && over(p)) {
-              const k = (p.classList.contains('band') ? 'banda ' + (p.id || '?') : title(p)) + ' (' + p.scrollWidth + '×' + p.scrollHeight + ' en ' + p.clientWidth + '×' + p.clientHeight + ')';
+              const k = (p.classList.contains('band') ? 'band ' + (p.id || '?') : title(p)) + ' (' + p.scrollWidth + '×' + p.scrollHeight + ' in ' + p.clientWidth + '×' + p.clientHeight + ')';
               bad.set(k, [...(bad.get(k) || []), b.dataset.pm]);
             }
         }
         if (mode0) mode0.click();
       }
-      for (const [k, modos] of bad) probs.push(k + ' se sale · modos: ' + modos.join(', '));
-    } catch (e2) { probs.push('excepción: ' + ((e2 && e2.message) || e2)); }
+      for (const [k, modos] of bad) probs.push(k + ' spills out · modes: ' + modos.join(', '));
+    } catch (e2) { probs.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally {
       if (!wasOn && isOn()) document.getElementById('partsBtn').click();
       showScreen(before);
@@ -559,13 +559,13 @@ export async function runSelfTest() {
     push({ name: NAME, peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // canvas: el tamaño en pantalla lo pone SOLO el CSS. fitCanvas pone el
-    // backing store a tamaño × dpr × zoom; si la caja de un canvas tomara ese
-    // backing store como ancho natural, cada redibujado lo agrandaría otro
-    // ×dpr×zoom hasta reventar (pasó en una 4K al 150 %: zoom 1,3 × dpr 1,5;
-    // aquí, con dpr 1 y zoom ≤ 1, no crece, por eso se prueba la REGLA y no el
-    // síntoma): se triplica el backing store de cada canvas visible, en cada
-    // pantalla, y su caja no puede moverse.
+    // canvas: the on-screen size is set ONLY by the CSS. fitCanvas sets the
+    // backing store to size × dpr × zoom; if a canvas box took that
+    // backing store as its natural width, each redraw would enlarge it another
+    // ×dpr×zoom until it blew up (it happened on a 4K at 150 %: zoom 1.3 × dpr 1.5;
+    // here, with dpr 1 and zoom ≤ 1, it does not grow, which is why the RULE is tested and not the
+    // symptom): the backing store of every visible canvas is tripled, on every
+    // screen, and its box must not move.
     const probs = [];
     const before = currentScreen();
     for (const s of SCREENS) {
@@ -578,26 +578,26 @@ export async function runSelfTest() {
         c.width = bw; c.height = bh;
       }
     }
-    showScreen(before);   // dispara resize: los canvas se redibujan
-    push({ name: 'canvas: el tamaño lo pone el CSS, no el backing store (sin bucle con dpr × zoom)', peak: 0, ok: !probs.length, problems: probs });
+    showScreen(before);   // triggers resize: the canvases are redrawn
+    push({ name: 'canvas: the size is set by the CSS, not the backing store (no loop with dpr × zoom)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // dependencias (ui/deps.js): lo que NO hace nada con la configuración
-    // actual se apaga en su sitio, con su motivo. Cada regla apunta a algo que
-    // existe (renombrar un h2 o un control la dejaría muda sin avisar; las de
-    // la escena apuntan a knobs que nacen con las Partes) y unos casos de
-    // muestra por el camino de los controles: cada uno parte de Reset, toca
-    // lo suyo y mira el motivo (un trozo) o que esté vivo (null). Apagado no
-    // es bloqueado: el control sigue tocable.
+    // dependencies (ui/deps.js): whatever does NOTHING with the current
+    // settings is dimmed in place, with its reason. Every rule points at something that
+    // exists (renaming an h2 or a control would silence it without warning; the
+    // scene ones point at knobs that are born with the Parts) and a few sample
+    // cases through the controls path: each one starts from Reset, touches
+    // its own thing and looks at the reason (a fragment) or that it is live (null). Dimmed is not
+    // blocked: the control can still be touched.
     const probs = [];
-    for (const [what] of RULES) if (!/data-key/.test(what) && !depTargets(what).length) probs.push('regla sin destino: ' + what);
+    for (const [what] of RULES) if (!/data-key/.test(what) && !depTargets(what).length) probs.push('rule without a target: ' + what);
     const keep = snapshot(), C = CONTROLS;
-    const off = what => { const t = depTargets(what)[0]; return t ? (t.dataset.off || null) : 'SIN DESTINO'; };
+    const off = what => { const t = depTargets(what)[0]; return t ? (t.dataset.off || null) : 'NO TARGET'; };
     const caso = (label, setup, checks) => {
       loadState({}); setup(); refreshDeps();
       for (const [what, want] of checks) {
         const got = off(what), ok = want === null ? got === null : !!(got && got.includes(want));
-        if (!ok) probs.push(label + ': ' + what + ' → ' + (got || 'vivo') + ' (esperado ' + (want || 'vivo') + ')');
+        if (!ok) probs.push(label + ': ' + what + ' → ' + (got || 'live') + ' (expected ' + (want || 'live') + ')');
       }
     };
     caso('Reset', () => {}, [['sec:Osc A', null], ['sec:Osc B', 'Level B'], ['pulseWidth', 'Square'], ['spread', 'Supersaw'],
@@ -607,114 +607,114 @@ export async function runSelfTest() {
       ['mx1dst', 'free'], ['mx1amt', 'free'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
       ['bpm', 'tempo'], ['reverbSize', 'Mix'], ['shimInt', 'Mix'], ['arpGate', 'Off'], ['seqGate', 'Off'],
       ['#seqCanvas', 'Off'], ['sec:Wave Sequence', 'Wavetable'], ['sec:Unison', null], ['levelB', null], ['cutoff', null]]);
-    caso('Osc B a medias: suena el B (cuadrada)', () => C.levelB.set(0.5), [['sec:Osc B', null], ['pulseWidth', null], ['pwmLfoLvl', null], ['pwmLfoSpd', 'Level']]);
-    caso('Solo B: el A se apaga', () => { C.levelA.set(0); C.levelB.set(1); }, [['sec:Osc A', 'Level A'], ['sec:Osc B', null]]);
-    caso('Solo Ring: suenan los dos (A×B)', () => { C.levelA.set(0); C.ring.set(1); }, [['sec:Osc A', null], ['sec:Osc B', null]]);
-    caso('Seno sin índice', () => C.waveA.set('sine'), [['sec:FM', null], ['fmIndex', null], ['fmRatio', 'Index'], ['fmFb', 'Index']]);
-    caso('Seno con índice', () => { C.waveA.set('sine'); C.fmIndex.set(2); }, [['fmRatio', null], ['fmFb', null]]);
-    caso('Seno + env → FM índice', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
+    caso('Osc B halfway: B sounds (square)', () => C.levelB.set(0.5), [['sec:Osc B', null], ['pulseWidth', null], ['pwmLfoLvl', null], ['pwmLfoSpd', 'Level']]);
+    caso('B only: A goes dim', () => { C.levelA.set(0); C.levelB.set(1); }, [['sec:Osc A', 'Level A'], ['sec:Osc B', null]]);
+    caso('Ring only: both sound (A×B)', () => { C.levelA.set(0); C.ring.set(1); }, [['sec:Osc A', null], ['sec:Osc B', null]]);
+    caso('Sine without index', () => C.waveA.set('sine'), [['sec:FM', null], ['fmIndex', null], ['fmRatio', 'Index'], ['fmFb', 'Index']]);
+    caso('Sine with index', () => { C.waveA.set('sine'); C.fmIndex.set(2); }, [['fmRatio', null], ['fmFb', null]]);
+    caso('Sine + env → FM index', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
       [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Amp Env']]);
-    caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Sine'], ['fmIndex', 'Sine'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
-    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4R2', null], ['fm4V2', null]]);
+    caso('FM4 only: Feedback yes', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Sine'], ['fmIndex', 'Sine'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
+    caso('FM4 with op 3 muted', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4R2', null], ['fm4V2', null]]);
     caso('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
-    caso('Tabla sin «usuario»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
-    caso('Tabla «usuario»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Wave Editor', null]]);
+    caso('Wavetable without «user»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
+    caso('Wavetable «user»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Wave Editor', null]]);
     caso('Supersaw', () => C.waveA.set('supersaw'), [['phaseA', 'Supersaw'], ['spread', null], ['sec:Unison', 'Supersaw']]);
     caso('Unison', () => C.uniVoices.set('3'), [['uniDetune', null]]);
     caso('Notch', () => C.filterType.set('notch'), [['morph', 'LP↔HP'], ['filterSlope', 'Notch']]);
     caso('BP', () => C.filterType.set('bp'), [['morph', 'LP↔HP'], ['filterSlope', null]]);
-    caso('Env de filtro enlazada', () => C.filterEnvAmt.set(2000), [['fenvMode', null], ['fa', 'Amp Env']]);
-    caso('Env de filtro propia', () => { C.filterEnvAmt.set(2000); C.fenvMode.set('own'); }, [['fa', null], ['fr', null]]);
-    caso('Vocal y resonador', () => { C.vocAmt.set(0.5); C.resAmt.set(0.5); }, [['vocVowel', null], ['vocAtk', null], ['resDecay', null]]);
-    caso('Matriz a Wavetable sin tabla', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('wt'); C.mx2amt.set(0.5); },
+    caso('Filter Env linked', () => C.filterEnvAmt.set(2000), [['fenvMode', null], ['fa', 'Amp Env']]);
+    caso('Filter Env own', () => { C.filterEnvAmt.set(2000); C.fenvMode.set('own'); }, [['fa', null], ['fr', null]]);
+    caso('Vocal and resonator', () => { C.vocAmt.set(0.5); C.resAmt.set(0.5); }, [['vocVowel', null], ['vocAtk', null], ['resDecay', null]]);
+    caso('Matrix to Wavetable without a wavetable', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('wt'); C.mx2amt.set(0.5); },
       [['mx2dst', 'Wavetable'], ['mx2amt', 'Wavetable'], ['cutLfoSpd', 'Level'], ['lfoPhase', 'in use']]);
-    caso('LFO crudo en la matriz', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('pan'); C.mx2amt.set(0.5); },
+    caso('Raw LFO in the matrix', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('pan'); C.mx2amt.set(0.5); },
       [['cutLfoSpd', null], ['cutLfoShape', null], ['lfoPhase', null], ['mx2dst', null]]);
-    caso('Slot con fuente y cantidad 0', () => C.mx3src.set('vel'), [['mx3dst', 'amount 0'], ['mx3amt', null]]);
-    caso('Deriva (voz)', () => { C.mx1src.set('drift'); C.mx1amt.set(0.3); }, [['mxDriftSpd', null]]);
-    caso('Vibrato con fade', () => C.freqLfoLvl.set(20), [['freqLfoSpd', null], ['lfoFade', null], ['lfoPhase', null]]);
-    caso('Delay libre', () => C.dlyAmt.set(0.3), [['dlyTime', null], ['dlyDamp', null], ['bpm', 'tempo']]);
-    caso('Delay sincronizado', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'synced'], ['bpm', null]]);
-    caso('Arpegiador', () => C.arpMode.set('up'), [['arpGate', null], ['bpm', null]]);
-    caso('Reverb con shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
+    caso('Slot with a source and amount 0', () => C.mx3src.set('vel'), [['mx3dst', 'amount 0'], ['mx3amt', null]]);
+    caso('Drift (voice)', () => { C.mx1src.set('drift'); C.mx1amt.set(0.3); }, [['mxDriftSpd', null]]);
+    caso('Vibrato with fade', () => C.freqLfoLvl.set(20), [['freqLfoSpd', null], ['lfoFade', null], ['lfoPhase', null]]);
+    caso('Free delay', () => C.dlyAmt.set(0.3), [['dlyTime', null], ['dlyDamp', null], ['bpm', 'tempo']]);
+    caso('Synced delay', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'synced'], ['bpm', null]]);
+    caso('Arpeggiator', () => C.arpMode.set('up'), [['arpGate', null], ['bpm', null]]);
+    caso('Reverb with shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
     caso('Flam', () => C.hits.set(3), [['hitGap', null]]);
     caso('Drive at 0', () => {}, [['driveAsym', 'Drive at 0'], ['driveChar', 'Drive at 0']]);
-    caso('Drive plegado', () => { C.filterDrive.set(0.5); C.driveChar.set('fold'); }, [['driveAsym', null], ['driveChar', null]]);
-    caso('Matriz → Drive sin Drive', () => { C.mx1src.set('vel'); C.mx1dst.set('drive'); C.mx1amt.set(0.5); }, [['mx1dst', 'Drive knob'], ['mx1amt', 'Drive knob']]);
-    caso('Matriz → Nivel B enciende el B', () => { C.mx1src.set('lfoCut'); C.mx1dst.set('lvlB'); C.mx1amt.set(0.5); }, [['sec:Osc B', null], ['mx1amt', null]]);
-    caso('Matriz → Material sin Resonador', () => { C.mx1src.set('vel'); C.mx1dst.set('resMat'); C.mx1amt.set(0.5); }, [['mx1amt', 'Resonator']]);
+    caso('Folded drive', () => { C.filterDrive.set(0.5); C.driveChar.set('fold'); }, [['driveAsym', null], ['driveChar', null]]);
+    caso('Matrix → Drive without Drive', () => { C.mx1src.set('vel'); C.mx1dst.set('drive'); C.mx1amt.set(0.5); }, [['mx1dst', 'Drive knob'], ['mx1amt', 'Drive knob']]);
+    caso('Matrix → Level B turns B on', () => { C.mx1src.set('lfoCut'); C.mx1dst.set('lvlB'); C.mx1amt.set(0.5); }, [['sec:Osc B', null], ['mx1amt', null]]);
+    caso('Matrix → Material without Resonator', () => { C.mx1src.set('vel'); C.mx1dst.set('resMat'); C.mx1amt.set(0.5); }, [['mx1amt', 'Resonator']]);
     loadState({}); refreshDeps();
     const fr = depTargets('fmRatio')[0];
-    if (!fr.closest('.dep-off')) probs.push('Reset: FM no aparece atenuado (.dep-off)');
-    if (getComputedStyle(fr).pointerEvents === 'none' || getComputedStyle(fr.querySelector('.knob')).pointerEvents === 'none') probs.push('un control apagado no se puede tocar');
+    if (!fr.closest('.dep-off')) probs.push('Reset: FM does not show as dimmed (.dep-off)');
+    if (getComputedStyle(fr).pointerEvents === 'none' || getComputedStyle(fr.querySelector('.knob')).pointerEvents === 'none') probs.push('a dimmed control cannot be touched');
     loadState(keep); refreshDeps();
-    push({ name: 'dependencias: lo que no hace nada se apaga en su sitio, con su motivo (' + RULES.length + ' reglas)', peak: 0, ok: !probs.length, problems: probs.slice(0, 14) });
+    push({ name: 'dependencies: whatever does nothing is dimmed in place, with its reason (' + RULES.length + ' rules)', peak: 0, ok: !probs.length, problems: probs.slice(0, 14) });
   }
   {
-    // grafo del algoritmo FM4 (ui/fm4Graph.js): su tabla es COPIA de la del
-    // worklet (no se puede importar un worklet desde la página) — si se
-    // separan, el dibujo mentiría sobre el sonido. Y la colocación se lee como
-    // en los Yamaha: cada operador en su sitio, portadoras en la fila de abajo,
-    // cada modulador por encima de a quién modula. En la página, el grafo
-    // sigue al selector (alg 5 = un modulador para tres portadoras).
+    // FM4 algorithm graph (ui/fm4Graph.js): its table is a COPY of the
+    // worklet's (a worklet cannot be imported from the page) — if they
+    // drift apart, the drawing would lie about the sound. And the layout reads as
+    // on the Yamahas: each operator in its place, carriers on the bottom row,
+    // each modulator above whatever it modulates. On the page, the graph
+    // follows the selector (alg 5 = one modulator for three carriers).
     const probs = [];
     try {
       const src = await (await fetch('js/engine/worklets/pulse-processor.js', { cache: 'no-store' })).text();
       const m = /const FM4_ALGS = (\[[\s\S]*?\n\]);/.exec(src);
       const wk = m ? new Function('return ' + m[1])() : null;
-      if (!wk) probs.push('no encuentro FM4_ALGS en el worklet');
-      else if (JSON.stringify(wk) !== JSON.stringify(FM4_ALGS)) probs.push('la tabla del grafo y la del worklet difieren');
+      if (!wk) probs.push('FM4_ALGS not found in the worklet');
+      else if (JSON.stringify(wk) !== JSON.stringify(FM4_ALGS)) probs.push('the graph table and the worklet table differ');
     } catch (e2) { probs.push('worklet: ' + ((e2 && e2.message) || e2)); }
     FM4_ALGS.forEach((alg, i) => {
       const pos = fm4Layout(alg), n = 'alg ' + (i + 1) + ': ';
-      if (new Set(pos.map(p => p.col + ',' + p.row)).size !== 4) probs.push(n + 'operadores uno encima de otro');
-      alg.car.forEach(c => { if (pos[c].row !== 0) probs.push(n + 'la portadora ' + (c + 1) + ' no está abajo'); });
-      alg.mods.forEach((ms, t) => ms.forEach(mm => { if (!(pos[mm].row > pos[t].row)) probs.push(n + 'el ' + (mm + 1) + ' no está encima del ' + (t + 1)); }));
-      if (/NaN|Infinity/.test(fm4Svg(i))) probs.push(n + 'coordenadas no finitas');
+      if (new Set(pos.map(p => p.col + ',' + p.row)).size !== 4) probs.push(n + 'operators on top of each other');
+      alg.car.forEach(c => { if (pos[c].row !== 0) probs.push(n + 'carrier ' + (c + 1) + ' is not at the bottom'); });
+      alg.mods.forEach((ms, t) => ms.forEach(mm => { if (!(pos[mm].row > pos[t].row)) probs.push(n + 'op ' + (mm + 1) + ' is not above op ' + (t + 1)); }));
+      if (/NaN|Infinity/.test(fm4Svg(i))) probs.push(n + 'non-finite coordinates');
     });
     const keep = snapshot();
     loadState({ waveA: 'fm4', fm4Alg: '4' });
     const g = document.querySelector('#fm4Graph svg');
-    if (!g || g.querySelectorAll('g.op.car').length !== 3) probs.push('el grafo de la página no sigue al selector (alg 5 → 3 portadoras)');
+    if (!g || g.querySelectorAll('g.op.car').length !== 3) probs.push('the page graph does not follow the selector (alg 5 → 3 carriers)');
     loadState({ waveA: 'fm4', fmFb: 0.5 });
-    if (!document.querySelector('#fm4Graph path.fb.on')) probs.push('el lazo de feedback no se enciende con Feedback > 0');
+    if (!document.querySelector('#fm4Graph path.fb.on')) probs.push('the feedback loop does not light up with Feedback > 0');
     loadState(keep);
-    push({ name: 'grafo FM4 a la Yamaha: misma tabla que el worklet, portadoras abajo, moduladores encima', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'Yamaha-style FM4 graph: same table as the worklet, carriers below, modulators above', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // pantalla Salida (ui/display.js): lo que no cabe encoge la letra hasta su
-    // mínimo y, si ni así, se desplaza; el nombre del parámetro no desaparece
-    // nunca (antes el title entero de un botón se comía la caja). Un seg enseña
-    // su valor CORTO y lo que significa va en la línea de arriba.
+    // Output display (ui/display.js): whatever does not fit shrinks the font down to its
+    // minimum and, if even that fails, scrolls; the parameter name never
+    // disappears (a button's whole title used to swallow the box). A seg shows
+    // its SHORT value and what it means goes on the line above.
     const probs = [], keep = snapshot(), scr = currentScreen();
     showScreen('diseno');
     const v = document.getElementById('dispVal'), who = document.getElementById('dispWho'), side = document.getElementById('dispWhy');
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: 'Pad de ejecución (rueda, aftertouch, pedal) — un nombre que no cabe ni encogido' } }));
+    document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: 'Performance Pad (wheel, aftertouch, pedal) — a name that does not fit even when shrunk' } }));
     await frame();
-    if (!v.clientWidth) probs.push('la pantalla Salida no se ve en Diseño');
+    if (!v.clientWidth) probs.push('the Output display is not visible on Design');
     else {
-      if (!v.classList.contains('scroll')) probs.push('un valor que no cabe ni a la letra mínima no se desplaza');
-      if (!(who.clientWidth > 20)) probs.push('el nombre del parámetro desaparece con un valor largo');
+      if (!v.classList.contains('scroll')) probs.push('a value that does not fit even at the minimum font size does not scroll');
+      if (!(who.clientWidth > 20)) probs.push('the parameter name disappears with a long value');
     }
     const b = document.querySelector('#fm4AlgSel button[data-alg="2"]');
     b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     await frame();
-    if (v.textContent !== '3 · 2·3·4→1') probs.push('algoritmo FM4: valor «' + v.textContent + '» (esperado el corto «3 · 2·3·4→1»)');
-    if (v.clientWidth && v.classList.contains('scroll')) probs.push('el valor corto del algoritmo no cabe');
-    if (!side.textContent) probs.push('la línea de arriba no dice nada (ni qué significa ni por qué no hace nada)');
+    if (v.textContent !== '3 · 2·3·4→1') probs.push('FM4 algorithm: value «' + v.textContent + '» (expected the short «3 · 2·3·4→1»)');
+    if (v.clientWidth && v.classList.contains('scroll')) probs.push('the short algorithm value does not fit');
+    if (!side.textContent) probs.push('the line above says nothing (neither what it means nor why it does nothing)');
     loadState(keep); showScreen(scr);
-    push({ name: 'pantalla Salida: lo largo encoge o se desplaza, el parámetro siempre se ve', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'Output display: long text shrinks or scrolls, the parameter is always visible', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // presupuesto de CPU de voces (AudioEngine.VOICE_BUDGET): COMÚN a los motores
-    // de un mismo contexto — las 4 partes de una escena comparten hilo de audio.
-    // Offline no actúa (no hay plazos), así que se simula el directo sin
-    // renderizar: escena de 4 partes con offline = false. La parte 1 MANTIENE 8
-    // notas; la 2 toca 10 y las suelta (colas); la 3 toca de más. Nunca se pasa
-    // del tope; antes que nada caen las colas, la más vieja primero, de cualquier
-    // parte; luego, la voz pulsada más vieja de la parte que pide la nota — nunca
-    // una nota sostenida de otra parte. Y offline no hay tope.
+    // voice CPU budget (AudioEngine.VOICE_BUDGET): SHARED by the engines
+    // of one context — the 4 parts of a scene share an audio thread.
+    // Offline it does not act (there are no deadlines), so live is simulated without
+    // rendering: a 4-part scene with offline = false. Part 1 HOLDS 8
+    // notes; part 2 plays 10 and releases them (tails); part 3 plays too many. The cap
+    // is never exceeded; tails go first of all, the oldest first, from any
+    // part; then the oldest pressed voice of the part asking for the note — never
+    // a held note of another part. And offline there is no cap.
     const probs = [];
     try {
       const ctx = new OfflineAudioContext(2, SR, SR);
@@ -724,22 +724,22 @@ export async function runSelfTest() {
       E.forEach(e => { e.offline = false; });
       const cost = Voice.cost(E[0].S);
       const live = v => !v.disposed && !v._going;
-      const used = () => E.reduce((a, e) => a + e.engineCost() + [...e.voices.values(), ...e.tails].filter(live).reduce((b, v) => b + v.cost, 0), 0);   // como el motor: coste fijo de cada parte + sus voces
+      const used = () => E.reduce((a, e) => a + e.engineCost() + [...e.voices.values(), ...e.tails].filter(live).reduce((b, v) => b + v.cost, 0), 0);   // like the engine: fixed cost of each part + its voices
       let maxUsed = 0;
       const on = (e, id) => { e.noteOn(id, 220, 0.8); maxUsed = Math.max(maxUsed, used()); };
-      for (let i = 0; i < 8; i++) on(E[0], 'a' + i);                        // parte 1: mantiene 8
+      for (let i = 0; i < 8; i++) on(E[0], 'a' + i);                        // part 1: holds 8
       const held0 = [...E[0].voices.values()];
-      for (let i = 0; i < 10; i++) on(E[1], 'b' + i);                       // parte 2: toca 10…
-      for (let i = 0; i < 10; i++) E[1].noteOff('b' + i);                   // …y las suelta: 10 colas
+      for (let i = 0; i < 10; i++) on(E[1], 'b' + i);                       // part 2: plays 10…
+      for (let i = 0; i < 10; i++) E[1].noteOff('b' + i);                   // …and releases them: 10 tails
       const tails1 = [...E[1].tails];
-      const nRoom = Math.floor((VOICE_BUDGET - used()) / cost + 1e-9);      // lo que cabe sin tocar nada
-      for (let i = 0; i < nRoom + 3; i++) on(E[2], 'c' + i);                // parte 3: tres de más → caen 3 colas
+      const nRoom = Math.floor((VOICE_BUDGET - used()) / cost + 1e-9);      // what fits without touching anything
+      for (let i = 0; i < nRoom + 3; i++) on(E[2], 'c' + i);                // part 3: three too many → 3 tails go
       const gone1 = tails1.filter(v => v._going).length;
-      if (gone1 !== 3) probs.push('al pasarse 3 voces caen ' + gone1 + ' colas (esperado 3)');
-      if (!tails1.slice(0, gone1).every(v => v._going)) probs.push('no cayeron primero las colas más viejas');
-      if (held0.some(v => v._going || v.disposed) || E[0].voices.size !== 8) probs.push('colas: se tocó una nota sostenida de otra parte');
+      if (gone1 !== 3) probs.push('going 3 voices over drops ' + gone1 + ' tails (expected 3)');
+      if (!tails1.slice(0, gone1).every(v => v._going)) probs.push('the oldest tails did not go first');
+      if (held0.some(v => v._going || v.disposed) || E[0].voices.size !== 8) probs.push('tails: a held note of another part was touched');
       for (const e of E) { e.offline = true; e.allNotesOff(); }
-      // sin colas que fundir: roba a la parte que PIDE la nota, nunca a otra
+      // no tails to fade: it steals from the part that ASKS for the note, never from another
       const ctxB = new OfflineAudioContext(2, SR, SR);
       const caro = { waveA: 'fm4', waveB: 'fm4', levelA: 0.5, levelB: 0.5, vocAmt: 0.6 };
       const scB = await createScene(ctxB, [st, st, caro, st]), EB = scB.parts.map(p => p.engine);
@@ -749,61 +749,61 @@ export async function runSelfTest() {
       const heldB = [...EB[0].voices.values()];
       for (let i = 0; i < 10; i++) { EB[2].noteOn('c' + i, 220, 0.8); maxUsed = Math.max(maxUsed, usedB()); }
       const robadas3 = [...EB[2].tails].filter(v => v._going).length;
-      if (!(robadas3 > 0)) probs.push('sin colas, la parte que pide no cedió su voz más vieja (coste ' + Voice.cost(EB[2].S).toFixed(2) + ')');
-      if (heldB.some(v => v._going || v.disposed) || EB[0].voices.size !== 8) probs.push('sin colas: se robó una nota sostenida de OTRA parte');
-      if (maxUsed > VOICE_BUDGET + 1e-9) probs.push('el uso llegó a ' + maxUsed.toFixed(2) + ' > ' + VOICE_BUDGET);
+      if (!(robadas3 > 0)) probs.push('without tails, the asking part did not give up its oldest voice (cost ' + Voice.cost(EB[2].S).toFixed(2) + ')');
+      if (heldB.some(v => v._going || v.disposed) || EB[0].voices.size !== 8) probs.push('without tails: a held note of ANOTHER part was stolen');
+      if (maxUsed > VOICE_BUDGET + 1e-9) probs.push('usage reached ' + maxUsed.toFixed(2) + ' > ' + VOICE_BUDGET);
       for (const e of EB) { e.offline = true; e.allNotesOff(); }
-      // offline: sin tope
+      // offline: no cap
       const ctx2 = new OfflineAudioContext(2, SR, SR), e2 = new AudioEngine(); e2.S = structuredClone(E[0].S); await e2.init(ctx2);
       const n = Math.ceil(VOICE_BUDGET / cost) + 5;
       for (let i = 0; i < Math.min(n, 10); i++) e2.noteOn('o' + i, 220, 0.8);
       for (let i = 0; i < 10; i++) e2.noteOff('o' + i);
       for (let i = 0; i < 10; i++) e2.noteOn('p' + i, 220, 0.8);
-      if ([...e2.tails].some(v => v._going)) probs.push('offline también recorta colas');
-      console.log('presupuesto: voz ' + cost.toFixed(2) + ' · tope ' + VOICE_BUDGET + ' · uso máx ' + maxUsed.toFixed(2) + ' · colas fundidas ' + tails1.filter(v => v._going).length + '/10 · robadas a la parte que pide ' + robadas3);
-    } catch (e) { probs.push('excepción: ' + (e.message || e)); }
-    push({ name: 'presupuesto de voces común a las partes (colas primero; nunca la nota sostenida de otra parte; offline sin tope)', peak: 0, ok: !probs.length, problems: probs });
+      if ([...e2.tails].some(v => v._going)) probs.push('offline also cuts tails');
+      console.log('budget: voice ' + cost.toFixed(2) + ' · cap ' + VOICE_BUDGET + ' · max usage ' + maxUsed.toFixed(2) + ' · tails faded ' + tails1.filter(v => v._going).length + '/10 · stolen from the asking part ' + robadas3);
+    } catch (e) { probs.push('exception: ' + (e.message || e)); }
+    push({ name: 'voice budget shared by the parts (tails first; never another part\'s held note; offline without a cap)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {
-    // piel (10): la ÚNICA fuente de color es el bloque de tokens de style.css
-    // (:root y [data-theme]). Fuera de él, en los canvas de js/ui (que leen
-    // los tokens por theme.js) y en index.html no puede haber hex/rgb/hsl
-    // literales, salvo negro/blanco con alfa (sombra y brillo: relieve, no
-    // color). Así un tema nuevo se hace redefiniendo tokens y nada queda a
-    // fuego. Los ficheros se leen por HTTP tal como los sirve el runner; los
-    // js son los que importa main.js de ui/ (menos theme.js, que los sirve).
-    body.appendChild(el('st-cat', 'Piel'));
+    // skin (10): the ONLY source of color is the token block of style.css
+    // (:root and [data-theme]). Outside it, in the js/ui canvases (which read
+    // the tokens through theme.js) and in index.html there can be no hex/rgb/hsl
+    // literals, except black/white with alpha (shadow and highlight: relief, not
+    // color). That way a new theme is made by redefining tokens and nothing is
+    // hard-coded. The files are read over HTTP as the runner serves them; the
+    // js files are those main.js imports from ui/ (except theme.js, which serves them).
+    body.appendChild(el('st-cat', 'Skin'));
     const probs = [];
-    const LIT = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(\s*\d[^)]*\)/gi;   // literal: hex, o rgb()/hsl() que empieza por dígito
-    const shade = s => /^rgba?\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*[,/]/.test(s);   // negro/blanco con alfa
+    const LIT = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(\s*\d[^)]*\)/gi;   // literal: hex, or rgb()/hsl() starting with a digit
+    const shade = s => /^rgba?\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*[,/]/.test(s);   // black/white with alpha
     const lineOf = (txt, i) => txt.slice(0, i).split('\n').length;
-    const blank = m => m.replace(/[^\n]/g, ' ');                       // borra texto sin mover las líneas
+    const blank = m => m.replace(/[^\n]/g, ' ');                       // blanks text without moving the lines
     const tokenBlock = sel => sel.split(',').every(s => /^\s*(:root|html)?(\[data-theme[^\]]*\])?\s*$/.test(s) && s.trim());
     const found = (label, txt, from, off) => { let h; LIT.lastIndex = 0;
       while ((h = LIT.exec(from))) if (!shade(h[0])) probs.push(label + ':' + lineOf(txt, off + h.index) + ' ' + h[0]); };
     try {
       const get = async f => (await fetch(f + '?t=' + Date.now())).text();
       const css = (await get('css/style.css')).replace(/\/\*[\s\S]*?\*\//g, blank);
-      const re = /([^{}]+)\{([^{}]*)\}/g; let m;                        // bloque = selector { declaraciones }
+      const re = /([^{}]+)\{([^{}]*)\}/g; let m;                        // block = selector { declarations }
       while ((m = re.exec(css))) if (!tokenBlock(m[1].trim())) found('style.css', css, m[2], m.index + m[1].length + 1);
       const main = await get('js/main.js');
       const files = [...main.matchAll(/from '\.\/ui\/(\w+)\.js'/g)].map(x => x[1]).filter(n => n !== 'theme');
-      if (!files.length) probs.push('main.js sin imports de ui/');
+      if (!files.length) probs.push('main.js without ui/ imports');
       for (const n of files) {
         const js = (await get('js/ui/' + n + '.js')).replace(/\/\*[\s\S]*?\*\//g, blank).replace(/\/\/[^\n]*/g, blank);
         found(n + '.js', js, js, 0);
       }
       const html = (await get('index.html')).replace(/<!--[\s\S]*?-->/g, blank);
       found('index.html', html, html, 0);
-    } catch (e) { probs.push('lectura: ' + e.message); }
-    push({ name: 'piel: tokens (color solo en :root/[data-theme]; canvas por theme.js)', peak: 0, ok: !probs.length, problems: probs.slice(0, 12) });
+    } catch (e) { probs.push('reading: ' + e.message); }
+    push({ name: 'skin: tokens (color only in :root/[data-theme]; canvases through theme.js)', peak: 0, ok: !probs.length, problems: probs.slice(0, 12) });
   }
   {
-    // piel (10): el knob no dibuja, PUBLICA. knobs.js pone --pos (0..1) en el
-    // .knob y el CSS gira el portador .ind con él (−135° + pos·270°); los knobs
-    // log publican la posición, no el valor; los de cantidad (act) a 0 llevan
-    // .off y su indicador pasa a --edge-hi. Sobre knobs reales visibles; se restauran.
+    // skin (10): the knob does not draw, it PUBLISHES. knobs.js sets --pos (0..1) on the
+    // .knob and the CSS rotates the .ind carrier with it (−135° + pos·270°); log
+    // knobs publish the position, not the value; amount knobs (act) at 0 get
+    // .off and their indicator turns --edge-hi. On real visible knobs; they are restored.
     const probs = [];
     const byCfg = f => [...document.querySelectorAll('.knob[data-knob]')].find(k => k.offsetParent && PARAMS[k.dataset.knob] && CONTROLS[k.dataset.knob] && f(PARAMS[k.dataset.knob]));
     const lin = byCfg(c => !c.log && !c.act), lg = byCfg(c => c.log), act = byCfg(c => c.act);
@@ -811,152 +811,152 @@ export async function runSelfTest() {
     const angle = k => { const m = getComputedStyle(k.querySelector('.ind')).transform.match(/matrix\(([^)]+)\)/); if (!m) return NaN;
       const [a, b] = m[1].split(',').map(Number); return Math.atan2(b, a) * 180 / Math.PI; };
     const near = (x, y, tol) => Math.abs(x - y) <= tol;
-    if (!lin || !lg || !act) probs.push('faltan knobs de muestra (lineal/log/act visibles)');
+    if (!lin || !lg || !act) probs.push('missing sample knobs (visible linear/log/act)');
     else {
       const test = (k, label, v, want) => { CONTROLS[k.dataset.knob].set(v); if (!near(pos(k), want, 1e-3)) probs.push(label + ': --pos ' + pos(k) + ' ≠ ' + want.toFixed(3)); return angle(k); };
-      for (const [k, label] of [[lin, 'lineal ' + lin.dataset.knob], [lg, 'log ' + lg.dataset.knob]]) {
+      for (const [k, label] of [[lin, 'linear ' + lin.dataset.knob], [lg, 'log ' + lg.dataset.knob]]) {
         const cfg = PARAMS[k.dataset.knob], keep = CONTROLS[k.dataset.knob].get();
         const a0 = test(k, label + ' min', cfg.min, 0), a1 = test(k, label + ' max', cfg.max, 1);
-        if (!near(a0, -135, 0.5) || !near(a1, 135, 0.5)) probs.push(label + ': giro ' + a0.toFixed(1) + '° / ' + a1.toFixed(1) + '° (esperado −135 / 135)');
+        if (!near(a0, -135, 0.5) || !near(a1, 135, 0.5)) probs.push(label + ': rotation ' + a0.toFixed(1) + '° / ' + a1.toFixed(1) + '° (expected −135 / 135)');
         test(k, label + ' def', cfg.def, cfg.log ? valToPos(cfg, cfg.def) : (cfg.def - cfg.min) / (cfg.max - cfg.min));
         CONTROLS[k.dataset.knob].set(keep);
       }
       const name = act.dataset.knob, keep = CONTROLS[name].get(), edgeHi = getComputedStyle(document.documentElement).getPropertyValue('--edge-hi').trim();
       CONTROLS[name].set(0);
       const ind0 = getComputedStyle(act).getPropertyValue('--knob-ind').trim();
-      if (!act.classList.contains('off')) probs.push('act ' + name + ' a 0 sin .off');
-      if (ind0 !== edgeHi) probs.push('act ' + name + ' a 0: indicador ' + ind0 + ' ≠ ' + edgeHi);
+      if (!act.classList.contains('off')) probs.push('act ' + name + ' at 0 without .off');
+      if (ind0 !== edgeHi) probs.push('act ' + name + ' at 0: indicator ' + ind0 + ' ≠ ' + edgeHi);
       CONTROLS[name].set(PARAMS[name].max);
-      if (act.classList.contains('off')) probs.push('act ' + name + ' al máximo sigue .off');
+      if (act.classList.contains('off')) probs.push('act ' + name + ' at maximum still .off');
       CONTROLS[name].set(keep);
     }
-    const sl = document.getElementById('s_a');                        // el slider publica igual (sliders.js)
-    if (!sl || !CONTROLS.a) probs.push('sin slider de muestra (s_a)');
+    const sl = document.getElementById('s_a');                        // the slider publishes the same way (sliders.js)
+    if (!sl || !CONTROLS.a) probs.push('no sample slider (s_a)');
     else {
       const keep = CONTROLS.a.get(), sp = () => +sl.style.getPropertyValue('--pos');
-      CONTROLS.a.set(PARAMS.a.min); if (!near(sp(), 0, 1e-3)) probs.push('slider a min: --pos ' + sp());
-      CONTROLS.a.set(PARAMS.a.max); if (!near(sp(), 1, 1e-3)) probs.push('slider a max: --pos ' + sp());
+      CONTROLS.a.set(PARAMS.a.min); if (!near(sp(), 0, 1e-3)) probs.push('slider at min: --pos ' + sp());
+      CONTROLS.a.set(PARAMS.a.max); if (!near(sp(), 1, 1e-3)) probs.push('slider at max: --pos ' + sp());
       CONTROLS.a.set(keep);
     }
-    push({ name: 'piel: knob y slider publican --pos; el CSS gira y apaga el indicador', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'skin: knob and slider publish --pos; the CSS rotates and dims the indicator', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // piel (10): selector de tema. Un tema es un bloque `:root[data-theme="id"]`
-    // con --theme-name; el :root base es el tema por defecto (--theme-id).
-    // theme.js lee las hojas para llenar el <select>: añadir un tema es añadir
-    // CSS. Se inyecta un tema de prueba, se elige (por API y por el <select>),
-    // se mira que cambie el token computado y el que theme.js sirve a los
-    // canvas, que se recuerde y que avise (theme-changed); se restaura todo.
+    // skin (10): theme selector. A theme is a `:root[data-theme="id"]` block
+    // with --theme-name; the base :root is the default theme (--theme-id).
+    // theme.js reads the stylesheets to fill the <select>: adding a theme is adding
+    // CSS. A test theme is injected, chosen (via the API and via the <select>),
+    // and it checks that the computed token changes and the one theme.js serves to the
+    // canvases, that it is remembered and that it notifies (theme-changed); everything is restored.
     const probs = [];
     const html = document.documentElement, before = currentTheme(), sel = document.getElementById('themeSel');
-    let savedLS = null; try { savedLS = localStorage.getItem('subsdj.theme.v1'); } catch { /* sin persistencia */ }
+    let savedLS = null; try { savedLS = localStorage.getItem('subsdj.theme.v1'); } catch { /* no persistence */ }
     const st = document.createElement('style');
     st.textContent = ':root[data-theme="st-prueba"]{--theme-name:"Prueba";--accent:rgb(18 52 86);}';
     document.head.appendChild(st);
     try {
       const themes = listThemes(), base = themes.find(t => t.base), test = themes.find(t => t.id === 'st-prueba');
-      if (!base || !base.name) probs.push('sin tema base (:root con --theme-id / --theme-name)');
-      if (!test || test.name !== 'Prueba') probs.push('el tema inyectado no aparece en listThemes()');
-      if (!sel) probs.push('sin <select id="themeSel">');
-      else if (sel.options.length < themes.length - 1) probs.push('el <select> tiene ' + sel.options.length + ' opciones para ' + (themes.length - 1) + ' temas');
+      if (!base || !base.name) probs.push('no base theme (:root with --theme-id / --theme-name)');
+      if (!test || test.name !== 'Prueba') probs.push('the injected theme does not show up in listThemes()');
+      if (!sel) probs.push('no <select id="themeSel">');
+      else if (sel.options.length < themes.length - 1) probs.push('the <select> has ' + sel.options.length + ' options for ' + (themes.length - 1) + ' themes');
       let fired = 0; const onT = e => { if (e.detail.theme === 'st-prueba') fired++; };
       document.addEventListener('theme-changed', onT);
       const accent0 = getComputedStyle(html).getPropertyValue('--accent').trim();
       setTheme('st-prueba');
       const accent1 = getComputedStyle(html).getPropertyValue('--accent').trim();
-      if (html.dataset.theme !== 'st-prueba') probs.push('data-theme no puesto');
-      if (accent1 === accent0 || !/18/.test(accent1)) probs.push('--accent computado no cambió: ' + accent1);
-      if (token('--accent') !== '#123456') probs.push('theme.js sirve ' + token('--accent') + ' ≠ #123456 (caché sin vaciar)');
-      if (!fired) probs.push('sin evento theme-changed');
-      if (localStorage.getItem('subsdj.theme.v1') !== 'st-prueba') probs.push('no se recuerda');
+      if (html.dataset.theme !== 'st-prueba') probs.push('data-theme not set');
+      if (accent1 === accent0 || !/18/.test(accent1)) probs.push('computed --accent did not change: ' + accent1);
+      if (token('--accent') !== '#123456') probs.push('theme.js serves ' + token('--accent') + ' ≠ #123456 (cache not cleared)');
+      if (!fired) probs.push('no theme-changed event');
+      if (localStorage.getItem('subsdj.theme.v1') !== 'st-prueba') probs.push('not remembered');
       document.removeEventListener('theme-changed', onT);
-      if (sel && base) {                                  // por el camino del usuario: elegir en el <select>
-        if (sel.value !== 'st-prueba') probs.push('el <select> no refleja el tema (' + sel.value + ')');
+      if (sel && base) {                                  // through the user's path: choosing in the <select>
+        if (sel.value !== 'st-prueba') probs.push('the <select> does not reflect the theme (' + sel.value + ')');
         sel.value = base.id; sel.dispatchEvent(new Event('change'));
-        if (html.dataset.theme) probs.push('elegir el base en el <select> deja data-theme=' + html.dataset.theme);
-        if (getComputedStyle(html).getPropertyValue('--accent').trim() !== accent0) probs.push('el base no devuelve --accent');
-        if (localStorage.getItem('subsdj.theme.v1') !== base.id) probs.push('el <select> no recuerda el base');
+        if (html.dataset.theme) probs.push('choosing the base in the <select> leaves data-theme=' + html.dataset.theme);
+        if (getComputedStyle(html).getPropertyValue('--accent').trim() !== accent0) probs.push('the base does not restore --accent');
+        if (localStorage.getItem('subsdj.theme.v1') !== base.id) probs.push('the <select> does not remember the base');
       }
       setTheme('no-existe');
-      if (html.dataset.theme) probs.push('un id desconocido no cae al base');
+      if (html.dataset.theme) probs.push('an unknown id does not fall back to the base');
     } catch (e) { probs.push('error: ' + e.message); }
     st.remove();
     setTheme(before, { remember: false });
-    try { if (savedLS === null) localStorage.removeItem('subsdj.theme.v1'); else localStorage.setItem('subsdj.theme.v1', savedLS); } catch { /* sin persistencia */ }
-    push({ name: 'piel: selector de tema (hojas → <select>, token computado y servido, memoria, evento)', peak: 0, ok: !probs.length, problems: probs });
+    try { if (savedLS === null) localStorage.removeItem('subsdj.theme.v1'); else localStorage.setItem('subsdj.theme.v1', savedLS); } catch { /* no persistence */ }
+    push({ name: 'skin: theme selector (stylesheets → <select>, computed and served token, memory, event)', peak: 0, ok: !probs.length, problems: probs });
   }
 
   {
-    // biblioteca (13b), con un almacenamiento falso (la del usuario no se toca):
-    // siembra de fábrica + usuario v1 migrado; resembrar no duplica; borrar de
-    // fábrica y «traer» lo repone en SU sección; renombrado/retocado no vuelve
-    // a entrar; secciones (crear, renombrar, mover con orden, reordenar,
-    // borrar); favoritos; búsqueda sin acentos; exportar → importar en otra
-    // biblioteca (ida y vuelta exacta, repetir no duplica); banco v2 y escena
-    // sueltos; persistencia; y los ficheros del repo por fetch (dos veces).
-    body.appendChild(el('st-cat', 'Biblioteca'));
+    // library (13b), with a fake storage (the user's is not touched):
+    // factory seeding + migrated v1 user presets; reseeding does not duplicate; deleting from
+    // factory and «restoring» puts it back in ITS section; renamed/tweaked does not come
+    // back in; sections (create, rename, move with order, reorder,
+    // delete); favorites; accent-insensitive search; export → import into another
+    // library (exact round trip, repeating does not duplicate); loose v2 bank and
+    // scene; persistence; and the repo files by fetch (twice).
+    body.appendChild(el('st-cat', 'Library'));
     const probs = [];
     const mkStore = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
     const store = mkStore();
     const L = new Library({ key: 'subsdj.biblioteca.selftest', storage: store });
     const nueva = L.load({ usuario: { 'Mío 1': { cutoff: 0.5, reso: 3 } } });
     const nFab = Object.values(FACTORY).reduce((a, c) => a + Object.keys(c).length, 0);
-    if (!nueva) probs.push('load no la vio nueva');
-    if (L.presets().length !== nFab + 1) probs.push('siembra: ' + L.presets().length + ' ≠ ' + (nFab + 1));
-    if (L.secciones().map(s => s.name).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('secciones: ' + L.secciones().map(s => s.name).join('|'));
+    if (!nueva) probs.push('load did not see it as new');
+    if (L.presets().length !== nFab + 1) probs.push('seeding: ' + L.presets().length + ' ≠ ' + (nFab + 1));
+    if (L.secciones().map(s => s.name).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('sections: ' + L.secciones().map(s => s.name).join('|'));
     const mio = L.presets().find(p => p.name === 'Mío 1');
-    if (!mio || !(mio.data.cutoff > 1) || mio.data.reso !== 3) probs.push('usuario v1 no migrado');
-    if (L.sembrarFabrica() !== 0) probs.push('resembrar fábrica duplica');
+    if (!mio || !(mio.data.cutoff > 1) || mio.data.reso !== 3) probs.push('v1 user preset not migrated');
+    if (L.sembrarFabrica() !== 0) probs.push('reseeding the factory duplicates');
     const acid = L.presets().find(p => p.name === 'Acid 303'), secAcid = acid && acid.section;
     L.borrar(acid.id);
-    if (L.presets().some(p => p.name === 'Acid 303')) probs.push('borrar no borra');
-    if (L.sembrarFabrica() !== 1) probs.push('traer de fábrica no repone exactamente 1');
+    if (L.presets().some(p => p.name === 'Acid 303')) probs.push('delete does not delete');
+    if (L.sembrarFabrica() !== 1) probs.push('restore factory does not put back exactly 1');
     const acid2 = L.presets().find(p => p.name === 'Acid 303');
-    if (!acid2 || acid2.section !== secAcid) probs.push('repuesto fuera de su sección');
+    if (!acid2 || acid2.section !== secAcid) probs.push('restored outside its section');
     L.renombrar(acid2.id, 'Ácido mío'); L.actualizar(mio.id, { cutoff: 999 });
-    if (L.sembrarFabrica() !== 0) probs.push('renombrado o retocado se duplica al traer');
+    if (L.sembrarFabrica() !== 0) probs.push('renamed or tweaked gets duplicated on restore');
     const sT = L.crearSeccion('Prueba'); L.renombrarSeccion(sT, 'Prueba 2');
-    if (!L.seccion(sT) || L.seccion(sT).name !== 'Prueba 2') probs.push('renombrar sección');
+    if (!L.seccion(sT) || L.seccion(sT).name !== 'Prueba 2') probs.push('rename section');
     const [a, b, c] = L.presets().slice(0, 3);
-    L.mover(a.id, sT); L.mover(b.id, sT); L.mover(c.id, sT, a.id);          // c antes de a → c, a, b
-    if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('mover/orden: ' + L.items(sT).map(i => i.name).join(','));
+    L.mover(a.id, sT); L.mover(b.id, sT); L.mover(c.id, sT, a.id);          // c before a → c, a, b
+    if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('move/order: ' + L.items(sT).map(i => i.name).join(','));
     L.moverSeccion(sT, -1);
-    const secs = L.secciones(); if (secs[secs.length - 2].id !== sT) probs.push('reordenar sección');
-    L.fav(a.id); if (L.favoritos().length !== 1 || !L.item(a.id).fav) probs.push('favorito');
-    L.fav(a.id); if (L.favoritos().length !== 0) probs.push('quitar favorito');
-    if (!L.buscar('acido').some(i => i.id === acid2.id) || L.buscar('ACIDO MIO').length !== 1) probs.push('búsqueda sin acentos');
+    const secs = L.secciones(); if (secs[secs.length - 2].id !== sT) probs.push('reorder section');
+    L.fav(a.id); if (L.favoritos().length !== 1 || !L.item(a.id).fav) probs.push('favorite');
+    L.fav(a.id); if (L.favoritos().length !== 0) probs.push('remove favorite');
+    if (!L.buscar('acido').some(i => i.id === acid2.id) || L.buscar('ACIDO MIO').length !== 1) probs.push('accent-insensitive search');
     const huella = X => X.secciones().map(s => s.name + ':' + X.items(s.id).map(i => i.name + (i.fav ? '*' : '') + '/' + i.type).join(',')).join('|');
     const json = JSON.parse(JSON.stringify(L.exportar()));
     const M = new Library({ key: 'x', storage: mkStore() }); M.load({ semilla: false });
     const r1 = M.importar(json), r2 = M.importar(json);
-    if (r1.type !== 'library' || r1.n !== L.items().length || r2.n !== 0) probs.push('import ida y vuelta: ' + r1.n + '/' + L.items().length + ', repetido ' + r2.n);
-    if (huella(M) !== huella(L)) probs.push('contenido tras importar');
-    const rb = M.importar({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» ya está igual
-    if (rb.type !== 'bank' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('importar banco v2: ' + rb.n);
+    if (r1.type !== 'library' || r1.n !== L.items().length || r2.n !== 0) probs.push('import round trip: ' + r1.n + '/' + L.items().length + ', repeated ' + r2.n);
+    if (huella(M) !== huella(L)) probs.push('content after importing');
+    const rb = M.importar({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» is already there, identical
+    if (rb.type !== 'bank' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('import v2 bank: ' + rb.n);
     const re = M.importar({ formato: 'subsdj-escena-v1', nombre: 'Esc', partes: [] });
     const secE = M.seccionPorNombre(SEC_ESCENAS);
-    if (re.type !== 'scene' || re.n !== 1 || !secE || M.items(secE.id)[0].type !== 'scene') probs.push('importar escena');
+    if (re.type !== 'scene' || re.n !== 1 || !secE || M.items(secE.id)[0].type !== 'scene') probs.push('import scene');
     const sP = M.seccionPorNombre('Prueba 2');
-    if (M.borrarSeccion(sP.id) !== 3 || M.seccionPorNombre('Prueba 2')) probs.push('borrar sección con contenido');
+    if (M.borrarSeccion(sP.id) !== 3 || M.seccionPorNombre('Prueba 2')) probs.push('delete section with content');
     const L2 = new Library({ key: 'subsdj.biblioteca.selftest', storage: store }); L2.load();
-    if (huella(L2) !== huella(L)) probs.push('no persiste');
+    if (huella(L2) !== huella(L)) probs.push('does not persist');
     const f1 = await L.sembrarFicheros(), f2 = await L.sembrarFicheros();
     const sEsc = L.seccionPorNombre(SEC_ESCENAS), esc = sEsc ? L.items(sEsc.id) : [];
-    if (!(f1.n > 30) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.type !== 'scene'))   // banco 2.0 + escenas (las demos A/B ya no se siembran)
-      probs.push('ficheros: ' + f1.n + '/' + f2.n + ' errores ' + f1.errores.join(',') + ' escenas ' + esc.length);
-    console.log('biblioteca: fábrica ' + nFab + ' · repo ' + f1.n + ' · secciones ' + L.secciones().length + ' · ítems ' + L.items().length);
-    push({ name: 'biblioteca (siembra · borrar/traer · secciones · mover · ★ · buscar · export/import · ficheros)', peak: 0, ok: !probs.length, problems: probs });
+    if (!(f1.n > 30) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.type !== 'scene'))   // bank 2.0 + scenes (the A/B demos are no longer seeded)
+      probs.push('files: ' + f1.n + '/' + f2.n + ' errors ' + f1.errores.join(',') + ' scenes ' + esc.length);
+    console.log('library: factory ' + nFab + ' · repo ' + f1.n + ' · sections ' + L.secciones().length + ' · items ' + L.items().length);
+    push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // Compatibilidad 1.3.0 (1.4.0, todo en inglés): lo guardado hasta la 1.3.0 llevaba
-    // claves, valores y nombres en castellano y se traduce AL CARGARLO (engine/legacy.js).
-    // (1) un preset con valores viejos = su equivalente en inglés, sobre la base; (2) una
-    // escena v1 aplicada = la misma escena escrita en v2 (JSON idéntico); (3) una biblioteca
-    // v1 en su clave antigua: formato v2, secciones y nombres de fábrica traducidos, la
-    // semilla traducida (traer la fábrica no la duplica), favorito y datos de usuario
-    // conservados, las demos A/B fuera; (4) un mapa MIDI con una clave renombrada.
-    body.appendChild(el('st-cat', 'Compatibilidad'));
-    const NAME = 'compatibilidad 1.3.0 (preset · escena · biblioteca · mapa MIDI en castellano se traducen al cargar)';
+    // 1.3.0 compatibility (1.4.0, everything in English): what was saved up to 1.3.0 had
+    // keys, values and names in Spanish and is translated ON LOAD (engine/legacy.js).
+    // (1) a preset with old values = its English equivalent, over the base; (2) an
+    // applied v1 scene = the same scene written in v2 (identical JSON); (3) a v1
+    // library under its old key: v2 format, factory sections and names translated, the
+    // seed translated (restoring the factory does not duplicate it), favorite and user data
+    // kept, the A/B demos gone; (4) a MIDI map with a renamed key.
+    body.appendChild(el('st-cat', 'Compatibility'));
+    const NAME = '1.3.0 compatibility (preset · scene · library · MIDI map in Spanish are translated on load)';
     const probs = [];
     try {
       // (1) preset
@@ -965,9 +965,9 @@ export async function runSelfTest() {
       const EN = { waveA: 'wavetable', waveB: 'string', wtSet: 'formant', reverbType: 'plate', driveChar: 'fold', envmMode: 'loop',
         lfoPhase: 'voice', stReset: 'play', cutLfoSync: '1 bar', dlySync: 'free', st2Div: '1 bar', st3Drift: '2 bars', seqNotes: 'dorian', vocLife: 0.4, resBright: 0.7 };
       const canon = v => Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}' : JSON.stringify(v);
-      if (canon(withPresetBase(ES)) !== canon(withPresetBase(EN))) probs.push('preset: los valores en castellano no se traducen igual que su versión en inglés');
-      for (const k in EN) if (!(k in PARAMS)) probs.push('preset: «' + k + '» no es un parámetro');
-      // (2) escena v1 = la misma en v2
+      if (canon(withPresetBase(ES)) !== canon(withPresetBase(EN))) probs.push('preset: the Spanish values do not translate to the same as their English version');
+      for (const k in EN) if (!(k in PARAMS)) probs.push('preset: «' + k + '» is not a parameter');
+      // (2) v1 scene = the same in v2
       const v1 = { formato: 'subsdj-escena-v1', nombre: 'Coro robótico', fecha: '2026-10-01T00:00:00Z',
         sala: { bpm: 66, dlySync: 'libre', reverbType: 'placa', fb: 0.4, master: 1 },
         director: { seed: 3, armonia: { root: 2, scale: 'penta menor', prog: [1, 4], bars: 2, modo: 'funciones' },
@@ -984,9 +984,9 @@ export async function runSelfTest() {
         parts: [{ preset: '808 Kick', settings: { reverbMix: 0 } }, { name: 'Mi pad', presetVal: 'f:Warm Pad', state: { waveA: 'wavetable', wtSet: 'formant', reverbType: 'plate', vocLife: 0.3 } }] };
       const viaScene = async j => { const ctx = new OfflineAudioContext(2, SR, SR), sc = await createScene(ctx, []); applySceneJSON(sc, j); const o = sceneToJSON(sc); delete o.date; return canon(o); };
       const s1 = await viaScene(JSON.parse(JSON.stringify(v1))), s2 = await viaScene(v2);
-      if (s1 !== s2) probs.push('escena: la v1 no queda igual que la v2');
-      if (!s1.includes('"808 Kick"') || !s1.includes('"mode":"functions"') || !s1.includes('"threshold":0.2')) probs.push('escena: nombres, modo o claves sin traducir');
-      // (3) biblioteca v1 en su clave antigua
+      if (s1 !== s2) probs.push('scene: the v1 does not end up equal to the v2');
+      if (!s1.includes('"808 Kick"') || !s1.includes('"mode":"functions"') || !s1.includes('"threshold":0.2')) probs.push('scene: names, mode or keys not translated');
+      // (3) v1 library under its old key
       const m = {}, store = { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } };
       const lib1 = { formato: 'subsdj-biblioteca-v1', next: 9, ficheros: true,
         secciones: [{ id: 's1', nombre: 'Pads' }, { id: 's2', nombre: 'Demos A/B' }, { id: 's3', nombre: '★ Míos' }, { id: 's4', nombre: 'Escenas' }],
@@ -1000,33 +1000,33 @@ export async function runSelfTest() {
       const L = new Library({ key: 'subsdj.library.compat', storage: store });
       const era = L.load();
       const sec = L.secciones().map(s => s.name).join('|'), it = id => L.item(id);
-      if (era) probs.push('biblioteca: la v1 se trató como nueva');
-      if (L.data.format !== 'subsdj-library-v2' || !store.getItem('subsdj.library.compat') || !store.getItem('subsdj.biblioteca.v1')) probs.push('biblioteca: formato o claves de almacenamiento');
-      if (sec !== 'Pads|★ Mine|Scenes') probs.push('biblioteca: secciones ' + sec);
-      if (!it('p1') || it('p1').name !== 'Warm Pad' || it('p1').seed !== 'factory:Warm Pad' || !it('p1').fav || it('p1').origin !== 'factory') probs.push('biblioteca: preset de fábrica sin traducir');
-      if (it('p2')) probs.push('biblioteca: las demos A/B siguen');
-      if (!it('p3') || it('p3').name !== 'Mi pad' || it('p3').data.reverbType !== 'plate' || it('p3').data.vocBright !== 0.6 || it('p3').origin !== 'user') probs.push('biblioteca: preset de usuario');
-      if (!it('p4') || it('p4').name !== 'Mi bombo' || it('p4').seed !== 'factory:808 Kick') probs.push('biblioteca: renombrado por el usuario');
-      if (!it('e5') || it('e5').type !== 'scene' || it('e5').name !== 'Robot Choir' || it('e5').data.format !== 'subsdj-scene-v2') probs.push('biblioteca: escena');
+      if (era) probs.push('library: the v1 was treated as new');
+      if (L.data.format !== 'subsdj-library-v2' || !store.getItem('subsdj.library.compat') || !store.getItem('subsdj.biblioteca.v1')) probs.push('library: format or storage keys');
+      if (sec !== 'Pads|★ Mine|Scenes') probs.push('library: sections ' + sec);
+      if (!it('p1') || it('p1').name !== 'Warm Pad' || it('p1').seed !== 'factory:Warm Pad' || !it('p1').fav || it('p1').origin !== 'factory') probs.push('library: factory preset not translated');
+      if (it('p2')) probs.push('library: the A/B demos are still there');
+      if (!it('p3') || it('p3').name !== 'Mi pad' || it('p3').data.reverbType !== 'plate' || it('p3').data.vocBright !== 0.6 || it('p3').origin !== 'user') probs.push('library: user preset');
+      if (!it('p4') || it('p4').name !== 'Mi bombo' || it('p4').seed !== 'factory:808 Kick') probs.push('library: renamed by the user');
+      if (!it('e5') || it('e5').type !== 'scene' || it('e5').name !== 'Robot Choir' || it('e5').data.format !== 'subsdj-scene-v2') probs.push('library: scene');
       L.sembrarFabrica();
       const dup = n => L.items().filter(x => x.name === n).length;
-      if (dup('Warm Pad') !== 1 || dup('808 Kick') !== 0) probs.push('biblioteca: traer la fábrica duplica (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ')');
-      // (4) mapa MIDI con una clave de antes
+      if (dup('Warm Pad') !== 1 || dup('808 Kick') !== 0) probs.push('library: restoring the factory duplicates (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ')');
+      // (4) MIDI map with an old key
       const prevDev = getDevice(), K = 'subsdj.midimap.v1:compat';
       localStorage.setItem(K, JSON.stringify({ pickup: false, ccs: { 41: { id: 'vocVida', lo: 0, hi: 1 } } }));
       setDevice('compat');
-      if (!getMap().ccs[41] || getMap().ccs[41].id !== 'vocLife') probs.push('mapa MIDI: vocVida no pasa a vocLife');
+      if (!getMap().ccs[41] || getMap().ccs[41].id !== 'vocLife') probs.push('MIDI map: vocVida does not become vocLife');
       localStorage.removeItem(K); setDevice(prevDev);
-    } catch (e2) { probs.push('excepción: ' + ((e2 && e2.message) || e2)); }
+    } catch (e2) { probs.push('exception: ' + ((e2 && e2.message) || e2)); }
     push({ name: NAME, peak: 0, ok: !probs.length, problems: probs });
   }
 
   {
-    // matriz de modulación: dos renders A/B por el camino real.
-    // B1: env→amp a −1 debe ATENUAR claramente frente al render base (la ruta
-    //     suena de verdad). B2: cutoff modulado a tope negativo NUNCA silencia
-    //     (va por el detune del filtro, exponencial: el 0 Hz es inalcanzable).
-    body.appendChild(el('st-cat', 'Matriz'));
+    // modulation matrix: two A/B renders through the real path.
+    // B1: env→amp at −1 must clearly ATTENUATE against the base render (the route
+    //     really sounds). B2: cutoff modulated to the negative maximum NEVER silences
+    //     (it goes through the filter detune, exponential: 0 Hz is unreachable).
+    body.appendChild(el('st-cat', 'Matrix'));
     let r;
     try {
       loadState({});
@@ -1036,24 +1036,24 @@ export async function runSelfTest() {
       loadState({ mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: -1, cutLfoSpd: 3 });
       const rB2 = await renderState(structuredClone(engine.S));
       const probs = [];
-      if (rB1.bad || rB2.bad) probs.push('NaN/Inf en renders con matriz');
+      if (rB1.bad || rB2.bad) probs.push('NaN/Inf in renders with the matrix');
       if (!(rB1.peak > SILENCE * 0.2 && rB1.peak < rA.peak * 0.75))
-        probs.push('env→amp −1 no atenúa (base ' + dB(rA.peak) + ' vs ' + dB(rB1.peak) + ')');
+        probs.push('env→amp −1 does not attenuate (base ' + dB(rA.peak) + ' vs ' + dB(rB1.peak) + ')');
       if (!(rB2.peak > SILENCE))
-        probs.push('cutoff a −1 silenció el render (imposible por diseño: ' + dB(rB2.peak) + ')');
-      r = { name: 'matriz (env→amp atenúa · cutoff nunca llega a 0 Hz)', peak: rB2.peak, ok: !probs.length, problems: probs };
+        probs.push('cutoff at −1 silenced the render (impossible by design: ' + dB(rB2.peak) + ')');
+      r = { name: 'matrix (env→amp attenuates · cutoff never reaches 0 Hz)', peak: rB2.peak, ok: !probs.length, problems: probs };
     } catch (e) {
-      r = { name: 'matriz (env→amp atenúa · cutoff nunca llega a 0 Hz)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e && e.message) || e)] };
+      r = { name: 'matrix (env→amp attenuates · cutoff never reaches 0 Hz)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e && e.message) || e)] };
     }
     push(r);
   }
 
   {
-    // tabla de ondas: morph 0 (frame seno) y morph 1 (frame pulso) deben dar
-    // renders CLARAMENTE distintos y limpios. Determinista: la copia 0 del
-    // unison conserva la fase configurada y el estado base no lleva random.
-    body.appendChild(el('st-cat', 'Tabla de ondas'));
+    // wavetable: morph 0 (sine frame) and morph 1 (pulse frame) must give
+    // CLEARLY different, clean renders. Deterministic: copy 0 of the
+    // unison keeps the configured phase and the base state has no randomness.
+    body.appendChild(el('st-cat', 'Wavetable'));
     let r;
     try {
       loadState({ waveA: 'wavetable', levelA: 1, levelB: 0, wtPos: 0 });
@@ -1067,26 +1067,26 @@ export async function runSelfTest() {
       const diff = Math.sqrt(d / Math.max(1e-12, en));
       const probs = [];
       if (aA.bad || aB.bad) probs.push('NaN/Inf');
-      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silencio (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
+      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silence (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
       if (aA.peak > 1 || aB.peak > 1) probs.push('clipping');
-      if (!(diff > 0.3)) probs.push('morph 0 vs 1 apenas difiere (diff ' + diff.toFixed(3) + ')');
-      r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: aB.peak, ok: !probs.length, problems: probs };
+      if (!(diff > 0.3)) probs.push('morph 0 vs 1 barely differs (diff ' + diff.toFixed(3) + ')');
+      r = { name: 'wavetable (morph 0 ≠ 1, clean render)', peak: aB.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'tabla de ondas (morph 0 ≠ 1, render limpio)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'wavetable (morph 0 ≠ 1, clean render)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // tabla limpia (Roadmap 7.0 · 0.3): el oscilador «Tabla» solo, en un frame de
-    // banda completa (el 4 de 'analog': sierra + cuadrada, 512 armónicos), a
-    // f0 = k·SR/N: cada armónico cae EXACTO en un bin múltiplo de k (sin ventana
-    // ni fugas) y todo lo demás es error de la lectura (interpolación, aliasing).
-    // Energía fuera de los armónicos bajo la fundamental: con lineal y tablas 4×
-    // era −49 dB en Do2 y −43 en Do4; con Hermite y tablas 8×, −76 o menos.
-    body.appendChild(el('st-cat', 'Tabla limpia'));
-    const NAME = 'tabla limpia (energía entre armónicos < −65 dB en Do2, Do4 y Do6)';
+    // clean wavetable (Roadmap 7.0 · 0.3): the «Wavetable» oscillator alone, on a
+    // full-band frame (frame 4 of 'analog': saw + square, 512 harmonics), at
+    // f0 = k·SR/N: each harmonic lands EXACTLY on a bin that is a multiple of k (no window
+    // and no leakage) and everything else is reading error (interpolation, aliasing).
+    // Energy outside the harmonics relative to the fundamental: with linear and 4× tables
+    // it was −49 dB at C2 and −43 at C4; with Hermite and 8× tables, −76 or less.
+    body.appendChild(el('st-cat', 'Clean wavetable'));
+    const NAME = 'clean wavetable (energy between harmonics < −65 dB at C2, C4 and C6)';
     let r;
     try {
       const N = 32768, probs = [], suelos = [];
@@ -1100,7 +1100,7 @@ export async function runSelfTest() {
               re[s] = re[p] - tr; im[s] = im[p] - ti; re[p] += tr; im[p] += ti; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
         }
       };
-      for (const [nota, k] of [['Do2', 49], ['Do4', 194], ['Do6', 778]]) {
+      for (const [nota, k] of [['C2', 49], ['C4', 194], ['C6', 778]]) {
         const ctx = new OfflineAudioContext(1, 4096 + N, SR);
         await loadWorklets(ctx);
         const node = new AudioWorkletNode(ctx, 'pulse-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
@@ -1115,29 +1115,29 @@ export async function runSelfTest() {
         let inh = 0; for (let b = 1; b <= Math.floor(20000 * N / SR); b++) if (b % k) inh += P(b);
         const suelo = 10 * Math.log10(inh / P(k) + 1e-30);
         suelos.push(nota + ' ' + suelo.toFixed(1) + ' dB');
-        if (!(suelo < -65)) probs.push(nota + ': ' + suelo.toFixed(1) + ' dB entre armónicos');
+        if (!(suelo < -65)) probs.push(nota + ': ' + suelo.toFixed(1) + ' dB between harmonics');
       }
-      console.log('tabla limpia: ' + suelos.join(' · '));
+      console.log('clean wavetable: ' + suelos.join(' · '));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Sync duro (Roadmap 7.0 · 3.2), medido a f0 = k·SR/N como la tabla limpia: todo lo
-    // que no cae en un múltiplo de k es aliasing (o error). (1) Por el motor: A sierra con
-    // Sync, B callado (nivel 0: solo marca el tiempo) y la matriz «Pitch A» a +702 ct desde
-    // la Macro 1. Con sync la onda se repite al ritmo del B — energía en sus armónicos y la
-    // fundamental presente —; sin sync el A suena a 1,5× y casi todo cae fuera. Si «Pitch
-    // A» moviera también al maestro, el sync daría 1,5× y fallaría. (2) Oscilador suelto a
-    // Do4: el sync de sierra no ensucia más que la sierra LIBRE a la misma altura (+1,5 dB
-    // de margen) y quita ≥ 15 dB al sync sin corrección (calculado aquí); el seno con sync,
-    // con su corrección de pendiente, por debajo de −75 dB. (3) En vivo: el botón llega a
-    // las notas que suenan con la razón de las octavas (B a −1: 0,5) y la Súper lo atenúa.
-    body.appendChild(el('st-cat', 'Sync duro'));
-    const NAME = 'sync duro (la nota es la del B · Pitch A mueve solo al esclavo · aliasing como el oscilador libre · seno limpio · en vivo)';
+    // Hard sync (Roadmap 7.0 · 3.2), measured at f0 = k·SR/N like the clean wavetable: everything
+    // that does not land on a multiple of k is aliasing (or error). (1) Through the engine: A saw with
+    // Sync, B silent (level 0: it only keeps time) and the matrix «Pitch A» at +702 ct from
+    // Macro 1. With sync the wave repeats at B's rate — energy on its harmonics and the
+    // fundamental present —; without sync A sounds at 1.5× and almost everything lands outside. If «Pitch
+    // A» also moved the master, the sync would give 1.5× and fail. (2) Bare oscillator at
+    // C4: the saw sync is no dirtier than the FREE saw at the same pitch (+1.5 dB
+    // of margin) and removes ≥ 15 dB from the uncorrected sync (computed here); the sine with sync,
+    // with its slope correction, below −75 dB. (3) Live: the button reaches
+    // the sounding notes with the octave ratio (B at −1: 0.5) and the Supersaw dims it.
+    body.appendChild(el('st-cat', 'Hard sync'));
+    const NAME = 'hard sync (the note is B\'s · Pitch A moves only the slave · aliasing like the free oscillator · clean sine · live)';
     let r;
     try {
       const N = 32768, probs = [], keep = snapshot();
@@ -1151,15 +1151,15 @@ export async function runSelfTest() {
               re[s] = re[p] - tr; im[s] = im[p] - ti; re[p] += tr; im[p] += ti; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
         }
       };
-      // energía fuera de los múltiplos de k y la fundamental, ambas respecto a la de los armónicos (dB)
+      // energy outside the multiples of k and the fundamental, both relative to the harmonics' energy (dB)
       const floor = (d, k) => {
         const re = Float64Array.from(d), im = new Float64Array(N); fft(re, im);
         const P = b => re[b] * re[b] + im[b] * im[b];
         let inh = 0, harm = 0; for (let b = 1; b <= Math.floor(20000 * N / SR); b++) if (b % k) inh += P(b); else harm += P(b);
         return { inh: 10 * Math.log10(inh / harm + 1e-30), fund: 10 * Math.log10(P(k) / harm + 1e-30) };
       };
-      const k = 179, fB = k * SR / N, ST = 702;   // Do4 (bin exacto) · el A una quinta por encima
-      // (1) por el motor
+      const k = 179, fB = k * SR / N, ST = 702;   // C4 (exact bin) · A a fifth above
+      // (1) through the engine
       const motor = async sync => {
         loadState({ waveA: 'sawtooth', waveB: 'square', levelA: 1, levelB: 0, detuneA: 0, detuneB: 0, syncA: sync, cutoff: 20000, reso: 0.7,
           a: 0.005, d: 0.05, s: 1, r: 0.05, amplitude: 0.3, master: 0.4, mx1src: 'mac1', mx1dst: 'pitchA', mx1amt: ST / 1200, macro1: 1 });
@@ -1168,10 +1168,10 @@ export async function runSelfTest() {
         return floor((await ctx.startRendering()).getChannelData(0).subarray(8192, 8192 + N), k);
       };
       const mOn = await motor('on'), mOff = await motor('off');
-      if (!(mOn.inh < -35)) probs.push('con sync la onda no se repite al ritmo del B (fuera de sus armónicos ' + mOn.inh.toFixed(1) + ' dB)');
-      if (!(mOn.fund > -10)) probs.push('con sync falta la fundamental del B (' + mOn.fund.toFixed(1) + ' dB)');
-      if (!(mOff.inh > -10)) probs.push('sin sync el A debería sonar a 1,5× (fuera de los armónicos del B ' + mOff.inh.toFixed(1) + ' dB)');
-      // (2) el oscilador suelto: sync frente a la onda libre a su altura y frente al sync sin corrección
+      if (!(mOn.inh < -35)) probs.push('with sync the wave does not repeat at B\'s rate (outside its harmonics ' + mOn.inh.toFixed(1) + ' dB)');
+      if (!(mOn.fund > -10)) probs.push('with sync B\'s fundamental is missing (' + mOn.fund.toFixed(1) + ' dB)');
+      if (!(mOff.inh > -10)) probs.push('without sync A should sound at 1.5× (outside B\'s harmonics ' + mOff.inh.toFixed(1) + ' dB)');
+      // (2) the bare oscillator: sync against the free wave at its pitch and against the uncorrected sync
       const osc = async (type, f, sync, slave) => {
         const ctx = new OfflineAudioContext(1, 4096 + N, SR);
         await loadWorklets(ctx);
@@ -1181,7 +1181,7 @@ export async function runSelfTest() {
         node.connect(ctx.destination);
         return (await ctx.startRendering()).getChannelData(0).subarray(4096, 4096 + N);
       };
-      const naive = ratio => {   // sierra con sync a pelo: el escalón sin corregir
+      const naive = ratio => {   // naive saw sync: the uncorrected step
         const d = new Float64Array(N); let p = 0, g = 0; const dt = fB * ratio / SR, dtm = fB / SR;
         for (let i = 0; i < 4096 + N; i++) {
           if (i >= 4096) d[i - 4096] = 2 * p - 1;
@@ -1190,14 +1190,14 @@ export async function runSelfTest() {
         }
         return d;
       };
-      const kLibre = 268;   // la sierra libre a 1,5× Do4 (bin exacto más cercano a la quinta)
+      const kLibre = 268;   // the free saw at 1.5× C4 (exact bin closest to the fifth)
       const sSync = floor(await osc('sawtooth', fB, 1, ST), k).inh, sLibre = floor(await osc('sawtooth', kLibre * SR / N, 0, 0), kLibre).inh;
       const sPelo = floor(naive(Math.pow(2, ST / 1200)), k).inh;
       const seno = floor(await osc('sine', fB, 1, ST), k).inh;
-      if (!(sSync <= sLibre + 1.5)) probs.push('sierra con sync ' + sSync.toFixed(1) + ' dB fuera de los armónicos, más sucia que la libre (' + sLibre.toFixed(1) + ')');
-      if (!(sSync <= sPelo - 15)) probs.push('la corrección del reinicio quita poco: ' + sSync.toFixed(1) + ' frente a ' + sPelo.toFixed(1) + ' dB a pelo');
-      if (!(seno < -75)) probs.push('seno con sync ' + seno.toFixed(1) + ' dB fuera de los armónicos (esperado < −75)');
-      // (3) en vivo: el botón a las notas que suenan; atenuado con la Súper
+      if (!(sSync <= sLibre + 1.5)) probs.push('saw with sync ' + sSync.toFixed(1) + ' dB outside the harmonics, dirtier than the free one (' + sLibre.toFixed(1) + ')');
+      if (!(sSync <= sPelo - 15)) probs.push('the reset correction removes too little: ' + sSync.toFixed(1) + ' against ' + sPelo.toFixed(1) + ' dB naive');
+      if (!(seno < -75)) probs.push('sine with sync ' + seno.toFixed(1) + ' dB outside the harmonics (expected < −75)');
+      // (3) live: the button reaches the sounding notes; dimmed with the Supersaw
       loadState({ waveA: 'sawtooth', octB: -1, detuneA: 0, detuneB: 0, syncA: 'off' });
       engine.noteOn('syncLive', 220);
       const v = engine.voices.get('syncLive'), a = v && v.oscs[0];
@@ -1205,36 +1205,36 @@ export async function runSelfTest() {
       CONTROLS.syncA.set('on');
       const r1 = a && a.syncR ? a.syncR.value : NaN;
       engine.allNotesOff();
-      if (!(r0 === 0 && Math.abs(r1 - 0.5) < 1e-6)) probs.push('en vivo: razón ' + r0 + ' → ' + r1 + ' (esperado 0 → 0,5: el B una octava abajo)');
+      if (!(r0 === 0 && Math.abs(r1 - 0.5) < 1e-6)) probs.push('live: ratio ' + r0 + ' → ' + r1 + ' (expected 0 → 0.5: B one octave down)');
       loadState({ waveA: 'supersaw', syncA: 'on' });
       await new Promise(res => setTimeout(res, 50));
       const btn = document.getElementById('syncA');
-      if (!btn || !btn.classList.contains('dep-off')) probs.push('con la Súper el botón Sync no sale atenuado');
-      // con Sync el B manda aunque esté callado: su módulo sigue vivo, salvo la onda y las apiladas
+      if (!btn || !btn.classList.contains('dep-off')) probs.push('with the Supersaw the Sync button does not show as dimmed');
+      // with Sync B is in charge even when silent: its module stays live, except the wave and the stack
       loadState({ waveA: 'sawtooth', levelB: 0, syncA: 'on' });
       await new Promise(res => setTimeout(res, 50));
       const h2B = [...document.querySelectorAll('.panel h2')].find(h => [...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() === 'Osc B');
       const panelB = h2B && h2B.closest('.panel'), waveB = document.getElementById('waveB');
-      if (!panelB || panelB.classList.contains('dep-off') || !waveB || !waveB.closest('.dep-off')) probs.push('con Sync y el B a nivel 0, el Osc B debería seguir vivo (salvo onda y apiladas)');
+      if (!panelB || panelB.classList.contains('dep-off') || !waveB || !waveB.closest('.dep-off')) probs.push('with Sync and B at level 0, Osc B should stay live (except wave and stack)');
       loadState(keep);
-      console.log('sync: motor fuera de armónicos con/sin ' + mOn.inh.toFixed(1) + '/' + mOff.inh.toFixed(1) + ' dB (fund ' + mOn.fund.toFixed(1) + ') · sierra Do4 +702 sync ' + sSync.toFixed(1) + ' · libre a 1,5× ' + sLibre.toFixed(1) + ' · a pelo ' + sPelo.toFixed(1) + ' · seno sync ' + seno.toFixed(1) + ' dB · en vivo ' + r0 + ' → ' + r1);
+      console.log('sync: engine outside harmonics with/without ' + mOn.inh.toFixed(1) + '/' + mOff.inh.toFixed(1) + ' dB (fund ' + mOn.fund.toFixed(1) + ') · saw C4 +702 sync ' + sSync.toFixed(1) + ' · free at 1.5× ' + sLibre.toFixed(1) + ' · naive ' + sPelo.toFixed(1) + ' · sine sync ' + seno.toFixed(1) + ' dB · live ' + r0 + ' → ' + r1);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Cuerda (Roadmap 7.0 · 3.3: Karplus-Strong extendido), por el motor (la voz entera,
-    // con el filtro abierto): (1) afinación: la cumbre de la fundamental (DFT con Hann,
-    // barrido fino) a ±2 cents de la nota de C2 a C6, con y sin Rigidez — el paso todo
-    // fraccionario y los retardos de fase del bucle, compensados EN la nota; (2) se apaga
-    // como una cuerda: en C3 la fundamental pierde lo que manda su T60 (Decay 3 s en Do4,
-    // ×√2 una octava abajo: 18,4 dB en 1,3 s, ±2) y el 5º armónico pierde más; con Decay
-    // 20 s la proporción se mantiene (el Brillo es relativo); (3) la velocity es la
-    // fuerza de la púa: a 0,3 los agudos del ataque quedan ≥ 6 dB más bajos que a 1;
-    // (4) la Rigidez estira los armónicos: con 1, el 10º sube más de un semitono.
-    body.appendChild(el('st-cat', 'Cuerda'));
-    const NAME = 'cuerda (afinación ±2 ct C2-C6 · la fundamental dura más que el 5º · Decay sin cambiar el color · velocity = brillo · rigidez estira)';
+    // String (Roadmap 7.0 · 3.3: extended Karplus-Strong), through the engine (the whole voice,
+    // with the filter open): (1) tuning: the peak of the fundamental (DFT with Hann,
+    // fine sweep) within ±2 cents of the note from C2 to C6, with and without Stiffness — the fractional
+    // all-pass and the loop's phase delays, compensated IN the note; (2) it dies away
+    // like a string: at C3 the fundamental loses what its T60 dictates (Decay 3 s at C4,
+    // ×√2 an octave down: 18.4 dB in 1.3 s, ±2) and the 5th harmonic loses more; with Decay
+    // 20 s the ratio holds (Bright is relative); (3) velocity is the
+    // pick strength: at 0.3 the attack highs are ≥ 6 dB lower than at 1;
+    // (4) Stiffness stretches the harmonics: at 1, the 10th rises more than a semitone.
+    body.appendChild(el('st-cat', 'String'));
+    const NAME = 'string (tuning ±2 ct C2-C6 · the fundamental lasts longer than the 5th · Decay without changing the color · velocity = brightness · stiffness stretches)';
     let r;
     try {
       const probs = [], keep = snapshot(), log = [];
@@ -1244,60 +1244,60 @@ export async function runSelfTest() {
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.noteOn('c', f, vel);
         return (await ctx.startRendering()).getChannelData(0);
       };
-      const hann = new Map();   // ventanas por tamaño (se reutilizan)
-      const mag = (d, f, i0, n) => {   // DFT con ventana Hann en la frecuencia f (el fasor gira por multiplicación: sin trigonometría por muestra)
+      const hann = new Map();   // windows by size (reused)
+      const mag = (d, f, i0, n) => {   // DFT with a Hann window at frequency f (the phasor rotates by multiplication: no per-sample trigonometry)
         let wv = hann.get(n); if (!wv) { wv = new Float32Array(n); for (let i = 0; i < n; i++) wv[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); hann.set(n, wv); }
         const w = 2 * Math.PI * f / SR, cr = Math.cos(w), ci = Math.sin(w);
         let re = 0, im = 0, pr = 1, pi = 0;
         for (let i = 0; i < n; i++) { const x = d[i0 + i] * wv[i]; re += x * pr; im -= x * pi; const t = pr * cr - pi * ci; pi = pr * ci + pi * cr; pr = t; }
         return Math.hypot(re, im);
       };
-      const cumbre = (d, f, i0, n, ancho = 30) => {   // cents de la cumbre cerca de f
+      const cumbre = (d, f, i0, n, ancho = 30) => {   // cents of the peak near f
         let best = -1, bc = 0;
         for (let c = -ancho; c <= ancho; c += 4) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
         for (let c = bc - 4, c1 = bc + 4; c <= c1; c += 0.5) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
         for (let c = bc - 0.5, c1 = bc + 0.5; c <= c1; c += 0.05) { const m = mag(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
         return bc;
       };
-      // (1) afinación
+      // (1) tuning
       for (const stiff of [0, 1]) {
         const row = [];
         for (const [n, f] of [['C2', 65.406], ['C4', 261.63], ['C6', 1046.5]]) {
           const d = await render({ strStiff: stiff }, f, 1, 1.6);
           const c = cumbre(d, f, Math.round(0.1 * SR), 65536);
           row.push(n + ' ' + c.toFixed(2));
-          if (!(Math.abs(c) <= 2)) probs.push('rigidez ' + stiff + ', ' + n + ': ' + c.toFixed(2) + ' cents');
+          if (!(Math.abs(c) <= 2)) probs.push('stiffness ' + stiff + ', ' + n + ': ' + c.toFixed(2) + ' cents');
         }
-        log.push('rigidez ' + stiff + ' ' + row.join(' '));
+        log.push('stiffness ' + stiff + ' ' + row.join(' '));
       }
-      // (2) cómo se apaga (C3)
+      // (2) how it dies away (C3)
       const f3 = 130.81, W = Math.round(0.3 * SR), t0 = Math.round(0.1 * SR), t1 = Math.round(1.4 * SR);
       const caida = (d, h) => 20 * Math.log10(mag(d, h * f3, t0, W) / mag(d, h * f3, t1, W));
       const dN = await render({}, f3), dL = await render({ strDecay: 20 }, f3);
       const h1 = caida(dN, 1), h5 = caida(dN, 5), h1L = caida(dL, 1), h5L = caida(dL, 5);
-      if (!(Math.abs(h1 - 18.4) < 2)) probs.push('la fundamental cae ' + h1.toFixed(1) + ' dB en 1,3 s (esperado 18,4: Decay 3 s en Do4, ×√2 en Do3)');
-      if (!(h5 > h1 + 10)) probs.push('el 5º armónico no se apaga antes (' + h5.toFixed(1) + ' frente a ' + h1.toFixed(1) + ' dB)');
+      if (!(Math.abs(h1 - 18.4) < 2)) probs.push('the fundamental drops ' + h1.toFixed(1) + ' dB in 1.3 s (expected 18.4: Decay 3 s at C4, ×√2 at C3)');
+      if (!(h5 > h1 + 10)) probs.push('the 5th harmonic does not die away sooner (' + h5.toFixed(1) + ' against ' + h1.toFixed(1) + ' dB)');
       const prop = (h5 / h1), propL = (h5L / h1L);
-      if (!(Math.abs(propL / prop - 1) < 0.2)) probs.push('con Decay 20 s cambia el color: 5º/1º ' + propL.toFixed(2) + ' frente a ' + prop.toFixed(2));
-      // (3) velocity = fuerza de la púa (agudos del ataque, h6-30 frente a h1-3, primeros 50 ms)
+      if (!(Math.abs(propL / prop - 1) < 0.2)) probs.push('with Decay 20 s the color changes: 5th/1st ' + propL.toFixed(2) + ' against ' + prop.toFixed(2));
+      // (3) velocity = pick strength (attack highs, h6-30 against h1-3, first 50 ms)
       const agudos = async vel => { const d = await render({}, f3, vel, 0.3); let lo = 0, hi = 0;
         for (let h = 1; h <= 3; h++) lo += mag(d, h * f3, 0, 2400) ** 2; for (let h = 6; h <= 30; h++) hi += mag(d, h * f3, 0, 2400) ** 2; return 10 * Math.log10(hi / lo); };
       const v03 = await agudos(0.3), v1 = await agudos(1);
-      if (!(v1 - v03 >= 6)) probs.push('la velocity apenas cambia el brillo: ' + v03.toFixed(1) + ' / ' + v1.toFixed(1) + ' dB');
-      // (4) rigidez: el 10º armónico
+      if (!(v1 - v03 >= 6)) probs.push('velocity barely changes the brightness: ' + v03.toFixed(1) + ' / ' + v1.toFixed(1) + ' dB');
+      // (4) stiffness: the 10th harmonic
       const dS = await render({ strStiff: 1, strBright: 1 }, f3, 1, 1.2);
       const h10 = cumbre(dS, 10 * f3, Math.round(0.05 * SR), 32768, 300);
-      if (!(h10 > 100)) probs.push('con Rigidez 1 el 10º armónico sube solo ' + h10.toFixed(1) + ' cents');
+      if (!(h10 > 100)) probs.push('with Stiffness 1 the 10th harmonic rises only ' + h10.toFixed(1) + ' cents');
       loadState(keep);
-      console.log('cuerda: afinación ' + log.join(' · ') + ' ct · C3 en 1,3 s h1 ' + h1.toFixed(1) + ' dB h5 ' + h5.toFixed(1) + ' · Decay 20 s h1 ' + h1L.toFixed(1) + ' h5 ' + h5L.toFixed(1) + ' · agudos vel 0,3/1 ' + v03.toFixed(1) + '/' + v1.toFixed(1) + ' dB · rigidez 1: h10 +' + h10.toFixed(0) + ' ct');
+      console.log('string: tuning ' + log.join(' · ') + ' ct · C3 in 1.3 s h1 ' + h1.toFixed(1) + ' dB h5 ' + h5.toFixed(1) + ' · Decay 20 s h1 ' + h1L.toFixed(1) + ' h5 ' + h5L.toFixed(1) + ' · highs vel 0.3/1 ' + v03.toFixed(1) + '/' + v1.toFixed(1) + ' dB · stiffness 1: h10 +' + h10.toFixed(0) + ' ct');
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
-  // Render de una nota a f0 = SR/336 (131,25 Hz: un periodo = 336 muestras) y su
-  // espectro EXACTO en una ventana de 60 periodos (de 0,4 s en adelante): cada
-  // armónico cae en su bin y la media de la ventana es la continua de verdad.
+  // Render of one note at f0 = SR/336 (131.25 Hz: one period = 336 samples) and its
+  // EXACT spectrum over a window of 60 periods (from 0.4 s on): each
+  // harmonic lands on its bin and the window mean is the true DC.
   const F336 = SR / 336, WIN336 = 336 * 60;
   const renderF336 = async (state, vel = 1, mult = 1) => {
     const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
@@ -1312,60 +1312,60 @@ export async function runSelfTest() {
   const centroid336 = d => { let w = 0, s = 0; for (let k = 1; k <= 30; k++) { const a = harm336(d, k); w += a * a * k; s += a * a; } return w / Math.max(1e-30, s); };
 
   {
-    // Drive con carácter (Roadmap 7.0 · 3.1): (1) suave + Asimetría da armónicos
-    // PARES (2.º > −30 dB bajo el 1.º) sin continua (< −80 dB: el bloqueo de 5 Hz) y
-    // sin Asimetría no hay pares; (2) en silencio, silencio exacto (el sesgo se
-    // compensa: f(g·x + b) − f(b)); (3) plegado con el Drive barrido por la matriz
-    // (velocity → Drive, a Drive 1 = todo saturado): el brillo SUBE en conjunto pero
-    // no de forma monótona — los armónicos aparecen y vuelven a bajar; el
-    // suave, en cambio, solo sube; (4) plegado con simetría a tope: solo pares (la
-    // fundamental cae más de 30 dB bajo el 2.º).
-    body.appendChild(el('st-cat', 'Drive con carácter'));
-    const NAME = 'drive con carácter (asimetría = pares sin continua · silencio exacto · plegado no monótono · simetría = octava)';
+    // Character drive (Roadmap 7.0 · 3.1): (1) soft + Asymmetry gives EVEN
+    // harmonics (2nd > −30 dB below the 1st) with no DC (< −80 dB: the 5 Hz blocker) and
+    // without Asymmetry there are no even ones; (2) in silence, exact silence (the bias is
+    // compensated: f(g·x + b) − f(b)); (3) fold with the Drive swept by the matrix
+    // (velocity → Drive, at Drive 1 = fully saturated): the brightness RISES overall but
+    // not monotonically — harmonics appear and drop again; the
+    // soft one, in contrast, only rises; (4) fold with full symmetry: only even ones (the
+    // fundamental falls more than 30 dB below the 2nd).
+    body.appendChild(el('st-cat', 'Character drive'));
+    const NAME = 'character drive (asymmetry = even harmonics without DC · exact silence · non-monotonic fold · symmetry = octave)';
     let r;
     try {
       const probs = [], base = { waveA: 'sine', levelA: 0.6, levelB: 0, cutoff: 20000, reso: 0, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0 };
       const st = o => { loadState({ ...base, ...o }); return structuredClone(engine.S); };
       const asym = await renderF336(st({ filterDrive: 0.5, driveAsym: 1 })), sym = await renderF336(st({ filterDrive: 0.5 }));
       const h2a = harm336(asym, 2) / harm336(asym, 1), dca = Math.abs(mean336(asym)) / harm336(asym, 1), h2s = harm336(sym, 2) / harm336(sym, 1);
-      if (!(h2a > 0.0316)) probs.push('asimétrico: 2.º armónico ' + dB(h2a) + ' (esperado > −30 dB)');
-      if (!(dca < 1e-4)) probs.push('asimétrico: continua ' + dB(dca) + ' (esperado < −80 dB)');
-      if (!(h2s < 1e-3)) probs.push('simétrico con pares: ' + dB(h2s));
-      // (2) silencio: sin fuente (niveles a 0) y todo el sesgo, en los dos caracteres
+      if (!(h2a > 0.0316)) probs.push('asymmetric: 2nd harmonic ' + dB(h2a) + ' (expected > −30 dB)');
+      if (!(dca < 1e-4)) probs.push('asymmetric: DC ' + dB(dca) + ' (expected < −80 dB)');
+      if (!(h2s < 1e-3)) probs.push('symmetric with even harmonics: ' + dB(h2s));
+      // (2) silence: no source (levels at 0) and full bias, in both characters
       let sil = 0;
       for (const driveChar of ['soft', 'fold']) { const d = await renderF336(st({ levelA: 0, filterDrive: 1, driveAsym: 1, driveChar })); for (const x of d) sil = Math.max(sil, Math.abs(x)); }
-      if (!(sil < 1e-6)) probs.push('silencio con sesgo: pico ' + dB(sil));
-      // (3) brillo frente a la ganancia de entrada: vel 1 → ganancia 1 … vel 0,1 → 9,1
+      if (!(sil < 1e-6)) probs.push('silence with bias: peak ' + dB(sil));
+      // (3) brightness against the input gain: vel 1 → gain 1 … vel 0.1 → 9.1
       const sweep = async driveChar => { const S = st({ filterDrive: 1, driveChar, mx1src: 'vel', mx1dst: 'drive', mx1amt: -1 }), c = [];
         for (let v = 10; v >= 1; v--) c.push(centroid336(await renderF336(S, v / 10))); return c; };
       const cF = await sweep('fold'), cS = await sweep('soft');
       const drops = cF.filter((x, i) => i > 0 && x < cF[i - 1] - 0.05).length, sDrops = cS.filter((x, i) => i > 0 && x < cS[i - 1] - 0.05).length;
-      if (!(cF[cF.length - 1] > 2 * cF[0])) probs.push('plegado: el brillo no sube con el Drive (' + cF[0].toFixed(2) + ' → ' + cF[cF.length - 1].toFixed(2) + ')');
-      if (!(drops >= 1)) probs.push('plegado: el brillo sube de forma monótona (sin pliegues)');
-      if (sDrops) probs.push('suave: el brillo baja al subir el Drive (' + sDrops + ' veces)');
-      // (4) simetría a tope en el plegado = curva par: la fundamental desaparece
+      if (!(cF[cF.length - 1] > 2 * cF[0])) probs.push('fold: the brightness does not rise with the Drive (' + cF[0].toFixed(2) + ' → ' + cF[cF.length - 1].toFixed(2) + ')');
+      if (!(drops >= 1)) probs.push('fold: the brightness rises monotonically (no folds)');
+      if (sDrops) probs.push('soft: the brightness drops as the Drive rises (' + sDrops + ' times)');
+      // (4) full symmetry in the fold = even curve: the fundamental disappears
       const oct = await renderF336(st({ filterDrive: 1, driveChar: 'fold', driveAsym: 1 }));
       const h1o = harm336(oct, 1) / harm336(oct, 2);
-      if (!(h1o < 0.0316)) probs.push('plegado simétrico a tope: fundamental ' + dB(h1o) + ' bajo el 2.º (esperado < −30 dB)');
+      if (!(h1o < 0.0316)) probs.push('fully symmetric fold: fundamental ' + dB(h1o) + ' below the 2nd (expected < −30 dB)');
       loadState({});
-      console.log('drive: asimétrico H2 ' + dB(h2a) + ' continua ' + dB(dca) + ' · simétrico H2 ' + dB(h2s) + ' · silencio ' + dB(sil) +
-        ' · brillo plegado ' + cF.map(x => x.toFixed(2)).join(' ') + ' · suave ' + cS.map(x => x.toFixed(2)).join(' ') + ' · simetría H1/H2 ' + dB(h1o));
+      console.log('drive: asymmetric H2 ' + dB(h2a) + ' DC ' + dB(dca) + ' · symmetric H2 ' + dB(h2s) + ' · silence ' + dB(sil) +
+        ' · fold brightness ' + cF.map(x => x.toFixed(2)).join(' ') + ' · soft ' + cS.map(x => x.toFixed(2)).join(' ') + ' · symmetry H1/H2 ' + dB(h1o));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // LFO a tempo (Roadmap 7.0 · 2.2). (1) Un LFO global con sync 1/8 a 120 BPM va a
-    // 4 Hz y su ciclo (seno: cruce hacia arriba = fase 0) cae en la rejilla de un
-    // origen anclado como lo ancla el director (±1 ms); tras pasar a 90 BPM, a 3 Hz y
-    // en la rejilla NUEVA. (2) «reinicio»: dos notas que empiezan en instantes
-    // distintos se mueven igual desde su arranque (en «global», no). (3) «una vez»:
-    // el LFO recorre un ciclo y se queda quieto.
-    body.appendChild(el('st-cat', 'LFO a tempo'));
-    const NAME = 'LFO a tempo (sync en la rejilla · cambio de BPM · reinicio por nota · una vez)';
+    // Tempo LFO (Roadmap 7.0 · 2.2). (1) A global LFO with sync 1/8 at 120 BPM runs at
+    // 4 Hz and its cycle (sine: upward crossing = phase 0) lands on the grid of an
+    // origin anchored the way the conductor anchors it (±1 ms); after switching to 90 BPM, at 3 Hz and
+    // on the NEW grid. (2) «retrig»: two notes that start at different
+    // times move the same from their start (in «global», they do not). (3) «once»:
+    // the LFO runs one cycle and stays still.
+    body.appendChild(el('st-cat', 'Tempo LFO'));
+    const NAME = 'tempo LFO (sync on the grid · BPM change · per-note retrig · once)';
     let r;
     try {
       const probs = [];
@@ -1374,8 +1374,8 @@ export async function runSelfTest() {
       clkS.anchor('director', 0.137, 120);
       loadState({ cutLfoSync: '1/8' });
       const eS = new AudioEngine(); eS.S = structuredClone(engine.S); await eS.init(ctxS);
-      // se engancha a la salida a los 0,6 s, como cuando una voz lo usa: si el LFO no corriera sin nadie
-      // escuchando (Chrome no procesa lo que no llega al destino), saldría fuera de la rejilla
+      // it is hooked to the output at 0.6 s, as when a voice uses it: if the LFO did not run with nobody
+      // listening (Chrome does not process what does not reach the destination), it would come out off the grid
       ctxS.suspend(0.6).then(() => { eS.cutLFO.out.connect(ctxS.destination); ctxS.resume(); });
       ctxS.suspend(1.0).then(() => { eS.set('bpm', 90); ctxS.resume(); });
       const dS = (await ctxS.startRendering()).getChannelData(0), ups = [];
@@ -1384,9 +1384,9 @@ export async function runSelfTest() {
       const offGrid = (ts, timeAtBeat, div) => Math.max(...ts.map(t => { const k = Math.round((t - timeAtBeat(0)) / (timeAtBeat(div) - timeAtBeat(0))); return Math.abs(t - timeAtBeat(k * div)); }));
       const e1 = offGrid(pre, b => 0.137 + b * 0.5, 0.5), e2 = offGrid(post, b => clkS.timeAt(b), 0.5);
       const hz1 = (pre.length - 1) / (pre[pre.length - 1] - pre[0]), hz2 = (post.length - 1) / (post[post.length - 1] - post[0]);
-      if (!(Math.abs(hz1 - 4) < 0.01 && e1 < 0.001)) probs.push('120 BPM · 1/8: ' + hz1.toFixed(3) + ' Hz, a ' + (e1 * 1000).toFixed(2) + ' ms de la rejilla');
-      if (!(Math.abs(hz2 - 3) < 0.01 && e2 < 0.001)) probs.push('tras pasar a 90 BPM: ' + hz2.toFixed(3) + ' Hz, a ' + (e2 * 1000).toFixed(2) + ' ms de la rejilla nueva');
-      // (2) y (3): LFO de cutoff crudo → Amplitud por la matriz, envolvente por periodos de la nota
+      if (!(Math.abs(hz1 - 4) < 0.01 && e1 < 0.001)) probs.push('120 BPM · 1/8: ' + hz1.toFixed(3) + ' Hz, ' + (e1 * 1000).toFixed(2) + ' ms from the grid');
+      if (!(Math.abs(hz2 - 3) < 0.01 && e2 < 0.001)) probs.push('after switching to 90 BPM: ' + hz2.toFixed(3) + ' Hz, ' + (e2 * 1000).toFixed(2) + ' ms from the new grid');
+      // (2) and (3): raw cutoff LFO → Amplitude through the matrix, envelope by note periods
       const st = o => { loadState({ waveA: 'sine', levelA: 0.6, levelB: 0, cutoff: 20000, reso: 0, a: 0.002, d: 0.05, s: 1, r: 0.05, width: 0,
         cutLfoSpd: 2, mx1src: 'lfoCut', mx1dst: 'amp', mx1amt: 0.5, ...o }); return structuredClone(engine.S); };
       const envFrom = async (S, at) => {
@@ -1400,30 +1400,30 @@ export async function runSelfTest() {
       const rel = (a, b) => { let d = 0, e = 0; for (let i = 0; i < Math.min(a.length, b.length); i++) { d += (a[i] - b[i]) ** 2; e += a[i] ** 2; } return Math.sqrt(d / e); };
       const SR2 = st({ lfoPhase: 'retrig' }), SG = st({ lfoPhase: 'global' });
       const dRe = rel(await envFrom(SR2, 0), await envFrom(structuredClone(SR2), 0.37)), dGl = rel(await envFrom(SG, 0), await envFrom(structuredClone(SG), 0.37));
-      if (!(dRe < 0.01 && dGl > 0.1)) probs.push('reinicio: dos notas difieren ' + dRe.toFixed(4) + ' (global: ' + dGl.toFixed(3) + ')');
+      if (!(dRe < 0.01 && dGl > 0.1)) probs.push('retrig: two notes differ by ' + dRe.toFixed(4) + ' (global: ' + dGl.toFixed(3) + ')');
       const eU = await envFrom(st({ lfoPhase: 'once' }), 0);
       const nU = Math.round((0.5 - 4 * 336 / SR) / (336 / SR)), during = eU.slice(0, nU), after = eU.slice(nU + 6);
       const swing = Math.max(...during) / Math.min(...during), still = Math.max(...after) / Math.min(...after);
-      if (!(swing > 1.5 && still < 1.01)) probs.push('una vez: oscila ×' + swing.toFixed(2) + ' en su ciclo y ×' + still.toFixed(3) + ' después (esperado quieto)');
+      if (!(swing > 1.5 && still < 1.01)) probs.push('once: swings ×' + swing.toFixed(2) + ' in its cycle and ×' + still.toFixed(3) + ' afterwards (expected still)');
       loadState({});
-      console.log('lfo a tempo: 120 BPM 1/8 ' + hz1.toFixed(3) + ' Hz a ' + (e1 * 1000).toFixed(3) + ' ms · 90 BPM ' + hz2.toFixed(3) + ' Hz a ' + (e2 * 1000).toFixed(3) +
-        ' ms · reinicio ' + dRe.toFixed(4) + ' (global ' + dGl.toFixed(3) + ') · una vez ciclo ×' + swing.toFixed(2) + ' después ×' + still.toFixed(4));
+      console.log('tempo lfo: 120 BPM 1/8 ' + hz1.toFixed(3) + ' Hz at ' + (e1 * 1000).toFixed(3) + ' ms · 90 BPM ' + hz2.toFixed(3) + ' Hz at ' + (e2 * 1000).toFixed(3) +
+        ' ms · retrig ' + dRe.toFixed(4) + ' (global ' + dGl.toFixed(3) + ') · once cycle ×' + swing.toFixed(2) + ' afterwards ×' + still.toFixed(4));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Env mod (Roadmap 7.0 · 2.1), su salida cruda en un canal aparte: (1) bucle con
-    // A 10 ms + D 90 ms = periódica a 0,1 s EXACTOS (la señal desplazada 4410 muestras
-    // coincide), de 0 a 1; al soltar, sigue desde donde estaba (sin salto) y llega a 0
-    // en R; (2) disparo con una nota de 20 ms: la curva entera (en t0 + A + D vale el
-    // sostenido, en t0 + A + D + R vale 0), y en normal la misma nota la corta antes;
-    // (3) normal: sostiene en S mientras se pulsa.
-    body.appendChild(el('st-cat', 'Env mod'));
-    const NAME = 'Env mod (bucle exacto · release desde su punto · disparo entero · sostenido)';
+    // Mod Env (Roadmap 7.0 · 2.1), its raw output on a separate channel: (1) loop with
+    // A 10 ms + D 90 ms = periodic at EXACTLY 0.1 s (the signal shifted by 4410 samples
+    // matches), from 0 to 1; on release, it continues from where it was (no jump) and reaches 0
+    // within R; (2) trigger with a 20 ms note: the whole curve (at t0 + A + D it is at the
+    // sustain, at t0 + A + D + R it is 0), and in normal the same note cuts it earlier;
+    // (3) normal: holds at S while pressed.
+    body.appendChild(el('st-cat', 'Mod Env'));
+    const NAME = 'Mod Env (exact loop · release from its point · whole trigger · sustain)';
     let r;
     try {
       const probs = [];
@@ -1437,46 +1437,46 @@ export async function runSelfTest() {
         return { d: (await ctx.startRendering()).getChannelData(2), t0: v.t0, tOff: Math.round(offAt * SR / 128) * 128 / SR };
       };
       const at = (x, t) => x.d[Math.round(t * SR)];
-      // (1) bucle
+      // (1) loop
       const B = await run({ envmMode: 'loop', envmA: 0.01, envmD: 0.09, envmR: 0.2 }, 0.8);
       let per = 0, mx = 0, mn = 1;
       for (let i = Math.round((B.t0 + 0.05) * SR); i < Math.round((B.t0 + 0.6) * SR); i++) { per = Math.max(per, Math.abs(B.d[i] - B.d[i + 4410])); mx = Math.max(mx, B.d[i]); mn = Math.min(mn, B.d[i]); }
       const iOff = Math.round(B.tOff * SR), jump = Math.abs(B.d[iOff] - B.d[iOff - 1]), endB = Math.abs(at(B, B.tOff + 0.2 + 0.02));
-      if (!(per < 2e-3 && mx > 0.99 && mn < 0.01)) probs.push('bucle: periodo 0,1 s con error ' + per.toExponential(1) + ', rango ' + mn.toFixed(3) + '…' + mx.toFixed(3));
-      if (!(jump < 0.02 && endB < 1e-3)) probs.push('bucle al soltar: salto ' + jump.toFixed(3) + ', tras R ' + endB.toFixed(4));
-      // (2) disparo frente a normal con una nota de 20 ms
+      if (!(per < 2e-3 && mx > 0.99 && mn < 0.01)) probs.push('loop: 0.1 s period with error ' + per.toExponential(1) + ', range ' + mn.toFixed(3) + '…' + mx.toFixed(3));
+      if (!(jump < 0.02 && endB < 1e-3)) probs.push('loop on release: jump ' + jump.toFixed(3) + ', after R ' + endB.toFixed(4));
+      // (2) trigger against normal with a 20 ms note
       const env = { envmA: 0.01, envmD: 0.2, envmS: 0.5, envmR: 0.3 };
       const P = await run({ envmMode: 'trigger', ...env }, 0.02), N = await run({ envmMode: 'normal', ...env }, 0.02);
       const pS = at(P, P.t0 + 0.21), pEnd = at(P, P.t0 + 0.52), nMid = at(N, N.t0 + 0.21);
-      if (!(Math.abs(pS - 0.5) < 0.02 && Math.abs(pEnd) < 0.01)) probs.push('disparo: en A + D vale ' + pS.toFixed(3) + ' (esperado 0,5) y tras R ' + pEnd.toFixed(3));
-      if (!(nMid < 0.4)) probs.push('normal con 20 ms: no suelta (' + nMid.toFixed(3) + ' en A + D)');
-      // (3) normal sostenido
+      if (!(Math.abs(pS - 0.5) < 0.02 && Math.abs(pEnd) < 0.01)) probs.push('trigger: at A + D it is ' + pS.toFixed(3) + ' (expected 0.5) and after R ' + pEnd.toFixed(3));
+      if (!(nMid < 0.4)) probs.push('normal with 20 ms: does not release (' + nMid.toFixed(3) + ' at A + D)');
+      // (3) normal sustain
       const H = await run({ envmMode: 'normal', ...env }, 1.2);
       const hS = at(H, H.t0 + 0.8);
-      if (!(Math.abs(hS - 0.5) < 0.005)) probs.push('normal: sostiene en ' + hS.toFixed(3) + ' (esperado 0,5)');
+      if (!(Math.abs(hS - 0.5) < 0.005)) probs.push('normal: holds at ' + hS.toFixed(3) + ' (expected 0.5)');
       loadState({});
-      console.log('env mod: bucle error ' + per.toExponential(1) + ' rango ' + mn.toFixed(3) + '…' + mx.toFixed(3) + ' salto al soltar ' + jump.toFixed(4) +
-        ' · disparo A+D ' + pS.toFixed(3) + ' tras R ' + pEnd.toFixed(4) + ' · normal 20 ms ' + nMid.toFixed(3) + ' · sostenido ' + hS.toFixed(3));
+      console.log('mod env: loop error ' + per.toExponential(1) + ' range ' + mn.toFixed(3) + '…' + mx.toFixed(3) + ' jump on release ' + jump.toFixed(4) +
+        ' · trigger A+D ' + pS.toFixed(3) + ' after R ' + pEnd.toFixed(4) + ' · normal 20 ms ' + nMid.toFixed(3) + ' · sustain ' + hS.toFixed(3));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Pasos (Roadmap 7.0 · 2.3): (1) la escalera del sabor continuo en el tiempo —
-    // valores exactos a mitad de cada paso y pasos en la rejilla —, suavizado 0 sin
-    // clic (el salto máximo entre muestras de −1 a +1 es el de una rampa de 4 ms) y
-    // suavizado 1 = rampa del paso entero; (2) cuentas: rotación + deriva, el ciclo
-    // de 16 · 12 · 5 = 15 compases (y con deriva); (3) «· nota» toma el paso en que
-    // empieza la nota; (4) reinicio «al tocar»: tras el silencio la frase vuelve al
-    // paso 0 (con «nunca», sigue donde iba).
-    body.appendChild(el('st-cat', 'Pasos'));
-    const NAME = 'Pasos (escalera exacta · sin clic · suavizado · rotación y deriva · ciclo · por nota · reinicio)';
+    // Steps (Roadmap 7.0 · 2.3): (1) the staircase of the continuous flavor over time —
+    // exact values at the middle of each step and steps on the grid —, smoothing 0 with no
+    // click (the maximum jump between samples from −1 to +1 is that of a 4 ms ramp) and
+    // smoothing 1 = a ramp over the whole step; (2) arithmetic: rotation + drift, the cycle
+    // of 16 · 12 · 5 = 15 bars (and with drift); (3) «· note» takes the step in which
+    // the note starts; (4) reset «on play»: after the silence the phrase goes back to
+    // step 0 (with «never», it carries on where it was).
+    body.appendChild(el('st-cat', 'Steps'));
+    const NAME = 'Steps (exact staircase · no click · smoothing · rotation and drift · cycle · per note · reset)';
     let r;
     try {
-      const probs = [], step = 0.125;   // 1/16 a 120 BPM
+      const probs = [], step = 0.125;   // 1/16 at 120 BPM
       const base = { waveA: 'sine', levelA: 0.5, levelB: 0, a: 0.002, s: 1, r: 0.05, bpm: 120, st1Pat: '1 -1 0.5 0', st1Div: '1/16' };
       // (1)
       const raw = async o => {
@@ -1490,22 +1490,22 @@ export async function runSelfTest() {
       let errV = 0, jump = 0;
       for (let k = 0; k < 16; k++) errV = Math.max(errV, Math.abs(d0[Math.round((k + 0.5) * step * SR)] - want[k % 4]));
       for (let i = 1; i < Math.round(2 * SR); i++) jump = Math.max(jump, Math.abs(d0[i] - d0[i - 1]));
-      const edge = d0[Math.round((step + 0.002) * SR)];   // a mitad de la rampa de 4 ms del paso 1 (de 1 a −1)
-      if (!(errV < 1e-6)) probs.push('escalera: error ' + errV.toExponential(1) + ' a mitad de paso');
-      if (!(jump < 0.02 && Math.abs(edge) < 0.15)) probs.push('escalón: salto máximo ' + jump.toFixed(4) + ' por muestra, a 2 ms del paso ' + edge.toFixed(3));
+      const edge = d0[Math.round((step + 0.002) * SR)];   // halfway through the 4 ms ramp of step 1 (from 1 to −1)
+      if (!(errV < 1e-6)) probs.push('staircase: error ' + errV.toExponential(1) + ' at mid-step');
+      if (!(jump < 0.02 && Math.abs(edge) < 0.15)) probs.push('step edge: maximum jump ' + jump.toFixed(4) + ' per sample, 2 ms into the step ' + edge.toFixed(3));
       const d1 = await raw({ st1Smooth: 1 });
-      const mid1 = d1[Math.round(1.5 * step * SR)];        // paso 1 a mitad: de 1 hacia −1 = 0
-      if (!(Math.abs(mid1) < 0.01)) probs.push('suavizado 1: a mitad del paso vale ' + mid1.toFixed(3) + ' (esperado 0)');
-      // (2) cuentas sobre un motor de mentira (sin audio)
+      const mid1 = d1[Math.round(1.5 * step * SR)];        // step 1 halfway: from 1 towards −1 = 0
+      if (!(Math.abs(mid1) < 0.01)) probs.push('smoothing 1: halfway through the step it is ' + mid1.toFixed(3) + ' (expected 0)');
+      // (2) arithmetic on a mock engine (no audio)
       const fakeCtx = { currentTime: 0 }, clk = clockOf(fakeCtx); clk.anchor('d', 0, 120);
       const fe = { ctx: fakeCtx, bpm: 120, S: { ...structuredClone(engine.S), stReset: 'never', st2Pat: '0 0.25 0.5 0.75 1', st2Div: '1/16', st2Rot: 2, st2Drift: '1 bar' } };
       const sp = new Steps(fe);
-      const r0 = sp.valueAt(2, 0.01), r16 = sp.valueAt(2, 2.01);   // paso 0: índice 2 · paso 16 (compás 1): 16 + 2 + 1 = 19 → 4
-      if (!(r0 === 0.5 && r16 === 1)) probs.push('rotación y drift: ' + r0 + ' / ' + r16 + ' (esperado 0,5 / 1)');
+      const r0 = sp.valueAt(2, 0.01), r16 = sp.valueAt(2, 2.01);   // step 0: index 2 · step 16 (bar 1): 16 + 2 + 1 = 19 → 4
+      if (!(r0 === 0.5 && r16 === 1)) probs.push('rotation and drift: ' + r0 + ' / ' + r16 + ' (expected 0.5 / 1)');
       const cyc = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st2Pat: Array(12).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st2Div: '1/16', st3Div: '1/16', stReset: 'play' }, [1, 2, 3]);
       const cycD = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st3Div: '1/16', st3Drift: '2 bars', stReset: 'play' }, [1, 3]);
-      if (!(cyc === 15 && cycD === 10)) probs.push('ciclo: 16 · 12 · 5 = ' + cyc + ' compases (esperado 15); 16 · 5 con deriva de 2 c = ' + cycD + ' (esperado 10)');
-      // (3) y (4): por nota y reinicio, leyendo el valor fijo de cada voz
+      if (!(cyc === 15 && cycD === 10)) probs.push('cycle: 16 · 12 · 5 = ' + cyc + ' bars (expected 15); 16 · 5 with a 2-bar drift = ' + cycD + ' (expected 10)');
+      // (3) and (4): per note and reset, reading each voice's fixed value
       const perNote = async (reset, idleBetween) => {
         loadState({ ...base, mx1src: 'st1n', mx1dst: 'pan', mx1amt: 0.5, stReset: reset });
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2), SR), eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
@@ -1517,29 +1517,29 @@ export async function runSelfTest() {
         return vals;
       };
       const pT = await perNote('play', true), pN = await perNote('never', true);
-      // a: paso 0 (1) · b a 0,30 s: paso 2 (0,5) · c a 1,37 s tras el silencio: «al tocar» = paso 0 (1);
-      // «nunca» = el paso en que cae su arranque (t0 = tecla + look-ahead: el 11 → 0), que no es el 0
+      // a: step 0 (1) · b at 0.30 s: step 2 (0.5) · c at 1.37 s after the silence: «on play» = step 0 (1);
+      // «never» = the step its start falls on (t0 = key + look-ahead: 11 → 0), which is not 0
       const wantN = want[Math.floor(pN.t0c / step + 1e-9) % 4];
-      if (!(pT[0] === 1 && pT[1] === 0.5)) probs.push('por nota: ' + pT.slice(0, 2).join(' / ') + ' (esperado 1 / 0,5)');
-      if (!(pT[2] === 1 && pN[2] === wantN && wantN !== 1)) probs.push('reinicio: tras el silencio «al tocar» ' + pT[2] + ' (esperado 1), «nunca» ' + pN[2] + ' (esperado ' + wantN + ')');
+      if (!(pT[0] === 1 && pT[1] === 0.5)) probs.push('per note: ' + pT.slice(0, 2).join(' / ') + ' (expected 1 / 0.5)');
+      if (!(pT[2] === 1 && pN[2] === wantN && wantN !== 1)) probs.push('reset: after the silence «on play» ' + pT[2] + ' (expected 1), «never» ' + pN[2] + ' (expected ' + wantN + ')');
       loadState({});
-      console.log('pasos: escalera error ' + errV.toExponential(1) + ' · salto máx ' + jump.toFixed(4) + ' · suavizado 1 a mitad ' + mid1.toFixed(4) + ' · rotación/deriva ' + r0 + ' ' + r16 +
-        ' · ciclo ' + cyc + ' y ' + cycD + ' compases · por nota ' + pT.join(' ') + ' · nunca ' + pN.join(' '));
+      console.log('steps: staircase error ' + errV.toExponential(1) + ' · max jump ' + jump.toFixed(4) + ' · smoothing 1 halfway ' + mid1.toFixed(4) + ' · rotation/drift ' + r0 + ' ' + r16 +
+        ' · cycle ' + cyc + ' and ' + cycD + ' bars · per note ' + pT.join(' ') + ' · never ' + pN.join(' '));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Destinos nuevos de la matriz (Roadmap 7.0 · 2.4), cada uno mueve lo que dice
-    // (velocity 1 como fuente constante): Nivel A y B a 0 callan su oscilador; Nivel
-    // ruido y Nivel Ring hacen sonar lo que estaba a 0; Pitch A sube una octava el
-    // A y no el B. (Material por la matriz: en el check del resonador, que mide la
-    // afinación de los modos en su cola libre.)
-    body.appendChild(el('st-cat', 'Matriz · destinos nuevos'));
-    const NAME = 'matriz · destinos nuevos (niveles A/B/Ring/ruido · Pitch A)';
+    // New matrix targets (Roadmap 7.0 · 2.4), each one moves what it says
+    // (velocity 1 as a constant source): Level A and B at 0 silence their oscillator; Level
+    // Noise and Level Ring make what was at 0 sound; Pitch A raises A by an octave
+    // and not B. (Material through the matrix: in the resonator check, which measures the
+    // tuning of the modes in their free tail.)
+    body.appendChild(el('st-cat', 'Matrix · new targets'));
+    const NAME = 'matrix · new targets (levels A/B/Ring/noise · Pitch A)';
     let r;
     try {
       const probs = [], base = { waveA: 'sine', waveB: 'sine', levelA: 0, levelB: 0, cutoff: 20000, reso: 0, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0 };
@@ -1550,30 +1550,30 @@ export async function runSelfTest() {
       const lB = rms(await renderF336(st({ levelB: 0.5, ...mx('lvlB', -0.5) })));
       const lN = rms(await renderF336(st({ ...mx('lvlNoise', 0.5) })));
       const lR = rms(await renderF336(st({ ...mx('lvlRing', 1) })));
-      if (!(lA < 1e-5 && lA0 > 0.01)) probs.push('Nivel A: con −0,5 sobre 0,5 suena ' + dB(lA) + ' (sin matriz ' + dB(lA0) + ')');
-      if (!(lB < 1e-5)) probs.push('Nivel B: con −0,5 sobre 0,5 suena ' + dB(lB));
-      if (!(lN > 0.01)) probs.push('Nivel ruido: no aparece el ruido (' + dB(lN) + ')');
-      if (!(lR > 0.01)) probs.push('Nivel Ring: no aparece el anillo (' + dB(lR) + ')');
+      if (!(lA < 1e-5 && lA0 > 0.01)) probs.push('Level A: with −0.5 over 0.5 it sounds at ' + dB(lA) + ' (without matrix ' + dB(lA0) + ')');
+      if (!(lB < 1e-5)) probs.push('Level B: with −0.5 over 0.5 it sounds at ' + dB(lB));
+      if (!(lN > 0.01)) probs.push('Level Noise: the noise does not appear (' + dB(lN) + ')');
+      if (!(lR > 0.01)) probs.push('Level Ring: the ring does not appear (' + dB(lR) + ')');
       const pA = await renderF336(st({ levelA: 1, ...mx('pitchA', 1) })), pB = await renderF336(st({ levelB: 1, ...mx('pitchA', 1) }));
       const qA = harm336(pA, 2) / Math.max(1e-12, harm336(pA, 1)), qB = harm336(pB, 1) / Math.max(1e-12, harm336(pB, 2));
-      if (!(qA > 100)) probs.push('Pitch A: el A no sube una octava (2f/f ' + qA.toFixed(1) + ')');
-      if (!(qB > 100)) probs.push('Pitch A: mueve también el B (f/2f ' + qB.toFixed(1) + ')');
+      if (!(qA > 100)) probs.push('Pitch A: A does not rise an octave (2f/f ' + qA.toFixed(1) + ')');
+      if (!(qB > 100)) probs.push('Pitch A: it also moves B (f/2f ' + qB.toFixed(1) + ')');
       loadState({});
-      console.log('matriz destinos: nivel A ' + dB(lA) + ' (sin matriz ' + dB(lA0) + ') · B ' + dB(lB) + ' · ruido ' + dB(lN) + ' · ring ' + dB(lR) +
-        ' · pitch A 2f/f ' + qA.toFixed(0) + ' · B f/2f ' + qB.toFixed(0) + ' (Material: en el check del resonador)');
+      console.log('matrix targets: level A ' + dB(lA) + ' (without matrix ' + dB(lA0) + ') · B ' + dB(lB) + ' · noise ' + dB(lN) + ' · ring ' + dB(lR) +
+        ' · pitch A 2f/f ' + qA.toFixed(0) + ' · B f/2f ' + qB.toFixed(0) + ' (Material: in the resonator check)');
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // editor de ondas: (1) la DFT corta recupera un espectro conocido
-    // (seno h1 + coseno h3), (2) puntos→espectro→puntos reproduce el dibujo
-    // (entrada band-limited por construcción), (3) la tabla 'user' (frames
-    // por defecto seno/sierra en un perfil limpio) da morph 0 ≠ 1.
-    body.appendChild(el('st-cat', 'Editor de ondas'));
+    // wave editor: (1) the short DFT recovers a known spectrum
+    // (sine h1 + cosine h3), (2) points→spectrum→points reproduces the drawing
+    // (band-limited input by construction), (3) the 'user' table (default
+    // sine/saw frames on a clean profile) gives morph 0 ≠ 1.
+    body.appendChild(el('st-cat', 'Wave Editor'));
     let r;
     try {
       const P = 256, pts = new Array(P);
@@ -1584,7 +1584,7 @@ export async function runSelfTest() {
       const back = puntosDeEspectro(sp, P);
       let err = 0; for (let i = 0; i < P; i++) err = Math.max(err, Math.abs(back[i] - pts[i]));
       const okRt = err < 0.02;
-      // frames por defecto DURANTE el test (el usuario puede tener A≈B dibujado); se restaura al salir
+      // default frames DURING the test (the user may have drawn A≈B); restored on the way out
       const prevWt = localStorage.getItem(WT_LS);
       saveUserFrames(defaultUserFrames());
       loadState({ waveA: 'wavetable', wtSet: 'user', levelA: 1, levelB: 0, wtPos: 0 });
@@ -1598,33 +1598,33 @@ export async function runSelfTest() {
       let d = 0, en = 0;
       for (let i = 0; i < cA.length; i += 16) { const x = cA[i] - cB[i]; d += x * x; en += cA[i] * cA[i]; }
       const diff = Math.sqrt(d / Math.max(1e-12, en));
-      // receta wtUser: encode/decode reproduce los frames (viaja en el preset)
+      // wtUser recipe: encode/decode reproduces the frames (it travels in the preset)
       const fr0 = defaultUserFrames(), fr1 = decodeUserFrames(encodeUserFrames(fr0));
       let errEnc = fr1 && fr1.length === fr0.length ? 0 : 1;
       if (!errEnc) for (let i = 0; i < fr0.length; i++)
         for (let k = 0; k < fr0[i].length; k++) errEnc = Math.max(errEnc, Math.abs(fr1[i][k] - fr0[i][k]));
       const okEnc = errEnc < 0.001 && decodeUserFrames('') === null && decodeUserFrames('1,2;3') === null;
       const probs = [];
-      if (!okDft) probs.push('DFT no recupera el espectro (h1s ' + sp.sin[0].toFixed(3) + ' h3c ' + sp.cos[2].toFixed(3) + ')');
-      if (!okRt) probs.push('ida-y-vuelta con error ' + err.toFixed(4));
-      if (!okEnc) probs.push('receta wtUser no reproduce los frames (err ' + errEnc + ')');
+      if (!okDft) probs.push('DFT does not recover the spectrum (h1s ' + sp.sin[0].toFixed(3) + ' h3c ' + sp.cos[2].toFixed(3) + ')');
+      if (!okRt) probs.push('round trip with error ' + err.toFixed(4));
+      if (!okEnc) probs.push('wtUser recipe does not reproduce the frames (err ' + errEnc + ')');
       if (aA.bad || aB.bad) probs.push('NaN/Inf');
-      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silencio (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
-      if (!(diff > 0.3)) probs.push('usuario: morph 0 vs 1 apenas difiere (diff ' + diff.toFixed(3) + ')');
-      r = { name: 'editor de ondas (DFT · ida-y-vuelta · usuario A≠B)', peak: aB.peak, ok: !probs.length, problems: probs };
+      if (aA.peak <= SILENCE || aB.peak <= SILENCE) probs.push('silence (' + dB(aA.peak) + ' / ' + dB(aB.peak) + ')');
+      if (!(diff > 0.3)) probs.push('user: morph 0 vs 1 barely differs (diff ' + diff.toFixed(3) + ')');
+      r = { name: 'wave editor (DFT · round trip · user A≠B)', peak: aB.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'editor de ondas (DFT · ida-y-vuelta · usuario A≠B)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'wave editor (DFT · round trip · user A≠B)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // vocal (banco de formantes): (1) activar el banco cambia CLARAMENTE el
-    // render frente al seco (la etapa suena y el makeup no lo silencia ni lo
-    // revienta), (2) vocal /u/ ≠ /i/ (la identidad vocálica es espectral y
-    // el morph por WaveShaper→detune la mueve de verdad). Deterministas:
-    // saw base sin random y vocLife a 0.
+    // vocal (formant bank): (1) turning the bank on CLEARLY changes the
+    // render against the dry one (the stage sounds and the makeup neither silences it nor
+    // blows it up), (2) vowel /u/ ≠ /i/ (vowel identity is spectral and
+    // the morph via WaveShaper→detune really moves it). Deterministic:
+    // base saw without randomness and vocLife at 0.
     body.appendChild(el('st-cat', 'Vocal'));
     let r;
     try {
@@ -1646,36 +1646,36 @@ export async function runSelfTest() {
       const probs = [];
       if (aA.bad || aU.bad || aI.bad) probs.push('NaN/Inf');
       for (const [n, a] of [['a', aA], ['u', aU], ['i', aI]]) {
-        if (a.peak <= SILENCE) probs.push('vocal /' + n + '/ en silencio (' + dB(a.peak) + ')');
-        if (a.peak > 1) probs.push('vocal /' + n + '/ con clipping (' + dB(a.peak) + ')');
+        if (a.peak <= SILENCE) probs.push('vowel /' + n + '/ silent (' + dB(a.peak) + ')');
+        if (a.peak > 1) probs.push('vowel /' + n + '/ clipping (' + dB(a.peak) + ')');
       }
       const dWet = diff(bDry, bA), dVow = diff(bU, bI);
-      if (!(dWet > 0.3)) probs.push('activar el banco apenas cambia el render (diff ' + dWet.toFixed(3) + ')');
-      if (!(dVow > 0.3)) probs.push('/u/ vs /i/ apenas difieren (diff ' + dVow.toFixed(3) + ')');
-      r = { name: 'vocal (banco suena · /u/ ≠ /i/)', peak: aA.peak, ok: !probs.length, problems: probs };
+      if (!(dWet > 0.3)) probs.push('turning the bank on barely changes the render (diff ' + dWet.toFixed(3) + ')');
+      if (!(dVow > 0.3)) probs.push('/u/ vs /i/ barely differ (diff ' + dVow.toFixed(3) + ')');
+      r = { name: 'vocal (bank sounds · /u/ ≠ /i/)', peak: aA.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'vocal (banco suena · /u/ ≠ /i/)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'vocal (bank sounds · /u/ ≠ /i/)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // vocal 2.0: (1) la fuente glotal morfa de verdad (relajada ≠ prensada:
-    // el esfuerzo cambia el espectro), (2) Brillo mueve F4-F5 (audible),
-    // (3) el Golpe consonántico mete energía extra en el ARRANQUE (RMS de
-    // los primeros 50 ms claramente mayor que sin él), y (4) su TRANSICIÓN
-    // de formantes existe: el arranque es «u-esco» (boca cerrada, F1 abajo)
-    // frente al sostenido «a-esco» — medido con Goertzel en los armónicos
-    // 2 y 5 de C3 (262/654 Hz ≈ F1 de /u/ y de /a/), normalizado contra el
-    // render sin Golpe para cancelar el color propio del ataque.
-    // El burst arranca en un punto AL AZAR del ruido (cada consonante es
-    // distinta) y se suma encima: con UN golpe, cada bin de Goertzel es un
-    // sorteo y el cociente de dos sorteos daba de 6 a 238 (umbral 5: fallaba
-    // ~1 de cada 10; medido con 20 repeticiones, oct-2026). Con K golpes en un
-    // render y las potencias SUMADAS antes de dividir (2K grados de libertad),
-    // 15-38 en 20 repeticiones. Sin la transición, el burst solo (centrado en
-    // F2) bajaría el cociente por debajo de 1.
+    // vocal 2.0: (1) the glottal source really morphs (relaxed ≠ pressed:
+    // effort changes the spectrum), (2) Bright moves F4-F5 (audible),
+    // (3) the consonant Bite puts extra energy into the ONSET (RMS of
+    // the first 50 ms clearly higher than without it), and (4) its formant
+    // TRANSITION exists: the onset is «u-ish» (closed mouth, low F1)
+    // against the «a-ish» sustain — measured with Goertzel on harmonics
+    // 2 and 5 of C3 (262/654 Hz ≈ F1 of /u/ and of /a/), normalized against the
+    // render without Bite to cancel the attack's own color.
+    // The burst starts at a RANDOM point of the noise (each consonant is
+    // different) and is added on top: with ONE hit, each Goertzel bin is a
+    // draw and the ratio of two draws went from 6 to 238 (threshold 5: it failed
+    // ~1 in 10; measured with 20 repetitions, Oct 2026). With K hits in one
+    // render and the powers SUMMED before dividing (2K degrees of freedom),
+    // 15-38 over 20 repetitions. Without the transition, the burst alone (centered on
+    // F2) would bring the ratio below 1.
     body.appendChild(el('st-cat', 'Vocal 2.0'));
     let r;
     try {
@@ -1685,7 +1685,7 @@ export async function runSelfTest() {
         for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; }
         return Math.sqrt(d / Math.max(1e-12, en));
       };
-      // K notas de C3 en un render, una cada P (frontera de bloque), soltadas a los 0,5 s con release corto
+      // K C3 notes in one render, one every P (block boundary), released at 0.5 s with a short release
       const K = 8, P = 206 * 128 / SR;
       const renderK = async st => {
         loadState(st);
@@ -1711,13 +1711,13 @@ export async function runSelfTest() {
       const probs = [];
       const aG0 = analyze(bG0), aG1 = analyze(bG1), aB1 = analyze(bB1), aK1 = analyze(bK1);
       if (aG0.bad || aG1.bad || aB1.bad || aK1.bad) probs.push('NaN/Inf');
-      if (aG0.peak <= SILENCE || aG1.peak <= SILENCE) probs.push('glotal en silencio (' + dB(aG0.peak) + ' / ' + dB(aG1.peak) + ')');
-      if (aG1.peak > 1 || aK1.peak > 1) probs.push('clipping (glotal ' + dB(aG1.peak) + ' · golpe ' + dB(aK1.peak) + ')');
+      if (aG0.peak <= SILENCE || aG1.peak <= SILENCE) probs.push('glottal silent (' + dB(aG0.peak) + ' / ' + dB(aG1.peak) + ')');
+      if (aG1.peak > 1 || aK1.peak > 1) probs.push('clipping (glottal ' + dB(aG1.peak) + ' · bite ' + dB(aK1.peak) + ')');
       const dG = diff(bG0, bG1), dB_ = diff(bB0, bB1);
       const sumK = (b, fn, t0, t1) => { const d = b.getChannelData(0); let s = 0; for (let i = 0; i < K; i++) s += fn(d, i * P + t0, i * P + t1); return s; };
       const en = (d, t0, t1) => { let s = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) s += d[i] * d[i]; return s; };
-      const kRatio = Math.sqrt(sumK(bK1, en, 0, 0.05) / Math.max(1e-12, sumK(bK0, en, 0, 0.05)));   // RMS de los primeros 50 ms
-      const goe = f => (d, t0, t1) => {         // energía de Goertzel de un tono en una ventana
+      const kRatio = Math.sqrt(sumK(bK1, en, 0, 0.05) / Math.max(1e-12, sumK(bK0, en, 0, 0.05)));   // RMS of the first 50 ms
+      const goe = f => (d, t0, t1) => {         // Goertzel energy of a tone in a window
         const i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         const cw = 2 * Math.cos(2 * Math.PI * f / SR);
         let s1 = 0, s2 = 0;
@@ -1726,28 +1726,28 @@ export async function runSelfTest() {
       };
       const uVsA = (b, t0, t1) => sumK(b, goe(261.62), t0, t1) / Math.max(1e-12, sumK(b, goe(654.06), t0, t1));
       const rr = b => uVsA(b, 0.008, 0.045) / Math.max(1e-12, uVsA(b, 0.3, 0.5));
-      const trans = rr(bK1) / Math.max(1e-6, rr(bK0));   // medido 15-38 (mediana 24) en 20 repeticiones
-      if (!(dG > 0.3)) probs.push('glotal: esfuerzo 0 vs 1 apenas difiere (diff ' + dG.toFixed(3) + ')');
-      if (!(dB_ > 0.05)) probs.push('Brillo 0 vs 1 apenas difiere (diff ' + dB_.toFixed(3) + ')');
-      if (!(kRatio > 1.2)) probs.push('el Golpe no añade energía al arranque (ratio ' + kRatio.toFixed(2) + ')');
-      if (!(trans > 5)) probs.push('el Golpe no arranca con la boca cerrada (transición ' + trans.toFixed(1) + ')');
-      console.log('vocal 2: glotal diff', dG.toFixed(3), '· brillo diff', dB_.toFixed(3), '· golpe arranque ×' + kRatio.toFixed(2), '· transición', trans.toFixed(1), '(' + K + ' golpes)');
-      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe + transición)', peak: aK1.peak, ok: !probs.length, problems: probs };
+      const trans = rr(bK1) / Math.max(1e-6, rr(bK0));   // measured 15-38 (median 24) over 20 repetitions
+      if (!(dG > 0.3)) probs.push('glottal: effort 0 vs 1 barely differs (diff ' + dG.toFixed(3) + ')');
+      if (!(dB_ > 0.05)) probs.push('Bright 0 vs 1 barely differs (diff ' + dB_.toFixed(3) + ')');
+      if (!(kRatio > 1.2)) probs.push('the Bite adds no energy to the onset (ratio ' + kRatio.toFixed(2) + ')');
+      if (!(trans > 5)) probs.push('the Bite does not start with the mouth closed (transition ' + trans.toFixed(1) + ')');
+      console.log('vocal 2: glottal diff', dG.toFixed(3), '· bright diff', dB_.toFixed(3), '· bite onset ×' + kRatio.toFixed(2), '· transition', trans.toFixed(1), '(' + K + ' hits)');
+      r = { name: 'vocal 2.0 (glottal morphs · bright · bite + transition)', peak: aK1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'vocal 2.0 (glotal morfa · brillo · golpe + transición)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'vocal 2.0 (glottal morphs · bright · bite + transition)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // secuencia de tabla (wave sequencing): (1) el parser lee frames/mantener
-    // y recorta a 0..7, (2) secuenciar cambia CLARAMENTE el render frente al
-    // morph estático, (3) en '1shot' la frase converge: con '0 7' el tramo
-    // FINAL debe sonar idéntico a wtPos=1 estático (la automatización acaba
-    // clavada en el último frame) mientras el ARRANQUE difiere (empieza en 0).
-    // Determinista: la planificación offline va entera en el noteOn, sin timers.
-    body.appendChild(el('st-cat', 'Secuencia de tabla'));
+    // wave sequence (wave sequencing): (1) the parser reads frames/holds
+    // and clamps to 0..7, (2) sequencing CLEARLY changes the render against the
+    // static morph, (3) in '1shot' the phrase converges: with '0 7' the FINAL
+    // stretch must sound identical to a static wtPos=1 (the automation ends
+    // stuck on the last frame) while the ONSET differs (it starts at 0).
+    // Deterministic: the offline scheduling is all done in the noteOn, no timers.
+    body.appendChild(el('st-cat', 'Wave Sequence'));
     let r;
     try {
       const p = parseWsPattern('0 7 . 3 9 -2');
@@ -1762,8 +1762,8 @@ export async function runSelfTest() {
       const b1s = await renderBuf(structuredClone(engine.S));
       loadState({ ...base, wtPos: 1 });
       const bTop = await renderBuf(structuredClone(engine.S));
-      // diff relativo en una VENTANA [t0,t1) — la convergencia del 1shot se
-      // mide donde ambas voces ya se asentaron, el arranque donde aún no
+      // relative diff over a WINDOW [t0,t1) — the 1shot convergence is
+      // measured where both voices have settled, the onset where they have not yet
       const diffW = (x, y, t0, t1) => {
         const cX = x.getChannelData(0), cY = y.getChannelData(0);
         const i0 = Math.floor(t0 * SR), i1 = Math.min(cX.length, Math.floor(t1 * SR));
@@ -1774,35 +1774,35 @@ export async function runSelfTest() {
       const aLoop = analyze(bLoop), a1s = analyze(b1s);
       const probs = [];
       if (aLoop.bad || a1s.bad) probs.push('NaN/Inf');
-      if (aLoop.peak <= SILENCE || a1s.peak <= SILENCE) probs.push('silencio (' + dB(aLoop.peak) + ' / ' + dB(a1s.peak) + ')');
+      if (aLoop.peak <= SILENCE || a1s.peak <= SILENCE) probs.push('silence (' + dB(aLoop.peak) + ' / ' + dB(a1s.peak) + ')');
       if (aLoop.peak > 1 || a1s.peak > 1) probs.push('clipping');
       if (!okParse) probs.push('parser: ' + JSON.stringify(p));
       const dOn = diffW(bOff, bLoop, 0.05, 1.0);
-      if (!(dOn > 0.2)) probs.push('secuenciar apenas cambia el render (diff ' + dOn.toFixed(3) + ')');
+      if (!(dOn > 0.2)) probs.push('sequencing barely changes the render (diff ' + dOn.toFixed(3) + ')');
       const dEarly = diffW(bTop, b1s, 0.02, 0.12), dLate = diffW(bTop, b1s, 0.8, 1.0);
-      if (!(dEarly > 0.2)) probs.push('1shot: el arranque no difiere del frame final (diff ' + dEarly.toFixed(3) + ')');
-      if (!(dLate < 0.05)) probs.push('1shot: no converge al último frame (diff final ' + dLate.toFixed(3) + ')');
-      r = { name: 'secuencia de tabla (parser · secuencia audible · 1shot converge)', peak: aLoop.peak, ok: !probs.length, problems: probs };
+      if (!(dEarly > 0.2)) probs.push('1shot: the onset does not differ from the final frame (diff ' + dEarly.toFixed(3) + ')');
+      if (!(dLate < 0.05)) probs.push('1shot: does not converge to the last frame (final diff ' + dLate.toFixed(3) + ')');
+      r = { name: 'wave sequence (parser · audible sequence · 1shot converges)', peak: aLoop.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'secuencia de tabla (parser · secuencia audible · 1shot converge)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'wave sequence (parser · audible sequence · 1shot converges)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // delay de cinta: render PROPIO de una sola nota (C3, pluck con s=0: se
-    // apaga en ~60 ms) para que los ecos sean copias limpias de la nota.
-    // (1) a Damp 0 el bucle es TRANSPARENTE: los ecos tienen el mismo tilt
-    // espectral (energía de la 1ª diferencia / energía ∝ centroide) que la
-    // nota directa — identidad del biquad en Nyquist / 0 Hz, y 0.25 s son
-    // 11025 muestras exactas a 44.1 kHz (sin pérdida por interpolación);
-    // (2) Damp 1 OSCURECE los ecos (tilt a menos de la mitad) sin apagarlos;
-    // (3) el wow cambia los ecos (los desafina) sin NaN. Ventanas: directo
-    // [0, 0.2) (la nota muere en ~0.13 s); solo ecos, canal L, [0.22, fin)
-    // (0.25, 0.75, 1.25, 1.75 s; Amount 0.9 ⇒ realimentación 0.77, así los
-    // ecos tardíos aún tienen energía para medir).
-    body.appendChild(el('st-cat', 'Delay de cinta'));
+    // tape delay: its OWN render of a single note (C3, pluck with s=0: it
+    // dies in ~60 ms) so that the echoes are clean copies of the note.
+    // (1) at Damp 0 the loop is TRANSPARENT: the echoes have the same spectral
+    // tilt (energy of the 1st difference / energy ∝ centroid) as the
+    // direct note — the biquad's identity at Nyquist / 0 Hz, and 0.25 s is
+    // exactly 11025 samples at 44.1 kHz (no interpolation loss);
+    // (2) Damp 1 DARKENS the echoes (tilt below half) without killing them;
+    // (3) the wow changes the echoes (detunes them) without NaN. Windows: direct
+    // [0, 0.2) (the note dies in ~0.13 s); echoes only, L channel, [0.22, end)
+    // (0.25, 0.75, 1.25, 1.75 s; Amount 0.9 ⇒ feedback 0.77, so the
+    // late echoes still have energy to measure).
+    body.appendChild(el('st-cat', 'Tape delay'));
     let r;
     try {
       const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 12000, reso: 0.7, a: 0.002, d: 0.12, s: 0, r: 0.1,
@@ -1829,41 +1829,41 @@ export async function runSelfTest() {
       const T_ECO = 0.22;
       const tDir = tilt(b0, 0, 0.2), tEco0 = tilt(b0, T_ECO, end), tEco1 = tilt(b1, T_ECO, end);
       const rEco0 = rms(b0, T_ECO, end), rEco1 = rms(b1, T_ECO, end);
-      if (!(rEco0 > 1e-3 * HR)) probs.push('sin ecos en la ventana de cola (rms ' + dB(rEco0) + ')');
+      if (!(rEco0 > 1e-3 * HR)) probs.push('no echoes in the tail window (rms ' + dB(rEco0) + ')');
       const transp = tEco0 / Math.max(1e-12, tDir);
-      if (!(transp > 0.8 && transp < 1.25)) probs.push('a Damp 0 los ecos no son copias (tilt ecos/directo ' + transp.toFixed(3) + ')');
-      if (!(tEco1 < 0.5 * tEco0)) probs.push('Damp 1 no oscurece los ecos (tilt ' + tEco1.toExponential(2) + ' vs ' + tEco0.toExponential(2) + ')');
-      if (!(rEco1 > 0.25 * rEco0)) probs.push('Damp 1 apaga los ecos (rms ' + dB(rEco1) + ' vs ' + dB(rEco0) + ')');
+      if (!(transp > 0.8 && transp < 1.25)) probs.push('at Damp 0 the echoes are not copies (echo/direct tilt ' + transp.toFixed(3) + ')');
+      if (!(tEco1 < 0.5 * tEco0)) probs.push('Damp 1 does not darken the echoes (tilt ' + tEco1.toExponential(2) + ' vs ' + tEco0.toExponential(2) + ')');
+      if (!(rEco1 > 0.25 * rEco0)) probs.push('Damp 1 kills the echoes (rms ' + dB(rEco1) + ' vs ' + dB(rEco0) + ')');
       const dW = diffW(b0, bW, T_ECO, end);
-      if (!(dW > 0.2)) probs.push('el wow apenas cambia los ecos (diff ' + dW.toFixed(3) + ')');
-      console.log('delay de cinta: tilt directo', tDir.toExponential(3), 'ecos@0', tEco0.toExponential(3), 'ecos@1', tEco1.toExponential(3),
-                  'rms ecos', rEco0.toFixed(4), rEco1.toFixed(4), 'wow diff', dW.toFixed(3));
-      r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: a1.peak, ok: !probs.length, problems: probs };
+      if (!(dW > 0.2)) probs.push('the wow barely changes the echoes (diff ' + dW.toFixed(3) + ')');
+      console.log('tape delay: direct tilt', tDir.toExponential(3), 'echoes@0', tEco0.toExponential(3), 'echoes@1', tEco1.toExponential(3),
+                  'echo rms', rEco0.toFixed(4), rEco1.toFixed(4), 'wow diff', dW.toFixed(3));
+      r = { name: 'tape delay (transparent at 0 · damp darkens · wow detunes)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'delay de cinta (transparente a 0 · damp oscurece · wow desafina)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'tape delay (transparent at 0 · damp darkens · wow detunes)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Delay que se desboca (Roadmap 7.0 · 4.1). (1) Migración exacta: un preset sin
-    // dlyFb recibe la realimentación de antes, 0,85·Amount con tope 0,8; uno con dlyFb la
-    // conserva; {} sigue siendo Reset. (2) Con Saturación 0 y realimentación ≤ 0,9 el
-    // bucle va entero por el camino limpio (el de siempre: rama saturada a 0). (3) Por la
-    // Sala, con una ráfaga en el envío: a realimentación 1,1 el eco crece y se ESTABILIZA
-    // (menos de 1,5 dB entre los segundos 5-6 y 9-10, y sigue sonando, sin NaN ni pasar del
-    // techo); a 0,5 se apaga. (4) La Saturación ensucia los ecos: con 1, el 3er armónico de
-    // las repeticiones de un seno fuerte sube más de 20 dB.
-    body.appendChild(el('st-cat', 'Delay que se desboca'));
-    const NAME = 'delay que se desboca (migración exacta · camino limpio a 0 · a 110 % se estabiliza · a 50 % se apaga · la saturación ensucia)';
+    // Runaway delay (Roadmap 7.0 · 4.1). (1) Exact migration: a preset without
+    // dlyFb gets the old feedback, 0.85·Amount capped at 0.8; one with dlyFb
+    // keeps it; {} is still Reset. (2) With Saturation 0 and feedback ≤ 0.9 the
+    // whole loop goes through the clean path (the usual one: saturated branch at 0). (3) Through the
+    // Room, with a burst into the send: at feedback 1.1 the echo grows and SETTLES
+    // (less than 1.5 dB between seconds 5-6 and 9-10, and it keeps sounding, with no NaN and without going over the
+    // ceiling); at 0.5 it dies out. (4) Saturation dirties the echoes: at 1, the 3rd harmonic of
+    // the repeats of a loud sine rises more than 20 dB.
+    body.appendChild(el('st-cat', 'Runaway delay'));
+    const NAME = 'runaway delay (exact migration · clean path at 0 · settles at 110 % · dies out at 50 % · saturation dirties)';
     let r;
     try {
       const probs = [];
-      // (1) migración
+      // (1) migration
       const m1 = withPresetBase({ dlyAmt: 0.5 }).dlyFb, m2 = withPresetBase({ dlyAmt: 0.9 }).dlyFb, m3 = withPresetBase({ dlyAmt: 0.3, dlyFb: 1.05 }).dlyFb;
-      if (m1 !== 0.425 || m2 !== 0.765 || m3 !== 1.05 || 'dlyFb' in withPresetBase({})) probs.push('migración: ' + m1 + ' / ' + m2 + ' / ' + m3);
-      // (2) y (3): la Sala sola, con una ráfaga de seno en el envío del delay
+      if (m1 !== 0.425 || m2 !== 0.765 || m3 !== 1.05 || 'dlyFb' in withPresetBase({})) probs.push('migration: ' + m1 + ' / ' + m2 + ' / ' + m3);
+      // (2) and (3): the Room alone, with a sine burst into the delay send
       const salaRun = async (fb, sat, secs, amp = 0.3, f = 440) => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
         await loadWorklets(ctx);
@@ -1877,39 +1877,39 @@ export async function runSelfTest() {
       const rms = (b, t0, t1) => { let s = 0, n = 0; for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) { s += d[i] * d[i]; n++; } } return 10 * Math.log10(s / n + 1e-30); };
       const sano = b => { let pk = 0, bad = 0; for (let ch = 0; ch < 2; ch++) for (const x of b.getChannelData(ch)) { if (!Number.isFinite(x)) bad++; else pk = Math.max(pk, Math.abs(x)); } return { pk, bad }; };
       const n0 = await salaRun(0.6, 0, 1);
-      if (!n0.limpio) probs.push('con Saturación 0 y realimentación 0,6 la rama saturada no está a 0');
+      if (!n0.limpio) probs.push('with Saturation 0 and feedback 0.6 the saturated branch is not at 0');
       const run = await salaRun(1.1, 0, 10.5), dec = await salaRun(0.5, 0, 10.5);
       const L56 = rms(run.buf, 5, 6), L910 = rms(run.buf, 9, 10), D12 = rms(dec.buf, 1, 2), D910 = rms(dec.buf, 9, 10);
       const sr = sano(run.buf);
-      if (run.limpio) probs.push('a 110 % la saturación no ha entrado sola');
-      if (!(Math.abs(L910 - L56) < 1.5)) probs.push('a 110 % el nivel no se estabiliza (' + L56.toFixed(1) + ' → ' + L910.toFixed(1) + ' dB)');
-      if (!(L910 > -40)) probs.push('a 110 % el eco se apaga (' + L910.toFixed(1) + ' dB a los 9 s)');
-      if (sr.bad || sr.pk > 1) probs.push('a 110 %: ' + sr.bad + ' muestras NaN, pico ' + sr.pk.toFixed(3));
-      if (!(D910 < D12 - 40)) probs.push('a 50 % el eco no se apaga (' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB)');
-      // (4) la saturación ensucia: 3er armónico de las repeticiones (0,6-1,8 s) de un seno de 300 Hz fuerte
+      if (run.limpio) probs.push('at 110 % the saturation did not kick in by itself');
+      if (!(Math.abs(L910 - L56) < 1.5)) probs.push('at 110 % the level does not settle (' + L56.toFixed(1) + ' → ' + L910.toFixed(1) + ' dB)');
+      if (!(L910 > -40)) probs.push('at 110 % the echo dies out (' + L910.toFixed(1) + ' dB at 9 s)');
+      if (sr.bad || sr.pk > 1) probs.push('at 110 %: ' + sr.bad + ' NaN samples, peak ' + sr.pk.toFixed(3));
+      if (!(D910 < D12 - 40)) probs.push('at 50 % the echo does not die out (' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB)');
+      // (4) saturation dirties: 3rd harmonic of the repeats (0.6-1.8 s) of a loud 300 Hz sine
       const h3 = b => { const d = b.getChannelData(0), i0 = Math.floor(0.6 * SR), n = Math.floor(1.2 * SR);
         const at = f => { let re = 0, im = 0; const w = 2 * Math.PI * f / SR; for (let i = 0; i < n; i++) { const x = d[i0 + i]; re += x * Math.cos(w * i); im -= x * Math.sin(w * i); } return Math.hypot(re, im); };
         return 20 * Math.log10(at(900) / at(300)); };
       const s0 = h3((await salaRun(0.5, 0, 2, 0.9, 300)).buf), s1 = h3((await salaRun(0.5, 1, 2, 0.9, 300)).buf);
-      if (!(s1 > s0 + 20)) probs.push('la saturación apenas ensucia (3er armónico ' + s0.toFixed(1) + ' → ' + s1.toFixed(1) + ' dB)');
-      console.log('delay desbocado: 110 % ' + L56.toFixed(1) + ' / ' + L910.toFixed(1) + ' dB (s 5-6 / 9-10), pico ' + sr.pk.toFixed(2) + ' · 50 % ' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB · 3er armónico sat 0/1 ' + s0.toFixed(1) + ' / ' + s1.toFixed(1) + ' dB');
+      if (!(s1 > s0 + 20)) probs.push('saturation barely dirties (3rd harmonic ' + s0.toFixed(1) + ' → ' + s1.toFixed(1) + ' dB)');
+      console.log('runaway delay: 110 % ' + L56.toFixed(1) + ' / ' + L910.toFixed(1) + ' dB (s 5-6 / 9-10), peak ' + sr.pk.toFixed(2) + ' · 50 % ' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB · 3rd harmonic sat 0/1 ' + s0.toFixed(1) + ' / ' + s1.toFixed(1) + ' dB');
       r = { name: NAME, peak: sr.pk, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // FM en la matriz + feedback: (1) env→«FM índice»: el índice cabalga la
-    // envolvente ⇒ el tilt espectral del ARRANQUE es claramente mayor que el
-    // del SOSTENIDO (control: con índice fijo ese cociente se queda ≈ 1 — la
-    // amplitud no entra en el tilt); (2) velocity→índice: pegar fuerte (vel
-    // 1) da más brillo que pegar flojo (vel 0.3); (3) el feedback del
-    // modulador añade armónicos (tilt sube) — se mide a feedback MÁXIMO
-    // (bucle caótico, espectro ancho): con feedback medio la ganancia
-    // depende de la fase aleatoria del modulador (1,3-2,4×) y el check
-    // bailaba — y a tope + índice máximo no produce NaN ni clipping (el
-    // portador es un seno: ≤ 1 por construcción).
-    body.appendChild(el('st-cat', 'FM en la matriz'));
+    // FM in the matrix + feedback: (1) env→«FM index»: the index rides the
+    // envelope ⇒ the spectral tilt of the ONSET is clearly greater than that
+    // of the SUSTAIN (control: with a fixed index that ratio stays ≈ 1 — the
+    // amplitude does not enter the tilt); (2) velocity→index: hitting hard (vel
+    // 1) gives more brightness than hitting softly (vel 0.3); (3) the modulator's
+    // feedback adds harmonics (tilt rises) — measured at MAXIMUM feedback
+    // (chaotic loop, broad spectrum): with medium feedback the gain
+    // depends on the modulator's random phase (1.3-2.4×) and the check
+    // was flaky — and at full + maximum index it produces no NaN or clipping (the
+    // carrier is a sine: ≤ 1 by construction).
+    body.appendChild(el('st-cat', 'FM in the matrix'));
     let r;
     try {
       const base = { waveA: 'sine', waveB: 'sine', levelA: 0.5, levelB: 0.5, fmRatio: 2, fmIndex: 0.5, cutoff: 20000,
@@ -1932,54 +1932,54 @@ export async function runSelfTest() {
       const aEnv = analyze(bEnv), aFb1 = analyze(bFb1), aMax = analyze(bFbMax);
       if (aEnv.bad || aFb1.bad || aMax.bad) probs.push('NaN/Inf');
       if (aEnv.peak > 1 || aFb1.peak > 1 || aMax.peak > 1) probs.push('clipping');
-      if (aMax.peak <= SILENCE) probs.push('feedback a tope en silencio (' + dB(aMax.peak) + ')');
-      // arranque [0.01, 0.06) vs sostenido [0.6, 0.95): el decay (0.4 s) ya acabó
+      if (aMax.peak <= SILENCE) probs.push('full feedback is silent (' + dB(aMax.peak) + ')');
+      // onset [0.01, 0.06) vs sustain [0.6, 0.95): the decay (0.4 s) is already over
       const ratioEnv = tiltW(bEnv, 0.01, 0.06) / Math.max(1e-12, tiltW(bEnv, 0.6, 0.95));
       const ratioFix = tiltW(bFix, 0.01, 0.06) / Math.max(1e-12, tiltW(bFix, 0.6, 0.95));
-      if (!(ratioEnv > 2.5)) probs.push('env→FM no abrillanta el arranque (tilt arranque/sostenido ' + ratioEnv.toFixed(2) + ')');
-      if (!(ratioFix < 1.5)) probs.push('control: con índice fijo el arranque ya difiere (' + ratioFix.toFixed(2) + ')');
+      if (!(ratioEnv > 2.5)) probs.push('env→FM does not brighten the onset (onset/sustain tilt ' + ratioEnv.toFixed(2) + ')');
+      if (!(ratioFix < 1.5)) probs.push('control: with a fixed index the onset already differs (' + ratioFix.toFixed(2) + ')');
       const tHi = tiltW(bVelHi, 0.2, 0.95), tLo = tiltW(bVelLo, 0.2, 0.95);
-      if (!(tHi > 1.3 * tLo)) probs.push('vel→FM: pegar fuerte no abrillanta (tilt ' + tHi.toExponential(2) + ' vs ' + tLo.toExponential(2) + ')');
+      if (!(tHi > 1.3 * tLo)) probs.push('vel→FM: hitting hard does not brighten (tilt ' + tHi.toExponential(2) + ' vs ' + tLo.toExponential(2) + ')');
       const tF0 = tiltW(bFb0, 0.2, 0.95), tF1 = tiltW(bFb1, 0.2, 0.95);
-      if (!(tF1 > 1.3 * tF0)) probs.push('el feedback no añade armónicos (tilt ' + tF1.toExponential(2) + ' vs ' + tF0.toExponential(2) + ')');
-      console.log('fm matriz: env arranque/sostenido', ratioEnv.toFixed(2), 'control', ratioFix.toFixed(2),
-                  'vel hi/lo', (tHi / Math.max(1e-12, tLo)).toFixed(2), 'fb 1/0', (tF1 / Math.max(1e-12, tF0)).toFixed(2), 'pico fb max', dB(aMax.peak));
-      r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: aMax.peak, ok: !probs.length, problems: probs };
+      if (!(tF1 > 1.3 * tF0)) probs.push('the feedback adds no harmonics (tilt ' + tF1.toExponential(2) + ' vs ' + tF0.toExponential(2) + ')');
+      console.log('fm matrix: env onset/sustain', ratioEnv.toFixed(2), 'control', ratioFix.toFixed(2),
+                  'vel hi/lo', (tHi / Math.max(1e-12, tLo)).toFixed(2), 'fb 1/0', (tF1 / Math.max(1e-12, tF0)).toFixed(2), 'fb max peak', dB(aMax.peak));
+      r = { name: 'FM in the matrix (env→index · vel→index · feedback)', peak: aMax.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'FM en la matriz (env→índice · vel→índice · feedback)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'FM in the matrix (env→index · vel→index · feedback)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Partes (Roadmap 4.0 · C1): (1) estado↔controles: applyPreset y toControls
-    // son inversas y respetan los defaults; (2) escena offline con 4 partes
-    // sobre UNA Sala: cada parte suena en su ventana, la silenciada no, sin
-    // NaN ni clipping; (3) la sala es compartida: un cambio de BPM desde una
-    // parte y de predelay desde la sala llegan al S de todas; (4) el envío a
-    // reverb de la parte 4 deja cola en la sala cuando su VCA ya cerró.
-    body.appendChild(el('st-cat', 'Partes'));
+    // Parts (Roadmap 4.0 · C1): (1) state↔controls: applyPreset and toControls
+    // are inverses and respect the defaults; (2) offline scene with 4 parts
+    // over ONE Room: each part sounds in its window, the muted one does not, with no
+    // NaN or clipping; (3) the room is shared: a BPM change from one
+    // part and a predelay change from the room reach every part's S; (4) part 4's
+    // reverb send leaves a tail in the room once its VCA has closed.
+    body.appendChild(el('st-cat', 'Parts'));
     let r;
     try {
       const probs = [];
       const def = toControls(makeDefaultState());
       for (const k in PARAMS) if (def[k] !== PARAMS[k].def) { probs.push('toControls: ' + k + ' ≠ default'); break; }
       const pr = FACTORY['Pads']['Cathedral Pad'], back = toControls(applyPreset(makeDefaultState(), pr));
-      for (const k in pr) if (back[k] !== pr[k]) { probs.push('applyPreset/toControls no es ida y vuelta en ' + k); break; }
+      for (const k in pr) if (back[k] !== pr[k]) { probs.push('applyPreset/toControls is not a round trip at ' + k); break; }
       const secs = 3.2, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
-      // la parte 4 (la última en sonar) lleva ataque corto y envío a reverb a
-      // tope: su cola es lo único que queda al final del render
+      // part 4 (the last to sound) has a short attack and the reverb send at
+      // full: its tail is the only thing left at the end of the render
       const presets = [FACTORY['Bass']['Pluck Bass'], FACTORY['Leads']['Square Lead'], FACTORY['Percussion']['808 Kick'],
                        { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
-      // reverbSize va en la creación: regenerar la IR en vivo lleva debounce (timer real: no determinista offline)
+      // reverbSize goes in at creation: regenerating the IR live is debounced (real timer: not deterministic offline)
       const sc = await createScene(ctx, presets, { salaS: { reverbSize: 2.6 } });
       sc.parts[1].engine.setMute(true);
-      sc.parts[0].engine.set('bpm', 99);                       // desde una parte…
-      sc.sala.set('reverbPre', 0.02);                          // …y desde la sala
+      sc.parts[0].engine.set('bpm', 99);                       // from a part…
+      sc.sala.set('reverbPre', 0.02);                          // …and from the room
       if (!(sc.parts.every(p => p.engine.S.bpm === 99 && p.engine.S.reverbPre === 0.02 && p.engine.S.reverbSize === 2.6) && sc.S.bpm === 99))
-        probs.push('la sala no se comparte (bpm / reverbPre / reverbSize no llegan a todas las partes)');
-      const T = i => 0.1 + 0.6 * i;                            // cada parte toca C3 en su ventana
+        probs.push('the room is not shared (bpm / reverbPre / reverbSize do not reach every part)');
+      const T = i => 0.1 + 0.6 * i;                            // each part plays C3 in its window
       sc.parts.forEach((p, i) => {
         ctx.suspend(T(i)).then(() => { p.engine.noteOn('n', NOTE1); ctx.resume(); });
         ctx.suspend(T(i) + 0.25).then(() => { p.engine.noteOff('n'); ctx.resume(); });
@@ -1991,32 +1991,32 @@ export async function runSelfTest() {
       const rmsW = (t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
       const lv = sc.parts.map((p, i) => rmsW(T(i) + 0.02, T(i) + 0.25));
-      [0, 2, 3].forEach(i => { if (!(lv[i] > SILENCE)) probs.push('la parte ' + (i + 1) + ' no suena (' + dB(lv[i]) + ')'); });
-      if (!(lv[1] < SILENCE * 0.3)) probs.push('la parte 2 silenciada suena (' + dB(lv[1]) + ')');
-      const tail = rmsW(2.75, 3.2);  // parte 4: nota 1.9-2.15 s, VCA cerrado en ~2.4 s (r 0.15) → solo queda la cola de la reverb compartida
-      if (!(tail > 1e-3 * HR)) probs.push('sin cola de reverb de la parte 4 en la sala (' + dB(tail) + ')');
-      console.log('partes: niveles', lv.map(v => dB(v)).join(' · '), '· cola', dB(tail), '· pico', dB(a.peak));
-      r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: a.peak, ok: !probs.length, problems: probs };
+      [0, 2, 3].forEach(i => { if (!(lv[i] > SILENCE)) probs.push('part ' + (i + 1) + ' does not sound (' + dB(lv[i]) + ')'); });
+      if (!(lv[1] < SILENCE * 0.3)) probs.push('the muted part 2 sounds (' + dB(lv[1]) + ')');
+      const tail = rmsW(2.75, 3.2);  // part 4: note 1.9-2.15 s, VCA closed at ~2.4 s (r 0.15) → only the shared reverb tail is left
+      if (!(tail > 1e-3 * HR)) probs.push('no reverb tail from part 4 in the room (' + dB(tail) + ')');
+      console.log('parts: levels', lv.map(v => dB(v)).join(' · '), '· tail', dB(tail), '· peak', dB(a.peak));
+      r = { name: 'parts (state↔controls · scene of 4 · shared room · mute · tail)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'partes (estado↔controles · escena de 4 · sala compartida · mute · cola)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'parts (state↔controls · scene of 4 · shared room · mute · tail)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Velocity del teclado de pantalla (ratón): la ALTURA de la pulsación. (1) La
-    // curva: arriba 0,2, recta hasta el 85 % del largo de la tecla, de ahí a 1.
-    // (2) Por el camino real: un pointerdown al 10 % de una tecla blanca → la voz
-    // nace con esa velocity, la tecla publica --vel (su brillo) y la pantalla
-    // Salida la enseña; abajo del todo → 1, lo de antes de haber velocity.
-    const NAME = 'teclado de pantalla: velocity por la altura de la pulsación (curva · voz · tecla · pantalla)';
+    // On-screen keyboard velocity (mouse): the HEIGHT of the press. (1) The
+    // curve: 0.2 at the top, straight up to 85 % of the key length, then 1.
+    // (2) Through the real path: a pointerdown at 10 % of a white key → the voice
+    // is born with that velocity, the key publishes --vel (its brightness) and the Output
+    // display shows it; at the very bottom → 1, as before there was velocity.
+    const NAME = 'on-screen keyboard: velocity from the press height (curve · voice · key · display)';
     let r;
     try {
       const probs = [], near = (a, b) => Math.abs(a - b) < 1e-9, tk = getTouch();
-      setTouch('linear');                          // la curva de tacto del navegador no cuenta aquí
+      setTouch('linear');                          // the browser's touch curve does not count here
       if (!(near(velFromY(0), 0.2) && near(velFromY(0.425), 0.6) && near(velFromY(0.85), 1) && near(velFromY(1), 1) && near(velFromY(-0.1), 0.2)))
-        probs.push('curva: ' + [0, 0.425, 0.85, 1].map(velFromY).map(v => v.toFixed(3)).join(' '));
+        probs.push('curve: ' + [0, 0.425, 0.85, 1].map(velFromY).map(v => v.toFixed(3)).join(' '));
       const keep = snapshot();
       loadState({});
       const key = document.querySelector('#keyboard .wkey'), midi = +key.dataset.midi, rc = key.getBoundingClientRect();
@@ -2029,26 +2029,26 @@ export async function runSelfTest() {
         return res;
       };
       const lo = tap(0.1), hi = tap(0.97), eLo = velFromY(0.1);
-      if (!(rc.height > 20)) probs.push('teclado sin altura (' + rc.height + ' px)');
-      if (!(lo.vel !== null && Math.abs(lo.vel - eLo) < 0.02)) probs.push('arriba: la voz nace con vel ' + lo.vel + ' (esperado ' + eLo.toFixed(2) + ')');
-      if (!(hi.vel !== null && Math.abs(hi.vel - 1) < 1e-9)) probs.push('abajo: vel ' + hi.vel + ' (esperado 1)');
-      if (lo.css !== eLo.toFixed(2)) probs.push('la tecla no publica --vel («' + lo.css + '»)');
-      if (!lo.disp.includes(eLo.toFixed(2))) probs.push('la pantalla Salida no enseña la velocity («' + lo.disp + '»)');
+      if (!(rc.height > 20)) probs.push('keyboard without height (' + rc.height + ' px)');
+      if (!(lo.vel !== null && Math.abs(lo.vel - eLo) < 0.02)) probs.push('top: the voice is born with vel ' + lo.vel + ' (expected ' + eLo.toFixed(2) + ')');
+      if (!(hi.vel !== null && Math.abs(hi.vel - 1) < 1e-9)) probs.push('bottom: vel ' + hi.vel + ' (expected 1)');
+      if (lo.css !== eLo.toFixed(2)) probs.push('the key does not publish --vel («' + lo.css + '»)');
+      if (!lo.disp.includes(eLo.toFixed(2))) probs.push('the Output display does not show the velocity («' + lo.disp + '»)');
       part().allNotesOff();
       loadState(keep); setTouch(tk);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Deshacer / rehacer / comparar (Roadmap 7.0 · 1.1 y 1.2), por el camino real:
-    // (1) un GESTO (pulsar dentro de la pantalla → cambio → soltar → silencio) es un
-    // paso; (2) un cambio del código sin gesto (la deriva) NO lo es; (3) deshacer y
-    // rehacer devuelven el valor y no cortan la nota que suena; (4) cargar un preset
-    // es un paso; (5) ● y Comparar: alternar guardado ↔ edición, y tocar algo mientras
-    // compara vuelve a la edición; (6) Ctrl+Z deshace y no toca un Do.
-    const NAME = 'deshacer · rehacer · comparar (gestos sí, deriva no; notas que siguen; preset como paso; ● y Comparar; Ctrl+Z)';
+    // Undo / redo / compare (Roadmap 7.0 · 1.1 and 1.2), through the real path:
+    // (1) a GESTURE (press inside the screen → change → release → quiet) is one
+    // step; (2) a change from code without a gesture (the drift) is NOT; (3) undo and
+    // redo restore the value and do not cut the sounding note; (4) loading a preset
+    // is a step; (5) ● and Compare: toggle saved ↔ edit, and touching something while
+    // comparing goes back to the edit; (6) Ctrl+Z undoes and does not play a C.
+    const NAME = 'undo · redo · compare (gestures yes, drift no; notes keep going; preset as a step; ● and Compare; Ctrl+Z)';
     let r;
     try {
       const probs = [], keep = snapshot(), wait = ms => new Promise(res => setTimeout(res, ms));
@@ -2057,58 +2057,58 @@ export async function runSelfTest() {
         lab.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 91, buttons: 1 }));
         fn();
         lab.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 91 }));
-        await wait(600);                                               // QUIET_MS cierra el gesto
+        await wait(600);                                               // QUIET_MS closes the gesture
       };
-      document.getElementById('resetBtn').click();                     // Reset como acción: guardado = neutro
+      document.getElementById('resetBtn').click();                     // Reset as an action: saved = neutral
       const d0 = historyDepth().undo;
       await gesture(() => CONTROLS.cutoff.set(1234));
-      if (historyDepth().undo !== d0 + 1) probs.push('un gesto no deja un paso (' + (historyDepth().undo - d0) + ')');
-      if (!isModified()) probs.push('● no se enciende tras cambiar el cutoff');
-      CONTROLS.reso.set(5); await wait(600);                           // como la deriva: sin gesto
-      if (historyDepth().undo !== d0 + 1) probs.push('un cambio sin gesto (la deriva) entra en el historial');
+      if (historyDepth().undo !== d0 + 1) probs.push('a gesture does not leave a step (' + (historyDepth().undo - d0) + ')');
+      if (!isModified()) probs.push('● does not light up after changing the cutoff');
+      CONTROLS.reso.set(5); await wait(600);                           // like the drift: no gesture
+      if (historyDepth().undo !== d0 + 1) probs.push('a change without a gesture (the drift) enters the history');
       CONTROLS.reso.set(PARAMS.reso.def);
       const e = part(); e.noteOn('hst', 220, 1);
       undo();
-      if (Math.abs(CONTROLS.cutoff.get() - lo) > 1e-6) probs.push('deshacer no devuelve el cutoff (' + CONTROLS.cutoff.get() + ')');
-      if (!e.voices.has('hst')) probs.push('deshacer corta la nota que suena');
+      if (Math.abs(CONTROLS.cutoff.get() - lo) > 1e-6) probs.push('undo does not restore the cutoff (' + CONTROLS.cutoff.get() + ')');
+      if (!e.voices.has('hst')) probs.push('undo cuts the sounding note');
       redo();
-      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('rehacer no vuelve a 1234');
+      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('redo does not go back to 1234');
       e.noteOff('hst');
       const ids = library.presets().map(it => it.id), d1 = historyDepth().undo;
       loadPresetId(ids.find(id => library.item(id).name !== 'Init (default)'));
-      if (historyDepth().undo !== d1 + 1) probs.push('cargar un preset no es un paso');
+      if (historyDepth().undo !== d1 + 1) probs.push('loading a preset is not a step');
       undo();
-      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('deshacer la carga no devuelve el sonido de antes');
+      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('undoing the load does not bring back the previous sound');
       document.getElementById('resetBtn').click();
       await gesture(() => CONTROLS.cutoff.set(1234));
       enterCompare();
-      if (!isComparing() || Math.abs(CONTROLS.cutoff.get() - lo) > 1e-6) probs.push('Comparar no hace sonar el guardado');
+      if (!isComparing() || Math.abs(CONTROLS.cutoff.get() - lo) > 1e-6) probs.push('Compare does not play the saved version');
       exitCompare();
-      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('salir de Comparar no devuelve la edición');
+      if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('leaving Compare does not bring back the edit');
       enterCompare();
-      await gesture(() => {});                                         // tocar algo mientras compara
-      if (isComparing() || Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('tocar mientras compara no vuelve a la edición');
+      await gesture(() => {});                                         // touch something while comparing
+      if (isComparing() || Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('touching while comparing does not go back to the edit');
       await gesture(() => CONTROLS.cutoff.set(lo));
-      if (isModified()) probs.push('● sigue encendido con todo como el guardado');
+      if (isModified()) probs.push('● stays lit with everything as saved');
       const before = CONTROLS.cutoff.get();
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
-      if (Math.abs(CONTROLS.cutoff.get() - before) < 1e-6) probs.push('Ctrl+Z no deshace');
-      if ([...e.voices.keys()].some(k => /^m\d+$/.test(k))) probs.push('Ctrl+Z toca una nota');
+      if (Math.abs(CONTROLS.cutoff.get() - before) < 1e-6) probs.push('Ctrl+Z does not undo');
+      if ([...e.voices.keys()].some(k => /^m\d+$/.test(k))) probs.push('Ctrl+Z plays a note');
       window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyZ', key: 'z', ctrlKey: true, bubbles: true }));
       e.allNotesOff();
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Teclado sin notas colgadas (Roadmap 7.0 · 0.1), por el camino real (eventos de
-    // teclado y de puntero sobre el teclado de verdad): (1) Shift entre pulsar y soltar
-    // — con la nota archivada por e.key, Shift+2 llegaba como «"» y la nota colgaba —;
-    // (2) Ctrl+Z es un atajo, no un Do; (3) un toque CANCELADO por el sistema suelta;
-    // (4) dos dedos en la misma tecla: suena hasta que se levanta el último.
-    const NAME = 'teclado sin notas colgadas (Shift entre pulsar y soltar · Ctrl+tecla no toca · toque cancelado · dos dedos)';
+    // Keyboard without stuck notes (Roadmap 7.0 · 0.1), through the real path (keyboard
+    // and pointer events on the real keyboard): (1) Shift between press and release
+    // — with the note filed by e.key, Shift+2 arrived as «"» and the note got stuck —;
+    // (2) Ctrl+Z is a shortcut, not a C; (3) a touch CANCELED by the system releases;
+    // (4) two fingers on the same key: it sounds until the last one is lifted.
+    const NAME = 'keyboard without stuck notes (Shift between press and release · Ctrl+key does not play · canceled touch · two fingers)';
     let r;
     try {
       const probs = [], keep = snapshot();
@@ -2116,38 +2116,38 @@ export async function runSelfTest() {
       const mv = () => [...part().voices.keys()].filter(k => /^m\d+$/.test(k)).length;
       const key = (type, code, k, mods = {}) => window.dispatchEvent(new KeyboardEvent(type, { code, key: k, bubbles: true, cancelable: true, ...mods }));
       key('keydown', 'Digit2', '2');
-      if (mv() !== 1) probs.push('Digit2 no toca (voces ' + mv() + ')');
-      key('keyup', 'Digit2', '"', { shiftKey: true });                 // Shift pulsado entre medias: otra «letra», la misma tecla
-      if (mv()) probs.push('Shift entre pulsar y soltar deja la nota colgada');
+      if (mv() !== 1) probs.push('Digit2 does not play (voices ' + mv() + ')');
+      key('keyup', 'Digit2', '"', { shiftKey: true });                 // Shift pressed in between: another «letter», the same key
+      if (mv()) probs.push('Shift between press and release leaves the note stuck');
       key('keydown', 'KeyZ', 'z', { ctrlKey: true });
-      if (mv()) probs.push('Ctrl+Z toca una nota');
+      if (mv()) probs.push('Ctrl+Z plays a note');
       key('keyup', 'KeyZ', 'z', { ctrlKey: true });
       const el = document.querySelector('#keyboard .wkey'), rc = el.getBoundingClientRect();
       const ptr = (type, id) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: id, clientX: rc.left + rc.width / 2, clientY: rc.bottom - 4, buttons: type === 'pointerdown' ? 1 : 0 }));
       ptr('pointerdown', 81);
-      if (mv() !== 1) probs.push('el puntero no toca');
+      if (mv() !== 1) probs.push('the pointer does not play');
       ptr('pointercancel', 81);
-      if (mv()) probs.push('un toque cancelado deja la nota colgada');
+      if (mv()) probs.push('a canceled touch leaves the note stuck');
       ptr('pointerdown', 82); ptr('pointerdown', 83);
       ptr('pointerup', 82);
-      if (mv() !== 1) probs.push('dos dedos: al levantar el primero se corta la nota del segundo');
+      if (mv() !== 1) probs.push('two fingers: lifting the first cuts the second one\'s note');
       ptr('pointerup', 83);
-      if (mv()) probs.push('dos dedos: al levantar los dos sigue sonando');
+      if (mv()) probs.push('two fingers: after lifting both it keeps sounding');
       part().allNotesOff();
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Teclado: (1) el QWERTY tiene su propia octava y llega arriba del todo. Antes
-    // compartía la de la vista, que con 6 octavas en pantalla para en C3–C9, y la P
-    // (dos octavas y una tercera sobre la Z) se quedaba en E5. Ahora la Z va de C0 a
-    // C7 (la I da C9) y la vista se desplaza para enseñarla. (2) Glissando: con el
-    // botón pulsado, pasar a otra tecla la toca y suelta la anterior; al levantar, nada
-    // suena. Por el camino real: botones − / +, eventos de teclado y de puntero.
-    const NAME = 'teclado: el QWERTY llega a C9 · glissando con el ratón';
+    // Keyboard: (1) the QWERTY has its own octave and reaches the very top. It used to
+    // share the view's, which with 6 octaves on screen stops at C3–C9, and the P
+    // (two octaves and a third above the Z) stayed at E5. Now the Z goes from C0 to
+    // C7 (the I gives C9) and the view scrolls to show it. (2) Glissando: with the
+    // button held, moving to another key plays it and releases the previous one; on lifting, nothing
+    // sounds. Through the real path: − / + buttons, keyboard and pointer events.
+    const NAME = 'keyboard: the QWERTY reaches C9 · glissando with the mouse';
     let r;
     try {
       const probs = [], keep = snapshot();
@@ -2158,55 +2158,55 @@ export async function runSelfTest() {
       const zAt = () => +[...document.querySelectorAll('#keyboard .klab')].find(e => e.textContent === 'Z')?.closest('[data-midi]')?.dataset.midi;
       const key = (type, code, k) => window.dispatchEvent(new KeyboardEvent(type, { code, key: k, bubbles: true, cancelable: true }));
       const start = num();
-      if (start !== 'C3–E5') probs.push('octava inicial: ' + start + ' (esperado C3–E5: la Q en el Do central)');
+      if (start !== 'C3–E5') probs.push('initial octave: ' + start + ' (expected C3–E5: the Q on middle C)');
       for (let k = 0; k < 10; k++) btn(1).click();
-      if (num() !== 'C7–E9') probs.push('arriba del todo: ' + num());
-      if (zAt() !== 96) probs.push('la Z no está en C7 (' + zAt() + ')');
+      if (num() !== 'C7–E9') probs.push('at the very top: ' + num());
+      if (zAt() !== 96) probs.push('the Z is not on C7 (' + zAt() + ')');
       key('keydown', 'KeyI', 'i');
-      if (!part().voices.has('m120') || !on(120)) probs.push('la I no toca C9 (o no se ve)');
+      if (!part().voices.has('m120') || !on(120)) probs.push('the I does not play C9 (or it is not visible)');
       key('keyup', 'KeyI', 'i');
       for (let k = 0; k < 10; k++) btn(-1).click();
-      if (num() !== 'C0–E2' || zAt() !== 12) probs.push('abajo del todo: ' + num() + ', Z en ' + zAt());
+      if (num() !== 'C0–E2' || zAt() !== 12) probs.push('at the very bottom: ' + num() + ', Z on ' + zAt());
       for (let k = 0; k < 10 && num() !== start; k++) btn(1).click();
-      // glissando: las dos primeras blancas (a la izquierda: el panel del selftest está a la derecha)
+      // glissando: the first two white keys (on the left: the selftest panel is on the right)
       const [a, b] = document.querySelectorAll('#keyboard .wkey');
-      const sc = document.body, sx = sc.scrollLeft, sy = sc.scrollTop;   // con la ventana pequeña (el runner) el instrumento se desplaza: que se vean
+      const sc = document.body, sx = sc.scrollLeft, sy = sc.scrollTop;   // with a small window (the runner) the instrument scrolls: make them visible
       if (b.getBoundingClientRect().bottom > innerHeight) b.scrollIntoView({ block: 'end', inline: 'nearest' });
       const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), ma = +a.dataset.midi, mb = +b.dataset.midi;
       const y = ra.bottom - 6, kb = document.getElementById('keyboard');
       const ptr = (type, el, x, buttons) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 91, clientX: x, clientY: y, buttons }));
       const hit = document.elementFromPoint(rb.left + rb.width / 2, y);
-      if (hit?.closest('[data-midi]') !== b) probs.push('(no se puede apuntar a la segunda tecla: en ' + Math.round(rb.left + rb.width / 2) + ',' + Math.round(y) + ' está ' + (hit ? hit.tagName + '#' + hit.id + '.' + hit.className : 'nada') + ' · ventana ' + innerWidth + '×' + innerHeight + ')');
+      if (hit?.closest('[data-midi]') !== b) probs.push('(cannot aim at the second key: at ' + Math.round(rb.left + rb.width / 2) + ',' + Math.round(y) + ' there is ' + (hit ? hit.tagName + '#' + hit.id + '.' + hit.className : 'nothing') + ' · window ' + innerWidth + '×' + innerHeight + ')');
       else {
         ptr('pointerdown', a, ra.left + ra.width / 2, 1);
         const s1 = part().voices.has('m' + ma);
         ptr('pointermove', kb, rb.left + rb.width / 2, 1);
         const s2 = part().voices.has('m' + mb) && !on(ma) && on(mb);
-        ptr('pointermove', kb, ra.left + ra.width / 2, 0);            // sin botón: pasar por encima no toca
+        ptr('pointermove', kb, ra.left + ra.width / 2, 0);            // no button: passing over does not play
         const s3 = on(mb) && !on(ma);
         ptr('pointerup', kb, rb.left + rb.width / 2, 0);
         const s4 = !on(ma) && !on(mb);
-        if (!s1) probs.push('pulsar no toca');
-        if (!s2) probs.push('arrastrar a la tecla de al lado no la toca (o no suelta la primera)');
-        if (!s3) probs.push('sin botón pulsado, pasar por encima cambia de nota');
-        if (!s4) probs.push('al levantar queda una tecla encendida');
+        if (!s1) probs.push('pressing does not play');
+        if (!s2) probs.push('dragging to the next key does not play it (or does not release the first)');
+        if (!s3) probs.push('with no button held, passing over changes the note');
+        if (!s4) probs.push('after lifting a key stays lit');
       }
       sc.scrollLeft = sx; sc.scrollTop = sy;
       part().allNotesOff();
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Selector rápido de presets (ui/presetPicker.js), por el camino real (clics y
-    // teclas): se abre con el buscador enfocado; buscar ignora acentos y mayúsculas;
-    // una categoría deja solo lo suyo y los contadores dicen cuántos coinciden en
-    // cada una; ↓ carga el siguiente de lo filtrado; Intro cierra; tras un clic en la
-    // lista (el foco sale del buscador) el teclado toca y Esc cierra SIN pánico; y
-    // «Navegar todos» lleva a la pantalla Presets con la misma búsqueda.
-    const NAME = 'selector de presets (buscar sin acentos · categorías · ↓ carga · Esc sin pánico · Navegar todos)';
+    // Quick preset selector (ui/presetPicker.js), through the real path (clicks and
+    // keys): it opens with the search box focused; search ignores accents and case;
+    // a category leaves only its own and the counters say how many match in
+    // each one; ↓ loads the next of the filtered list; Enter closes; after a click on the
+    // list (the focus leaves the search box) the keyboard plays and Esc closes WITHOUT panic; and
+    // «Browse all» takes you to the Presets screen with the same search.
+    const NAME = 'preset selector (accent-insensitive search · categories · ↓ loads · Esc without panic · Browse all)';
     let r;
     try {
       const probs = [], keep = snapshot(), id0 = currentPresetId(), scr0 = currentScreen();
@@ -2216,75 +2216,75 @@ export async function runSelfTest() {
       const ids = () => [...document.querySelectorAll('#ppList .pp-item')].map(e => e.dataset.id);
       const mv = () => [...part().voices.keys()].filter(k => /^m\d+$/.test(k)).length;
       $('presetPick').click();
-      if (pop.hidden || document.activeElement !== search) probs.push('no se abre con el buscador enfocado');
-      // un preset buscado en mayúsculas (y sin acentos, si hay alguno con ellos; la fábrica ya no los lleva)
+      if (pop.hidden || document.activeElement !== search) probs.push('it does not open with the search box focused');
+      // a preset searched in upper case (and without accents, if any has them; the factory no longer does)
       const conAcento = library.presets().find(it => /[áéíóúñ]/i.test(it.name)) || library.presets().find(it => it.name.length > 8);
       if (conAcento) {
         const sin = conAcento.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
         type(sin);
-        if (!ids().includes(conAcento.id)) probs.push('«' + sin + '» no encuentra «' + conAcento.name + '»');
+        if (!ids().includes(conAcento.id)) probs.push('«' + sin + '» does not find «' + conAcento.name + '»');
         type('');
       }
-      // categoría: solo lo suyo, y su contador = lo que se ve
+      // category: only its own, and its counter = what is visible
       const catEls = [...document.querySelectorAll('#ppCats .pp-cat')];
       const sec = library.secciones().find(x => library.items(x.id).filter(it => it.type === 'preset').length > 3);
       const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.name);
       if (catEls[0]?.querySelector('.pp-cname').textContent !== 'All' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
-        probs.push('«Todos» no cuenta la biblioteca entera');
-      if (!catEl) probs.push('falta la categoría «' + sec.name + '»');
+        probs.push('«All» does not count the whole library');
+      if (!catEl) probs.push('the category «' + sec.name + '» is missing');
       else {
         catEl.click();
         const v = ids();
-        if (!v.length || v.some(id => library.item(id).section !== sec.id)) probs.push('«' + sec.name + '» enseña presets de otras secciones');
+        if (!v.length || v.some(id => library.item(id).section !== sec.id)) probs.push('«' + sec.name + '» shows presets from other sections');
         const cnt = +document.querySelector('#ppCats .pp-cat.on .pp-cn')?.textContent;
-        if (cnt !== v.length) probs.push('contador ' + cnt + ' ≠ ' + v.length + ' a la vista');
-        // clic carga; ↓ desde ahí carga el siguiente
+        if (cnt !== v.length) probs.push('counter ' + cnt + ' ≠ ' + v.length + ' visible');
+        // click loads; ↓ from there loads the next one
         document.querySelector('#ppList .pp-item').click();
-        if (currentPresetId() !== v[0]) probs.push('clic no carga');
+        if (currentPresetId() !== v[0]) probs.push('click does not load');
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }));
-        if (currentPresetId() !== v[1]) probs.push('↓ no carga el siguiente');
-        // el foco ya no está en el buscador: el teclado toca y Esc cierra sin cortar la nota
-        if (document.activeElement === search) search.blur();   // (en el navegador lo hace el clic de verdad)
+        if (currentPresetId() !== v[1]) probs.push('↓ does not load the next one');
+        // the focus is no longer on the search box: the keyboard plays and Esc closes without cutting the note
+        if (document.activeElement === search) search.blur();   // (in the browser the real click does it)
         window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'z', bubbles: true, cancelable: true }));
         const toca = mv();
         window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true }));
-        if (!toca) probs.push('fuera del buscador el teclado no toca');
-        if (!pop.hidden) probs.push('Esc no cierra');
-        if (toca && mv() !== toca) probs.push('Esc con el selector abierto hace pánico');
+        if (!toca) probs.push('outside the search box the keyboard does not play');
+        if (!pop.hidden) probs.push('Esc does not close');
+        if (toca && mv() !== toca) probs.push('Esc with the selector open triggers panic');
         window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyZ', key: 'z', bubbles: true }));
-        // reabrir: recuerda la categoría; Intro cierra
+        // reopen: it remembers the category; Enter closes
         $('presetPick').click();
-        if (!document.querySelector('#ppCats .pp-cat.on .pp-cname')?.textContent.startsWith(sec.name)) probs.push('no recuerda la categoría');
+        if (!document.querySelector('#ppCats .pp-cat.on .pp-cname')?.textContent.startsWith(sec.name)) probs.push('it does not remember the category');
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
-        if (!pop.hidden) probs.push('Intro no cierra');
+        if (!pop.hidden) probs.push('Enter does not close');
       }
-      // Navegar todos: a la pantalla Presets con la búsqueda
+      // Browse all: to the Presets screen with the search
       $('presetPick').click(); document.querySelector('#ppCats .pp-cat').click();
       type('pad');
       $('ppAll').click();
-      if (currentScreen() !== 'presets') probs.push('«Navegar todos» no lleva a Presets');
-      if ($('libSearch').value !== 'pad') probs.push('la búsqueda no viaja («' + $('libSearch').value + '»)');
-      if (!pop.hidden) probs.push('«Navegar todos» no cierra el selector');
+      if (currentScreen() !== 'presets') probs.push('«Browse all» does not go to Presets');
+      if ($('libSearch').value !== 'pad') probs.push('the search does not travel («' + $('libSearch').value + '»)');
+      if (!pop.hidden) probs.push('«Browse all» does not close the selector');
       $('libSearch').value = ''; $('libSearch').dispatchEvent(new Event('input'));
       showScreen(scr0);
       part().allNotesOff();
       if (id0) loadPresetId(id0);
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Teclado ↔ partes (cazado por el usuario, 2026-10-01: «cambio de parte
-    // mientras toco y el audio se corrompe»): el note-off del teclado iba a la
-    // parte ACTUAL, no a la que recibió el note-on → nota colgada en la otra
-    // parte (una voz ocupada para siempre; en mono, el jugador resbalaba en
-    // legato sobre ella). (1) NoteRouter: el off llega al motor que sonó aunque
-    // la «actual» sea otra; (2) Capa: on en varias, off en las mismas; (3) un id
-    // ajeno no para el Seq con latch; (4) ni re-desliza la voz mono de otro.
-    // Sin render: se inspeccionan las voces de cada motor (offline, sin timers de cola).
-    const NAME = 'teclado ↔ partes (note-off a la parte que sonó · Capa · ids ajenos: Seq con latch sigue, mono no resbala)';
+    // Keyboard ↔ parts (caught by the user, 2026-10-01: «I switch parts
+    // while playing and the audio gets corrupted»): the keyboard's note-off went to the
+    // CURRENT part, not to the one that received the note-on → stuck note in the other
+    // part (a voice taken forever; in mono, the player slid in
+    // legato over it). (1) NoteRouter: the off reaches the engine that sounded even if
+    // the «current» one is another; (2) Layer: on in several, off in the same ones; (3) a
+    // foreign id does not stop the latched Seq; (4) nor re-glides someone else's mono voice.
+    // No render: the voices of each engine are inspected (offline, no tail timers).
+    const NAME = 'keyboard ↔ parts (note-off to the part that sounded · Layer · foreign ids: latched Seq carries on, mono does not slide)';
     let r;
     try {
       const probs = [];
@@ -2292,68 +2292,68 @@ export async function runSelfTest() {
       const sc = await createScene(ctx, [{}, {}, { seqOn: 'on', seqLatch: 'on' }, { mode: 'mono', glide: 0.3 }]);
       const [A, B, C, D] = sc.parts.map(p => p.engine);
       const router = new NoteRouter();
-      // (1) note-on en A, «cambio de parte» a B, note-off: A suelta, B ni se entera
+      // (1) note-on in A, «part switch» to B, note-off: A releases, B does not even notice
       router.on('m60', [A], NOTE1);
-      if (!A.voices.has('m60')) probs.push('la nota no entra en la parte A');
+      if (!A.voices.has('m60')) probs.push('the note does not reach part A');
       router.off('m60', [B]);
-      if (A.voices.has('m60') || A.tails.size !== 1) probs.push('el note-off no llega a la parte que sonó (A sigue pulsada)');
-      if (B.voices.size || B.tails.size) probs.push('el note-off toca la parte actual en vez de la que sonó');
-      // (2) Capa: on en A y B, off en las mismas aunque la «actual» sea C
+      if (A.voices.has('m60') || A.tails.size !== 1) probs.push('the note-off does not reach the part that sounded (A is still held)');
+      if (B.voices.size || B.tails.size) probs.push('the note-off plays on the current part instead of the one that sounded');
+      // (2) Layer: on in A and B, off in the same ones even if the «current» one is C
       router.on('m62', [A, B], NOTE1);
       router.off('m62', [C]);
-      if (A.voices.has('m62') || B.voices.has('m62') || C.voices.size) probs.push('Capa: el note-off no vuelve a las mismas partes');
-      // (3) Seq con latch: la raíz suelta deja la frase enganchada; un id ajeno no la para
+      if (A.voices.has('m62') || B.voices.has('m62') || C.voices.size) probs.push('Layer: the note-off does not go back to the same parts');
+      // (3) latched Seq: releasing the root leaves the phrase latched; a foreign id does not stop it
       C.noteOn('k', NOTE1); C.noteOff('k');
-      if (!C.seq.latched) probs.push('Seq: el latch no retiene la frase al soltar la raíz');
+      if (!C.seq.latched) probs.push('Seq: the latch does not hold the phrase when the root is released');
       C.noteOff('ajeno');
-      if (!C.seq.latched || !C.seq.timer) probs.push('Seq: un note-off ajeno para la frase enganchada');
+      if (!C.seq.latched || !C.seq.timer) probs.push('Seq: a foreign note-off stops the latched phrase');
       C.allNotesOff();
-      if (C.seq.latched || C.seq.timer) probs.push('Seq: allNotesOff no limpia el latch');
-      // (4) mono: un id ajeno no re-desliza la voz (glideTo) ni la suelta
+      if (C.seq.latched || C.seq.timer) probs.push('Seq: allNotesOff does not clear the latch');
+      // (4) mono: a foreign id neither re-glides the voice (glideTo) nor releases it
       D.noteOn('p', NOTE1); D.noteOn('q', NOTE2);
       let glides = 0; const v = D.monoVoice; const g0 = v.glideTo.bind(v); v.glideTo = (...a) => { glides++; g0(...a); };
       D.noteOff('ajeno');
-      if (glides || D.monoVoice !== v || D.heldStack.length !== 2) probs.push('mono: un note-off ajeno re-desliza o suelta la voz');
+      if (glides || D.monoVoice !== v || D.heldStack.length !== 2) probs.push('mono: a foreign note-off re-glides or releases the voice');
       D.noteOff('q');
-      if (glides !== 1 || D.heldStack.length !== 1) probs.push('mono: soltar la de arriba no vuelve a la de abajo');
+      if (glides !== 1 || D.heldStack.length !== 1) probs.push('mono: releasing the upper one does not go back to the lower one');
       D.allNotesOff();
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Armonía + jugadores (Roadmap 4.0 · C2): (1) armonía — cuantización a la
-    // escala (empate hacia abajo), acordes por terceras sobre la escala, paseo
-    // de funciones determinista con la semilla (y distinto con otra); (2)
-    // euclídeo — E(3,8) es el tresillo y E(k,n) tiene k golpes en cualquier
-    // rotación; (3) escena offline con 4 jugadores (pulso, melodía, acorde,
-    // raíz) sobre 4 partes, 2 compases a 120: TODAS las notas emitidas están
-    // en la escala, el pulso emite k por compás, el acorde `notas` por cambio,
-    // la raíz 2 por compás (con quinta), sin NaN ni clipping y audible; (4)
-    // determinismo — dos directores con la misma semilla emiten exactamente
-    // los mismos eventos; con otra semilla, distintos.
-    body.appendChild(el('st-cat', 'Armonía y jugadores'));
+    // Harmony + players (Roadmap 4.0 · C2): (1) harmony — quantization to the
+    // scale (ties go down), chords stacked in thirds on the scale, a deterministic
+    // walk through functions with the seed (and different with another); (2)
+    // Euclidean — E(3,8) is the tresillo and E(k,n) has k hits in any
+    // rotation; (3) offline scene with 4 players (pulse, melody, chord,
+    // root) over 4 parts, 2 bars at 120: ALL the emitted notes are
+    // in the scale, the pulse emits k per bar, the chord `notes` per change,
+    // the root 2 per bar (with fifth), with no NaN or clipping and audible; (4)
+    // determinism — two conductors with the same seed emit exactly
+    // the same events; with another seed, different ones.
+    body.appendChild(el('st-cat', 'Harmony and players'));
     let r;
     try {
       const probs = [];
       const h = new Harmony({ root: 0, scale: 'major', prog: [1, 6, 4, 5], bars: 1, seed: 3 });
       const q = [h.quantize(61), h.quantize(66), h.quantize(62)];
-      if (q.join() !== '60,65,62') probs.push('cuantización: ' + q.join());
+      if (q.join() !== '60,65,62') probs.push('quantization: ' + q.join());
       const tri = b => h.chordAt(b).tones.slice(0, 3).join('.');
-      if (tri(0) !== '0.4.7' || tri(1) !== '9.0.4' || tri(3) !== '7.11.2') probs.push('acordes: ' + [tri(0), tri(1), tri(3)].join(' | '));
+      if (tri(0) !== '0.4.7' || tri(1) !== '9.0.4' || tri(3) !== '7.11.2') probs.push('chords: ' + [tri(0), tri(1), tri(3)].join(' | '));
       const walk = seed => { const hf = new Harmony({ mode: 'functions', seed }); return [...Array(16)].map((_, i) => hf.degreeAt(i)); };
       const w = walk(5), w2 = walk(5), w3 = walk(6);
-      if (w.join() !== w2.join()) probs.push('paseo de funciones no determinista');
-      if (w.join() === w3.join()) probs.push('paseo de funciones igual con otra semilla');
-      if (!w.every(d => d >= 1 && d <= 7)) probs.push('grado fuera de 1..7');
+      if (w.join() !== w2.join()) probs.push('functions walk not deterministic');
+      if (w.join() === w3.join()) probs.push('functions walk the same with another seed');
+      if (!w.every(d => d >= 1 && d <= 7)) probs.push('degree outside 1..7');
       const e38 = euclid(3, 8).join('');
       if (e38 !== '10010010') probs.push('E(3,8) = ' + e38);
       for (const [k, n] of [[5, 8], [7, 16], [4, 16], [9, 12]]) for (let rot = 0; rot < n; rot += 3) {
         const s = euclid(k, n, rot).reduce((a, b) => a + b, 0);
-        if (s !== k) { probs.push('E(' + k + ',' + n + ') rot ' + rot + ': ' + s + ' golpes'); break; }
+        if (s !== k) { probs.push('E(' + k + ',' + n + ') rot ' + rot + ': ' + s + ' hits'); break; }
       }
       const secs = 4.0, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
       const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
@@ -2366,68 +2366,68 @@ export async function runSelfTest() {
         p2.setMode('melody'); Object.assign(p2.cfg, { density: 0.7, rest: 0.1 });
         p3.setMode('chord');  Object.assign(p3.cfg, { notes: 3 });
         p4.setMode('root');    Object.assign(p4.cfg, { every: 1, fifth: 1 });
-        Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 });   // arreglo neutro: aquí se prueban los jugadores
+        Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 });   // neutral arrangement: the players are what is tested here
         cd.players.forEach(p => { p.log = []; });
       };
       const logs = cd => JSON.stringify(cd.players.map(p => p.log));
       const cdA = new Conductor(sc, { seed: 11 }), cdB = new Conductor(sc, { seed: 11 }), cdC = new Conductor(sc, { seed: 12 });
       for (const cd of [cdA, cdB, cdC]) { cd.dry = true; setup(cd); cd.scheduleAll(secs); }
-      if (logs(cdA) !== logs(cdB)) probs.push('jugadores no deterministas con la misma semilla');
-      if (logs(cdA) === logs(cdC)) probs.push('jugadores iguales con otra semilla');
+      if (logs(cdA) !== logs(cdB)) probs.push('players not deterministic with the same seed');
+      if (logs(cdA) === logs(cdC)) probs.push('players identical with another seed');
       const cd = sc.conductor; cd.setSeed(11); setup(cd); cd.scheduleAll(secs);
       const buf = await ctx.startRendering();
       const a = analyze(buf);
       if (a.bad) probs.push('NaN/Inf');
       if (a.peak > 1) probs.push('clipping (' + dB(a.peak) + ')');
-      if (a.peak <= SILENCE) probs.push('silencio');
+      if (a.peak <= SILENCE) probs.push('silence');
       const scale = cd.harmony.scaleSet();
       const ons = cd.players.map(p => p.log.filter(e => e[1] === 'on'));
       const fuera = ons.flat().filter(e => !scale.has(((e[2] % 12) + 12) % 12)).length;
-      if (fuera) probs.push(fuera + ' notas fuera de la escala');
-      if (ons[0].length !== 8) probs.push('pulso: ' + ons[0].length + ' golpes (esperados 4 × 2 compases)');
-      if (ons[2].length !== 6) probs.push('acorde: ' + ons[2].length + ' notas (esperadas 3 × 2 acordes)');
-      if (ons[3].length !== 4) probs.push('raíz: ' + ons[3].length + ' notas (esperadas 2 × 2 compases)');
-      if (!(ons[1].length >= 4)) probs.push('melodía: solo ' + ons[1].length + ' notas');
+      if (fuera) probs.push(fuera + ' notes outside the scale');
+      if (ons[0].length !== 8) probs.push('pulse: ' + ons[0].length + ' hits (expected 4 × 2 bars)');
+      if (ons[2].length !== 6) probs.push('chord: ' + ons[2].length + ' notes (expected 3 × 2 chords)');
+      if (ons[3].length !== 4) probs.push('root: ' + ons[3].length + ' notes (expected 2 × 2 bars)');
+      if (!(ons[1].length >= 4)) probs.push('melody: only ' + ons[1].length + ' notes');
       const grid = ons[0].every(e => Math.abs(e[0] / 0.125 - Math.round(e[0] / 0.125)) < 1e-3);
-      if (!grid) probs.push('pulso fuera de la rejilla de semicorcheas');
-      console.log('jugadores: notas', ons.map(o => o.length).join('/'), '· fuera de escala', fuera, '· pico', dB(a.peak), '· paseo', w.join(' '));
-      r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: a.peak, ok: !probs.length, problems: probs };
+      if (!grid) probs.push('pulse off the sixteenth-note grid');
+      console.log('players: notes', ons.map(o => o.length).join('/'), '· outside the scale', fuera, '· peak', dB(a.peak), '· walk', w.join(' '));
+      r = { name: 'harmony and players (scale · chords · Euclidean · offline scene · determinism)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'armonía y jugadores (escala · acordes · euclídeo · escena offline · determinismo)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'harmony and players (scale · chords · Euclidean · offline scene · determinism)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Arreglo y escenas (Roadmap 4.0 · C3): (1) energía: acotada, arranca en
-    // energía − vaivén/2 y culmina a mitad de ciclo; una parte con umbral
-    // alto calla al principio y entra en la cumbre; la sorpresa es
-    // determinista; (2) escena JSON: exportar → alterar → importar devuelve
-    // exactamente lo exportado (sala, director, partes); (3) misma semilla
-    // ⇒ mismas MUESTRAS: dos renders offline de la misma escena (el azar del
-    // motor offline lleva semilla, Roadmap 7.0 · 7.1) coinciden
-    // hasta el ÚLTIMO BIT (WebAudio suma las entradas de un nodo en un orden
-    // que depende de direcciones de memoria: diferencias ~1e-7, −140 dB), y
-    // con otra semilla difieren de verdad; (4) la escena de demo del repo
-    // carga y suena.
-    body.appendChild(el('st-cat', 'Arreglo y escenas'));
+    // Arrangement and scenes (Roadmap 4.0 · C3): (1) energy: bounded, starts at
+    // energy − sway/2 and peaks halfway through the cycle; a part with a high
+    // threshold is silent at the start and comes in at the peak; the surprise is
+    // deterministic; (2) scene JSON: export → alter → import gives back
+    // exactly what was exported (room, conductor, parts); (3) same seed
+    // ⇒ same SAMPLES: two offline renders of the same scene (the randomness of the
+    // offline engine is seeded, Roadmap 7.0 · 7.1) match
+    // down to the LAST BIT (WebAudio sums a node's inputs in an order
+    // that depends on memory addresses: differences ~1e-7, −140 dB), and
+    // with another seed they really differ; (4) the repo's demo scene
+    // loads and sounds.
+    body.appendChild(el('st-cat', 'Arrangement and scenes'));
     let r;
     try {
       const probs = [];
       const fake = { seed: 3 }, arr = new Arrangement(fake);
       Object.assign(arr.cfg, { energy: 0.6, sway: 0.6, cycle: 16, surprise: 0 });
       const E0 = arr.energyAt(0), E8 = arr.energyAt(8), Emax = Math.max(...[...Array(64)].map((_, b) => arr.energyAt(b))), Emin = Math.min(...[...Array(64)].map((_, b) => arr.energyAt(b)));
-      if (!(Math.abs(E0 - 0.3) < 1e-9 && Math.abs(E8 - 0.9) < 1e-9)) probs.push('energía: E(0)=' + E0.toFixed(3) + ' E(8)=' + E8.toFixed(3));
-      if (Emin < 0 || Emax > 1) probs.push('energía fuera de [0,1]');
+      if (!(Math.abs(E0 - 0.3) < 1e-9 && Math.abs(E8 - 0.9) < 1e-9)) probs.push('energy: E(0)=' + E0.toFixed(3) + ' E(8)=' + E8.toFixed(3));
+      if (Emin < 0 || Emax > 1) probs.push('energy outside [0,1]');
       const pc = { threshold: 0.85 };
-      if (arr.stateAt(0, 0, pc).active || !arr.stateAt(8, 0, pc).active) probs.push('umbral: la parte no calla/entra donde toca');
+      if (arr.stateAt(0, 0, pc).active || !arr.stateAt(8, 0, pc).active) probs.push('threshold: the part does not go quiet/come in where it should');
       arr.cfg.surprise = 1;
       const rests = [...Array(40)].map((_, b) => arr.rest(b, 1)), rests2 = [...Array(40)].map((_, b) => arr.rest(b, 1));
       const nRest = rests.filter(Boolean).length;
-      if (rests.join() !== rests2.join()) probs.push('sorpresa no determinista');
-      if (!(nRest >= 3 && nRest <= 20)) probs.push('sorpresa: ' + nRest + ' silencios de 40 (esperados ~10)');
-      // (2)-(4): escena offline
+      if (rests.join() !== rests2.join()) probs.push('surprise not deterministic');
+      if (!(nRest >= 3 && nRest <= 20)) probs.push('surprise: ' + nRest + ' rests out of 40 (expected ~10)');
+      // (2)-(4): offline scene
       const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
                        { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
       const conf = cd => {
@@ -2448,15 +2448,15 @@ export async function runSelfTest() {
       };
       const A = await render(11), B = await render(11), C = await render(12);
       const aA = analyze(A.buf);
-      if (aA.bad) probs.push('NaN/Inf'); if (aA.peak > 1) probs.push('clipping'); if (aA.peak <= SILENCE) probs.push('silencio');
+      if (aA.bad) probs.push('NaN/Inf'); if (aA.peak > 1) probs.push('clipping'); if (aA.peak <= SILENCE) probs.push('silence');
       const cmp = (x, y) => { const a = x.getChannelData(0), b = y.getChannelData(0); let n = 0, mx = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); if (d > 0) { n++; if (d > mx) mx = d; } } return { n, mx }; };
       const dAB = cmp(A.buf, B.buf), dAC = cmp(A.buf, C.buf);
-      if (!(dAB.mx < 1e-5)) probs.push('misma semilla, renders distintos (' + dAB.n + ' muestras, máx ' + dAB.mx.toExponential(2) + ')');
-      if (!(dAC.mx > 1e-3)) probs.push('otra semilla, render igual (máx ' + dAC.mx.toExponential(2) + ')');
-      // macro: con apertura 1 la energía mueve el detune de los filtros
+      if (!(dAB.mx < 1e-5)) probs.push('same seed, different renders (' + dAB.n + ' samples, max ' + dAB.mx.toExponential(2) + ')');
+      if (!(dAC.mx > 1e-3)) probs.push('another seed, identical render (max ' + dAC.mx.toExponential(2) + ')');
+      // macro: with Open 1 the energy moves the filters' detune
       const cents0 = A.sc.conductor.arr.macroCents(0), cents1 = A.sc.conductor.arr.macroCents(1);
-      if (!(cents0 < -400 && cents1 > 500)) probs.push('macro de apertura: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
-      // JSON ida y vuelta sobre la escena A
+      if (!(cents0 < -400 && cents1 > 500)) probs.push('Open macro: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
+      // JSON round trip on scene A
       const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.date; return JSON.stringify(o); };
       sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.salaCfg.fb = 0.61;
       const J1 = sceneToJSON(sc);
@@ -2465,13 +2465,13 @@ export async function runSelfTest() {
       sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.salaCfg.fb = 0.2; sc.S.reverbSize = 1.0;
       sc.parts[0].engine.set('cutoff', 555);
       const J2 = sceneToJSON(sc);
-      if (strip(J1) === strip(J2)) probs.push('alterar la escena no cambia su JSON');
+      if (strip(J1) === strip(J2)) probs.push('altering the scene does not change its JSON');
       applySceneJSON(sc, JSON.parse(JSON.stringify(J1)));
       const J3 = sceneToJSON(sc);
-      if (strip(J3) !== strip(J1)) probs.push('escena JSON: ida y vuelta no es exacta');
-      if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) probs.push('importar no restaura el estado de la parte');
-      // (4) las escenas del repo (escenas/*.json): cargan, sus presets se
-      // aplican, suenan sin NaN ni clipping y todo lo emitido está en su escala
+      if (strip(J3) !== strip(J1)) probs.push('scene JSON: the round trip is not exact');
+      if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) probs.push('import does not restore the part state');
+      // (4) the repo scenes (escenas/*.json): they load, their presets are
+      // applied, they sound with no NaN or clipping and everything emitted is in their scale
       const ESCENAS = ['ambient-nocturno', 'amanecer-dorico', 'techno-hipnotico', 'coro-robotico'];
       const picos = [];
       for (const nombre of ESCENAS) {
@@ -2483,30 +2483,30 @@ export async function runSelfTest() {
         scD.conductor.scheduleAll(4);
         const aD = analyze(await ctxD.startRendering());
         picos.push(nombre + ' ' + dB(aD.peak));
-        if (aD.bad) probs.push(nombre + ': NaN/Inf'); if (aD.peak > 1) probs.push(nombre + ': clipping'); if (aD.peak <= SILENCE) probs.push(nombre + ' en silencio (' + dB(aD.peak) + ')');
-        if (scD.parts.map(p => p.presetName).join('|') !== j.parts.map(p => p.preset).join('|')) probs.push(nombre + ': nombres de preset no aplicados');
+        if (aD.bad) probs.push(nombre + ': NaN/Inf'); if (aD.peak > 1) probs.push(nombre + ': clipping'); if (aD.peak <= SILENCE) probs.push(nombre + ' silent (' + dB(aD.peak) + ')');
+        if (scD.parts.map(p => p.presetName).join('|') !== j.parts.map(p => p.preset).join('|')) probs.push(nombre + ': preset names not applied');
         const esc = scD.conductor.harmony.scaleSet(), ons = scD.conductor.players.flatMap(p => p.log.filter(x => x[1] === 'on'));
-        if (!ons.length) probs.push(nombre + ': ningún jugador emite');
-        if (ons.some(x => !esc.has(((x[2] % 12) + 12) % 12))) probs.push(nombre + ': notas fuera de la escala');
+        if (!ons.length) probs.push(nombre + ': no player emits');
+        if (ons.some(x => !esc.has(((x[2] % 12) + 12) % 12))) probs.push(nombre + ': notes outside the scale');
       }
-      console.log('escenas: E(0)', E0.toFixed(2), 'E(8)', E8.toFixed(2), '· sorpresas', nRest + '/40', '· A=B máx', dAB.mx.toExponential(1), '· A≠C máx', dAC.mx.toExponential(1), '· macro', cents0.toFixed(0) + '/' + cents1.toFixed(0), 'ct · picos', picos.join(' · '));
-      r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: aA.peak, ok: !probs.length, problems: probs };
+      console.log('scenes: E(0)', E0.toFixed(2), 'E(8)', E8.toFixed(2), '· surprises', nRest + '/40', '· A=B max', dAB.mx.toExponential(1), '· A≠C max', dAC.mx.toExponential(1), '· macro', cents0.toFixed(0) + '/' + cents1.toFixed(0), 'ct · peaks', picos.join(' · '));
+      r = { name: 'arrangement and scenes (energy · threshold · surprise · JSON round trip · same seed = same samples · demo)', peak: aA.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'arreglo y escenas (energía · umbral · sorpresa · JSON ida y vuelta · misma semilla = mismas muestras · demo)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'arrangement and scenes (energy · threshold · surprise · JSON round trip · same seed = same samples · demo)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Azar con semilla en los renders offline (Roadmap 7.0 · 7.1): un estado
-    // con TODO el azar del motor — fases libres del modulador FM y del unison,
-    // supersaw, deriva del worklet, ruido, IR de la reverb, Vida y Golpe del
-    // Vocal, S&H por nota — renderizado dos veces da las mismas muestras (salvo
-    // el orden de suma de WebAudio, ~1e-7); con otra semilla (seedRender)
-    // suena distinto; y fuera de un render offline el azar es Math.random.
-    body.appendChild(el('st-cat', 'Azar con semilla'));
-    const NAME = 'azar con semilla offline (dos renders = mismas muestras · otra semilla ≠ · en directo Math.random)';
+    // Seeded randomness in offline renders (Roadmap 7.0 · 7.1): a state
+    // with ALL the engine's randomness — free phases of the FM modulator and the unison,
+    // supersaw, worklet drift, noise, reverb IR, Life and Bite of the
+    // Vocal, S&H per note — rendered twice gives the same samples (except
+    // for WebAudio's summing order, ~1e-7); with another seed (seedRender)
+    // it sounds different; and outside an offline render the randomness is Math.random.
+    body.appendChild(el('st-cat', 'Seeded randomness'));
+    const NAME = 'seeded offline randomness (two renders = same samples · another seed ≠ · live Math.random)';
     let r;
     try {
       const probs = [];
@@ -2525,29 +2525,29 @@ export async function runSelfTest() {
       const A = await render(), B = await render(), C = await render(12345);
       const cmp = (x, y) => { let mx = 0; for (let ch = 0; ch < 2; ch++) { const a = x.getChannelData(ch), b = y.getChannelData(ch); for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); if (d > mx) mx = d; } } return mx; };
       const aA = analyze(A), dAB = cmp(A, B), dAC = cmp(A, C);
-      if (aA.bad) probs.push('NaN/Inf'); if (aA.peak <= SILENCE) probs.push('silencio');
-      if (!(dAB < 1e-5)) probs.push('misma semilla, renders distintos (máx ' + dAB.toExponential(2) + ')');
-      if (!(dAC > 1e-2)) probs.push('otra semilla, render igual (máx ' + dAC.toExponential(2) + ')');
-      if (ctxRandom({}) !== Math.random) probs.push('fuera de un render offline el azar no es Math.random');
-      console.log('azar con semilla: A=B máx', dAB.toExponential(1), '· A≠C máx', dAC.toExponential(1));
+      if (aA.bad) probs.push('NaN/Inf'); if (aA.peak <= SILENCE) probs.push('silence');
+      if (!(dAB < 1e-5)) probs.push('same seed, different renders (max ' + dAB.toExponential(2) + ')');
+      if (!(dAC > 1e-2)) probs.push('another seed, identical render (max ' + dAC.toExponential(2) + ')');
+      if (ctxRandom({}) !== Math.random) probs.push('outside an offline render the randomness is not Math.random');
+      console.log('seeded randomness: A=B max', dAB.toExponential(1), '· A≠C max', dAC.toExponential(1));
       r = { name: NAME, peak: aA.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Reverb de placa (Roadmap 4.0 · A2): respuesta al impulso de una Sala en
-    // modo «placa»: (1) sin NaN, pico acotado; (2) la cola DECAE de forma
-    // monótona (RMS por ventanas de 250 ms) y sigue viva a 1,5 s con Size 3;
-    // (3) Size 0,5 deja mucha menos cola que Size 3 (el RT60 sigue al knob);
-    // (4) L y R descorrelados (|corr| < 0,6 entre 0,2 y 1,2 s: dos juegos de
-    // grifos de un mismo tanque); (5) la DENSIDAD crece — entre 100 y 120 ms
-    // hay más muestras «vivas» que en los primeros 20 ms (los allpass
-    // multiplican las reflexiones: lo que una IR de ruido no hace); (6) un
-    // preset en «placa» suena distinto que en «sala» (la conmutación existe).
-    body.appendChild(el('st-cat', 'Reverb de placa'));
+    // Plate reverb (Roadmap 4.0 · A2): impulse response of a Room in
+    // «plate» mode: (1) no NaN, bounded peak; (2) the tail DECAYS
+    // monotonically (RMS over 250 ms windows) and is still alive at 1.5 s with Size 3;
+    // (3) Size 0.5 leaves much less tail than Size 3 (the RT60 follows the knob);
+    // (4) L and R decorrelated (|corr| < 0.6 between 0.2 and 1.2 s: two sets of
+    // taps from the same tank); (5) the DENSITY grows — between 100 and 120 ms
+    // there are more «live» samples than in the first 20 ms (the allpasses
+    // multiply the reflections: something a noise IR does not do); (6) a
+    // preset in «plate» sounds different than in «hall» (the switch exists).
+    body.appendChild(el('st-cat', 'Plate reverb'));
     let r;
     try {
       const probs = [];
@@ -2563,25 +2563,25 @@ export async function runSelfTest() {
       const big = await ir(3), small = await ir(0.5);
       const a = analyze(big);
       if (a.bad) probs.push('NaN/Inf');
-      if (a.peak > 1.5) probs.push('pico excesivo (' + dB(a.peak) + ')');
-      if (a.peak <= SILENCE) probs.push('la placa no responde al impulso');
+      if (a.peak > 1.5) probs.push('excessive peak (' + dB(a.peak) + ')');
+      if (a.peak <= SILENCE) probs.push('the plate does not respond to the impulse');
       const rmsW = (buf, ch, t0, t1) => { const d = buf.getChannelData(ch), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-      const env = [...Array(9)].map((_, i) => rmsW(big, 0, 0.25 * i + 0.25, 0.25 * i + 0.5));   // 0,25 … 2,5 s
-      for (let i = 1; i < env.length; i++) if (env[i] > env[i - 1] * 1.1) { probs.push('la cola no decae (ventana ' + i + ': ' + dB(env[i]) + ' tras ' + dB(env[i - 1]) + ')'); break; }
-      if (!(env[3] > 1e-4 * HR)) probs.push('Size 3: cola muerta a 1 s (' + dB(env[3]) + ')');
+      const env = [...Array(9)].map((_, i) => rmsW(big, 0, 0.25 * i + 0.25, 0.25 * i + 0.5));   // 0.25 … 2.5 s
+      for (let i = 1; i < env.length; i++) if (env[i] > env[i - 1] * 1.1) { probs.push('the tail does not decay (window ' + i + ': ' + dB(env[i]) + ' after ' + dB(env[i - 1]) + ')'); break; }
+      if (!(env[3] > 1e-4 * HR)) probs.push('Size 3: tail dead at 1 s (' + dB(env[3]) + ')');
       const tailS = rmsW(small, 0, 1.0, 1.25);
-      if (!(env[3] > 5 * tailS)) probs.push('el Size no gobierna el RT (' + dB(env[3]) + ' vs ' + dB(tailS) + ')');
+      if (!(env[3] > 5 * tailS)) probs.push('Size does not govern the RT (' + dB(env[3]) + ' vs ' + dB(tailS) + ')');
       let corr = 0;
       { const L = big.getChannelData(0), R = big.getChannelData(1), i0 = Math.floor(0.2 * SR), i1 = Math.floor(1.2 * SR);
         let sl = 0, sr = 0, sx = 0; for (let i = i0; i < i1; i++) { sl += L[i] * L[i]; sr += R[i] * R[i]; sx += L[i] * R[i]; }
         corr = sx / Math.max(1e-12, Math.sqrt(sl * sr));
-        if (!(Math.abs(corr) < 0.6)) probs.push('L/R demasiado parecidos (corr ' + corr.toFixed(2) + ')'); }
+        if (!(Math.abs(corr) < 0.6)) probs.push('L/R too similar (corr ' + corr.toFixed(2) + ')'); }
       let early = 0, late = 0;
       { const d = big.getChannelData(0), thr = a.peak * 0.01;
         const alive = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) if (Math.abs(d[i]) > thr) n++; return n; };
         early = alive(0.001, 0.021); late = alive(0.1, 0.12);
-        if (!(late > early)) probs.push('la densidad no crece (' + early + ' → ' + late + ' muestras vivas)'); }
+        if (!(late > early)) probs.push('the density does not grow (' + early + ' → ' + late + ' live samples)'); }
       loadState({ ...FACTORY['Pads']['Plate Pad'], reverbType: 'hall' });
       const bS = await renderBuf(structuredClone(engine.S));
       loadState(FACTORY['Pads']['Plate Pad']);
@@ -2589,22 +2589,22 @@ export async function runSelfTest() {
       const diff = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0); let d = 0, en = 0;
         for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; } return Math.sqrt(d / Math.max(1e-12, en)); };
       const dd = diff(bS, bP);
-      if (!(dd > 0.2)) probs.push('sala vs placa apenas difieren (' + dd.toFixed(3) + ')');
-      console.log('placa: cola', env.map(v => dB(v)).join(' '), '· size 0,5 @1 s', dB(tailS), '· corr L/R', corr.toFixed(2), '· densidad', early + '→' + late, '· diff sala/placa', dd.toFixed(3), '· pico', dB(a.peak));
-      r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: a.peak, ok: !probs.length, problems: probs };
+      if (!(dd > 0.2)) probs.push('hall vs plate barely differ (' + dd.toFixed(3) + ')');
+      console.log('plate: tail', env.map(v => dB(v)).join(' '), '· size 0.5 @1 s', dB(tailS), '· corr L/R', corr.toFixed(2), '· density', early + '→' + late, '· diff hall/plate', dd.toFixed(3), '· peak', dB(a.peak));
+      r = { name: 'plate reverb (impulse decays · RT follows Size · L/R decorrelated · density grows · hall ≠ plate)', peak: a.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'reverb de placa (impulso decae · RT sigue al Size · L/R descorrelados · densidad crece · sala ≠ placa)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'plate reverb (impulse decays · RT follows Size · L/R decorrelated · density grows · hall ≠ plate)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // FM4 (Roadmap 4.0 · B2): (1) los 8 algoritmos suenan sin NaN ni clipping
-    // y cada uno difiere del anterior (mismos operadores, otro grafo ⇒ otro
-    // espectro); (2) el decay por operador funciona: con el modulador 2 en
-    // decay corto el tilt del arranque supera con claridad al del sostenido,
-    // y con decay plano no; (3) FM4 ≠ el seno con FM de 2 operadores.
+    // FM4 (Roadmap 4.0 · B2): (1) the 8 algorithms sound with no NaN or clipping
+    // and each one differs from the previous (same operators, another graph ⇒ another
+    // spectrum); (2) per-operator decay works: with modulator 2 on a
+    // short decay the onset tilt clearly exceeds the sustain's,
+    // and with a flat decay it does not; (3) FM4 ≠ the 2-operator FM sine.
     body.appendChild(el('st-cat', 'FM4'));
     let r;
     try {
@@ -2620,40 +2620,40 @@ export async function runSelfTest() {
         const b = await renderOne(structuredClone(engine.S), opt), a = analyze(b);
         if (a.bad) probs.push('alg ' + alg + ': NaN/Inf');
         if (a.peak > 1) probs.push('alg ' + alg + ': clipping');
-        if (a.peak <= SILENCE) probs.push('alg ' + alg + ' en silencio');
+        if (a.peak <= SILENCE) probs.push('alg ' + alg + ' silent');
         bufs.push(b);
       }
       const dAlg = bufs.map((b, i) => i ? diffW(bufs[i - 1], b, 0.3, 0.85) : 1);
-      dAlg.forEach((d, i) => { if (i && !(d > 0.15)) probs.push('alg ' + (i - 1) + ' y ' + i + ' apenas difieren (' + d.toFixed(3) + ')'); });
+      dAlg.forEach((d, i) => { if (i && !(d > 0.15)) probs.push('alg ' + (i - 1) + ' and ' + i + ' barely differ (' + d.toFixed(3) + ')'); });
       loadState({ ...base, fm4Alg: '0', fm4D2: 0.06 });
       const bDec = await renderOne(structuredClone(engine.S), opt);
       const rDec = tiltW(bDec, 0.005, 0.05) / Math.max(1e-12, tiltW(bDec, 0.5, 0.85));
       const rFlat = tiltW(bufs[0], 0.005, 0.05) / Math.max(1e-12, tiltW(bufs[0], 0.5, 0.85));
-      if (!(rDec > 2)) probs.push('decay del op 2: el arranque no es más brillante (' + rDec.toFixed(2) + ')');
-      if (!(rFlat < 1.4)) probs.push('control: con decays planos el arranque ya difiere (' + rFlat.toFixed(2) + ')');
+      if (!(rDec > 2)) probs.push('op 2 decay: the onset is not brighter (' + rDec.toFixed(2) + ')');
+      if (!(rFlat < 1.4)) probs.push('control: with flat decays the onset already differs (' + rFlat.toFixed(2) + ')');
       loadState({ ...base, waveA: 'sine', fmRatio: 2, fmIndex: 2 });
       const b2op = await renderOne(structuredClone(engine.S), opt);
       const d2 = diffW(bufs[0], b2op, 0.3, 0.85);
-      if (!(d2 > 0.2)) probs.push('FM4 pila ≈ seno 2-op (' + d2.toFixed(3) + ')');
-      console.log('fm4: diffs entre algoritmos', dAlg.slice(1).map(d => d.toFixed(2)).join(' '), '· decay op2 arranque/sostenido', rDec.toFixed(2), 'control', rFlat.toFixed(2), '· vs 2-op', d2.toFixed(2));
-      r = { name: 'FM4 (8 algoritmos distintos · decay por operador · ≠ 2-op)', peak: analyze(bufs[0]).peak, ok: !probs.length, problems: probs };
+      if (!(d2 > 0.2)) probs.push('FM4 stack ≈ 2-op sine (' + d2.toFixed(3) + ')');
+      console.log('fm4: diffs between algorithms', dAlg.slice(1).map(d => d.toFixed(2)).join(' '), '· op2 decay onset/sustain', rDec.toFixed(2), 'control', rFlat.toFixed(2), '· vs 2-op', d2.toFixed(2));
+      r = { name: 'FM4 (8 different algorithms · per-operator decay · ≠ 2-op)', peak: analyze(bufs[0]).peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'FM4 (8 algoritmos distintos · decay por operador · ≠ 2-op)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'FM4 (8 different algorithms · per-operator decay · ≠ 2-op)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // FM4 · reloj de las envolventes de operador: deben contar desde el ARRANQUE
-    // de la nota, no desde que nace el worklet (bug cazado por el usuario con el
-    // Bombo 808: «el golpe solo entra a veces»). Un operador con decay de 30 ms es
-    // un clic brillante; si la nota se programa 250 ms en el futuro (como hacen
-    // el arp y los jugadores, y como pasa en directo con el jitter del hilo
-    // principal), el clic debe seguir ahí al abrir el VCA: el tilt espectral de
-    // los primeros 25 ms de la nota programada ≈ el de la nota inmediata, y
-    // ambos ≫ el del cuerpo (seno) a los 200 ms.
-    body.appendChild(el('st-cat', 'FM4 · reloj de operadores'));
+    // FM4 · operator envelope clock: they must count from the note's
+    // START, not from when the worklet is born (bug caught by the user with the
+    // 808 Kick: «the hit only comes in sometimes»). An operator with a 30 ms decay is
+    // a bright click; if the note is scheduled 250 ms into the future (as
+    // the arp and the players do, and as happens live with main-thread
+    // jitter), the click must still be there when the VCA opens: the spectral tilt of
+    // the first 25 ms of the scheduled note ≈ that of the immediate note, and
+    // both ≫ that of the body (sine) at 200 ms.
+    body.appendChild(el('st-cat', 'FM4 · operator clock'));
     let r;
     try {
       const probs = [];
@@ -2674,31 +2674,31 @@ export async function runSelfTest() {
       const aN = analyze(bNow), aL = analyze(bLater);
       if (aN.bad || aL.bad) probs.push('NaN/Inf');
       const oN = onset(bNow), oL = onset(bLater);
-      if (!(oL > 0.2)) probs.push('la nota programada no arranca en el futuro (' + (oL * 1000).toFixed(0) + ' ms)');
+      if (!(oL > 0.2)) probs.push('the scheduled note does not start in the future (' + (oL * 1000).toFixed(0) + ' ms)');
       const atkN = tiltW(bNow, oN, oN + 0.025), atkL = tiltW(bLater, oL, oL + 0.025), body_ = tiltW(bNow, oN + 0.2, oN + 0.3);
-      if (!(atkN > 2 * body_)) probs.push('el operador de 30 ms no da un ataque más brillante que el cuerpo (' + atkN.toExponential(2) + ' vs ' + body_.toExponential(2) + ')');
-      if (!(atkL / Math.max(1e-12, atkN) > 0.7)) probs.push('la nota programada pierde el clic (tilt ×' + (atkL / Math.max(1e-12, atkN)).toFixed(2) + ' respecto a la inmediata)');
-      console.log('fm4 reloj: tilt ataque inmediata', atkN.toExponential(2), '· programada', atkL.toExponential(2), '· cuerpo', body_.toExponential(2), '· arranque programada', (oL * 1000).toFixed(1), 'ms');
-      r = { name: 'FM4 reloj de operadores (el clic de 30 ms sobrevive a una nota programada 250 ms en el futuro)', peak: aL.peak, ok: !probs.length, problems: probs };
+      if (!(atkN > 2 * body_)) probs.push('the 30 ms operator does not give an attack brighter than the body (' + atkN.toExponential(2) + ' vs ' + body_.toExponential(2) + ')');
+      if (!(atkL / Math.max(1e-12, atkN) > 0.7)) probs.push('the scheduled note loses the click (tilt ×' + (atkL / Math.max(1e-12, atkN)).toFixed(2) + ' relative to the immediate one)');
+      console.log('fm4 clock: immediate attack tilt', atkN.toExponential(2), '· scheduled', atkL.toExponential(2), '· body', body_.toExponential(2), '· scheduled onset', (oL * 1000).toFixed(1), 'ms');
+      r = { name: 'FM4 operator clock (the 30 ms click survives a note scheduled 250 ms into the future)', peak: aL.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'FM4 reloj de operadores (el clic de 30 ms sobrevive a una nota programada 250 ms en el futuro)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'FM4 operator clock (the 30 ms click survives a note scheduled 250 ms into the future)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Arranque determinista (percusión): con ataque 0 el VCA abre de ESCALÓN en t0
-    // (el primer cuarto de milisegundo ya está a nivel) y el worklet, que calla y
-    // congela sus fases hasta t0 (cuantizado a frontera de bloque), arranca la onda
-    // en su fase configurada: dos notas programadas en el futuro (200 y 300 ms,
-    // como las del directo: el look-ahead adaptativo deja siempre t0 por delante
-    // del nacimiento del worklet) dan, alineadas en su arranque, las MISMAS
-    // muestras. Sin la puerta, el oscilador corría libre desde que nacía y la fase
-    // en t0 era azar (el golpe del bombo cambiaba de una nota a otra). La nota
-    // inmediata offline (look-ahead 5 ms < nacimiento del worklet) no pasa por la
-    // puerta: solo se usa para el escalón.
-    body.appendChild(el('st-cat', 'Arranque determinista'));
+    // Deterministic onset (percussion): with attack 0 the VCA opens as a STEP at t0
+    // (the first quarter millisecond is already at level) and the worklet, which stays silent and
+    // freezes its phases until t0 (quantized to a block boundary), starts the wave
+    // at its configured phase: two notes scheduled in the future (200 and 300 ms,
+    // like the live ones: the adaptive look-ahead always keeps t0 ahead
+    // of the worklet's birth) give, aligned at their onset, the SAME
+    // samples. Without the gate, the oscillator ran free from birth and the phase
+    // at t0 was random (the kick's hit changed from one note to the next). The immediate
+    // offline note (look-ahead 5 ms < worklet birth) does not go through the
+    // gate: it is only used for the step.
+    body.appendChild(el('st-cat', 'Deterministic onset'));
     let r;
     try {
       const probs = [];
@@ -2718,38 +2718,38 @@ export async function runSelfTest() {
       const aN = analyze(bNow), aL = analyze(bL1);
       if (aN.bad || aL.bad || analyze(bL2).bad) probs.push('NaN/Inf');
       const iN = onsetI(bNow), i1 = onsetI(bL1), i2 = onsetI(bL2);
-      if (iN < 0 || i1 < 0 || i2 < 0) probs.push('silencio');
+      if (iN < 0 || i1 < 0 || i2 < 0) probs.push('silence');
       else {
         const dN = bNow.getChannelData(0), d1 = bL1.getChannelData(0), d2 = bL2.getChannelData(0);
         const rmsI = (d, i0, n) => { let s = 0; for (let i = i0; i < i0 + n; i++) s += d[i] * d[i]; return Math.sqrt(s / n); };
         const q = Math.round(SR * 0.00025);
-        const stepN = rmsI(dN, iN, q) / Math.max(1e-9, rmsI(dN, iN + 20 * q, q));   // primer ¼ ms vs 5 ms después
+        const stepN = rmsI(dN, iN, q) / Math.max(1e-9, rmsI(dN, iN + 20 * q, q));   // first ¼ ms vs 5 ms later
         const step1 = rmsI(d1, i1, q) / Math.max(1e-9, rmsI(d1, i1 + 20 * q, q));
-        if (!(stepN > 0.8 && step1 > 0.8)) probs.push('con ataque 0 el VCA no abre de escalón (¼ ms inicial / 5 ms = ' + stepN.toFixed(2) + ' · ' + step1.toFixed(2) + ')');
-        // alineadas por arranque con tolerancia de ±1 muestra: el instante del escalón
-        // del VCA se redondea a muestra a partir de t0 en segundos y puede caer una
-        // muestra antes o después entre renders (medido: 264 vs 265 muestras tras t0,
-        // todo lo demás idéntico); una fase azarosa daría decenas de dB a cualquier desfase
+        if (!(stepN > 0.8 && step1 > 0.8)) probs.push('with attack 0 the VCA does not open as a step (initial ¼ ms / 5 ms = ' + stepN.toFixed(2) + ' · ' + step1.toFixed(2) + ')');
+        // aligned by onset with a ±1 sample tolerance: the instant of the VCA
+        // step is rounded to a sample from t0 in seconds and can fall one
+        // sample earlier or later between renders (measured: 264 vs 265 samples after t0,
+        // everything else identical); a random phase would give tens of dB at any offset
         const n = Math.floor(SR * 0.05);
         const diffAt = sh => { let m = 0; for (let i = 2; i < n && i1 + i < d1.length && i2 + i + sh < d2.length; i++) m = Math.max(m, Math.abs(d1[i1 + i] - d2[i2 + i + sh])); return m; };
         const maxDiff = Math.min(diffAt(-1), diffAt(0), diffAt(1));
-        if (!(maxDiff < 1e-3)) probs.push('dos notas programadas no arrancan igual (máx |Δ| ' + maxDiff.toExponential(2) + ' en los primeros 50 ms, mejor desfase ±1 muestra)');
-        console.log('arranque: escalón ¼ ms/5 ms', stepN.toFixed(3), '/', step1.toFixed(3), '· programadas 200 vs 300 ms máx |Δ|', maxDiff.toExponential(2), '· arranques', (iN / SR * 1000).toFixed(1), '/', (i1 / SR * 1000).toFixed(1), '/', (i2 / SR * 1000).toFixed(1), 'ms');
+        if (!(maxDiff < 1e-3)) probs.push('two scheduled notes do not start the same (max |Δ| ' + maxDiff.toExponential(2) + ' in the first 50 ms, best offset ±1 sample)');
+        console.log('onset: step ¼ ms/5 ms', stepN.toFixed(3), '/', step1.toFixed(3), '· scheduled 200 vs 300 ms max |Δ|', maxDiff.toExponential(2), '· onsets', (iN / SR * 1000).toFixed(1), '/', (i1 / SR * 1000).toFixed(1), '/', (i2 / SR * 1000).toFixed(1), 'ms');
       }
-      r = { name: 'arranque determinista (ataque 0 = escalón · misma fase en dos notas programadas)', peak: aN.peak, ok: !probs.length, problems: probs };
+      r = { name: 'deterministic onset (attack 0 = step · same phase in two scheduled notes)', peak: aN.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'arranque determinista (ataque 0 = escalón · misma fase en dos notas programadas)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'deterministic onset (attack 0 = step · same phase in two scheduled notes)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Curva de envolvente (Roadmap 4.0 · A3): con Curva 1 el ataque sube deprisa
-    // (RMS a mitad del ataque ≫ que con rampas lineales) y el decay se posa
-    // pronto (RMS a mitad del decay ≪); el sostenido es el mismo. Con Curva 0 el
-    // camino es el de siempre (rampas lineales: lo cubre el golden).
-    body.appendChild(el('st-cat', 'Curva de envolvente'));
+    // Envelope curve (Roadmap 4.0 · A3): with Curve 1 the attack rises quickly
+    // (RMS halfway through the attack ≫ than with linear ramps) and the decay settles
+    // early (RMS halfway through the decay ≪); the sustain is the same. With Curve 0 the
+    // path is the usual one (linear ramps: covered by the golden).
+    body.appendChild(el('st-cat', 'Envelope curve'));
     let r;
     try {
       const probs = [];
@@ -2764,14 +2764,14 @@ export async function runSelfTest() {
       if (a0.peak > 1 || a1.peak > 1) probs.push('clipping');
       const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-      const atk = rmsW(b1, 0.14, 0.18) / Math.max(1e-9, rmsW(b0, 0.14, 0.18));     // mitad del ataque (0,3 s)
-      const dec = rmsW(b1, 0.53, 0.58) / Math.max(1e-9, rmsW(b0, 0.53, 0.58));     // mitad del decay (0,3 + 0,5/2)
-      const sus = rmsW(b1, 1.0, 1.25) / Math.max(1e-9, rmsW(b0, 1.0, 1.25));       // sostenido: igual
-      if (!(atk > 1.5)) probs.push('la curva no acelera el ataque (' + atk.toFixed(2) + ')');
-      if (!(dec < 0.6)) probs.push('la curva no posa el decay (' + dec.toFixed(2) + ')');
-      if (!(Math.abs(sus - 1) < 0.1)) probs.push('el sostenido cambia con la curva (' + sus.toFixed(3) + ')');
-      // release con la curva del knob: r = 0,5 s soltando en el sostenido (1,0 s). Curva 0 → recta
-      // (a mitad del release, la mitad de amplitud); Curva 1 → RC (se posa: mucho menos); ambos a 0 en r
+      const atk = rmsW(b1, 0.14, 0.18) / Math.max(1e-9, rmsW(b0, 0.14, 0.18));     // halfway through the attack (0.3 s)
+      const dec = rmsW(b1, 0.53, 0.58) / Math.max(1e-9, rmsW(b0, 0.53, 0.58));     // halfway through the decay (0.3 + 0.5/2)
+      const sus = rmsW(b1, 1.0, 1.25) / Math.max(1e-9, rmsW(b0, 1.0, 1.25));       // sustain: the same
+      if (!(atk > 1.5)) probs.push('the curve does not speed up the attack (' + atk.toFixed(2) + ')');
+      if (!(dec < 0.6)) probs.push('the curve does not settle the decay (' + dec.toFixed(2) + ')');
+      if (!(Math.abs(sus - 1) < 0.1)) probs.push('the sustain changes with the curve (' + sus.toFixed(3) + ')');
+      // release with the knob's curve: r = 0.5 s releasing in the sustain (1.0 s). Curve 0 → straight
+      // (halfway through the release, half the amplitude); Curve 1 → RC (it settles: much less); both at 0 by r
       const baseR = { ...base, r: 0.5 }, optR = { secs: 1.6, offAt: 1.0 };
       loadState({ ...baseR, envCurve: 0 });
       const r0 = await renderOne(structuredClone(engine.S), optR);
@@ -2780,36 +2780,36 @@ export async function runSelfTest() {
       const lin = rmsW(r0, 1.23, 1.27) / Math.max(1e-9, rmsW(r0, 0.9, 1.0));
       const relRC = rmsW(r1, 1.23, 1.27) / Math.max(1e-9, rmsW(r0, 1.23, 1.27));
       const relEnd = Math.max(rmsW(r0, 1.55, 1.6), rmsW(r1, 1.55, 1.6));
-      if (!(Math.abs(lin - 0.5) < 0.12)) probs.push('el release recto no va por la mitad a mitad de camino (' + lin.toFixed(2) + ')');
-      if (!(relRC < 0.6)) probs.push('la curva no posa el release (' + relRC.toFixed(2) + ')');
-      if (!(relEnd < 1e-4)) probs.push('el release no llega a 0 en r (' + dB(relEnd) + ')');
-      // soltar DURANTE el ataque (bug cazado por el usuario: con setValueCurveAtTime
-      // el release lanzaba excepción y la voz se quedaba colgada) → la nota debe morir
+      if (!(Math.abs(lin - 0.5) < 0.12)) probs.push('the straight release is not at half halfway through (' + lin.toFixed(2) + ')');
+      if (!(relRC < 0.6)) probs.push('the curve does not settle the release (' + relRC.toFixed(2) + ')');
+      if (!(relEnd < 1e-4)) probs.push('the release does not reach 0 by r (' + dB(relEnd) + ')');
+      // releasing DURING the attack (bug caught by the user: with setValueCurveAtTime
+      // the release threw an exception and the voice got stuck) → the note must die
       loadState({ ...base, envCurve: 1 });
       const bCut = await renderOne(structuredClone(engine.S), { secs: 1.2, offAt: 0.15 });
       const tail = rmsW(bCut, 0.9, 1.2), aCut = analyze(bCut);
-      if (aCut.bad) probs.push('soltar en el ataque: NaN/Inf');
-      if (!(tail < 1e-4)) probs.push('soltar durante el ataque no apaga la nota (' + dB(tail) + ' a 0,9-1,2 s)');
-      console.log('curva env: ataque ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sostenido ×', sus.toFixed(3), '· release recto a mitad', lin.toFixed(2), '· release RC ×', relRC.toFixed(2), '· cola tras soltar en el ataque', dB(tail));
-      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual · release sigue al knob)', peak: a1.peak, ok: !probs.length, problems: probs };
+      if (aCut.bad) probs.push('releasing in the attack: NaN/Inf');
+      if (!(tail < 1e-4)) probs.push('releasing during the attack does not silence the note (' + dB(tail) + ' at 0.9-1.2 s)');
+      console.log('env curve: attack ×', atk.toFixed(2), '· decay ×', dec.toFixed(2), '· sustain ×', sus.toFixed(3), '· straight release halfway', lin.toFixed(2), '· RC release ×', relRC.toFixed(2), '· tail after releasing in the attack', dB(tail));
+      r = { name: 'envelope curve (faster RC attack · decay settles · same sustain · release follows the knob)', peak: a1.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'curva de envolvente (ataque RC más rápido · decay se posa · sostenido igual)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'envelope curve (faster RC attack · decay settles · same sustain)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Flam de palmada (percusión): con Golpes 3 y Hueco 12 ms, antes del ADSR
-    // suenan dos ráfagas que caen a 0 antes de la siguiente — el final de cada
-    // hueco es un VALLE (RMS ≪ que a mitad de la ráfaga); con Golpes 1 esas
-    // mismas ventanas están en el sostenido (sin valles) y el camino es el de
-    // siempre (bit-idéntico: lo cubre el golden). El último golpe es el ADSR
-    // completo (el sostenido llega igual) y soltar DURANTE el flam apaga la
-    // nota. Seno a 880 Hz (periodo 1,1 ms: las ventanas de 2-3 ms promedian).
-    // Las ventanas se miden desde el ARRANQUE real del sonido (primera muestra
-    // audible), no desde 0: el noteOn lleva look-ahead y el worklet tarda en nacer.
-    body.appendChild(el('st-cat', 'Flam de palmada'));
+    // Clap flam (percussion): with Hits 3 and Gap 12 ms, before the ADSR
+    // two bursts sound that fall to 0 before the next one — the end of each
+    // gap is a VALLEY (RMS ≪ than halfway through the burst); with Hits 1 those
+    // same windows are in the sustain (no valleys) and the path is the usual
+    // one (bit-identical: covered by the golden). The last hit is the full ADSR
+    // (the sustain arrives the same) and releasing DURING the flam silences the
+    // note. Sine at 880 Hz (period 1.1 ms: the 2-3 ms windows average out).
+    // The windows are measured from the real ONSET of the sound (first audible
+    // sample), not from 0: the noteOn has look-ahead and the worklet takes time to be born.
+    body.appendChild(el('st-cat', 'Clap flam'));
     let r;
     try {
       const probs = [];
@@ -2833,83 +2833,83 @@ export async function runSelfTest() {
       if (a1.bad || a3.bad) probs.push('NaN/Inf');
       if (a1.peak > 1 || a3.peak > 1) probs.push('clipping');
       const T1 = onset(b1), T3 = onset(b3);
-      if (Math.abs(T1 - T3) > 0.002) probs.push('el flam mueve el arranque de la nota (' + (T1 * 1000).toFixed(1) + ' / ' + (T3 * 1000).toFixed(1) + ' ms)');
-      const mid = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + i * GAP + 0.002, T0 + i * GAP + 0.005); };          // mitad de la ráfaga i
-      const valley = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + (i + 1) * GAP - 0.002, T0 + (i + 1) * GAP); };   // final del hueco i
+      if (Math.abs(T1 - T3) > 0.002) probs.push('the flam moves the note onset (' + (T1 * 1000).toFixed(1) + ' / ' + (T3 * 1000).toFixed(1) + ' ms)');
+      const mid = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + i * GAP + 0.002, T0 + i * GAP + 0.005); };          // middle of burst i
+      const valley = (buf, i) => { const T0 = onset(buf); return rmsW(buf, T0 + (i + 1) * GAP - 0.002, T0 + (i + 1) * GAP); };   // end of gap i
       const v3 = Math.max(valley(b3, 0), valley(b3, 1)) / Math.max(1e-9, Math.min(mid(b3, 0), mid(b3, 1)));
       const v1 = Math.min(valley(b1, 0), valley(b1, 1)) / Math.max(1e-9, mid(b1, 0));
-      if (!(v3 < 0.5)) probs.push('las ráfagas no caen a 0 antes de la siguiente (valle/ráfaga ' + v3.toFixed(2) + ')');
-      if (!(v1 > 0.7)) probs.push('sin flam hay valles (' + v1.toFixed(2) + ')');
+      if (!(v3 < 0.5)) probs.push('the bursts do not fall to 0 before the next one (valley/burst ' + v3.toFixed(2) + ')');
+      if (!(v1 > 0.7)) probs.push('without flam there are valleys (' + v1.toFixed(2) + ')');
       const sus = rmsW(b3, 0.25, 0.35) / Math.max(1e-9, rmsW(b1, 0.25, 0.35));
-      if (!(Math.abs(sus - 1) < 0.05)) probs.push('el sostenido cambia con el flam (' + sus.toFixed(3) + ')');
+      if (!(Math.abs(sus - 1) < 0.05)) probs.push('the sustain changes with the flam (' + sus.toFixed(3) + ')');
       const tail = rmsW(b3, 0.5, 0.6);
-      if (!(tail < 1e-4)) probs.push('la nota con flam no muere tras soltar (' + dB(tail) + ')');
-      // soltar DURANTE el flam (a 12 ms, entre la 1ª y la 2ª ráfaga de cuatro): debe morir
+      if (!(tail < 1e-4)) probs.push('the note with flam does not die after release (' + dB(tail) + ')');
+      // releasing DURING the flam (at 12 ms, between the 1st and 2nd of four bursts): it must die
       loadState({ ...base, hits: 4 });
       const bCut = await render(structuredClone(engine.S), { secs: 0.4, offAt: 0.012 });
       const tailCut = rmsW(bCut, 0.2, 0.4);
-      if (analyze(bCut).bad) probs.push('soltar en el flam: NaN/Inf');
-      if (!(tailCut < 1e-4)) probs.push('soltar durante el flam no apaga la nota (' + dB(tailCut) + ')');
-      console.log('flam: arranque', (T3 * 1000).toFixed(1), 'ms · valle/ráfaga con 3 golpes', v3.toFixed(3), '· sin flam', v1.toFixed(3), '· sostenido ×', sus.toFixed(3), '· cola tras soltar', dB(tail), '· soltar en el flam', dB(tailCut));
-      r = { name: 'flam de palmada (ráfagas con valles · sin flam no hay valles · sostenido igual · soltar en el flam apaga)', peak: a3.peak, ok: !probs.length, problems: probs };
+      if (analyze(bCut).bad) probs.push('releasing in the flam: NaN/Inf');
+      if (!(tailCut < 1e-4)) probs.push('releasing during the flam does not silence the note (' + dB(tailCut) + ')');
+      console.log('flam: onset', (T3 * 1000).toFixed(1), 'ms · valley/burst with 3 hits', v3.toFixed(3), '· without flam', v1.toFixed(3), '· sustain ×', sus.toFixed(3), '· tail after release', dB(tail), '· release in the flam', dB(tailCut));
+      r = { name: 'clap flam (bursts with valleys · no valleys without flam · same sustain · releasing in the flam silences)', peak: a3.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'flam de palmada (ráfagas con valles · sin flam no hay valles · sostenido igual · soltar en el flam apaga)', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'clap flam (bursts with valleys · no valleys without flam · same sustain · releasing in the flam silences)', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // A4 · tipo de filtro. Sierra en C3 con el corte en su 4º armónico (C5,
-    // 523,25 Hz): Goertzel mide la energía de ese armónico frente a la del
-    // fundamental (2 octavas por debajo). Notch: el armónico del corte
-    // desaparece (> 20 dB menos que en LP). BP: el fundamental cae y el del
-    // corte pasa (> 10 dB más que en LP); a 24 dB, más aún. Y la demostración
-    // del cookbook: el morph al 50 % ES el notch a −6 dB → RMS exactamente la mitad.
-    body.appendChild(el('st-cat', 'Filtro BP / notch'));
+    // A4 · filter type. Saw at C3 with the cutoff on its 4th harmonic (C5,
+    // 523.25 Hz): Goertzel measures the energy of that harmonic against that of the
+    // fundamental (2 octaves below). Notch: the cutoff harmonic
+    // disappears (> 20 dB less than in LP). BP: the fundamental drops and the cutoff
+    // one passes (> 10 dB more than in LP); at 24 dB, even more. And the cookbook
+    // demonstration: the morph at 50 % IS the notch at −6 dB → RMS exactly half.
+    body.appendChild(el('st-cat', 'BP / notch filter'));
     let r;
     try {
       const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 523.25, reso: 2, a: 0.001, d: 0.01, s: 1, r: 0.05, master: 0.7 };
       const rend = async extra => { loadState({ ...base, ...extra }); return renderOne(structuredClone(engine.S), { secs: 0.8, offAt: 0.6 }); };
       const bLP = await rend({ morph: 0 }), bM50 = await rend({ morph: 0.5 }), bN = await rend({ filterType: 'notch' });
       const bBP = await rend({ filterType: 'bp' }), bBP24 = await rend({ filterType: 'bp', filterSlope: '24' });
-      const goe = (buf, f, t0, t1) => {         // energía de Goertzel de un tono en una ventana
+      const goe = (buf, f, t0, t1) => {         // Goertzel energy of a tone in a window
         const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         const cw = 2 * Math.cos(2 * Math.PI * f / SR);
         let s1 = 0, s2 = 0;
         for (let i = i0; i < i1; i++) { const s0 = d[i] + cw * s1 - s2; s2 = s1; s1 = s0; }
         return s1 * s1 + s2 * s2 - cw * s1 * s2;
       };
-      const ratio = b => goe(b, 523.25, 0.15, 0.55) / Math.max(1e-12, goe(b, 130.81, 0.15, 0.55));   // armónico del corte / fundamental
+      const ratio = b => goe(b, 523.25, 0.15, 0.55) / Math.max(1e-12, goe(b, 130.81, 0.15, 0.55));   // cutoff harmonic / fundamental
       const rms = b => { const d = b.getChannelData(0), i0 = Math.floor(0.15 * SR), i1 = Math.floor(0.55 * SR); let e = 0; for (let i = i0; i < i1; i++) e += d[i] * d[i]; return Math.sqrt(e / (i1 - i0)); };
       const probs = [];
       for (const [n, b] of [['LP', bLP], ['morph 50', bM50], ['notch', bN], ['BP', bBP], ['BP 24', bBP24]]) {
         const a = analyze(b);
-        if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silencio'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak));
+        if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silence'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak));
       }
       const rLP = ratio(bLP), rN = ratio(bN), rBP = ratio(bBP), rBP24 = ratio(bBP24), half = rms(bM50) / Math.max(1e-12, rms(bN));
       const dBr = (x, y) => (10 * Math.log10(x / Math.max(1e-30, y))).toFixed(1);
-      if (!(rN < rLP * 0.01)) probs.push('notch: el armónico del corte no cae 20 dB (' + dBr(rN, rLP) + ' dB frente a LP)');
-      if (!(rBP > rLP * 10)) probs.push('BP: el corte no domina al fundamental (' + dBr(rBP, rLP) + ' dB frente a LP)');
-      if (!(rBP24 > rBP * 3)) probs.push('BP 24 dB no estrecha más que 12 (' + dBr(rBP24, rBP) + ' dB)');
-      if (!(Math.abs(half - 0.5) < 0.03)) probs.push('morph 50 % ≠ notch a −6 dB (RMS ×' + half.toFixed(3) + ')');
-      console.log('filtro BP notch: notch', dBr(rN, rLP), 'dB · BP', dBr(rBP, rLP), 'dB · BP24 vs BP', dBr(rBP24, rBP), 'dB · morph 50 / notch RMS ×', half.toFixed(3));
-      r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: analyze(bN).peak, ok: !probs.length, problems: probs };
+      if (!(rN < rLP * 0.01)) probs.push('notch: the cutoff harmonic does not drop 20 dB (' + dBr(rN, rLP) + ' dB against LP)');
+      if (!(rBP > rLP * 10)) probs.push('BP: the cutoff does not dominate the fundamental (' + dBr(rBP, rLP) + ' dB against LP)');
+      if (!(rBP24 > rBP * 3)) probs.push('BP 24 dB is not narrower than 12 (' + dBr(rBP24, rBP) + ' dB)');
+      if (!(Math.abs(half - 0.5) < 0.03)) probs.push('morph 50 % ≠ notch at −6 dB (RMS ×' + half.toFixed(3) + ')');
+      console.log('filter BP notch: notch', dBr(rN, rLP), 'dB · BP', dBr(rBP, rLP), 'dB · BP24 vs BP', dBr(rBP24, rBP), 'dB · morph 50 / notch RMS ×', half.toFixed(3));
+      r = { name: 'BP / notch filter (Goertzel at the cutoff · morph 50 % = notch at −6 dB)', peak: analyze(bN).peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'filtro BP / notch (Goertzel en el corte · morph 50 % = notch a −6 dB)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'BP / notch filter (Goertzel at the cutoff · morph 50 % = notch at −6 dB)', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // 9 · LFO S&H y deriva. (1) Los buffers: S&H = escalones (constante dentro
-    // de cada unidad, salta entre unidades), deriva = continua (salto por
-    // muestra ínfimo), pico 1 y loop sin costura. (2) En el motor: cutoff con
-    // 'sh' y 'drift' suena, difiere del seno y entre sí; el tilt espectral por
-    // ventanas de 4 periodos es una ESCALERA con S&H (la mayoría de ventanas no
-    // cambian) y no da saltos grandes con la deriva. (3) La matriz lee la
-    // fuente nueva (lfoCut→cutoff con Level del LFO a 0: S&H ≠ seno).
-    body.appendChild(el('st-cat', 'LFO S&H / deriva'));
+    // 9 · S&H and drift LFO. (1) The buffers: S&H = steps (constant within
+    // each unit, jumps between units), drift = continuous (tiny per-sample
+    // jump), peak 1 and a seamless loop. (2) In the engine: cutoff with
+    // 'sh' and 'drift' sounds, differs from the sine and from each other; the spectral tilt over
+    // 4-period windows is a STAIRCASE with S&H (most windows do not
+    // change) and makes no big jumps with the drift. (3) The matrix reads the
+    // new source (lfoCut→cutoff with the LFO Level at 0: S&H ≠ sine).
+    body.appendChild(el('st-cat', 'LFO S&H / drift'));
     let r;
     try {
       const probs = [];
@@ -2917,49 +2917,49 @@ export async function runSelfTest() {
       const sh = bufs.sh.getChannelData(0), dr = bufs.drift.getChannelData(0), uLen = Math.round(8000 * bufs.unit), steps = sh.length / uLen;
       let flat = true, jumps = 0;
       for (let k = 0; k < steps; k++) { const v = sh[k * uLen]; for (let i = 1; i < uLen; i += 97) if (sh[k * uLen + i] !== v) flat = false; if (k && Math.abs(v - sh[(k - 1) * uLen]) > 0.05) jumps++; }
-      if (!flat) probs.push('S&H: no es constante dentro del escalón');
-      if (jumps < steps * 0.8) probs.push('S&H: solo ' + jumps + ' saltos de ' + (steps - 1));
+      if (!flat) probs.push('S&H: not constant within the step');
+      if (jumps < steps * 0.8) probs.push('S&H: only ' + jumps + ' jumps out of ' + (steps - 1));
       let maxD = 0, pk = 0; for (let i = 1; i < dr.length; i++) { maxD = Math.max(maxD, Math.abs(dr[i] - dr[i - 1])); pk = Math.max(pk, Math.abs(dr[i])); }
-      if (!(maxD < 0.01)) probs.push('deriva: salto por muestra ' + maxD.toFixed(4));
-      if (!(pk > 0.99 && pk <= 1.0001)) probs.push('deriva: pico ' + pk.toFixed(3) + ' ≠ 1');
-      if (!(Math.abs(dr[0] - dr[dr.length - 1]) < 0.01)) probs.push('deriva: costura en el loop ' + Math.abs(dr[0] - dr[dr.length - 1]).toFixed(3));
+      if (!(maxD < 0.01)) probs.push('drift: per-sample jump ' + maxD.toFixed(4));
+      if (!(pk > 0.99 && pk <= 1.0001)) probs.push('drift: peak ' + pk.toFixed(3) + ' ≠ 1');
+      if (!(Math.abs(dr[0] - dr[dr.length - 1]) < 0.01)) probs.push('drift: seam in the loop ' + Math.abs(dr[0] - dr[dr.length - 1]).toFixed(3));
       const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 2500, reso: 3, cutLfoLvl: 1800, cutLfoSpd: 6, a: 0.005, d: 0.05, s: 1, r: 0.05, master: 0.7 };
       const rend = async extra => { loadState({ ...base, ...extra }); return renderOne(structuredClone(engine.S), { secs: 1.3, offAt: 1.1 }); };
       const diffB = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0), len = Math.min(cX.length, cY.length); let d = 0, en = 0;
         for (let k = 0; k < len; k += 4) { const e = cX[k] - cY[k]; d += e * e; en += cX[k] * cX[k]; } return Math.sqrt(d / Math.max(1e-12, en)); };
       const bSin = await rend({ cutLfoShape: 'sine' }), bSH = await rend({ cutLfoShape: 'sh' }), bDr = await rend({ cutLfoShape: 'drift', cutLfoSpd: 1.5 });
-      for (const [n, b] of [['seno', bSin], ['S&H', bSH], ['deriva', bDr]]) { const a = analyze(b); if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silencio'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak)); }
+      for (const [n, b] of [['sine', bSin], ['S&H', bSH], ['drift', bDr]]) { const a = analyze(b); if (a.bad) probs.push(n + ': NaN/Inf'); if (a.peak <= SILENCE) probs.push(n + ': silence'); if (a.peak > 1) probs.push(n + ': clipping ' + dB(a.peak)); }
       const dSH = diffB(bSin, bSH), dDr = diffB(bSin, bDr), dX = diffB(bSH, bDr);
-      if (!(dSH > 0.1 && dDr > 0.1 && dX > 0.1)) probs.push('las formas no se distinguen (diffs ' + dSH.toFixed(2) + ' / ' + dDr.toFixed(2) + ' / ' + dX.toFixed(2) + ')');
-      const W = 4 / NOTE1;   // ventanas de 4 periodos exactos de C3 (30,6 ms): dentro de un escalón la señal es periódica y el tilt no oscila
+      if (!(dSH > 0.1 && dDr > 0.1 && dX > 0.1)) probs.push('the shapes cannot be told apart (diffs ' + dSH.toFixed(2) + ' / ' + dDr.toFixed(2) + ' / ' + dX.toFixed(2) + ')');
+      const W = 4 / NOTE1;   // windows of exactly 4 periods of C3 (30.6 ms): within a step the signal is periodic and the tilt does not oscillate
       const tilts = b => { const out = []; for (let t = 0.2; t < 1.0; t += W) out.push(tiltW(b, t, t + W)); return out; };
       const stair = ts => { const d = ts.slice(1).map((v, i) => Math.abs(v - ts[i])), range = Math.max(...ts) - Math.min(...ts);
         return { still: d.filter(x => x < range * 0.03).length / d.length, maxJump: Math.max(...d) / range }; };
       const sSH = stair(tilts(bSH)), sDr = stair(tilts(bDr));
-      if (!(sSH.still > 0.6)) probs.push('S&H no es escalera (solo ' + (sSH.still * 100).toFixed(0) + ' % de ventanas quietas)');
-      if (!(sDr.maxJump < 0.35)) probs.push('la deriva da saltos (máximo ' + (sDr.maxJump * 100).toFixed(0) + ' % del rango por ventana)');
+      if (!(sSH.still > 0.6)) probs.push('S&H is not a staircase (only ' + (sSH.still * 100).toFixed(0) + ' % of windows still)');
+      if (!(sDr.maxJump < 0.35)) probs.push('the drift jumps (maximum ' + (sDr.maxJump * 100).toFixed(0) + ' % of the range per window)');
       const bMx1 = await rend({ cutLfoLvl: 0, cutLfoShape: 'sine', mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.8 });
       const bMx2 = await rend({ cutLfoLvl: 0, cutLfoShape: 'sh', mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.8 });
       const dMx = diffB(bMx1, bMx2);
-      if (!(dMx > 0.1)) probs.push('la matriz no ve la forma S&H (diff ' + dMx.toFixed(2) + ')');
-      console.log('lfo sh deriva: diffs vs seno', dSH.toFixed(2), dDr.toFixed(2), '· S&H ventanas quietas', (sSH.still * 100).toFixed(0) + '%', '· deriva salto máx', (sDr.maxJump * 100).toFixed(0) + '%', '· matriz', dMx.toFixed(2));
-      r = { name: 'LFO S&H / deriva (buffers · formas distintas · escalera vs continuo · matriz)', peak: analyze(bSH).peak, ok: !probs.length, problems: probs };
+      if (!(dMx > 0.1)) probs.push('the matrix does not see the S&H shape (diff ' + dMx.toFixed(2) + ')');
+      console.log('lfo sh drift: diffs vs sine', dSH.toFixed(2), dDr.toFixed(2), '· S&H still windows', (sSH.still * 100).toFixed(0) + '%', '· drift max jump', (sDr.maxJump * 100).toFixed(0) + '%', '· matrix', dMx.toFixed(2));
+      r = { name: 'LFO S&H / drift (buffers · distinct shapes · staircase vs continuous · matrix)', peak: analyze(bSH).peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'LFO S&H / deriva (buffers · formas distintas · escalera vs continuo · matriz)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'LFO S&H / drift (buffers · distinct shapes · staircase vs continuous · matrix)', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
-  // ---------- Roadmap 5.0 · bloque 1: tiempo ×10 + octava por oscilador ----------
+  // ---------- Roadmap 5.0 · block 1: time ×10 + per-oscillator octave ----------
   {
-    body.appendChild(el('st-cat', 'Tiempo ×10 y octava'));
+    body.appendChild(el('st-cat', 'Time ×10 and octave'));
     const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
       let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-    // Octava por oscilador: frecuencia fundamental por cruces por cero de un seno
-    // limpio (C3 = 130,81 Hz: a −1 deben salir ~65,4 Hz, a +1 ~261,6) y el glide
-    // en mono conserva la octava (glideTo multiplica por el ratio del oscilador).
+    // Per-oscillator octave: fundamental frequency from the zero crossings of a clean
+    // sine (C3 = 130.81 Hz: at −1 it must give ~65.4 Hz, at +1 ~261.6) and the mono
+    // glide keeps the octave (glideTo multiplies by the oscillator's ratio).
     {
-      const NAME = 'octava por oscilador (−1 = sub · +1 · el glide conserva la octava)';
+      const NAME = 'per-oscillator octave (−1 = sub · +1 · glide keeps the octave)';
       let r;
       try {
         const probs = [];
@@ -2969,10 +2969,10 @@ export async function runSelfTest() {
         const one = async st => { loadState(st); return renderOne(structuredClone(engine.S), { secs: 1.6, offAt: 1.5 }); };
         const b0 = await one({ ...base, octA: 0 }), bSub = await one({ ...base, octA: -1 }), bUp = await one({ ...base, octA: 1 });
         const f0 = hzOf(b0, 0.5, 1.5), fSub = hzOf(bSub, 0.5, 1.5), fUp = hzOf(bUp, 0.5, 1.5);
-        if (!(Math.abs(f0 - NOTE1) < 2)) probs.push('octava 0 no da C3 (' + f0.toFixed(1) + ' Hz)');
-        if (!(Math.abs(fSub - NOTE1 / 2) < 1.5)) probs.push('octava −1 no da C2 (' + fSub.toFixed(1) + ' Hz)');
-        if (!(Math.abs(fUp - NOTE1 * 2) < 3)) probs.push('octava +1 no da C4 (' + fUp.toFixed(1) + ' Hz)');
-        // glide mono: C3 → G3 con octava −1 debe acabar en G2 (98 Hz)
+        if (!(Math.abs(f0 - NOTE1) < 2)) probs.push('octave 0 does not give C3 (' + f0.toFixed(1) + ' Hz)');
+        if (!(Math.abs(fSub - NOTE1 / 2) < 1.5)) probs.push('octave −1 does not give C2 (' + fSub.toFixed(1) + ' Hz)');
+        if (!(Math.abs(fUp - NOTE1 * 2) < 3)) probs.push('octave +1 does not give C4 (' + fUp.toFixed(1) + ' Hz)');
+        // mono glide: C3 → G3 with octave −1 must end on G2 (98 Hz)
         loadState({ ...base, octA: -1, mode: 'mono', glide: 0.2 });
         const ctxG = new OfflineAudioContext(2, Math.ceil(SR * 1.6), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctxG);
@@ -2980,18 +2980,18 @@ export async function runSelfTest() {
         ctxG.suspend(0.5).then(() => { eng.noteOn('g2', NOTE2); ctxG.resume(); });
         const bG = await ctxG.startRendering();
         const fG = hzOf(bG, 1.0, 1.5);
-        if (!(Math.abs(fG - NOTE2 / 2) < 1.5)) probs.push('el glide no conserva la octava (' + fG.toFixed(1) + ' Hz, esperado ' + (NOTE2 / 2).toFixed(1) + ')');
-        console.log('octava: 0 / −1 / +1', f0.toFixed(1), fSub.toFixed(1), fUp.toFixed(1), 'Hz · glide a −1 acaba en', fG.toFixed(1), 'Hz');
+        if (!(Math.abs(fG - NOTE2 / 2) < 1.5)) probs.push('the glide does not keep the octave (' + fG.toFixed(1) + ' Hz, expected ' + (NOTE2 / 2).toFixed(1) + ')');
+        console.log('octave: 0 / −1 / +1', f0.toFixed(1), fSub.toFixed(1), fUp.toFixed(1), 'Hz · glide at −1 ends on', fG.toFixed(1), 'Hz');
         r = { name: NAME, peak: analyze(bSub).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // Tiempos ×10: ataque de 10 s (rampa lineal: el nivel a 1 s es la mitad que a
-    // 2 s), release de 20 s (a 2 s de soltar queda ~90 %), la tabla PARAMS es
-    // coherente (todo log tiene suelo; con min 0, la posición 0 es 0 exacto) y los
-    // controles devuelven EXACTO lo que se les pone (los sliders ya no cuantizan).
+    // Times ×10: 10 s attack (linear ramp: the level at 1 s is half that at
+    // 2 s), 20 s release (2 s after release ~90 % is left), the PARAMS table is
+    // consistent (every log has a floor; with min 0, position 0 is exactly 0) and the
+    // controls give back EXACTLY what they are set to (the sliders no longer quantize).
     {
-      const NAME = 'tiempos ×10 (ataque 10 s · release 20 s · PARAMS log con 0 exacto · controles exactos)';
+      const NAME = 'times ×10 (10 s attack · 20 s release · log PARAMS with exact 0 · exact controls)';
       let r;
       try {
         const probs = [];
@@ -2999,31 +2999,31 @@ export async function runSelfTest() {
         loadState({ ...base, a: 10, r: 0.1 });
         const bA = await renderOne(structuredClone(engine.S), { secs: 2.2, offAt: 2.1 });
         const qA = rmsW(bA, 0.9, 1.0) / Math.max(1e-9, rmsW(bA, 1.9, 2.0));
-        if (!(qA > 0.4 && qA < 0.6)) probs.push('ataque de 10 s: nivel a 1 s / a 2 s = ' + qA.toFixed(3) + ' (esperado ≈0,49)');
+        if (!(qA > 0.4 && qA < 0.6)) probs.push('10 s attack: level at 1 s / at 2 s = ' + qA.toFixed(3) + ' (expected ≈0.49)');
         loadState({ ...base, a: 0.005, r: 20 });
         const bR = await renderOne(structuredClone(engine.S), { secs: 2.5, offAt: 0.3 });
         const qR = rmsW(bR, 2.2, 2.4) / Math.max(1e-9, rmsW(bR, 0.1, 0.3));
-        if (!(qR > 0.8 && qR < 0.97)) probs.push('release de 20 s: nivel a 2 s de soltar / sostenido = ' + qR.toFixed(3) + ' (esperado ≈0,90)');
+        if (!(qR > 0.8 && qR < 0.97)) probs.push('20 s release: level 2 s after release / sustain = ' + qR.toFixed(3) + ' (expected ≈0.90)');
         for (const k in PARAMS) {
           const p = PARAMS[k]; if (!p.log) continue;
           const lo = p.min > 0 ? p.min : p.lmin;
-          if (!(lo > 0 && lo < p.max)) { probs.push(k + ': log sin suelo'); continue; }
-          for (const v of [p.def, lo * 3, p.max]) if (!(Math.abs(posToVal(p, valToPos(p, v)) - v) <= 1e-9 * Math.max(1, v))) probs.push(k + ': ida y vuelta de ' + v + ' → ' + posToVal(p, valToPos(p, v)));
-          if (p.min === 0 && (valToPos(p, 0) !== 0 || posToVal(p, 0) !== 0)) probs.push(k + ': el 0 no es la posición 0');
+          if (!(lo > 0 && lo < p.max)) { probs.push(k + ': log without a floor'); continue; }
+          for (const v of [p.def, lo * 3, p.max]) if (!(Math.abs(posToVal(p, valToPos(p, v)) - v) <= 1e-9 * Math.max(1, v))) probs.push(k + ': round trip of ' + v + ' → ' + posToVal(p, valToPos(p, v)));
+          if (p.min === 0 && (valToPos(p, 0) !== 0 || posToVal(p, 0) !== 0)) probs.push(k + ': 0 is not position 0');
         }
         const ex = (name, v) => { CONTROLS[name].set(v); const g = CONTROLS[name].get(); if (g !== v) probs.push(name + ': set ' + v + ' → get ' + g); };
         ex('a', 12.345); ex('a', 0); ex('d', 0.001); ex('r', 30); ex('cutoff', 1180); ex('cutLfoSpd', 0.005); ex('glide', 0); ex('reverbSize', 20);
         loadState({});
-        console.log('tiempos largos: ataque 10 s nivel 1 s/2 s', qA.toFixed(3), '· release 20 s a 2 s', qR.toFixed(3));   // (prefijo sin «×» ni comas: el runner filtra los logs de medida por /^[a-z0-9 ]+:/)
+        console.log('long times: attack 10 s level 1 s/2 s', qA.toFixed(3), '· release 20 s at 2 s', qR.toFixed(3));   // (prefix without «×» or commas: the runner filters the measurement logs by /^[a-z0-9 ]+:/)
         r = { name: NAME, peak: analyze(bR).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // LFO a 0,005 Hz de verdad: el seno nativo recorre sin(2π·0,005·1 s) = 0,031
-    // en un segundo (ni recortado a 0,05 ni parado) y el S&H (buffer a
-    // playbackRate 0,0005) mantiene su escalón durante todo el render.
+    // LFO at a true 0.005 Hz: the native sine travels sin(2π·0.005·1 s) = 0.031
+    // in one second (neither clipped to 0.05 nor stopped) and the S&H (buffer at
+    // playbackRate 0.0005) holds its step for the whole render.
     {
-      const NAME = 'LFO a 0,005 Hz (seno nativo y S&H por buffer)';
+      const NAME = 'LFO at 0.005 Hz (native sine and buffer S&H)';
       let r;
       try {
         const probs = [];
@@ -3036,30 +3036,30 @@ export async function runSelfTest() {
         let sMax = -2, sMin = 2, hMax = -2, hMin = 2;
         for (let i = 0; i < s.length; i++) { if (s[i] > sMax) sMax = s[i]; if (s[i] < sMin) sMin = s[i]; if (h[i] > hMax) hMax = h[i]; if (h[i] < hMin) hMin = h[i]; }
         const esperado = Math.sin(2 * Math.PI * 0.005);
-        if (!(Math.abs(sMax - esperado) < 0.004 && sMin > -1e-4)) probs.push('seno a 0,005 Hz: máx ' + sMax.toFixed(4) + ' mín ' + sMin.toFixed(4) + ' (esperado sube hasta ' + esperado.toFixed(4) + ')');
-        if (!(hMax - hMin < 1e-4)) probs.push('S&H a 0,005 Hz cambia de escalón en 1 s (rango ' + (hMax - hMin).toExponential(2) + ')');
-        console.log('lfo lento: seno a 0,005 Hz máx', sMax.toFixed(4), 'esperado', esperado.toFixed(4), '· S&H rango', (hMax - hMin).toExponential(2));
+        if (!(Math.abs(sMax - esperado) < 0.004 && sMin > -1e-4)) probs.push('sine at 0.005 Hz: max ' + sMax.toFixed(4) + ' min ' + sMin.toFixed(4) + ' (expected to rise up to ' + esperado.toFixed(4) + ')');
+        if (!(hMax - hMin < 1e-4)) probs.push('S&H at 0.005 Hz changes step within 1 s (range ' + (hMax - hMin).toExponential(2) + ')');
+        console.log('slow lfo: sine at 0.005 Hz max', sMax.toFixed(4), 'expected', esperado.toFixed(4), '· S&H range', (hMax - hMin).toExponential(2));
         r = { name: NAME, peak: Math.abs(sMax), ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // Sala y delay largos: la IR de 20 s mide 20 s y a los 10 s conserva
-    // (1/2)^2,5 ≈ 18 % de su nivel inicial; plateDecay es monótona hasta 20 s y
-    // queda bajo el tope del worklet (0,98); con un pluck, la cola de Size 20 a
-    // los 3,5 s es ≫ que la de Size 4 (IR y placa); el delay a 3,5 s devuelve el
-    // eco donde toca (antes la línea medía 2 s y el tiempo se recortaba).
+    // Long hall and delay: the 20 s IR is 20 s long and at 10 s it keeps
+    // (1/2)^2.5 ≈ 18 % of its initial level; plateDecay is monotonic up to 20 s and
+    // stays under the worklet's cap (0.98); with a pluck, the Size 20 tail at
+    // 3.5 s is ≫ that of Size 4 (IR and plate); the delay at 3.5 s returns the
+    // echo where it should (the line used to be 2 s long and the time was clipped).
     {
-      const NAME = 'sala y delay largos (IR 20 s · placa hasta 20 s · eco a 3,5 s)';
+      const NAME = 'long hall and delay (20 s IR · plate up to 20 s · echo at 3.5 s)';
       let r;
       try {
         const probs = [];
         const ctxI = new OfflineAudioContext(2, SR, SR);
         const tIR = performance.now(), ir = makeIR(ctxI, 20, 2.5, 0), msIR = performance.now() - tIR;
-        if (ir.length !== 20 * SR) probs.push('la IR de 20 s mide ' + ir.length + ' muestras');
+        if (ir.length !== 20 * SR) probs.push('the 20 s IR is ' + ir.length + ' samples long');
         const qIR = rmsW(ir, 9.9, 10.1) / Math.max(1e-9, rmsW(ir, 0.05, 0.25));
-        if (!(qIR > 0.12 && qIR < 0.26)) probs.push('IR a los 10 s / inicio = ' + qIR.toFixed(3) + ' (esperado ≈0,18)');
+        if (!(qIR > 0.12 && qIR < 0.26)) probs.push('IR at 10 s / start = ' + qIR.toFixed(3) + ' (expected ≈0.18)');
         const pd = [4, 8.25, 12, 16.2, 20].map(plateDecay);
-        if (!pd.every((v, i) => i === 0 || v > pd[i - 1]) || !(pd[4] > 0.93 && pd[4] < 0.98)) probs.push('plateDecay no es monótona/acotada: ' + pd.map(x => x.toFixed(3)).join(' '));
+        if (!pd.every((v, i) => i === 0 || v > pd[i - 1]) || !(pd[4] > 0.93 && pd[4] < 0.98)) probs.push('plateDecay is not monotonic/bounded: ' + pd.map(x => x.toFixed(3)).join(' '));
         const pl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.08, s: 0, r: 0.05, width: 0, reverbMix: 0.6, reverbPre: 0 };
         const colas = {};
         for (const type of ['hall', 'plate']) {
@@ -3069,31 +3069,31 @@ export async function runSelfTest() {
           const b20 = await renderOne(structuredClone(engine.S), { secs: 4, offAt: 0.1 });
           const c20 = rmsW(b20, 3.5, 4), c4 = rmsW(b4, 3.5, 4);
           colas[type] = [c20, c4];
-          if (!(c20 > 1e-3 * HR)) probs.push(type + ': Size 20 sin cola audible a los 3,5 s (' + dB(c20) + ')');
-          if (!(c20 > 3 * c4)) probs.push(type + ': la cola de Size 20 a los 3,5 s no es ≫ que la de Size 4 (' + dB(c20) + ' vs ' + dB(c4) + ')');
-          if (analyze(b20).bad) probs.push(type + ': NaN/Inf con Size 20');
+          if (!(c20 > 1e-3 * HR)) probs.push(type + ': Size 20 with no audible tail at 3.5 s (' + dB(c20) + ')');
+          if (!(c20 > 3 * c4)) probs.push(type + ': the Size 20 tail at 3.5 s is not ≫ that of Size 4 (' + dB(c20) + ' vs ' + dB(c4) + ')');
+          if (analyze(b20).bad) probs.push(type + ': NaN/Inf with Size 20');
         }
         const dl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.05, s: 0, r: 0.05, width: 0,
                      dlyAmt: 0.6, dlyTime: 3.5, dlySync: 'free', dlyDamp: 0, reverbMix: 0 };
         loadState(dl);
         const bD = await renderOne(structuredClone(engine.S), { secs: 4.2, offAt: 0.1 });
         const eco = rmsW(bD, 3.5, 3.8), hueco = rmsW(bD, 2.0, 3.4);
-        if (!(eco > 1e-3 && eco > 10 * hueco)) probs.push('eco de 3,5 s: ' + dB(eco) + ' frente a ' + dB(hueco) + ' en el hueco anterior');
+        if (!(eco > 1e-3 && eco > 10 * hueco)) probs.push('3.5 s echo: ' + dB(eco) + ' against ' + dB(hueco) + ' in the gap before it');
         loadState({});
-        console.log('sala larga: IR 20 s en', msIR.toFixed(0), 'ms · nivel a 10 s', qIR.toFixed(3), '· plateDecay 4/8,25/12/16,2/20 =', pd.map(x => x.toFixed(3)).join(' '),
-                    '· cola 3,5 s IR 20/4', dB(colas.hall[0]), dB(colas.hall[1]), '· placa 20/4', dB(colas.plate[0]), dB(colas.plate[1]), '· eco 3,5 s', dB(eco), 'hueco', dB(hueco));
+        console.log('long hall: IR 20 s in', msIR.toFixed(0), 'ms · level at 10 s', qIR.toFixed(3), '· plateDecay 4/8.25/12/16.2/20 =', pd.map(x => x.toFixed(3)).join(' '),
+                    '· tail 3.5 s IR 20/4', dB(colas.hall[0]), dB(colas.hall[1]), '· plate 20/4', dB(colas.plate[0]), dB(colas.plate[1]), '· echo 3.5 s', dB(eco), 'gap', dB(hueco));
         r = { name: NAME, peak: analyze(bD).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
   }
 
-  // ---------- Roadmap 5.0 · bloque 2: deriva por voz + fase por voz ----------
+  // ---------- Roadmap 5.0 · block 2: per-voice drift + per-voice phase ----------
   {
-    body.appendChild(el('st-cat', 'Deriva y fase por voz'));
-    // Pista de amplitud de UNA nota dentro del acorde: Goertzel con ventana Hann
-    // por saltos de 50 ms a la frecuencia de la nota (la otra nota cae a más de
-    // tres bins y la Hann la deja por debajo de −31 dB). Amplitud por ventana.
+    body.appendChild(el('st-cat', 'Per-voice drift and phase'));
+    // Amplitude track of ONE note inside the chord: Goertzel with a Hann window
+    // in 50 ms hops at the note's frequency (the other note lies more than
+    // three bins away and the Hann puts it below −31 dB). Amplitude per window.
     const track = (buf, f, t0, t1, hop = 0.05) => {
       const d = buf.getChannelData(0), N = Math.floor(hop * SR), w = 2 * Math.PI * f / SR, c = 2 * Math.cos(w), out = [];
       for (let t = t0; t + hop <= t1 + 1e-9; t += hop) {
@@ -3107,20 +3107,20 @@ export async function runSelfTest() {
       let sab = 0, saa = 0, sbb = 0; for (let i = 0; i < n; i++) { sab += (a[i] - ma) * (b[i] - mb); saa += (a[i] - ma) ** 2; sbb += (b[i] - mb) ** 2; }
       return sab / Math.sqrt(Math.max(1e-18, saa * sbb)); };
     const swing = a => Math.max(...a) / Math.max(1e-9, Math.min(...a));
-    // acorde C3 + G3 pulsado a la vez y sostenido todo el render
+    // C3 + G3 chord pressed together and held for the whole render
     const chord = async (st, secs = 2.5) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
       const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
       eng.noteOn('c1', NOTE1); eng.noteOn('c2', NOTE2); return ctx.startRendering(); };
-    // Nivel bajo a propósito: dos senos con la amplitud modulada hasta ×2 sumarían
-    // ~2,0 y el LIMITADOR de la Sala (umbral −3 dB) los comprimiría juntos,
-    // acoplando las dos pistas (corr falsa). Así el pico del acorde queda en ~0,4.
+    // Low level on purpose: two sines with their amplitude modulated up to ×2 would add up to
+    // ~2.0 and the Room's LIMITER (threshold −3 dB) would compress them together,
+    // coupling the two tracks (false corr). This way the chord's peak stays at ~0.4.
     const base = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.25, master: 0.4 };
-    // Fase por voz: con el LFO de cutoff (crudo, vía matriz → amplitud) las dos
-    // notas suben y bajan juntas en 'global' (corr ≈ 1) y desfasadas 0,618 de
-    // ciclo en 'voice' (corr ≈ cos(2π·0,618) = −0,74). La primera voz en 'voice'
-    // suena como en 'global' (fase 0: el buffer seno ≡ el oscilador nativo).
+    // Per-voice phase: with the cutoff LFO (raw, via matrix → amplitude) the two
+    // notes rise and fall together in 'global' (corr ≈ 1) and 0.618 of a cycle
+    // apart in 'voice' (corr ≈ cos(2π·0.618) = −0.74). The first voice in 'voice'
+    // sounds as in 'global' (phase 0: the sine buffer ≡ the native oscillator).
     {
-      const NAME = 'fase por voz de los LFO (global: a la vez · por voz: desfasadas 0,618 de ciclo · voz 0 = el global · buffers de forma)';
+      const NAME = 'per-voice LFO phase (global: together · per voice: 0.618 of a cycle apart · voice 0 = the global one · shape buffers)';
       let r;
       try {
         const probs = [];
@@ -3128,26 +3128,26 @@ export async function runSelfTest() {
         const bG = await chord({ ...st, lfoPhase: 'global' }), bV = await chord({ ...st, lfoPhase: 'voice' });
         const g1 = track(bG, NOTE1, 0.3, 2.3), g2 = track(bG, NOTE2, 0.3, 2.3), v1 = track(bV, NOTE1, 0.3, 2.3), v2 = track(bV, NOTE2, 0.3, 2.3);
         const cG = corr(g1, g2), cV = corr(v1, v2), c11 = corr(g1, v1);
-        if (!(swing(g1) > 2 && swing(v1) > 2 && swing(v2) > 2)) probs.push('el LFO no mueve la amplitud (vaivén ' + [swing(g1), swing(v1), swing(v2)].map(x => x.toFixed(2)).join(' / ') + ')');
-        if (!(cG > 0.95)) probs.push('fase global: las dos notas no van a la vez (corr ' + cG.toFixed(3) + ')');
-        if (!(cV < -0.4)) probs.push('fase por voz: las dos notas no van desfasadas (corr ' + cV.toFixed(3) + ', esperado ≈ −0,74)');
-        if (!(c11 > 0.98)) probs.push('la primera voz en «por voz» no suena como en «global» (corr ' + c11.toFixed(3) + ')');
-        // buffers de las formas nativas: las fases del oscilador nativo (sin/tri/saw arrancan en 0 subiendo, sqr en +1)
+        if (!(swing(g1) > 2 && swing(v1) > 2 && swing(v2) > 2)) probs.push('the LFO does not move the amplitude (swing ' + [swing(g1), swing(v1), swing(v2)].map(x => x.toFixed(2)).join(' / ') + ')');
+        if (!(cG > 0.95)) probs.push('global phase: the two notes do not move together (corr ' + cG.toFixed(3) + ')');
+        if (!(cV < -0.4)) probs.push('per-voice phase: the two notes are not out of phase (corr ' + cV.toFixed(3) + ', expected ≈ −0.74)');
+        if (!(c11 > 0.98)) probs.push('the first voice in «per voice» does not sound as in «global» (corr ' + c11.toFixed(3) + ')');
+        // buffers of the native shapes: the native oscillator's phases (sin/tri/saw start at 0 rising, sqr at +1)
         const bf = lfoBuffers(new OfflineAudioContext(1, 8, SR)), q = n => bf[n].getChannelData(0), L = bf.sine.length;
         const okB = Math.abs(q('sine')[L / 4] - 1) < 1e-3 && q('square')[0] === 1 && q('square')[L / 2] === -1
           && Math.abs(q('triangle')[L / 4] - 1) < 1e-3 && Math.abs(q('sawtooth')[L / 4] - 0.5) < 1e-3 && Math.abs(q('sawtooth')[L / 2] + 1) < 1e-3;
-        if (!okB) probs.push('los buffers de forma no reproducen las fases del oscilador nativo');
-        console.log('fase por voz: corr global', cG.toFixed(3), '· por voz', cV.toFixed(3), '· voz 0 vs global', c11.toFixed(3), '· vaivén', swing(v1).toFixed(2));
+        if (!okB) probs.push('the shape buffers do not reproduce the native oscillator\'s phases');
+        console.log('voice phase: global corr', cG.toFixed(3), '· per voice', cV.toFixed(3), '· voice 0 vs global', c11.toFixed(3), '· swing', swing(v1).toFixed(2));
         r = { name: NAME, peak: analyze(bV).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // Deriva por voz: fuente 'drift' → amplitud a 3 Hz (rápida para que se vea en
-    // 2 s): cada nota vaga por su cuenta (las dos se mueven y no van a la par), el
-    // render es REPRODUCIBLE (secuencia de Weyl: dos renders iguales bit a bit) y
-    // a 0,005 Hz la deriva apenas se mueve en 2 s.
+    // Per-voice drift: 'drift' source → amplitude at 3 Hz (fast so it shows in
+    // 2 s): each note wanders on its own (both move and not in step), the
+    // render is REPRODUCIBLE (Weyl sequence: two renders bit-identical) and
+    // at 0.005 Hz the drift barely moves in 2 s.
     {
-      const NAME = 'deriva por voz (fuente «Deriva (voz)» · voces descorreladas · render reproducible · a 0,005 Hz quieta)';
+      const NAME = 'per-voice drift («Drift (voice)» source · decorrelated voices · reproducible render · still at 0.005 Hz)';
       let r;
       try {
         const probs = [];
@@ -3155,35 +3155,35 @@ export async function runSelfTest() {
         const bA = await chord(st), bB = await chord(st);
         const a1 = track(bA, NOTE1, 0.3, 2.3), a2 = track(bA, NOTE2, 0.3, 2.3);
         const cD = corr(a1, a2);
-        if (!(swing(a1) > 1.5 && swing(a2) > 1.5)) probs.push('la deriva no mueve la amplitud (vaivén ' + swing(a1).toFixed(2) + ' / ' + swing(a2).toFixed(2) + ')');
-        if (!(Math.abs(cD) < 0.85)) probs.push('las dos voces derivan igual (corr ' + cD.toFixed(3) + ')');
+        if (!(swing(a1) > 1.5 && swing(a2) > 1.5)) probs.push('the drift does not move the amplitude (swing ' + swing(a1).toFixed(2) + ' / ' + swing(a2).toFixed(2) + ')');
+        if (!(Math.abs(cD) < 0.85)) probs.push('the two voices drift the same (corr ' + cD.toFixed(3) + ')');
         const dA = bA.getChannelData(0), dB = bB.getChannelData(0); let md = 0;
         for (let i = 0; i < dA.length; i++) { const e = Math.abs(dA[i] - dB[i]); if (e > md) md = e; }
-        if (!(md < 1e-6)) probs.push('dos renders iguales difieren (máx |Δ| ' + md.toExponential(2) + '): la deriva no es determinista');
+        if (!(md < 1e-6)) probs.push('two identical renders differ (max |Δ| ' + md.toExponential(2) + '): the drift is not deterministic');
         const bS = await chord({ ...st, mxDriftSpd: 0.005 });
         const s1 = track(bS, NOTE1, 0.3, 2.3);
-        if (!(swing(s1) < 1.3)) probs.push('a 0,005 Hz la deriva se mueve demasiado en 2 s (vaivén ' + swing(s1).toFixed(3) + ')');
-        console.log('deriva por voz: corr entre notas', cD.toFixed(3), '· vaivén', swing(a1).toFixed(2), swing(a2).toFixed(2), '· renders máx |Δ|', md.toExponential(2), '· a 0,005 Hz vaivén', swing(s1).toFixed(3));
+        if (!(swing(s1) < 1.3)) probs.push('at 0.005 Hz the drift moves too much in 2 s (swing ' + swing(s1).toFixed(3) + ')');
+        console.log('voice drift: corr between notes', cD.toFixed(3), '· swing', swing(a1).toFixed(2), swing(a2).toFixed(2), '· renders max |Δ|', md.toExponential(2), '· at 0.005 Hz swing', swing(s1).toFixed(3));
         r = { name: NAME, peak: analyze(bA).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
   }
 
-  // ---------- Roadmap 5.0 · bloque 3: shimmer + freeze ----------
+  // ---------- Roadmap 5.0 · block 3: shimmer + freeze ----------
   {
-    body.appendChild(el('st-cat', 'Shimmer y freeze'));
+    body.appendChild(el('st-cat', 'Shimmer and freeze'));
     const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
       let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
     const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
       const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
       for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
       return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
-    // El desplazador a solas: un seno de 440 Hz entra y sale a 880 (+12) o a
-    // 659,3 (+7), con el fundamental original ≫ por debajo y la energía conservada
-    // (sen² + cos² = 1 entre las dos cabezas).
+    // The shifter on its own: a 440 Hz sine goes in and comes out at 880 (+12) or at
+    // 659.3 (+7), with the original fundamental ≫ below and the energy preserved
+    // (sin² + cos² = 1 between the two heads).
     {
-      const NAME = 'desplazador de tono (440 Hz → 880 a +12 · → 659 a +7 · energía conservada)';
+      const NAME = 'pitch shifter (440 Hz → 880 at +12 · → 659 at +7 · energy preserved)';
       let r;
       try {
         const probs = [];
@@ -3198,24 +3198,24 @@ export async function runSelfTest() {
         const b12 = await shift(12), b7 = await shift(7);
         const q12 = goertzel(b12, 880, 0.5, 2) / Math.max(1e-9, goertzel(b12, 440, 0.5, 2));
         const q7 = goertzel(b7, 440 * Math.pow(2, 7 / 12), 0.5, 2) / Math.max(1e-9, goertzel(b7, 440, 0.5, 2));
-        const e12 = rmsW(b12, 0.5, 2) / Math.SQRT1_2;   // RMS de un seno de amplitud 1 = 0,707
-        if (!(q12 > 10)) probs.push('+12: 880 Hz / 440 Hz = ' + q12.toFixed(1) + ' (esperado ≫ 1)');
-        if (!(q7 > 10)) probs.push('+7: 659 Hz / 440 Hz = ' + q7.toFixed(1) + ' (esperado ≫ 1)');
-        if (!(e12 > 0.5 && e12 < 1.4)) probs.push('+12: la energía no se conserva (RMS relativo ' + e12.toFixed(2) + ')');
+        const e12 = rmsW(b12, 0.5, 2) / Math.SQRT1_2;   // RMS of a sine of amplitude 1 = 0.707
+        if (!(q12 > 10)) probs.push('+12: 880 Hz / 440 Hz = ' + q12.toFixed(1) + ' (expected ≫ 1)');
+        if (!(q7 > 10)) probs.push('+7: 659 Hz / 440 Hz = ' + q7.toFixed(1) + ' (expected ≫ 1)');
+        if (!(e12 > 0.5 && e12 < 1.4)) probs.push('+12: the energy is not preserved (relative RMS ' + e12.toFixed(2) + ')');
         if (analyze(b12).bad) probs.push('NaN/Inf');
-        console.log('desplazador: +12 880/440', q12.toFixed(1), '· +7 659/440', q7.toFixed(1), '· energía', e12.toFixed(2));
+        console.log('shifter: +12 880/440', q12.toFixed(1), '· +7 659/440', q7.toFixed(1), '· energy', e12.toFixed(2));
         r = { name: NAME, peak: analyze(b12).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // Shimmer en la Sala: un pluck (Size 4) con y sin bucle, en la placa y en la
-    // IR. Con shimmer a tope la cola a los 3-4 s es más brillante (tilt) y MUCHO
-    // más densa (RMS) que sin él, y no crece (energía por vuelta 0,8 < 1): a los
-    // 7-8 s pesa menos que a los 2-3 s. La ganancia del bucle sale de la energía
-    // de la reverb (reverbEnergyGain): se comprueba que el valor calculado para
-    // la placa a Size 4 reproduce la medida de Node (0,19).
+    // Shimmer in the Room: a pluck (Size 4) with and without the loop, on the plate and on the
+    // IR. With full shimmer the tail at 3-4 s is brighter (tilt) and MUCH
+    // denser (RMS) than without it, and it does not grow (energy per pass 0.8 < 1): at
+    // 7-8 s it weighs less than at 2-3 s. The loop gain comes from the energy
+    // of the reverb (reverbEnergyGain): it checks that the value computed for
+    // the plate at Size 4 reproduces the Node measurement (0.19).
     {
-      const NAME = 'shimmer en la Sala (placa e IR: la cola se aclara y se llena · estable con el bucle a tope · ganancia calibrada)';
+      const NAME = 'shimmer in the Room (plate and IR: the tail brightens and fills up · stable with the loop at full · calibrated gain)';
       let r;
       try {
         const probs = [], med = {};
@@ -3230,26 +3230,26 @@ export async function runSelfTest() {
           const t0 = tiltW(b0, 3, 4), t1 = tiltW(b1, 3, 4), e0 = rmsW(b0, 3, 4), e1 = rmsW(b1, 3, 4);
           const crece = rmsW(b1, 7, 8) / Math.max(1e-9, rmsW(b1, 2, 3));
           med[type] = { t0, t1, e0, e1, crece };
-          if (!(e1 > 1e-3 * HR)) probs.push(type + ': sin cola con shimmer (' + dB(e1) + ')');
-          if (!(t1 > 1.5 * t0)) probs.push(type + ': el shimmer no aclara la cola (tilt ' + t1.toExponential(2) + ' vs ' + t0.toExponential(2) + ')');
-          if (!(e1 > 3 * e0)) probs.push(type + ': el shimmer no llena la cola (rms ' + dB(e1) + ' vs ' + dB(e0) + ')');
-          if (!(crece < 1)) probs.push(type + ': la cola CRECE con el bucle a tope (×' + crece.toFixed(2) + ' entre 2 s y 7 s)');
+          if (!(e1 > 1e-3 * HR)) probs.push(type + ': no tail with shimmer (' + dB(e1) + ')');
+          if (!(t1 > 1.5 * t0)) probs.push(type + ': the shimmer does not brighten the tail (tilt ' + t1.toExponential(2) + ' vs ' + t0.toExponential(2) + ')');
+          if (!(e1 > 3 * e0)) probs.push(type + ': the shimmer does not fill the tail (rms ' + dB(e1) + ' vs ' + dB(e0) + ')');
+          if (!(crece < 1)) probs.push(type + ': the tail GROWS with the loop at full (×' + crece.toFixed(2) + ' between 2 s and 7 s)');
           const a1 = analyze(b1); peak = Math.max(peak, a1.peak);
-          if (a1.bad || a1.peak > 1) probs.push(type + ': NaN/Inf o clipping con shimmer');
+          if (a1.bad || a1.peak > 1) probs.push(type + ': NaN/Inf or clipping with shimmer');
         }
         const gP = reverbEnergyGain('plate', 4), gI = reverbEnergyGain('hall', 4);
-        if (!(Math.abs(gP - 0.189) < 0.01 && Math.abs(gI - 0.28) < 0.01)) probs.push('reverbEnergyGain a Size 4: placa ' + gP.toFixed(3) + ' (medido 0,189) · IR ' + gI.toFixed(3) + ' (0,280)');
-        console.log('shimmer: placa tilt con/sin', med.plate.t1.toExponential(2), med.plate.t0.toExponential(2), 'rms', dB(med.plate.e1), dB(med.plate.e0), '7 s/2 s', med.plate.crece.toFixed(3),
-                    '· IR tilt', med.hall.t1.toExponential(2), med.hall.t0.toExponential(2), 'rms', dB(med.hall.e1), dB(med.hall.e0), '7 s/2 s', med.hall.crece.toFixed(3), '· G placa/IR', gP.toFixed(3), gI.toFixed(3));
+        if (!(Math.abs(gP - 0.189) < 0.01 && Math.abs(gI - 0.28) < 0.01)) probs.push('reverbEnergyGain at Size 4: plate ' + gP.toFixed(3) + ' (measured 0.189) · IR ' + gI.toFixed(3) + ' (0.280)');
+        console.log('shimmer: plate tilt with/without', med.plate.t1.toExponential(2), med.plate.t0.toExponential(2), 'rms', dB(med.plate.e1), dB(med.plate.e0), '7 s/2 s', med.plate.crece.toFixed(3),
+                    '· IR tilt', med.hall.t1.toExponential(2), med.hall.t0.toExponential(2), 'rms', dB(med.hall.e1), dB(med.hall.e0), '7 s/2 s', med.hall.crece.toFixed(3), '· G plate/IR', gP.toFixed(3), gI.toFixed(3));
         r = { name: NAME, peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
-    // Freeze: pluck en una placa CORTA (Size 2); congelar a 0,5 s mantiene la cola
-    // (a 5 s pesa como a 1 s) mientras que sin congelar se ha extinguido; soltar
-    // a 3 s la deja caer; con la IR, setFreeze no hace nada (no hay estado).
+    // Freeze: pluck on a SHORT plate (Size 2); freezing at 0.5 s keeps the tail
+    // (at 5 s it weighs as much as at 1 s) while without freezing it has died out; releasing
+    // at 3 s lets it fall; with the IR, setFreeze does nothing (there is no state).
     {
-      const NAME = 'freeze (la cola se queda · suelta y cae · solo placa)';
+      const NAME = 'freeze (the tail stays · release and it falls · plate only)';
       let r;
       try {
         const probs = [];
@@ -3261,35 +3261,35 @@ export async function runSelfTest() {
           for (const [t, fn] of acciones) ctx.suspend(t).then(() => { fn(eng); ctx.resume(); });
           return ctx.startRendering(); };
         const bLibre = await rend(pl, []);
-        const bFrz = await rend(pl, [[0.5, e => { if (!e.sala.setFreeze(true)) probs.push('setFreeze(true) no actuó con la placa'); }]]);
+        const bFrz = await rend(pl, [[0.5, e => { if (!e.sala.setFreeze(true)) probs.push('setFreeze(true) did not act with the plate'); }]]);
         const bSuelta = await rend(pl, [[0.5, e => e.sala.setFreeze(true)], [3.0, e => e.sala.setFreeze(false)]]);
         let irOk = true;
         await rend({ ...pl, reverbType: 'hall' }, [[0.5, e => { irOk = e.sala.setFreeze(true) === false && !e.sala.frozen; }]]);
         const hold = rmsW(bFrz, 5, 5.5) / Math.max(1e-9, rmsW(bFrz, 1, 1.5)), libre = rmsW(bLibre, 5, 5.5) / Math.max(1e-9, rmsW(bLibre, 1, 1.5));
         const caida = rmsW(bSuelta, 5.5, 6) / Math.max(1e-9, rmsW(bSuelta, 2.5, 3));
-        if (!(rmsW(bFrz, 5, 5.5) > 1e-3)) probs.push('congelada, la cola se apaga (' + dB(rmsW(bFrz, 5, 5.5)) + ' a los 5 s)');
-        if (!(hold > 0.6 && hold < 1.5)) probs.push('congelada, la cola no se mantiene (5 s / 1 s = ' + hold.toFixed(3) + ')');
-        if (!(libre < 0.05)) probs.push('sin congelar, la cola de Size 2 debería haberse extinguido (5 s / 1 s = ' + libre.toFixed(3) + ')');
-        if (!(caida < 0.2)) probs.push('al soltar no cae (6 s / 3 s = ' + caida.toFixed(3) + ')');
-        if (!irOk) probs.push('con la IR, setFreeze debería no hacer nada');
-        if (analyze(bFrz).bad || analyze(bFrz).peak > 1) probs.push('NaN/Inf o clipping congelada');
-        console.log('freeze: 5 s / 1 s congelada', hold.toFixed(3), '· libre', libre.toExponential(2), '· tras soltar 6 s / 3 s', caida.toExponential(2));
+        if (!(rmsW(bFrz, 5, 5.5) > 1e-3)) probs.push('frozen, the tail dies out (' + dB(rmsW(bFrz, 5, 5.5)) + ' at 5 s)');
+        if (!(hold > 0.6 && hold < 1.5)) probs.push('frozen, the tail does not hold (5 s / 1 s = ' + hold.toFixed(3) + ')');
+        if (!(libre < 0.05)) probs.push('without freezing, the Size 2 tail should have died out (5 s / 1 s = ' + libre.toFixed(3) + ')');
+        if (!(caida < 0.2)) probs.push('on release it does not fall (6 s / 3 s = ' + caida.toFixed(3) + ')');
+        if (!irOk) probs.push('with the IR, setFreeze should do nothing');
+        if (analyze(bFrz).bad || analyze(bFrz).peak > 1) probs.push('NaN/Inf or clipping while frozen');
+        console.log('freeze: 5 s / 1 s frozen', hold.toFixed(3), '· free', libre.toExponential(2), '· after release 6 s / 3 s', caida.toExponential(2));
         r = { name: NAME, peak: analyze(bFrz).peak, ok: !probs.length, problems: probs };
-      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
   }
 
-  // ---------- Roadmap 5.0 · bloque 4: fuentes de ejecución ----------
-  // Rueda, aftertouch y expresión como fuentes de la matriz (0..1 por motor). Se
-  // fija el valor con la API (setPerf) antes de la nota y se mide el efecto por el
-  // camino real: rueda → cutoff abre (tilt), aftertouch → pitch sube 600 ct (cruces
-  // por cero), expresión → amplitud a −0,8 deja el 20 %. Y el MIDI sintético (CC1,
-  // presión de canal, CC11) llega a las fuentes del motor en vivo; la rueda en
-  // pantalla sigue al CC1.
+  // ---------- Roadmap 5.0 · block 4: performance sources ----------
+  // Wheel, aftertouch and expression as matrix sources (0..1 per engine). The
+  // value is set through the API (setPerf) before the note and the effect is measured through the
+  // real path: wheel → cutoff opens (tilt), aftertouch → pitch rises 600 ct (zero
+  // crossings), expression → amplitude at −0.8 leaves 20 %. And synthetic MIDI (CC1,
+  // channel pressure, CC11) reaches the live engine's sources; the on-screen wheel
+  // follows CC1.
   {
-    body.appendChild(el('st-cat', 'Fuentes de ejecución'));
-    const NAME = 'fuentes de ejecución (rueda → cutoff · aftertouch → pitch 600 ct · expresión → amplitud · MIDI CC1/presión/CC11 · la rueda sigue al CC1)';
+    body.appendChild(el('st-cat', 'Performance sources'));
+    const NAME = 'performance sources (wheel → cutoff · aftertouch → pitch 600 ct · expression → amplitude · MIDI CC1/pressure/CC11 · the wheel follows CC1)';
     let r;
     try {
       const probs = [];
@@ -3304,36 +3304,36 @@ export async function runSelfTest() {
       const w0 = await perfRender({ ...saw, mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.6 }, 'wheel', 0);
       const w1 = await perfRender({ ...saw, mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.6 }, 'wheel', 1);
       const tw = tiltW(w1, 0.3, 1.1) / Math.max(1e-12, tiltW(w0, 0.3, 1.1));
-      if (!(tw > 3)) probs.push('la rueda no abre el filtro (tilt ×' + tw.toFixed(2) + ')');
+      if (!(tw > 3)) probs.push('the wheel does not open the filter (tilt ×' + tw.toFixed(2) + ')');
       const sine = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
       const atB = await perfRender({ ...sine, mx1src: 'at', mx1dst: 'pitch', mx1amt: 0.5 }, 'at', 1);
       const fAt = hzOf(atB, 0.3, 1.1), fEsp = NOTE1 * Math.pow(2, 0.5);
-      if (!(Math.abs(fAt - fEsp) < 2.5)) probs.push('el aftertouch no sube el pitch 600 ct (' + fAt.toFixed(1) + ' Hz, esperado ' + fEsp.toFixed(1) + ')');
+      if (!(Math.abs(fAt - fEsp) < 2.5)) probs.push('aftertouch does not raise the pitch 600 ct (' + fAt.toFixed(1) + ' Hz, expected ' + fEsp.toFixed(1) + ')');
       const e0 = await perfRender({ ...sine, mx1src: 'expr', mx1dst: 'amp', mx1amt: -0.8 }, 'expr', 0);
       const e1 = await perfRender({ ...sine, mx1src: 'expr', mx1dst: 'amp', mx1amt: -0.8 }, 'expr', 1);
       const qe = rmsW(e1, 0.3, 1.1) / Math.max(1e-9, rmsW(e0, 0.3, 1.1));
-      if (!(qe > 0.15 && qe < 0.25)) probs.push('la expresión no atenúa (×' + qe.toFixed(3) + ', esperado 0,20)');
-      // MIDI sintético sobre el motor en vivo (sin dispositivo): CC1 a tope, presión 64, CC11 a 0
+      if (!(qe > 0.15 && qe < 0.25)) probs.push('expression does not attenuate (×' + qe.toFixed(3) + ', expected 0.20)');
+      // synthetic MIDI on the live engine (no device): CC1 at full, pressure 64, CC11 at 0
       handleMidi([0xb0, 1, 127]); handleMidi([0xd0, 64]); handleMidi([0xb0, 11, 0]);
       const pv = { ...engine.perfVal }, wheelEl = document.getElementById('kbWheel');
-      if (!(pv.wheel === 1 && Math.abs(pv.at - 64 / 127) < 1e-9 && pv.expr === 0)) probs.push('MIDI → fuentes: ' + JSON.stringify(pv));
-      if (wheelEl && +wheelEl.value !== 1) probs.push('la rueda en pantalla no sigue al CC1 (' + wheelEl.value + ')');
-      handleMidi([0xb0, 1, 0]); handleMidi([0xd0, 0]);   // reposo
+      if (!(pv.wheel === 1 && Math.abs(pv.at - 64 / 127) < 1e-9 && pv.expr === 0)) probs.push('MIDI → sources: ' + JSON.stringify(pv));
+      if (wheelEl && +wheelEl.value !== 1) probs.push('the on-screen wheel does not follow CC1 (' + wheelEl.value + ')');
+      handleMidi([0xb0, 1, 0]); handleMidi([0xd0, 0]);   // rest
       loadState({});
-      console.log('ejecucion: rueda tilt x', tw.toFixed(2), '· aftertouch', fAt.toFixed(1), 'Hz (esperado', fEsp.toFixed(1) + ')', '· expresion x', qe.toFixed(3), '· MIDI', JSON.stringify(pv));
+      console.log('performance: wheel tilt x', tw.toFixed(2), '· aftertouch', fAt.toFixed(1), 'Hz (expected', fEsp.toFixed(1) + ')', '· expression x', qe.toFixed(3), '· MIDI', JSON.stringify(pv));
       r = { name: NAME, peak: analyze(w1).peak, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
-  // Macros (Roadmap 7.0 · 2.5): knobs del preset como fuentes de la matriz. (1) un
-  // solo knob a varios destinos: Macro 1 → pitch +0,5 (600 ct) y → amplitud −0,5 en
-  // dos slots; con la macro a 1 la nota sube 600 ct y queda a la mitad, a 0 suena
-  // como sin matriz; (2) Macro 2 → cutoff abre el filtro; (3) el knob va al motor en
-  // vivo y se guarda en el preset (snapshot), y la matriz las ofrece como fuentes;
-  // (4) sin ningún slot que la use, el knob sale atenuado con su motivo (deps).
+  // Macros (Roadmap 7.0 · 2.5): preset knobs as matrix sources. (1) a
+  // single knob to several targets: Macro 1 → pitch +0.5 (600 ct) and → amplitude −0.5 in
+  // two slots; with the macro at 1 the note rises 600 ct and drops to half, at 0 it sounds
+  // as without the matrix; (2) Macro 2 → cutoff opens the filter; (3) the knob reaches the live
+  // engine and is saved in the preset (snapshot), and the matrix offers them as sources;
+  // (4) with no slot using it, the knob is dimmed with its reason (deps).
   {
-    const NAME = 'macros (un knob, varios destinos · cutoff · al motor y al preset · fuentes de la matriz · atenuadas si nadie las usa)';
+    const NAME = 'macros (one knob, several targets · cutoff · to the engine and the preset · matrix sources · dimmed if nobody uses them)';
     let r;
     try {
       const probs = [];
@@ -3348,40 +3348,40 @@ export async function runSelfTest() {
         mx1src: 'mac1', mx1dst: 'pitch', mx1amt: 0.5, mx2src: 'mac1', mx2dst: 'amp', mx2amt: -0.5 };
       const s0 = await render({ ...sine, macro1: 0 }), s1 = await render({ ...sine, macro1: 1 });
       const f0 = hzOf(s0, 0.3, 1.1), f1 = hzOf(s1, 0.3, 1.1), fEsp = NOTE1 * Math.pow(2, 0.5), q = rmsW(s1, 0.3, 1.1) / Math.max(1e-9, rmsW(s0, 0.3, 1.1));
-      if (!(Math.abs(f0 - NOTE1) < 2.5)) probs.push('a 0 la macro ya mueve el pitch (' + f0.toFixed(1) + ' Hz)');
-      if (!(Math.abs(f1 - fEsp) < 2.5)) probs.push('Macro 1 no sube el pitch 600 ct (' + f1.toFixed(1) + ' Hz, esperado ' + fEsp.toFixed(1) + ')');
-      if (!(q > 0.45 && q < 0.55)) probs.push('Macro 1 no deja la amplitud a la mitad (×' + q.toFixed(3) + ')');
+      if (!(Math.abs(f0 - NOTE1) < 2.5)) probs.push('at 0 the macro already moves the pitch (' + f0.toFixed(1) + ' Hz)');
+      if (!(Math.abs(f1 - fEsp) < 2.5)) probs.push('Macro 1 does not raise the pitch 600 ct (' + f1.toFixed(1) + ' Hz, expected ' + fEsp.toFixed(1) + ')');
+      if (!(q > 0.45 && q < 0.55)) probs.push('Macro 1 does not halve the amplitude (×' + q.toFixed(3) + ')');
       const saw = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 400, reso: 0.7, filterSlope: '24', a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4,
         mx1src: 'mac2', mx1dst: 'cutoff', mx1amt: 0.6 };
       const c0 = await render({ ...saw, macro2: 0 }), c1 = await render({ ...saw, macro2: 1 });
       const tw = tiltW(c1, 0.3, 1.1) / Math.max(1e-12, tiltW(c0, 0.3, 1.1));
-      if (!(tw > 3)) probs.push('Macro 2 no abre el filtro (tilt ×' + tw.toFixed(2) + ')');
-      // al motor en vivo, al preset y a la lista de fuentes
+      if (!(tw > 3)) probs.push('Macro 2 does not open the filter (tilt ×' + tw.toFixed(2) + ')');
+      // to the live engine, to the preset and to the source list
       loadState({ mx1src: 'mac2', mx1dst: 'cutoff', mx1amt: 0.5, macro2: 0.7 });
-      if (engine.S.macro2 !== 0.7 || snapshot().macro2 !== 0.7) probs.push('macro2 no llega al motor o al preset (' + engine.S.macro2 + ' / ' + snapshot().macro2 + ')');
+      if (engine.S.macro2 !== 0.7 || snapshot().macro2 !== 0.7) probs.push('macro2 does not reach the engine or the preset (' + engine.S.macro2 + ' / ' + snapshot().macro2 + ')');
       const opts = [...document.querySelectorAll('#mxRows select')].flatMap(s => [...s.options].map(o => o.textContent));
-      if (!opts.includes('Macro 1') || !opts.includes('Macro 2')) probs.push('la matriz no ofrece Macro 1 / Macro 2');
-      // deps: Macro 1 sin usar → atenuada con motivo; Macro 2 en uso → viva
+      if (!opts.includes('Macro 1') || !opts.includes('Macro 2')) probs.push('the matrix does not offer Macro 1 / Macro 2');
+      // deps: unused Macro 1 → dimmed with a reason; Macro 2 in use → live
       const k1 = document.querySelector('[data-knob="macro1"]')?.closest('.ctl'), k2 = document.querySelector('[data-knob="macro2"]')?.closest('.ctl');
       await new Promise(res => setTimeout(res, 50));
       const off = e => !!e && (!!e.closest('.dep-off') || !!e.querySelector('.dep-off'));
-      if (!k1 || !k2) probs.push('faltan los knobs de las macros');
-      else if (!off(k1) || off(k2)) probs.push('atenuado: Macro 1 sin usar ' + off(k1) + ' · Macro 2 en uso ' + off(k2));
+      if (!k1 || !k2) probs.push('the macro knobs are missing');
+      else if (!off(k1) || off(k2)) probs.push('dimmed: unused Macro 1 ' + off(k1) + ' · Macro 2 in use ' + off(k2));
       loadState(keep);
-      console.log('macros: pitch a 0 / a 1 ' + f0.toFixed(1) + ' / ' + f1.toFixed(1) + ' Hz (esperado ' + fEsp.toFixed(1) + ') · amplitud ×' + q.toFixed(3) + ' · Macro 2 → cutoff tilt ×' + tw.toFixed(2));
+      console.log('macros: pitch at 0 / at 1 ' + f0.toFixed(1) + ' / ' + f1.toFixed(1) + ' Hz (expected ' + fEsp.toFixed(1) + ') · amplitude ×' + q.toFixed(3) + ' · Macro 2 → cutoff tilt ×' + tw.toFixed(2));
       r = { name: NAME, peak: analyze(c1).peak, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Respuesta al tacto (Roadmap 7.0 · 2.6). (1) Curva de velocity, del que toca (no del
-    // preset): suave v^0,5 · lineal · dura v^2, por el camino real — una nota MIDI con
-    // velocity 64 nace con (64/127)^γ, y el ratón la aplica a la altura de la pulsación
-    // conservando el suelo (0,2); los botones marcan la elegida y se recuerda. (2) Rango
-    // del bend, del preset: con el bend a tope, ±12 sube una octava exacta y ±2 un tono;
-    // cambiar el rango con la rueda movida reescala el bend en vivo.
-    const NAME = 'respuesta al tacto (curva suave/lineal/dura en MIDI y ratón · rango del bend del preset · reescala en vivo)';
+    // Touch response (Roadmap 7.0 · 2.6). (1) Velocity curve, the player's (not the
+    // preset's): soft v^0.5 · linear · hard v^2, through the real path — a MIDI note with
+    // velocity 64 is born with (64/127)^γ, and the mouse applies it to the press height
+    // keeping the floor (0.2); the buttons mark the chosen one and it is remembered. (2) Bend
+    // range, the preset's: with the bend at full, ±12 rises an exact octave and ±2 a whole tone;
+    // changing the range with the wheel moved rescales the bend live.
+    const NAME = 'touch response (soft/linear/hard curve on MIDI and mouse · bend range from the preset · rescales live)';
     let r;
     try {
       const probs = [], keep = snapshot(), tk = getTouch(), near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
@@ -3392,50 +3392,50 @@ export async function runSelfTest() {
         handleMidi([0x90, 60, 64]);
         const v = part().voices.get('m60');
         handleMidi([0x80, 60, 0]);
-        if (!v || !near(v.vel, Math.pow(v64, g), 1e-6)) probs.push(t + ': MIDI 64 nace con vel ' + (v ? v.vel.toFixed(3) : '—') + ' (esperado ' + Math.pow(v64, g).toFixed(3) + ')');
+        if (!v || !near(v.vel, Math.pow(v64, g), 1e-6)) probs.push(t + ': MIDI 64 is born with vel ' + (v ? v.vel.toFixed(3) : '—') + ' (expected ' + Math.pow(v64, g).toFixed(3) + ')');
         const m = velFromY(0.425), mEsp = 0.2 + 0.8 * Math.pow(0.5, g);
-        if (!near(m, mEsp)) probs.push(t + ': ratón a media tecla ' + m.toFixed(3) + ' (esperado ' + mEsp.toFixed(3) + ')');
-        if (!near(velFromY(0), 0.2) || !near(velFromY(1), 1)) probs.push(t + ': el ratón pierde el suelo o el techo');
+        if (!near(m, mEsp)) probs.push(t + ': mouse at mid-key ' + m.toFixed(3) + ' (expected ' + mEsp.toFixed(3) + ')');
+        if (!near(velFromY(0), 0.2) || !near(velFromY(1), 1)) probs.push(t + ': the mouse loses the floor or the ceiling');
         const act = [...document.querySelectorAll('#kbTouch button.active')].map(b => b.dataset.touch);
-        if (act.join() !== t) probs.push(t + ': botones marcados ' + (act.join() || 'ninguno'));
+        if (act.join() !== t) probs.push(t + ': buttons marked ' + (act.join() || 'none'));
         let saved = null; try { saved = localStorage.getItem('subsdj.tacto.v1'); } catch (_) {}
-        if (saved !== t) probs.push(t + ': no se recuerda (' + saved + ')');
+        if (saved !== t) probs.push(t + ': not remembered (' + saved + ')');
       }
       part().allNotesOff();
       setTouch(tk);
-      // rango del bend: offline, seno, bend a tope
+      // bend range: offline, sine, bend at full
       const hzOf = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
       const sine = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
       const bendRender = async range => { loadState({ ...sine, bendRange: range }); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.setBend(1); eng.noteOn('b', NOTE1); return ctx.startRendering(); };
       const f12 = hzOf(await bendRender('12'), 0.3, 1.1), f2 = hzOf(await bendRender('2'), 0.3, 1.1);
-      if (!(Math.abs(f12 - 2 * NOTE1) < 2.5)) probs.push('±12 con el bend a tope: ' + f12.toFixed(1) + ' Hz (esperado ' + (2 * NOTE1).toFixed(1) + ')');
-      if (!(Math.abs(f2 - NOTE1 * Math.pow(2, 2 / 12)) < 2.5)) probs.push('±2 con el bend a tope: ' + f2.toFixed(1) + ' Hz (esperado ' + (NOTE1 * Math.pow(2, 2 / 12)).toFixed(1) + ')');
-      // en vivo: el MIDI llega normalizado y el rango lo escala; cambiar el rango reescala
+      if (!(Math.abs(f12 - 2 * NOTE1) < 2.5)) probs.push('±12 with the bend at full: ' + f12.toFixed(1) + ' Hz (expected ' + (2 * NOTE1).toFixed(1) + ')');
+      if (!(Math.abs(f2 - NOTE1 * Math.pow(2, 2 / 12)) < 2.5)) probs.push('±2 with the bend at full: ' + f2.toFixed(1) + ' Hz (expected ' + (NOTE1 * Math.pow(2, 2 / 12)).toFixed(1) + ')');
+      // live: MIDI arrives normalized and the range scales it; changing the range rescales
       loadState({ bendRange: '2' });
       handleMidi([0xe0, 0x00, 0x60]);                       // +0,5 (8192 + 4096)
       const b2 = engine._bend;
       CONTROLS.bendRange.set('12');
       const b12 = engine._bend;
-      handleMidi([0xe0, 0x00, 0x40]);                       // centro
-      if (!near(b2, 100, 1e-6) || !near(b12, 600, 1e-6) || engine._bend !== 0) probs.push('bend en vivo: ' + b2 + ' → ' + b12 + ' ct (esperado 100 → 600) · al centrar ' + engine._bend);
+      handleMidi([0xe0, 0x00, 0x40]);                       // center
+      if (!near(b2, 100, 1e-6) || !near(b12, 600, 1e-6) || engine._bend !== 0) probs.push('live bend: ' + b2 + ' → ' + b12 + ' ct (expected 100 → 600) · on centering ' + engine._bend);
       loadState(keep);
-      console.log('tacto: MIDI 64 suave/lineal/dura ' + [0.5, 1, 2].map(g => Math.pow(v64, g).toFixed(3)).join('/') + ' · bend a tope ±12 ' + f12.toFixed(1) + ' Hz · ±2 ' + f2.toFixed(1) + ' Hz · en vivo ' + b2 + ' → ' + b12 + ' ct');
+      console.log('touch: MIDI 64 soft/linear/hard ' + [0.5, 1, 2].map(g => Math.pow(v64, g).toFixed(3)).join('/') + ' · bend at full ±12 ' + f12.toFixed(1) + ' Hz · ±2 ' + f2.toFixed(1) + ' Hz · live ' + b2 + ' → ' + b12 + ' ct');
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
-  // ---------- Roadmap 5.0 · bloque 7: cinta en el máster ----------
-  // Saturación: un seno de C3 gana 3er armónico (392 Hz) a tope y no lo tiene a 0,
-  // sin saltar de nivel; y a 0,3 (la zona «un poco» del knob, que entra al
-  // cuadrado) sigue siendo color, no recorte: 3er armónico < 2 %. Wow: un seno
-  // de 440 Hz vaga más de 5 Hz (frecuencia instantánea por cruces por cero
-  // interpolados, suavizada sobre 20 periodos) y sin wow se queda quieto. Y las
-  // dos son claves de la Sala.
+  // ---------- Roadmap 5.0 · block 7: tape on the master ----------
+  // Saturation: a C3 sine gains a 3rd harmonic (392 Hz) at full and has none at 0,
+  // without jumping in level; and at 0.3 (the «a little» zone of the knob, which goes in
+  // squared) it is still color, not clipping: 3rd harmonic < 2 %. Wow: a 440 Hz
+  // sine wanders more than 5 Hz (instantaneous frequency from interpolated zero
+  // crossings, smoothed over 20 periods) and without wow it stays still. And both
+  // are Room keys.
   {
-    body.appendChild(el('st-cat', 'Cinta en el máster'));
-    const NAME = 'cinta en el máster (saturación: armónicos sin saltar de nivel, suave a 0,3 · wow: el tono vaga · claves de la Sala)';
+    body.appendChild(el('st-cat', 'Tape on the master'));
+    const NAME = 'tape on the master (saturation: harmonics without a level jump, gentle at 0.3 · wow: the pitch wanders · Room keys)';
     let r;
     try {
       const probs = [];
@@ -3456,68 +3456,68 @@ export async function runSelfTest() {
       const s0 = await one({ ...sine, tapeSat: 0 }, NOTE1, 1.2), s1 = await one({ ...sine, tapeSat: 1 }, NOTE1, 1.2), sM = await one({ ...sine, tapeSat: 0.3 }, NOTE1, 1.2);
       const h0 = h3(s0), h1 = h3(s1), hM = h3(sM);
       const lvl = rmsW(s1, 0.3, 1.1) / Math.max(1e-9, rmsW(s0, 0.3, 1.1));
-      if (!(h0 < 0.003)) probs.push('a saturación 0 hay 3er armónico (' + h0.toFixed(4) + '): no es transparente');
-      if (!(h1 > 0.03)) probs.push('a saturación 1 no aparece el 3er armónico (' + h1.toFixed(4) + ')');
-      if (!(hM < 0.02)) probs.push('a saturación 0,3 ya recorta (3er armónico ' + hM.toFixed(4) + ', debe ser color: < 2 %)');
-      if (!(lvl > 0.6 && lvl < 1.5)) probs.push('la saturación cambia el nivel (×' + lvl.toFixed(2) + ')');
+      if (!(h0 < 0.003)) probs.push('at saturation 0 there is a 3rd harmonic (' + h0.toFixed(4) + '): it is not transparent');
+      if (!(h1 > 0.03)) probs.push('at saturation 1 the 3rd harmonic does not appear (' + h1.toFixed(4) + ')');
+      if (!(hM < 0.02)) probs.push('at saturation 0.3 it already clips (3rd harmonic ' + hM.toFixed(4) + ', it must be color: < 2 %)');
+      if (!(lvl > 0.6 && lvl < 1.5)) probs.push('the saturation changes the level (×' + lvl.toFixed(2) + ')');
       const w0 = await one({ ...sine, tapeWow: 0 }, 440, 3), w1 = await one({ ...sine, tapeWow: 1 }, 440, 3);
       const sp0 = spread(instFreq(w0, 0.5, 3)), sp1 = spread(instFreq(w1, 0.5, 3));
-      if (!(sp0 < 0.05)) probs.push('sin wow el tono vaga (' + sp0.toFixed(3) + ' Hz)');
-      if (!(sp1 > 8)) probs.push('con wow el tono no vaga lo bastante (' + sp1.toFixed(2) + ' Hz, esperado > 8 ≈ ±15 ct)');
-      // el camino del KNOB: la Sala nace con wow 0 y se sube a 1 en vivo (set → smooth); a partir de 0,6 s debe vagar igual
+      if (!(sp0 < 0.05)) probs.push('without wow the pitch wanders (' + sp0.toFixed(3) + ' Hz)');
+      if (!(sp1 > 8)) probs.push('with wow the pitch does not wander enough (' + sp1.toFixed(2) + ' Hz, expected > 8 ≈ ±15 ct)');
+      // the KNOB path: the Room is born with wow 0 and it is raised to 1 live (set → smooth); from 0.6 s on it must wander the same
       loadState({ ...sine, tapeWow: 0 });
       const ctxK = new OfflineAudioContext(2, Math.ceil(SR * 3), SR), engK = new AudioEngine(); engK.S = structuredClone(engine.S); await engK.init(ctxK);
       engK.noteOn('k', 440); ctxK.suspend(0.2).then(() => { engK.set('tapeWow', 1); ctxK.resume(); });
       const wK = await ctxK.startRendering(), spK = spread(instFreq(wK, 0.8, 3));
-      if (!(spK > 8)) probs.push('subiendo el wow EN VIVO (set) el tono no vaga (' + spK.toFixed(2) + ' Hz)');
-      if (!(['tapeSat', 'tapeWow'].every(k => SALA_KEYS.has(k)))) probs.push('las claves de cinta no son de la Sala');
+      if (!(spK > 8)) probs.push('raising the wow LIVE (set) the pitch does not wander (' + spK.toFixed(2) + ' Hz)');
+      if (!(['tapeSat', 'tapeWow'].every(k => SALA_KEYS.has(k)))) probs.push('the tape keys are not Room keys');
       loadState({});
-      console.log('cinta: 3er armonico a 0 / 0,3 / 1', h0.toFixed(4), hM.toFixed(4), h1.toFixed(4), '· nivel x', lvl.toFixed(2), '· wow Hz sin/con/en vivo', sp0.toFixed(3), sp1.toFixed(2), spK.toFixed(2));
+      console.log('tape: 3rd harmonic at 0 / 0.3 / 1', h0.toFixed(4), hM.toFixed(4), h1.toFixed(4), '· level x', lvl.toFixed(2), '· wow Hz without/with/live', sp0.toFixed(3), sp1.toFixed(2), spK.toFixed(2));
       r = { name: NAME, peak: analyze(s1).peak, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
-  // ---------- Roadmap 5.0 · bloque 5: resonador modal ----------
-  // Tablas (razones de cuerda y barra, Q, ganancias normalizadas); después ruido +
-  // seno en C3 por el banco (wet 1) y, con la nota aún pulsada (el VCA va detrás del
-  // banco: soltarla mediría el release), se CORTA EL RUIDO: lo que sigue sonando son
-  // los modos, y se mide esa cola libre. Medir el ruido mismo no vale: un Goertzel
-  // sobre ruido es un sorteo de Rayleigh (2 grados de libertad, alargar la ventana no
-  // lo promedia) y el cociente de dos sorteos fallaba ~7 % de las pasadas (medido con
-  // 30 repeticiones, oct-2026). La cola es determinista en su RITMO, τ = Q/(π·f): el
-  // ruido decide con cuánto empieza cada modo, no cómo se apaga.
-  // Material 0 → tras el corte canta 2·f0 y no 2,756·f0; 1 → al revés. Decay 1 (Q 600)
-  // → τ medido = teórico en los dos; Decay 0 (Q 10) → muerto a los 0,15 s. El cuenco
-  // con ruido SUENA (refuerzo ∝ √Q); y en mono el banco sigue el glide (tras C3 → G3
-  // la cola canta en 2·G3 y no en 2·C3).
+  // ---------- Roadmap 5.0 · block 5: modal resonator ----------
+  // Tables (string and bar ratios, Q, normalized gains); then noise +
+  // sine at C3 through the bank (wet 1) and, with the note still held (the VCA comes after the
+  // bank: releasing it would measure the release), the NOISE IS CUT: what keeps sounding is
+  // the modes, and that free tail is measured. Measuring the noise itself is no good: a Goertzel
+  // over noise is a Rayleigh draw (2 degrees of freedom, lengthening the window does not
+  // average it out) and the ratio of two draws failed ~7 % of the runs (measured with
+  // 30 repetitions, Oct 2026). The tail is deterministic in its RATE, τ = Q/(π·f): the
+  // noise decides how strongly each mode starts, not how it dies away.
+  // Material 0 → after the cut it sings at 2·f0 and not at 2.756·f0; 1 → the other way round. Decay 1 (Q 600)
+  // → measured τ = theoretical in both; Decay 0 (Q 10) → dead at 0.15 s. The bowl
+  // with noise SOUNDS (boost ∝ √Q); and in mono the bank follows the glide (after C3 → G3
+  // the tail sings at 2·G3 and not at 2·C3).
   {
-    body.appendChild(el('st-cat', 'Resonador'));
-    const NAME = 'resonador modal (tablas · material cuerda↔barra, también por la matriz · Decay = τ de la cola · el cuenco con ruido suena · sigue el glide)';
+    body.appendChild(el('st-cat', 'Resonator'));
+    const NAME = 'modal resonator (tables · string↔bar material, also through the matrix · Decay = tail τ · the bowl with noise sounds · follows the glide)';
     let r;
     try {
       const probs = [];
-      const CUT = 1, RING = [CUT + 0.15, CUT + 0.55];   // s: corte del ruido y ventana de la cola (0,4 s: bins de 2,5 Hz, la fuga de 3·f0 no llega a 2,756·f0)
+      const CUT = 1, RING = [CUT + 0.15, CUT + 0.55];   // s: noise cut and tail window (0.4 s: 2.5 Hz bins, the leakage of 3·f0 does not reach 2.756·f0)
       const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
         let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-      // Goertzel con ventana de Hann: la fuga del seno en f0 hacia 2·f0 cae a ~−75 dB
+      // Goertzel with a Hann window: the leakage of the sine at f0 into 2·f0 drops to ~−75 dB
       const hannG = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), N = Math.min(d.length, Math.floor(t1 * SR)) - i0;
         const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
         for (let i = 0; i < N; i++) { const s0 = d[i0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1))) + c * s1 - s2; s2 = s1; s1 = s0; }
         return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
-      const ring = (buf, fa, fb, [t0, t1] = RING) => 20 * Math.log10(hannG(buf, fa, t0, t1) / (hannG(buf, fb, t0, t1) + 1e-12));   // dB: fa canta y fb no
-      const tauAt = (buf, f) => {                        // regresión de ln|A| en ventanas de 0,1 s tras el corte: pendiente = −1/τ
+      const ring = (buf, fa, fb, [t0, t1] = RING) => 20 * Math.log10(hannG(buf, fa, t0, t1) / (hannG(buf, fb, t0, t1) + 1e-12));   // dB: fa sings and fb does not
+      const tauAt = (buf, f) => {                        // regression of ln|A| over 0.1 s windows after the cut: slope = −1/τ
         const xs = [], ys = [];
         for (let t = CUT + 0.15; t + 0.1 <= CUT + 1.45; t += 0.05) { xs.push(t + 0.05); ys.push(Math.log(hannG(buf, f, t, t + 0.1) + 1e-12)); }
         const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
         let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
         return -sxx / sxy; };
       const rh = resRatios(0), rb = resRatios(1), gg = resGains(rb, 0.5), e2 = gg.reduce((a, x) => a + x * x, 0);
-      if (!(rh.every((x, i) => Math.abs(x - (i + 1)) < 1e-9) && Math.abs(rb[1] - 2.756) < 1e-9 && Math.abs(rb[5] - 18.638) < 1e-9)) probs.push('razones: ' + rh.map(x => x.toFixed(2)).join(',') + ' / ' + rb.map(x => x.toFixed(2)).join(','));
+      if (!(rh.every((x, i) => Math.abs(x - (i + 1)) < 1e-9) && Math.abs(rb[1] - 2.756) < 1e-9 && Math.abs(rb[5] - 18.638) < 1e-9)) probs.push('ratios: ' + rh.map(x => x.toFixed(2)).join(',') + ' / ' + rb.map(x => x.toFixed(2)).join(','));
       if (!(Math.abs(resQ(0) - 10) < 1e-9 && Math.abs(resQ(1) - 600) < 1e-6)) probs.push('resQ: ' + resQ(0) + ' ' + resQ(1));
-      if (!(Math.abs(e2 - 2) < 1e-9)) probs.push('ganancias no normalizadas (Σg² = ' + e2.toFixed(3) + ')');
+      if (!(Math.abs(e2 - 2) < 1e-9)) probs.push('gains not normalized (Σg² = ' + e2.toFixed(3) + ')');
       const ex = { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 1, resBright: 0.6 };
-      const rendCut = async (st, { cut = CUT, legato = 0 } = {}) => {   // ruido + seno; en `cut` se corta el ruido con la nota pulsada
+      const rendCut = async (st, { cut = CUT, legato = 0 } = {}) => {   // noise + sine; at `cut` the noise is cut with the note held
         loadState(st);
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * (CUT + 1.6)), SR), eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
         eng.noteOn('t1', NOTE1);
@@ -3527,58 +3527,58 @@ export async function runSelfTest() {
       };
       const bH = await rendCut({ ...ex, resMat: 0 }), bB = await rendCut({ ...ex, resMat: 1 });
       const rH = ring(bH, 2 * NOTE1, 2.756 * NOTE1), rB = ring(bB, 2.756 * NOTE1, 2 * NOTE1);
-      if (!(rH > 30)) probs.push('cuerda: la cola no canta en 2·f0 (2f0 sobre 2,76f0 = ' + rH.toFixed(1) + ' dB, esperado > 30)');
-      if (!(rB > 30)) probs.push('barra: la cola no canta en 2,76·f0 (2,76f0 sobre 2f0 = ' + rB.toFixed(1) + ' dB, esperado > 30)');
-      // Material por la matriz (Roadmap 7.0 · 2.4): knob a 0 y +1 por la matriz = afinación de barra
-      // (los pesos de los modos siguen los del knob: la matriz solo los reafina)
+      if (!(rH > 30)) probs.push('string: the tail does not sing at 2·f0 (2f0 over 2.76f0 = ' + rH.toFixed(1) + ' dB, expected > 30)');
+      if (!(rB > 30)) probs.push('bar: the tail does not sing at 2.76·f0 (2.76f0 over 2f0 = ' + rB.toFixed(1) + ' dB, expected > 30)');
+      // Material through the matrix (Roadmap 7.0 · 2.4): knob at 0 and +1 through the matrix = bar tuning
+      // (the mode weights follow the knob's: the matrix only retunes them)
       const bM = await rendCut({ ...ex, resMat: 0, mx1src: 'vel', mx1dst: 'resMat', mx1amt: 1 }), rM = ring(bM, 2.756 * NOTE1, 2 * NOTE1);
-      if (!(rM > 30)) probs.push('Material por la matriz: la cola no canta en 2,76·f0 (sobre 2f0 = ' + rM.toFixed(1) + ' dB, esperado > 30)');
+      if (!(rM > 30)) probs.push('Material through the matrix: the tail does not sing at 2.76·f0 (over 2f0 = ' + rM.toFixed(1) + ' dB, expected > 30)');
       const tH = tauAt(bH, 2 * NOTE1), tB = tauAt(bB, 2.756 * NOTE1);
       const eH = resQ(1) / (Math.PI * 2 * NOTE1), eB = resQ(1) / (Math.PI * 2.756 * NOTE1);
       if (!(Math.abs(tH / eH - 1) < 0.05 && Math.abs(tB / eB - 1) < 0.05))
-        probs.push('Decay 1 (Q 600): τ de la cola ' + tH.toFixed(3) + ' / ' + tB.toFixed(3) + ' s, esperado Q/(π·f) = ' + eH.toFixed(3) + ' / ' + eB.toFixed(3));
+        probs.push('Decay 1 (Q 600): tail τ ' + tH.toFixed(3) + ' / ' + tB.toFixed(3) + ' s, expected Q/(π·f) = ' + eH.toFixed(3) + ' / ' + eB.toFixed(3));
       const bQ0 = await rendCut({ ...ex, resMat: 0, resDecay: 0 });
       const drop0 = 20 * Math.log10(hannG(bQ0, 2 * NOTE1, CUT + 0.15, CUT + 0.25) / (hannG(bQ0, 2 * NOTE1, CUT - 0.15, CUT - 0.05) + 1e-12));
-      if (!(drop0 < -30)) probs.push('Decay 0 (Q 10): el modo sigue sonando tras cortar el ruido (' + drop0.toFixed(1) + ' dB a los 0,15 s, esperado < −30)');
-      // nivel SIN el margen del máster (HR, 1.1.0): con él dentro la mediana caía en −28 dB y el ruido
-      // a Q 600 (banda de 0,4 Hz: casi un sorteo) bajaba alguna pasada de −30 (medido: −30,0…−27,1 en 20)
+      if (!(drop0 < -30)) probs.push('Decay 0 (Q 10): the mode keeps sounding after the noise is cut (' + drop0.toFixed(1) + ' dB at 0.15 s, expected < −30)');
+      // level WITHOUT the master headroom (HR, 1.1.0): with it included the median fell at −28 dB and the noise
+      // at Q 600 (a 0.4 Hz band: almost a draw) pushed some runs below −30 (measured: −30.0…−27.1 over 20)
       const lvl = rmsW(bH, 0.5, CUT) / HR;
-      if (!(lvl > 0.03 && lvl < 0.7)) probs.push('nivel del cuenco con ruido fuera de rango (' + dB(lvl) + ' sin el margen, esperado −30…−3 dB)');
-      if (analyze(bH).bad || analyze(bH).peak > 1) probs.push('NaN/Inf o clipping a Q 600');
+      if (!(lvl > 0.03 && lvl < 0.7)) probs.push('level of the bowl with noise out of range (' + dB(lvl) + ' without the headroom, expected −30…−3 dB)');
+      if (analyze(bH).bad || analyze(bH).peak > 1) probs.push('NaN/Inf or clipping at Q 600');
       const bG = await rendCut({ ...ex, resMat: 0, mode: 'mono', glide: 0.2 }, { cut: 1.2, legato: NOTE2 });
-      const rG = ring(bG, 2 * NOTE2, 2 * NOTE1, [1.35, 1.75]);   // 2·G3 es modo tras el glide; 2·C3 ya no (y no es modo de G3)
-      if (!(rG > 30)) probs.push('el banco no sigue el glide (la cola en 2·G3 sobre 2·C3 = ' + rG.toFixed(1) + ' dB, esperado > 30)');
+      const rG = ring(bG, 2 * NOTE2, 2 * NOTE1, [1.35, 1.75]);   // 2·G3 is a mode after the glide; 2·C3 no longer is (and it is not a mode of G3)
+      if (!(rG > 30)) probs.push('the bank does not follow the glide (the tail at 2·G3 over 2·C3 = ' + rG.toFixed(1) + ' dB, expected > 30)');
       loadState({});
-      console.log('resonador: cola 2f0/2,76f0 cuerda', rH.toFixed(1), 'dB · 2,76f0/2f0 barra', rB.toFixed(1), 'dB · por la matriz', rM.toFixed(1), 'dB · τ Q600', tH.toFixed(3), tB.toFixed(3),
-        's (Q/πf', eH.toFixed(3), eB.toFixed(3) + ') · Q10 a 0,15 s', drop0.toFixed(1), 'dB · nivel cuenco', dB(lvl), '· glide', rG.toFixed(1), 'dB');
+      console.log('resonator: tail 2f0/2.76f0 string', rH.toFixed(1), 'dB · 2.76f0/2f0 bar', rB.toFixed(1), 'dB · through the matrix', rM.toFixed(1), 'dB · τ Q600', tH.toFixed(3), tB.toFixed(3),
+        's (Q/πf', eH.toFixed(3), eB.toFixed(3) + ') · Q10 at 0.15 s', drop0.toFixed(1), 'dB · bowl level', dB(lvl), '· glide', rG.toFixed(1), 'dB');
       r = { name: NAME, peak: analyze(bB).peak, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Disparo en mono (monoTrig) y note-off PROGRAMADOS del arp/Seq. Se simula
-    // el planificador real sobre el reloj de audio: el render se suspende cada
-    // 25 ms y llama a _tick() (el setInterval del directo), con su look-ahead
-    // de 120 ms. Un pluck (sustain 0) hace audible cada redisparo: se cuentan
-    // los ataques. Antes, a 1/16 los note-off (por temporizador) llegaban
-    // DESPUÉS del on siguiente: el motor lo tomaba por legato y solo sonaba el
-    // primer paso — que el solape dependiera del tempo y no del gate era el bug.
-    // Además: el teclado en «Cada nota» redispara sin hueco (relevo en el
-    // mismo instante), y un gate más corto que el look-ahead SUENA (antes el
-    // note-off caía antes que el arranque: el golpe mudo de los jugadores).
-    body.appendChild(el('st-cat', 'Disparo mono'));
+    // Mono trigger (monoTrig) and SCHEDULED note-offs of the arp/Seq. The real
+    // scheduler is simulated on the audio clock: the render is suspended every
+    // 25 ms and calls _tick() (the live setInterval), with its 120 ms
+    // look-ahead. A pluck (sustain 0) makes each retrigger audible: the
+    // attacks are counted. Before, at 1/16 the note-offs (on a timer) arrived
+    // AFTER the next on: the engine took it as legato and only the
+    // first step sounded — the overlap depending on the tempo and not on the gate was the bug.
+    // Also: the keyboard in «Retrig» retriggers with no gap (handover at the
+    // same instant), and a gate shorter than the look-ahead SOUNDS (before, the
+    // note-off landed before the start: the players' mute hit).
+    body.appendChild(el('st-cat', 'Mono trigger'));
     let r;
     try {
       const probs = [], log = [], keep = snapshot();
-      // RMS en ventanas de 8 ms cada 2 ms: la ventana tiene que abarcar un periodo
-      // entero de C3 (7,6 ms); con 2 ms el RMS de la sierra oscila ×5 dentro de la nota
+      // RMS over 8 ms windows every 2 ms: the window has to span a whole period
+      // of C3 (7.6 ms); with 2 ms the RMS of the saw swings ×5 within the note
       const HOP = 0.002, env = buf => {
         const d = buf.getChannelData(0), W = Math.round(SR * 0.008), H = Math.round(SR * HOP), out = [];
         for (let i = 0; i + W <= d.length; i += H) { let s = 0; for (let k = i; k < i + W; k++) s += d[k] * d[k]; out.push(Math.sqrt(s / W)); }
         return out;
       };
-      const attacks = buf => {                   // cruces hacia arriba de −20 dB del pico (histéresis a −26 dB)
+      const attacks = buf => {                   // upward crossings of −20 dB below the peak (hysteresis at −26 dB)
         const e = env(buf), top = Math.max(...e), t = [];
         let up = false;
         e.forEach((v, i) => { if (!up && v > top * 0.1) { up = true; t.push(i * HOP); } else if (up && v < top * 0.05) up = false; });
@@ -3587,86 +3587,86 @@ export async function runSelfTest() {
       const pluck = { mode: 'mono', waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.001, d: 0.04, s: 0, r: 0.03, width: 0, bpm: 120 };
       loadState(pluck);
       const P = structuredClone(engine.S);
-      // arp o Seq con una tecla; 1/16 a 120 BPM = pasos de 125 ms → 8 pasos de 0,03 s a 0,905 s
+      // arp or Seq with one key; 1/16 at 120 BPM = 125 ms steps → 8 steps from 0.03 s to 0.905 s
       const sched = async (over, kind) => {
         const S = { ...structuredClone(P), ...over };
         const c = new OfflineAudioContext(2, Math.ceil(SR * 1.4), SR);
         const eng = new AudioEngine(); eng.S = S; await eng.init(c);
         const q = kind === 'seq' ? eng.seq : eng.arp;
-        q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';   // como una tecla a 0,03 s (une al reloj común)
+        q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';   // like a key at 0.03 s (joins the common clock)
         for (let i = 1; i * 0.025 < 0.9; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });
         c.suspend(0.95).then(() => { q.held = []; q._maybeStop(); c.resume(); });
         return c.startRendering();
       };
       const cases = [
-        ['arp · legato · gate 0,5', { arpMode: 'up', arpDiv: '1/16', arpGate: 0.5, monoTrig: 'legato' }, 'arp', 8],
-        ['arp · legato · gate 1 (liga)', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'legato' }, 'arp', 1],
-        ['arp · cada nota · gate 1', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'retrig' }, 'arp', 8],
-        ['Seq · legato · gate 0,6', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 0.6, monoTrig: 'legato' }, 'seq', 8],
-        ['Seq · legato · gate 1 (liga)', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 1, monoTrig: 'legato' }, 'seq', 1],
+        ['arp · legato · gate 0.5', { arpMode: 'up', arpDiv: '1/16', arpGate: 0.5, monoTrig: 'legato' }, 'arp', 8],
+        ['arp · legato · gate 1 (tie)', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'legato' }, 'arp', 1],
+        ['arp · retrig · gate 1', { arpMode: 'up', arpDiv: '1/16', arpGate: 1, monoTrig: 'retrig' }, 'arp', 8],
+        ['Seq · legato · gate 0.6', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 0.6, monoTrig: 'legato' }, 'seq', 8],
+        ['Seq · legato · gate 1 (tie)', { seqOn: 'on', seqPat: '0 3 7 12', seqDiv: '1/16', seqGate: 1, monoTrig: 'legato' }, 'seq', 1],
       ];
       let gaps = [];
       for (const [label, over, kind, want] of cases) {
         const b = await sched(over, kind), at = attacks(b);
         log.push(label + ' ' + at.length);
-        if (at.length !== want) probs.push(label + ': ' + at.length + ' ataques (esperados ' + want + ')');
+        if (at.length !== want) probs.push(label + ': ' + at.length + ' attacks (expected ' + want + ')');
         if (want === 8 && at.length === 8 && !gaps.length) gaps = at.slice(1).map((t, i) => t - at[i]);
       }
-      if (gaps.some(g => Math.abs(g - 0.125) > 0.003)) probs.push('pasos fuera de rejilla: ' + gaps.map(g => (g * 1000).toFixed(1)).join(' ') + ' ms');
-      // teclado: k2 llega con k1 pulsada
+      if (gaps.some(g => Math.abs(g - 0.125) > 0.003)) probs.push('steps off the grid: ' + gaps.map(g => (g * 1000).toFixed(1)).join(' ') + ' ms');
+      // keyboard: k2 arrives with k1 held
       const keys = async (over, look = 0) => {
         const S = { ...structuredClone(P), ...over };
         const c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
         const eng = new AudioEngine(); eng.S = S; await eng.init(c);
-        if (look) eng.mod.lookahead = look;     // el del directo: un relevo desalineado dejaría ~40 ms de hueco
+        if (look) eng.mod.lookahead = look;     // the live one: a misaligned handover would leave a ~40 ms gap
         eng.noteOn('k1', NOTE1);
         c.suspend(0.3).then(() => { eng.noteOn('k2', NOTE1 * 1.5); c.resume(); });
         c.suspend(0.6).then(() => { eng.noteOff('k1'); eng.noteOff('k2'); c.resume(); });
         return c.startRendering();
       };
       const kL = attacks(await keys({ monoTrig: 'legato' })).length, kR = attacks(await keys({ monoTrig: 'retrig' })).length;
-      if (kL !== 1) probs.push('teclado legato: ' + kL + ' ataques (esperado 1)');
-      if (kR !== 2) probs.push('teclado cada nota: ' + kR + ' ataques (esperados 2)');
+      if (kL !== 1) probs.push('keyboard legato: ' + kL + ' attacks (expected 1)');
+      if (kR !== 2) probs.push('keyboard retrig: ' + kR + ' attacks (expected 2)');
       const eS = env(await keys({ monoTrig: 'retrig', s: 1 }, 0.045)), w = t => eS[Math.round(t / HOP)];
       let hole = Infinity; for (let t = 0.28; t < 0.4; t += HOP) hole = Math.min(hole, w(t));
       const holeR = hole / Math.max(1e-9, w(0.25));
-      if (!(holeR > 0.6)) probs.push('cada nota con sustain: hueco en el relevo (' + holeR.toFixed(2) + ' del nivel)');
-      // gate (30 ms) más corto que el look-ahead (45 ms): tiene que sonar
+      if (!(holeR > 0.6)) probs.push('retrig with sustain: gap in the handover (' + holeR.toFixed(2) + ' of the level)');
+      // gate (30 ms) shorter than the look-ahead (45 ms): it has to sound
       const c = new OfflineAudioContext(2, Math.ceil(SR * 0.5), SR);
       const eng = new AudioEngine(); eng.S = { ...structuredClone(P), mode: 'poly', s: 1 }; await eng.init(c);
       eng.mod.lookahead = 0.045;
       eng._directOn('x', NOTE1, 1, 0.1); eng._directOff('x', 0.13);
       const short = analyze(await c.startRendering());
-      if (!(short.peak > 0.03)) probs.push('gate 30 ms con look-ahead 45 ms: mudo (' + dB(short.peak) + ')');
-      // note-off programado con la envolvente ya en el sostenido: el sostenido
-      // aguanta hasta el off (cancelAndHold no ancla si ninguna rampa cruza t;
-      // sin el ancla explícita la ganancia caía en recta desde el fin del decay)
+      if (!(short.peak > 0.03)) probs.push('30 ms gate with 45 ms look-ahead: mute (' + dB(short.peak) + ')');
+      // scheduled note-off with the envelope already in the sustain: the sustain
+      // holds until the off (cancelAndHold does not anchor if no ramp crosses t;
+      // without the explicit anchor the gain fell in a straight line from the end of the decay)
       const c2 = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
       const e2 = new AudioEngine(); e2.S = { ...structuredClone(P), mode: 'poly', s: 1 }; await e2.init(c2);
       e2._directOn('y', NOTE1, 1, 0.05); e2._directOff('y', 0.7);
       const eY = env(await c2.startRendering()), sus = eY[Math.round(0.6 / HOP)] / Math.max(1e-9, eY[Math.round(0.15 / HOP)]);
-      if (!(sus > 0.9 && sus < 1.1)) probs.push('note-off programado: el sostenido no aguanta hasta el off (×' + sus.toFixed(2) + ' a 0,6 s)');
-      console.log('disparo: ataques', log.join(' · '), '· teclado legato/cada nota', kL, kR, '· relevo', holeR.toFixed(2), '· gate corto', dB(short.peak), '· sostenido hasta el off ×' + sus.toFixed(2));
+      if (!(sus > 0.9 && sus < 1.1)) probs.push('scheduled note-off: the sustain does not hold until the off (×' + sus.toFixed(2) + ' at 0.6 s)');
+      console.log('trigger: attacks', log.join(' · '), '· keyboard legato/retrig', kL, kR, '· handover', holeR.toFixed(2), '· short gate', dB(short.peak), '· sustain until the off ×' + sus.toFixed(2));
       loadState(keep);
-      r = { name: 'Disparo mono (legato / cada nota) · arp y Seq redisparan por el gate · gate < look-ahead suena', peak: short.peak, ok: !probs.length, problems: probs };
+      r = { name: 'Mono trigger (legato / retrig) · arp and Seq retrigger by the gate · gate < look-ahead sounds', peak: short.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'Disparo mono (legato / cada nota) · arp y Seq redisparan por el gate · gate < look-ahead suena', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'Mono trigger (legato / retrig) · arp and Seq retrigger by the gate · gate < look-ahead sounds', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Articulaciones del secuenciador (Roadmap 7.0 · 5.1), offline (el Seq se avanza a
-    // mano cada 25 ms, como en «Disparo mono»): 4 pasos de corchea a 120 BPM (250 ms),
-    // gate 0,5, sostenido 1. (1) '0 0 0 0' = 4 ataques; '0~ 0 0~ 0' = 2 (la ligadura
-    // continúa la nota); '0x3 . . .' = 3 (repeticiones). (2) Acento: en '0! 0 0 0' el
-    // paso acentuado suena más fuerte que los demás, y solo su nota lleva la fuente
-    // «Acento». (3) Slide: '0/ 12 . .' es UN ataque y la altura resbala de la nota a su
-    // octava (Glide 0 → 60 ms); en Mono igual. (4) El parser: sufijos combinados y el
-    // token canónico vuelve a dar lo mismo.
-    body.appendChild(el('st-cat', 'Articulaciones del secuenciador'));
-    const NAME = 'articulaciones del Seq (ligadura = un ataque · repeticiones · acento más fuerte y fuente «Acento» · slide resbala, en Poli y Mono)';
+    // Sequencer articulations (Roadmap 7.0 · 5.1), offline (the Seq is advanced by
+    // hand every 25 ms, as in «Mono trigger»): 4 eighth-note steps at 120 BPM (250 ms),
+    // gate 0.5, sustain 1. (1) '0 0 0 0' = 4 attacks; '0~ 0 0~ 0' = 2 (the tie
+    // continues the note); '0x3 . . .' = 3 (repeats). (2) Accent: in '0! 0 0 0' the
+    // accented step sounds louder than the others, and only its note carries the
+    // «Accent» source. (3) Slide: '0/ 12 . .' is ONE attack and the pitch slides from the note to its
+    // octave (Glide 0 → 60 ms); the same in Mono. (4) The parser: combined suffixes and the
+    // canonical token gives back the same.
+    body.appendChild(el('st-cat', 'Sequencer articulations'));
+    const NAME = 'Seq articulations (tie = one attack · repeats · louder accent and «Accent» source · slide glides, in Poly and Mono)';
     let r;
     try {
       const probs = [], log = [];
@@ -3679,7 +3679,7 @@ export async function runSelfTest() {
         const eng = new AudioEngine(); eng.S = S; await eng.init(c);
         const on = eng._directOn.bind(eng); eng._directOn = (id, f, v, w, acc = 0) => { accs.push([w, v, acc]); return on(id, f, v, w, acc); };
         const q = eng.seq; q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';
-        for (let i = 1; i * 0.025 < 0.86; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // planifica los pasos de 0,03 a 0,78 s (look-ahead 0,12)
+        for (let i = 1; i * 0.025 < 0.86; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // schedules the steps from 0.03 to 0.78 s (look-ahead 0.12)
         c.suspend(1.03).then(() => { q.held = []; q._maybeStop(); c.resume(); });
         return c.startRendering();
       };
@@ -3689,35 +3689,35 @@ export async function runSelfTest() {
         e.forEach((v, i) => { if (!up && v > top * 0.1) { up = true; t.push({ t: i * HOP / SR, i }); } else if (up && v < top * 0.04) up = false; }); return { t, e }; };
       const hz = (b, t0, t1) => { const d = b.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.floor(t1 * SR); let n = 0;
         for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / (t1 - t0); };
-      // (1) ligadura y repeticiones
+      // (1) tie and repeats
       for (const [pat, want] of [['0 0 0 0', 4], ['0~ 0 0~ 0', 2], ['0x3 . . .', 3]]) {
         const n = ataques(await run({ seqPat: pat })).t.length;
         log.push(pat + ' → ' + n);
-        if (n !== want) probs.push('«' + pat + '»: ' + n + ' ataques (esperados ' + want + ')');
+        if (n !== want) probs.push('«' + pat + '»: ' + n + ' attacks (expected ' + want + ')');
       }
-      // (2) acento: nivel de cada ataque (máximo de su primer paso) y la fuente en la nota
+      // (2) accent: level of each attack (maximum of its first step) and the source on the note
       accs.length = 0;
       const a = ataques(await run({ seqPat: '0! 0 0 0' }));
       const pico = k => { const i0 = a.t[k].i; return Math.max(...a.e.slice(i0, i0 + Math.round(0.1 * SR / HOP))); };
-      if (a.t.length !== 4) probs.push('«0! 0 0 0»: ' + a.t.length + ' ataques');
+      if (a.t.length !== 4) probs.push('«0! 0 0 0»: ' + a.t.length + ' attacks');
       else {
         const dB1 = 20 * Math.log10(pico(0) / pico(1));
-        log.push('acento +' + dB1.toFixed(1) + ' dB');
-        if (!(dB1 > 2)) probs.push('el acento no suena más fuerte (+' + dB1.toFixed(1) + ' dB)');
+        log.push('accent +' + dB1.toFixed(1) + ' dB');
+        if (!(dB1 > 2)) probs.push('the accent does not sound louder (+' + dB1.toFixed(1) + ' dB)');
       }
       const marcadas = accs.filter(x => x[2] === 1).length;
       if (!(accs.length >= 4 && marcadas >= 1 && accs.filter(x => x[2] === 1).every(x => x[1] === 1) && accs.filter(x => x[2] === 0).every(x => x[1] < 1)))
-        probs.push('fuente «Acento» / velocity por nota: ' + JSON.stringify(accs.slice(0, 4).map(x => [+x[1].toFixed(2), x[2]])));
-      // (3) slide: un ataque y la altura resbala a la octava (Poli y Mono)
+        probs.push('«Accent» source / per-note velocity: ' + JSON.stringify(accs.slice(0, 4).map(x => [+x[1].toFixed(2), x[2]])));
+      // (3) slide: one attack and the pitch slides to the octave (Poly and Mono)
       for (const mode of ['poly', 'mono']) {
         const b = await run({ seqPat: '0/ 12 . .', mode }), at = ataques(b).t.length;
-        const f1 = hz(b, 0.08, 0.26), f2 = hz(b, 0.35, 0.40);   // el slide acaba a 0,34 s; con gate 0,5 la nota se suelta a 0,405
-        log.push(mode + ' slide ' + f1.toFixed(0) + ' → ' + f2.toFixed(0) + ' Hz, ' + at + ' ataque(s)');
-        if (at !== 1) probs.push(mode + ' slide: ' + at + ' ataques (esperado 1)');
-        if (!(Math.abs(f1 - NOTE1) < 3 && Math.abs(f2 - 2 * NOTE1) < 5)) probs.push(mode + ' slide: ' + f1.toFixed(1) + ' → ' + f2.toFixed(1) + ' Hz (esperado ' + NOTE1.toFixed(1) + ' → ' + (2 * NOTE1).toFixed(1) + ')');
+        const f1 = hz(b, 0.08, 0.26), f2 = hz(b, 0.35, 0.40);   // the slide ends at 0.34 s; with gate 0.5 the note is released at 0.405
+        log.push(mode + ' slide ' + f1.toFixed(0) + ' → ' + f2.toFixed(0) + ' Hz, ' + at + ' attack(s)');
+        if (at !== 1) probs.push(mode + ' slide: ' + at + ' attacks (expected 1)');
+        if (!(Math.abs(f1 - NOTE1) < 3 && Math.abs(f2 - 2 * NOTE1) < 5)) probs.push(mode + ' slide: ' + f1.toFixed(1) + ' → ' + f2.toFixed(1) + ' Hz (expected ' + NOTE1.toFixed(1) + ' → ' + (2 * NOTE1).toFixed(1) + ')');
       }
-      // (3b) el fallo de raíz, con el teclado: Mono legato con Glide 0,1 s — la altura no se
-      // mueve antes de la segunda tecla (antes la rampa salía del arranque de la nota)
+      // (3b) the root bug, with the keyboard: Mono legato with Glide 0.1 s — the pitch does not
+      // move before the second key (the ramp used to start at the note's onset)
       {
         loadState({ ...base, seqOn: 'off', mode: 'mono', monoTrig: 'legato', glide: 0.1 });
         const c = new OfflineAudioContext(2, Math.ceil(SR * 0.8), SR);
@@ -3726,123 +3726,123 @@ export async function runSelfTest() {
         c.suspend(0.3).then(() => { eng.noteOn('k2', 2 * NOTE1); c.resume(); });
         const b = await c.startRendering(), g1 = hz(b, 0.05, 0.28), g2 = hz(b, 0.5, 0.7);
         log.push('legato ' + g1.toFixed(0) + ' → ' + g2.toFixed(0) + ' Hz');
-        if (!(Math.abs(g1 - NOTE1) < 3 && Math.abs(g2 - 2 * NOTE1) < 5)) probs.push('legato con Glide: ' + g1.toFixed(1) + ' → ' + g2.toFixed(1) + ' Hz (el glide empieza antes de la tecla)');
+        if (!(Math.abs(g1 - NOTE1) < 3 && Math.abs(g2 - 2 * NOTE1) < 5)) probs.push('legato with Glide: ' + g1.toFixed(1) + ' → ' + g2.toFixed(1) + ' Hz (the glide starts before the key)');
       }
-      // (4) parser y token canónico
+      // (4) parser and canonical token
       const p = parsePattern('7!/x2 3~ 0x3 . 5/!');
       const ok4 = p[0].accent && p[0].slide && p[0].rep === 2 && p[1].tie && p[2].rep === 3 && p[3] === null && p[4].slide && p[4].accent
         && p.map(stepToken).join(' ') === '7!/x2 3~ 0x3 . 5!/';
       if (!ok4) probs.push('parser: ' + p.map(stepToken).join(' '));
       loadState({});
-      console.log('articulaciones: ' + log.join(' · '));
+      console.log('articulations: ' + log.join(' · '));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Swing y pulso que respira (Roadmap 7.0 · 5.4). (1) El reloj: con swing 2/3 en
-    // semicorcheas los pasos caen a 0, 1/3, 1/2, 5/6 de pulso (el segundo de cada par,
-    // tarde), duran 1/3 y 1/6, stepAt los encuentra y nextGrid no se salta el impar
-    // retrasado; negras y tresillos no se columpian; a 0,5, recto. (2) El secuenciador,
-    // por el camino real (offline, avanzado a mano): 4 semicorcheas a 120 BPM con swing
-    // 2/3 atacan a 0 / 167 / 250 / 417 ms (± 5). (3) El pulso que respira: k = 2,
-    // Respira 4, Ciclo 4 → golpes 2, 4, 6, 4 en los compases 0-3; y Respira 0, siempre k.
-    body.appendChild(el('st-cat', 'Swing y pulso que respira'));
-    const NAME = 'swing y pulso que respira (el reloj columpia corcheas y semicorcheas, no negras ni tresillos · el Seq a 0/167/250/417 ms · golpes 2-4-6-4)';
+    // Swing and breathing pulse (Roadmap 7.0 · 5.4). (1) The clock: with swing 2/3 on
+    // sixteenths the steps land at 0, 1/3, 1/2, 5/6 of a beat (the second of each pair,
+    // late), last 1/3 and 1/6, stepAt finds them and nextGrid does not skip the delayed
+    // odd one; quarters and triplets do not swing; at 0.5, straight. (2) The sequencer,
+    // through the real path (offline, advanced by hand): 4 sixteenths at 120 BPM with swing
+    // 2/3 attack at 0 / 167 / 250 / 417 ms (± 5). (3) The breathing pulse: k = 2,
+    // Breathe 4, Cycle 4 → hits 2, 4, 6, 4 in bars 0-3; and Breathe 0, always k.
+    body.appendChild(el('st-cat', 'Swing and breathing pulse'));
+    const NAME = 'swing and breathing pulse (the clock swings eighths and sixteenths, not quarters or triplets · the Seq at 0/167/250/417 ms · hits 2-4-6-4)';
     let r;
     try {
       const probs = [], near = (a, b, e = 1e-9) => Math.abs(a - b) < e;
-      // (1) el reloj
-      const ck = new Clock({ currentTime: 0 }); ck.bpm = 60; ck.origin = 0; ck.swing = 2 / 3;   // 1 pulso = 1 s
+      // (1) the clock
+      const ck = new Clock({ currentTime: 0 }); ck.bpm = 60; ck.origin = 0; ck.swing = 2 / 3;   // 1 beat = 1 s
       const ts = [0, 1, 2, 3].map(k => ck.swungTime(k * 0.25, 0.25)), ls = [0, 1].map(k => ck.swingLen(k * 0.25, 0.25));
-      if (!(near(ts[0], 0) && near(ts[1], 1 / 3) && near(ts[2], 0.5) && near(ts[3], 5 / 6))) probs.push('semicorcheas a ' + ts.map(t => t.toFixed(3)).join(' '));
-      if (!(near(ls[0], 1 / 3) && near(ls[1], 1 / 6))) probs.push('duraciones ' + ls.map(t => t.toFixed(3)).join(' '));
-      if (ck.stepAt(0.32, 0.25) !== 0 || ck.stepAt(0.34, 0.25) !== 1 || ck.stepAt(0.84, 0.25) !== 3) probs.push('stepAt con swing');
-      if (!near(ck.nextGrid(0.26, 0.25), 1 / 3)) probs.push('nextGrid se salta el impar retrasado (' + ck.nextGrid(0.26, 0.25).toFixed(3) + ')');
-      if (!near(ck.swungTime(1, 1), 1) || !near(ck.swungTime(1 / 3, 1 / 3), 1 / 3)) probs.push('negras o tresillos columpiados');
+      if (!(near(ts[0], 0) && near(ts[1], 1 / 3) && near(ts[2], 0.5) && near(ts[3], 5 / 6))) probs.push('sixteenths at ' + ts.map(t => t.toFixed(3)).join(' '));
+      if (!(near(ls[0], 1 / 3) && near(ls[1], 1 / 6))) probs.push('durations ' + ls.map(t => t.toFixed(3)).join(' '));
+      if (ck.stepAt(0.32, 0.25) !== 0 || ck.stepAt(0.34, 0.25) !== 1 || ck.stepAt(0.84, 0.25) !== 3) probs.push('stepAt with swing');
+      if (!near(ck.nextGrid(0.26, 0.25), 1 / 3)) probs.push('nextGrid skips the delayed odd step (' + ck.nextGrid(0.26, 0.25).toFixed(3) + ')');
+      if (!near(ck.swungTime(1, 1), 1) || !near(ck.swungTime(1 / 3, 1 / 3), 1 / 3)) probs.push('quarters or triplets swung');
       ck.swing = 0.5;
-      if (!near(ck.swungTime(0.25, 0.25), 0.25)) probs.push('a 50 % no va recto');
-      // (2) el secuenciador columpiado
+      if (!near(ck.swungTime(0.25, 0.25), 0.25)) probs.push('at 50 % it is not straight');
+      // (2) the swung sequencer
       loadState({ mode: 'poly', waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.01,
         bpm: 120, swing: 2 / 3, seqOn: 'on', seqDiv: '1/16', seqGate: 0.4, seqPat: '0 0 0 0' });
       const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 0.8), SR);
       const eng = new AudioEngine(); eng.S = S; await eng.init(c);
       const q = eng.seq; q.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; q._begin(0.03); q.timer = 'sim';
-      for (let i = 1; i * 0.025 < 0.36; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // planifica los pasos de 0,03 a 0,45 s
+      for (let i = 1; i * 0.025 < 0.36; i++) c.suspend(i * 0.025).then(() => { q._tick(); c.resume(); });   // schedules the steps from 0.03 to 0.45 s
       c.suspend(0.6).then(() => { q.held = []; q._maybeStop(); c.resume(); });
       const b = await c.startRendering(), d = b.getChannelData(0), HOP = Math.round(0.001 * SR);
       const e = []; for (let i = 0; i + HOP <= d.length; i += HOP) { let s = 0; for (let k = i; k < i + HOP; k++) s += d[k] * d[k]; e.push(Math.sqrt(s / HOP)); }
       const top = Math.max(...e), at = []; let up = false;
       e.forEach((v, i) => { if (!up && v > top * 0.2) { up = true; at.push(i * HOP / SR); } else if (up && v < top * 0.05) up = false; });
       const rel = at.map(t => (t - at[0]) * 1000), esp = [0, 166.7, 250, 416.7];
-      if (at.length !== 4 || rel.some((t, i) => Math.abs(t - esp[i]) > 5)) probs.push('Seq con swing: ataques a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms (esperado 0 / 167 / 250 / 417)');
-      // (3) el pulso que respira
+      if (at.length !== 4 || rel.some((t, i) => Math.abs(t - esp[i]) > 5)) probs.push('Seq with swing: attacks at ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms (expected 0 / 167 / 250 / 417)');
+      // (3) the breathing pulse
       const pl = Object.create(Player.prototype);
       pl.cfg = { ...PLAYER_DEF, k: 2, n: 16, breathe: 4, breatheCycle: 4 };
       const ks = [0, 1, 2, 3].map(bar => pl.kAt(bar));
-      if (ks.join() !== '2,4,6,4') probs.push('pulso que respira: golpes ' + ks.join(' '));
+      if (ks.join() !== '2,4,6,4') probs.push('breathing pulse: hits ' + ks.join(' '));
       pl.cfg.breathe = 0;
-      if ([0, 1, 2, 3].some(bar => pl.kAt(bar) !== 2)) probs.push('con Respira 0 el pulso cambia');
+      if ([0, 1, 2, 3].some(bar => pl.kAt(bar) !== 2)) probs.push('with Breathe 0 the pulse changes');
       loadState({});
-      console.log('swing: Seq a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms · pulso que respira ' + ks.join('-'));
+      console.log('swing: Seq at ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms · breathing pulse ' + ks.join('-'));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Notas por grado (Roadmap 7.0 · 5.2). (1) La correspondencia: mayor 0 2 4 5 7 9 11
-    // 12 (y el −1 baja a la sensible); pentatónica menor: el grado 5 es la octava;
-    // «armonía» en Do mayor desde un Fa: 0 2 4 6 7 (Fa lidio, dentro de la tonalidad);
-    // semitonos, como siempre. (2) Por el camino real: Seq en dórica con '0 2 4 .' —
-    // el tercer paso suena 7 semitonos sobre la tecla (dórica: 0 2 3 5 7) y el segundo
-    // 3. (3) Las partes de una escena ven la armonía del director.
-    body.appendChild(el('st-cat', 'Notas por grado'));
-    const NAME = 'notas por grado (mayor · pentatónica · armonía de la escena · semitonos igual · el Seq en dórica · las partes ven la armonía)';
+    // Notes by degree (Roadmap 7.0 · 5.2). (1) The mapping: major 0 2 4 5 7 9 11
+    // 12 (and −1 goes down to the leading tone); minor pentatonic: degree 5 is the octave;
+    // «harmony» in C major from an F: 0 2 4 6 7 (F lydian, inside the key);
+    // semitones, as always. (2) Through the real path: Seq in dorian with '0 2 4 .' —
+    // the third step sounds 7 semitones above the key (dorian: 0 2 3 5 7) and the second
+    // 3. (3) The parts of a scene see the conductor's harmony.
+    body.appendChild(el('st-cat', 'Notes by degree'));
+    const NAME = 'notes by degree (major · pentatonic · scene harmony · semitones unchanged · the Seq in dorian · the parts see the harmony)';
     let r;
     try {
       const probs = [];
       const e = { S: { seqNotes: 'major' } }, q = new Seq(e), sem = ds => ds.map(d => q.semis(d, 261.63)).join(' ');
-      if (sem([0, 1, 2, 3, 4, 5, 6, 7, -1]) !== '0 2 4 5 7 9 11 12 -1') probs.push('mayor: ' + sem([0, 1, 2, 3, 4, 5, 6, 7, -1]));
+      if (sem([0, 1, 2, 3, 4, 5, 6, 7, -1]) !== '0 2 4 5 7 9 11 12 -1') probs.push('major: ' + sem([0, 1, 2, 3, 4, 5, 6, 7, -1]));
       e.S.seqNotes = 'minor penta';
-      if (sem([0, 1, 4, 5]) !== '0 3 10 12') probs.push('pentatónica menor: ' + sem([0, 1, 4, 5]));
+      if (sem([0, 1, 4, 5]) !== '0 3 10 12') probs.push('minor pentatonic: ' + sem([0, 1, 4, 5]));
       e.S.seqNotes = 'harmony'; e.harmony = () => ({ root: 0, notes: ESCALAS.major });
       const fa = [0, 1, 2, 3, 4].map(d => q.semis(d, 349.23)).join(' ');
-      if (fa !== '0 2 4 6 7') probs.push('armonía desde Fa: ' + fa);
+      if (fa !== '0 2 4 6 7') probs.push('harmony from F: ' + fa);
       e.S.seqNotes = 'semitones';
-      if (sem([0, 3, 7, -5]) !== '0 3 7 -5') probs.push('semitonos: ' + sem([0, 3, 7, -5]));
-      // (2) el Seq en dórica, medido
+      if (sem([0, 3, 7, -5]) !== '0 3 7 -5') probs.push('semitones: ' + sem([0, 3, 7, -5]));
+      // (2) the Seq in dorian, measured
       loadState({ mode: 'poly', waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.01,
         bpm: 120, seqOn: 'on', seqDiv: '1/8', seqGate: 0.9, seqPat: '0 2 4 .', seqNotes: 'dorian' });
       const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
       const eng = new AudioEngine(); eng.S = S; await eng.init(c);
       const sq = eng.seq; sq.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; sq._begin(0.03); sq.timer = 'sim';
-      for (let i = 1; i * 0.025 < 0.66; i++) c.suspend(i * 0.025).then(() => { sq._tick(); c.resume(); });   // pasos de 0,03 a 0,53 s
+      for (let i = 1; i * 0.025 < 0.66; i++) c.suspend(i * 0.025).then(() => { sq._tick(); c.resume(); });   // steps from 0.03 to 0.53 s
       c.suspend(0.8).then(() => { sq.held = []; sq._maybeStop(); c.resume(); });
       const b = await c.startRendering(), d = b.getChannelData(0);
       const hz = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR) + 1; i < Math.floor(t1 * SR); i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / (t1 - t0); };
       const ct = f => 1200 * Math.log2(f / NOTE1);
-      const p2 = ct(hz(0.30, 0.48)), p3 = ct(hz(0.55, 0.73));   // pasos 2 (0,28-0,50 s) y 3 (0,53-0,75 s)
-      if (!(Math.abs(p2 - 300) < 30 && Math.abs(p3 - 700) < 30))   /* cruces por cero en 0,18 s: ±12 ct de resolución; un grado de más o de menos está a ≥ 100 */ probs.push('Seq en dórica: pasos 2 y 3 a ' + p2.toFixed(0) + ' y ' + p3.toFixed(0) + ' cents (esperado 300 y 700)');
-      // (3) las partes de una escena ven la armonía del director
+      const p2 = ct(hz(0.30, 0.48)), p3 = ct(hz(0.55, 0.73));   // steps 2 (0.28-0.50 s) and 3 (0.53-0.75 s)
+      if (!(Math.abs(p2 - 300) < 30 && Math.abs(p3 - 700) < 30))   /* zero crossings over 0.18 s: ±12 ct resolution; one degree too many or too few is ≥ 100 away */ probs.push('Seq in dorian: steps 2 and 3 at ' + p2.toFixed(0) + ' and ' + p3.toFixed(0) + ' cents (expected 300 and 700)');
+      // (3) the parts of a scene see the conductor's harmony
       const cs = new OfflineAudioContext(2, SR, SR);
       const sc = await createScene(cs, [{}, {}]);
-      if (!(sc.parts.every(p => typeof p.engine.harmony === 'function' && p.engine.harmony() === sc.conductor.harmony))) probs.push('las partes no ven la armonía de la escena');
+      if (!(sc.parts.every(p => typeof p.engine.harmony === 'function' && p.engine.harmony() === sc.conductor.harmony))) probs.push('the parts do not see the scene harmony');
       loadState({});
-      console.log('grados: dórica pasos 2/3 a ' + p2.toFixed(0) + ' / ' + p3.toFixed(0) + ' ct · armonía desde Fa ' + fa);
+      console.log('degrees: dorian steps 2/3 at ' + p2.toFixed(0) + ' / ' + p3.toFixed(0) + ' ct · harmony from F ' + fa);
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Velocity en FM4 (fm4V, la «key velocity sensitivity» del DX7): con
-    // sensibilidad en el MODULADOR, pegar flojo da menos índice → menos
-    // armónicos (tilt espectral, que no depende del nivel). Sin sensibilidad,
-    // flojo y fuerte tienen el mismo timbre (el VCA ya escala el volumen). Con
-    // sensibilidad en la PORTADORA, cambia el nivel y no el timbre.
-    body.appendChild(el('st-cat', 'Velocity en FM4'));
+    // Velocity in FM4 (fm4V, the DX7's «key velocity sensitivity»): with
+    // sensitivity on the MODULATOR, hitting softly gives less index → fewer
+    // harmonics (spectral tilt, which does not depend on level). Without sensitivity,
+    // soft and hard have the same timbre (the VCA already scales the volume). With
+    // sensitivity on the CARRIER, the level changes and not the timbre.
+    body.appendChild(el('st-cat', 'Velocity in FM4'));
     let r;
     try {
       const probs = [], keep = snapshot();
@@ -3854,32 +3854,32 @@ export async function runSelfTest() {
       const pair = async over => { const hi = await one(over, 1), lo = await one(over, 0.3);
         return { tilt: tiltW(hi, 0.1, 0.4) / Math.max(1e-12, tiltW(lo, 0.1, 0.4)), lvl: rms(hi, 0.1, 0.4) / Math.max(1e-12, rms(lo, 0.1, 0.4)), peak: analyze(hi).peak }; };
       const mod = await pair({ fm4V2: 1 }), ctl = await pair({}), car = await pair({ fm4V1: 1 });
-      if (!(mod.tilt > 2)) probs.push('modulador con vel: fuerte/flojo apenas cambia el brillo (×' + mod.tilt.toFixed(2) + ')');
-      if (!(ctl.tilt > 0.8 && ctl.tilt < 1.25)) probs.push('control sin vel: el brillo cambia con la velocity (×' + ctl.tilt.toFixed(2) + ')');
-      if (!(car.tilt > 0.8 && car.tilt < 1.25)) probs.push('portadora con vel: cambia el brillo (×' + car.tilt.toFixed(2) + '), debería solo el nivel');
-      if (!(car.lvl > ctl.lvl * 2)) probs.push('portadora con vel: el nivel no escala (×' + car.lvl.toFixed(2) + ' vs ×' + ctl.lvl.toFixed(2) + ' sin vel)');
+      if (!(mod.tilt > 2)) probs.push('modulator with vel: hard/soft barely changes the brightness (×' + mod.tilt.toFixed(2) + ')');
+      if (!(ctl.tilt > 0.8 && ctl.tilt < 1.25)) probs.push('control without vel: the brightness changes with velocity (×' + ctl.tilt.toFixed(2) + ')');
+      if (!(car.tilt > 0.8 && car.tilt < 1.25)) probs.push('carrier with vel: the brightness changes (×' + car.tilt.toFixed(2) + '), only the level should');
+      if (!(car.lvl > ctl.lvl * 2)) probs.push('carrier with vel: the level does not scale (×' + car.lvl.toFixed(2) + ' vs ×' + ctl.lvl.toFixed(2) + ' without vel)');
       if (mod.peak > 1) probs.push('clipping');
-      console.log('fm4 vel: brillo fuerte/flojo modulador', mod.tilt.toFixed(2), 'control', ctl.tilt.toFixed(2), 'portadora', car.tilt.toFixed(2), '· nivel portadora', car.lvl.toFixed(2), 'control', ctl.lvl.toFixed(2));
+      console.log('fm4 vel: brightness hard/soft modulator', mod.tilt.toFixed(2), 'control', ctl.tilt.toFixed(2), 'carrier', car.tilt.toFixed(2), '· carrier level', car.lvl.toFixed(2), 'control', ctl.lvl.toFixed(2));
       loadState(keep);
-      r = { name: 'Velocity en FM4: en el modulador cambia el timbre, en la portadora el nivel', peak: mod.peak, ok: !probs.length, problems: probs };
+      r = { name: 'Velocity in FM4: on the modulator it changes the timbre, on the carrier the level', peak: mod.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'Velocity en FM4: en el modulador cambia el timbre, en la portadora el nivel', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'Velocity in FM4: on the modulator it changes the timbre, on the carrier the level', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Mezclador a la Minimoog (1.2.0): cada fuente suma con SU nivel.
-    // (1) Superposición: con todo lineal (filtro abierto y plano, sin drive, nivel
-    // bajo para que el limitador no actúe) la mezcla a 0,3 · 0,5 · 0,2 ES
-    // 0,3·A + 0,5·B + 0,2·A×B renderizados por separado: subir uno no baja otro.
-    // (2) Sumas: A y B a tope, +6,02 dB sobre A solo si son la misma onda en fase
-    // (suman amplitudes) y ≈ +3 dB desafinados (suman potencias: sin correlación).
-    // (3) Un preset de antes (Mix + Ring) suena igual que su traducción.
-    // Y una MEDIDA (sin umbral): cuánto trabaja el limitador con un acorde de pad
-    // de fábrica si se suben los dos osciladores a tope — el precio de sumar.
-    body.appendChild(el('st-cat', 'Mezclador'));
+    // Minimoog-style mixer (1.2.0): each source adds in with ITS level.
+    // (1) Superposition: with everything linear (filter open and flat, no drive, low
+    // level so that the limiter does not act) the mix at 0.3 · 0.5 · 0.2 IS
+    // 0.3·A + 0.5·B + 0.2·A×B rendered separately: raising one does not lower another.
+    // (2) Sums: A and B at full, +6.02 dB over A alone if they are the same wave in phase
+    // (amplitudes add) and ≈ +3 dB detuned (powers add: no correlation).
+    // (3) An old preset (Mix + Ring) sounds the same as its translation.
+    // And a MEASUREMENT (no threshold): how hard the limiter works with a factory pad
+    // chord if both oscillators are raised to full — the price of adding.
+    body.appendChild(el('st-cat', 'Mixer'));
     let r;
     try {
       const probs = [], keep = snapshot();
@@ -3891,23 +3891,23 @@ export async function runSelfTest() {
       let e = 0, s = 0;
       for (let i = Math.floor(0.05 * SR); i < Math.floor(0.65 * SR); i++) { const x = 0.3 * a[i] + 0.5 * b[i] + 0.2 * c[i]; e += (m[i] - x) ** 2; s += m[i] * m[i]; }
       const sup = 10 * Math.log10(e / s + 1e-30);
-      if (!(sup < -80)) probs.push('la mezcla no es la suma de sus fuentes (error ' + sup.toFixed(0) + ' dB)');
+      if (!(sup < -80)) probs.push('the mix is not the sum of its sources (error ' + sup.toFixed(0) + ' dB)');
       const saw = { ...lin, waveB: 'sawtooth' };
       const a1 = rmsW(await one({ ...saw, detuneB: 0, levelA: 1, levelB: 0 }), 0.1, 0.6);
       const gIn = 20 * Math.log10(rmsW(await one({ ...saw, detuneB: 0, levelA: 1, levelB: 1 }), 0.1, 0.6) / a1);
-      // 50 ct: la fundamental bate a ~3,9 Hz → 5 batidos en la ventana (con 7 ct, uno cada 2 s: la media no saldría)
+      // 50 ct: the fundamental beats at ~3.9 Hz → 5 beats in the window (with 7 ct, one every 2 s: the average would not come out)
       const a1d = rmsW(await one({ ...saw, detuneB: 50, levelA: 1, levelB: 0 }, 1.6), 0.1, 1.5);
       const gDet = 20 * Math.log10(rmsW(await one({ ...saw, detuneB: 50, levelA: 1, levelB: 1 }, 1.6), 0.1, 1.5) / a1d);
-      if (!(Math.abs(gIn - 6.02) < 0.1)) probs.push('A+B en fase: +' + gIn.toFixed(2) + ' dB (esperado +6,02)');
-      if (!(gDet > 2.5 && gDet < 3.5)) probs.push('A+B desafinados: +' + gDet.toFixed(2) + ' dB (esperado ≈ +3)');
+      if (!(Math.abs(gIn - 6.02) < 0.1)) probs.push('A+B in phase: +' + gIn.toFixed(2) + ' dB (expected +6.02)');
+      if (!(gDet > 2.5 && gDet < 3.5)) probs.push('A+B detuned: +' + gDet.toFixed(2) + ' dB (expected ≈ +3)');
       const viejo = { waveA: 'sine', waveB: 'sine', detuneB: 12, octavesB: 2, mix: 0.5, ring: 0.3, cutoff: 20000, amplitude: 0.25, master: 0.4 };
       const { mix, ...nuevo } = viejo;
-      // no bit a bit: dos renders del MISMO estado ya difieren ~1e-8 (medido: −126 dB del pico, igual que viejo/nuevo)
+      // not bit for bit: two renders of the SAME state already differ by ~1e-8 (measured: −126 dB below the peak, same as old/new)
       const v0 = await one(viejo), v1 = await one({ ...nuevo, levelA: 0.35, levelB: 0.35 });
       const pk = v1.reduce((mx, x) => Math.max(mx, Math.abs(x)), 0), dv = v0.reduce((mx, x, i) => Math.max(mx, Math.abs(x - v1[i])), 0);
       const gap = 20 * Math.log10(dv / pk + 1e-30);
-      if (!(gap < -100)) probs.push('un preset de antes (Mix 0,5 · Ring 0,3) no suena igual que su traducción (Δ ' + gap.toFixed(0) + ' dB)');
-      // la medida: Pad cálido (niveles 0,5/0,5 = el Mix al centro de antes) con un acorde de cuatro
+      if (!(gap < -100)) probs.push('an old preset (Mix 0.5 · Ring 0.3) does not sound the same as its translation (Δ ' + gap.toFixed(0) + ' dB)');
+      // the measurement: Warm Pad (levels 0.5/0.5 = the old centered Mix) with a four-note chord
       const CH4 = [130.81, 196.0, 261.63, 329.63], TOP = Math.pow(10, -1.3 / 20), W = Math.round(0.01 * SR);
       const hot = async st => {
         loadState(st);
@@ -3921,28 +3921,28 @@ export async function runSelfTest() {
         return (100 * h / n).toFixed(0) + ' %';
       };
       const pad = FACTORY['Pads']['Warm Pad'];
-      console.log('mezclador: superposición', sup.toFixed(0), 'dB · antes/traducido', gap.toFixed(0), 'dB · A+B en fase +' + gIn.toFixed(2), 'dB · desafinados +' + gDet.toFixed(2),
-        'dB · Pad cálido, acorde de 4: limitador ' + await hot(pad) + ' (niveles 0,5/0,5) → ' + await hot({ ...pad, levelA: 1, levelB: 1 }) + ' (1/1)');
+      console.log('mixer: superposition', sup.toFixed(0), 'dB · old/translated', gap.toFixed(0), 'dB · A+B in phase +' + gIn.toFixed(2), 'dB · detuned +' + gDet.toFixed(2),
+        'dB · Warm Pad, 4-note chord: limiter ' + await hot(pad) + ' (levels 0.5/0.5) → ' + await hot({ ...pad, levelA: 1, levelB: 1 }) + ' (1/1)');
       loadState(keep);
-      r = { name: 'mezclador: cada fuente suma con su nivel (en fase +6 dB, desafinadas +3 dB); los presets de antes suenan igual', peak: 0, ok: !probs.length, problems: probs };
+      r = { name: 'mixer: each source adds in with its level (in phase +6 dB, detuned +3 dB); old presets sound the same', peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'mezclador: cada fuente suma con su nivel (en fase +6 dB, desafinadas +3 dB); los presets de antes suenan igual', peak: 0, ok: false,
-            problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'mixer: each source adds in with its level (in phase +6 dB, detuned +3 dB); old presets sound the same', peak: 0, ok: false,
+            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Margen del máster (1.1.0): un acorde abierto de cuatro notas con los pads de
-    // fábrica no hace TRABAJAR al limitador. Lo que se oye no es que un pico roce el
-    // techo un instante (con fases y derivas aleatorias el pico de un acorde varía
-    // ±1 dB de una pasada a otra), sino que recorte todo el rato: antes los pads
-    // entraban 4-8 dB por encima con TRES notas y el 100 % de los bloques de 10 ms
-    // del sostenido iban recortados, con la ganancia subiendo y bajando con el batido
-    // (el acorde «sucio, con altibajos»). Bloque recortado = su pico pasa de −1,3 dBFS
-    // (el limitador lo clava en −1). Y el Master, ahora DELANTE del limitador, a tope
-    // con 16 notas no pasa del techo.
-    body.appendChild(el('st-cat', 'Margen del máster'));
+    // Master headroom (1.1.0): an open four-note chord with the factory pads
+    // does not make the limiter WORK. What you hear is not a peak brushing the
+    // ceiling for an instant (with random phases and drifts the peak of a chord varies
+    // ±1 dB from one run to the next), but it clipping all the time: the pads used to
+    // come in 4-8 dB above with THREE notes and 100 % of the 10 ms blocks
+    // of the sustain were clipped, with the gain going up and down with the beating
+    // (the «dirty, up-and-down» chord). Clipped block = its peak goes over −1.3 dBFS
+    // (the limiter pins it at −1). And the Master, now BEFORE the limiter, at full
+    // with 16 notes does not go over the ceiling.
+    body.appendChild(el('st-cat', 'Master headroom'));
     let r;
     try {
       const probs = [], keep = snapshot(), CH4 = [130.81, 196.0, 261.63, 329.63];
@@ -3959,29 +3959,29 @@ export async function runSelfTest() {
         for (let i = 0; i + W <= Math.floor(1.8 * SR); i += W, n10++) { let p = 0; for (let k = i; k < i + W; k++) p = Math.max(p, Math.abs(l[k]), Math.abs(rr[k])); if (p > TOP) hot++; }
         const pct = 100 * hot / n10;
         peaks.push(n + ' ' + dB(a.peak) + ' (' + pct.toFixed(1) + ' %)');
-        if (!(pct < 3)) probs.push(n + ': el limitador trabaja el ' + pct.toFixed(0) + ' % del acorde (pico ' + dB(a.peak) + ')');
-        if (a.peak <= SILENCE) probs.push(n + ': en silencio');
+        if (!(pct < 3)) probs.push(n + ': the limiter works on ' + pct.toFixed(0) + ' % of the chord (peak ' + dB(a.peak) + ')');
+        if (a.peak <= SILENCE) probs.push(n + ': silent');
       }
       loadState({ master: 1 });
-      const st = await renderStress(structuredClone(engine.S));   // (ya devuelve el análisis)
-      if (st.peak <= SILENCE) probs.push('16 notas con Master a tope: silencio');
-      if (st.peak > Math.pow(10, -0.9 / 20)) probs.push('16 notas con Master a tope pasan del techo (' + dB(st.peak) + ')');
-      console.log('margen: picos con 4 notas', peaks.join(' · '), '· 16 notas Master 1', dB(st.peak));
+      const st = await renderStress(structuredClone(engine.S));   // (it already returns the analysis)
+      if (st.peak <= SILENCE) probs.push('16 notes with Master at full: silence');
+      if (st.peak > Math.pow(10, -0.9 / 20)) probs.push('16 notes with Master at full go over the ceiling (' + dB(st.peak) + ')');
+      console.log('headroom: peaks with 4 notes', peaks.join(' · '), '· 16 notes Master 1', dB(st.peak));
       loadState(keep);
-      r = { name: 'margen: con un acorde de pad el limitador no trabaja; el Master a tope no pasa del techo', peak: st.peak, ok: !probs.length, problems: probs };
+      r = { name: 'headroom: with a pad chord the limiter does not work; the Master at full does not go over the ceiling', peak: st.peak, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'margen: con un acorde de pad el limitador no trabaja; el Master a tope no pasa del techo', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'headroom: with a pad chord the limiter does not work; the Master at full does not go over the ceiling', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Sonoridad de fábrica (1.1.0): cada preset trae un Master medido para sonar a
-    // unos −14 LUFS a la salida en su USO PREVISTO (una nota en bajos y leads, un acorde de tres en
-    // pads y teclas) sin que ese uso llegue al limitador. Sonoridad percibida =
-    // K-weighting de BS.1770, máximo de bloques de 400 ms. Antes del ajuste, con el
-    // margen del máster, los bajos sonaban 8-9 dB por debajo de los pads.
-    body.appendChild(el('st-cat', 'Sonoridad de fábrica'));
+    // Factory loudness (1.1.0): each preset carries a Master measured to sound at
+    // about −14 LUFS at the output in its INTENDED USE (one note for bass and leads, a three-note chord for
+    // pads and keys) without that use reaching the limiter. Perceived loudness =
+    // BS.1770 K-weighting, maximum over 400 ms blocks. Before the adjustment, with the
+    // master headroom, the basses sounded 8-9 dB below the pads.
+    body.appendChild(el('st-cat', 'Factory loudness'));
     let r;
     try {
       const probs = [], keep = snapshot(), meds = [];
@@ -4002,30 +4002,30 @@ export async function runSelfTest() {
         c.suspend(2.0).then(() => { notes.forEach((f, i) => eng.noteOff('n' + i)); c.resume(); });
         const L = lufs(await c.startRendering());
         meds.push([n, L]);
-        if (!(L > -17 && L < -11)) probs.push(n + ' (' + (notes.length > 1 ? 'chord' : 'una nota') + '): ' + L.toFixed(1) + ' LUFS, fuera de −14 ± 3');
+        if (!(L > -17 && L < -11)) probs.push(n + ' (' + (notes.length > 1 ? 'chord' : 'one note') + '): ' + L.toFixed(1) + ' LUFS, outside −14 ± 3');
       }
       const Ls = meds.map(m => m[1]), spread = Math.max(...Ls) - Math.min(...Ls);
-      if (!(spread < 3.5)) probs.push('de la nota suelta al acorde hay ' + spread.toFixed(1) + ' dB de diferencia');
-      console.log('sonoridad en su uso:', meds.map(([n, L]) => n + ' ' + L.toFixed(1)).join(' · '), '· diferencia', spread.toFixed(1), 'dB');
+      if (!(spread < 3.5)) probs.push('from the single note to the chord there is a ' + spread.toFixed(1) + ' dB difference');
+      console.log('loudness in use:', meds.map(([n, L]) => n + ' ' + L.toFixed(1)).join(' · '), '· difference', spread.toFixed(1), 'dB');
       loadState(keep);
-      r = { name: 'sonoridad de fábrica: una nota de bajo o lead suena como un acorde de pad (−14 LUFS ± 3)', peak: 0, ok: !probs.length, problems: probs };
+      r = { name: 'factory loudness: a single bass or lead note sounds like a pad chord (−14 LUFS ± 3)', peak: 0, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'sonoridad de fábrica: una nota de bajo o lead suena como un acorde de pad (−14 LUFS ± 3)', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'factory loudness: a single bass or lead note sounds like a pad chord (−14 LUFS ± 3)', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Limitador del máster con señales de prueba (worklets/limiter-processor.js):
-    // (1) por debajo del techo es TRANSPARENTE: la salida es la entrada retrasada el
-    // lookahead y con el makeup, muestra a muestra; (2) una ráfaga a +12 dB — y otra
-    // solo en el canal derecho — no deja NINGUNA muestra por encima del techo, sin
-    // NaN, y tras el silencio la ganancia vuelve (el seno final sale como el del
-    // principio); (3) pico REAL entre muestras (dBTP, sobremuestreo ×4 con sinc
-    // enventanado): el techo es de muestra (−1 dBFS) y deja 1 dB para lo que el
-    // conversor reconstruye entre muestras; se mide en el peor caso musical (16
-    // notas brillantes con el Master a +12 dB, el limitador apretando a fondo).
-    body.appendChild(el('st-cat', 'Limitador'));
+    // Master limiter with test signals (worklets/limiter-processor.js):
+    // (1) below the ceiling it is TRANSPARENT: the output is the input delayed by the
+    // lookahead and with the makeup, sample by sample; (2) a burst at +12 dB — and another
+    // only on the right channel — leaves NO sample above the ceiling, with no
+    // NaN, and after the silence the gain comes back (the final sine comes out like the one at the
+    // start); (3) TRUE inter-sample peak (dBTP, ×4 oversampling with windowed
+    // sinc): the ceiling is a sample ceiling (−1 dBFS) and leaves 1 dB for what the
+    // converter reconstructs between samples; measured in the worst musical case (16
+    // bright notes with the Master at +12 dB, the limiter squeezing hard).
+    body.appendChild(el('st-cat', 'Limiter'));
     let r;
     try {
       const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), MK = Math.pow(10, LIM_MAKEUP_DB / 20), L = Math.round(LIM_LOOKAHEAD * SR);
@@ -4034,20 +4034,20 @@ export async function runSelfTest() {
       const sala = new Sala(ctx, makeDefaultState(), { master: 1 });
       const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
       const lo = Math.pow(10, -12 / 20), seg = (t0, t1, f) => { for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) f(i, i / SR); };
-      seg(0.0, 0.3, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (1) seno a −12 dBFS
-      seg(0.4, 0.6, (i, t) => { const v = 4 * ((t * 220) % 1 * 2 - 1); xl[i] = v; xr[i] = -v; });                // (2) sierra a +12 dB
-      seg(0.7, 0.8, (i, t) => { xr[i] = 4 * Math.sin(2 * Math.PI * 3000 * t); });                                // (2) solo en R
-      seg(1.3, 1.6, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (2) seno tras el silencio
+      seg(0.0, 0.3, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (1) sine at −12 dBFS
+      seg(0.4, 0.6, (i, t) => { const v = 4 * ((t * 220) % 1 * 2 - 1); xl[i] = v; xr[i] = -v; });                // (2) saw at +12 dB
+      seg(0.7, 0.8, (i, t) => { xr[i] = 4 * Math.sin(2 * Math.PI * 3000 * t); });                                // (2) R only
+      seg(1.3, 1.6, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (2) sine after the silence
       const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
       const out = await ctx.startRendering(), yl = out.getChannelData(0), yr = out.getChannelData(1);
       let dT = 0; for (let i = L + 100; i < Math.floor(0.3 * SR); i++) dT = Math.max(dT, Math.abs(yl[i] - xl[i - L] * MK), Math.abs(yr[i] - xr[i - L] * MK));
-      if (!(dT < 1e-5)) probs.push('por debajo del techo no es transparente (|Δ| máx ' + dT.toExponential(2) + ')');
+      if (!(dT < 1e-5)) probs.push('below the ceiling it is not transparent (max |Δ| ' + dT.toExponential(2) + ')');
       let pk = 0, bad = 0; for (let i = 0; i < N; i++) { if (!Number.isFinite(yl[i]) || !Number.isFinite(yr[i])) bad++; else pk = Math.max(pk, Math.abs(yl[i]), Math.abs(yr[i])); }
-      if (bad) probs.push(bad + ' muestras NaN/Inf');
-      if (pk > CEIL * 1.0001) probs.push('una muestra pasa del techo (' + dB(pk) + ')');
+      if (bad) probs.push(bad + ' NaN/Inf samples');
+      if (pk > CEIL * 1.0001) probs.push('a sample goes over the ceiling (' + dB(pk) + ')');
       let dR = 0; for (let i = Math.floor(1.45 * SR); i < Math.floor(1.55 * SR); i++) dR = Math.max(dR, Math.abs(yl[i] - xl[i - L] * MK));
-      if (!(dR < 1e-3)) probs.push('tras el silencio la ganancia no vuelve (|Δ| ' + dR.toExponential(2) + ')');
-      // pico real: interpolación ×4 con sinc enventanado (Hann, 16 muestras a cada lado)
+      if (!(dR < 1e-3)) probs.push('after the silence the gain does not come back (|Δ| ' + dR.toExponential(2) + ')');
+      // true peak: ×4 interpolation with windowed sinc (Hann, 16 samples on each side)
       const truePeak = (a, b) => { let p = 0; const H = 16, ph = [0.25, 0.5, 0.75].map(f => { const w = []; for (let k = -H + 1; k <= H; k++) { const x = k - f; w.push(Math.sin(Math.PI * x) / (Math.PI * x) * (0.5 + 0.5 * Math.cos(Math.PI * x / H))); } return w; });
         for (const d of [a, b]) for (let i = H; i < d.length - H; i++) { p = Math.max(p, Math.abs(d[i])); for (const w of ph) { let s = 0; for (let k = 0; k < w.length; k++) s += w[k] * d[i - H + 1 + k]; p = Math.max(p, Math.abs(s)); } }
         return p; };
@@ -4057,23 +4057,23 @@ export async function runSelfTest() {
       const e2 = new AudioEngine(); e2.S = structuredClone(engine.S); await e2.init(c2);
       for (let i = 0; i < 16; i++) e2.noteOn('s' + i, 220 * Math.pow(2, i / 12));
       const m2 = await c2.startRendering(), tp = truePeak(m2.getChannelData(0), m2.getChannelData(1)), sp = analyze(m2).peak;
-      if (!(tp < 1)) probs.push('pico real por encima de 0 dBTP (' + dB(tp) + '; de muestra ' + dB(sp) + ')');
+      if (!(tp < 1)) probs.push('true peak above 0 dBTP (' + dB(tp) + '; sample peak ' + dB(sp) + ')');
       loadState(keep);
-      console.log('limitador: transparente |Δ| ' + dT.toExponential(1) + ' · pico de muestra con +12 dB ' + dB(pk) + ' · recuperación |Δ| ' + dR.toExponential(1) + ' · peor caso musical: muestra ' + dB(sp) + ', real ' + dB(tp));
-      r = { name: 'limitador: transparente bajo el techo, ninguna muestra lo pasa, se recupera; pico real < 0 dBTP', peak: pk, ok: !probs.length, problems: probs };
+      console.log('limiter: transparent |Δ| ' + dT.toExponential(1) + ' · sample peak with +12 dB ' + dB(pk) + ' · recovery |Δ| ' + dR.toExponential(1) + ' · worst musical case: sample ' + dB(sp) + ', true ' + dB(tp));
+      r = { name: 'limiter: transparent under the ceiling, no sample goes over it, it recovers; true peak < 0 dBTP', peak: pk, ok: !probs.length, problems: probs };
     } catch (e2) {
-      r = { name: 'limitador: transparente bajo el techo, ninguna muestra lo pasa, se recupera; pico real < 0 dBTP', peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] };
+      r = { name: 'limiter: transparent under the ceiling, no sample goes over it, it recovers; true peak < 0 dBTP', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }
 
   {
-    // Sin continua (pulir, 2026-10-25): cada parte sale acoplada en alterna (AudioEngine,
-    // AC_HZ). Un pulso estrecho lleva media ≠ 0 — en la auditoría de la fábrica, 19 presets
-    // por encima del 5 % de su nivel y «Lead cuadrado» al 57 % —; a la salida, por debajo
-    // del 2 %. Una nota de cada uno, la media frente al RMS entre 0,55 y 1 s.
-    body.appendChild(el('st-cat', 'Sin continua'));
-    const NAME = 'sin continua (los pulsos estrechos salen centrados: < 2 % del nivel)';
+    // No DC (polish, 2026-10-25): each part comes out AC-coupled (AudioEngine,
+    // AC_HZ). A narrow pulse has a mean ≠ 0 — in the factory audit, 19 presets
+    // above 5 % of their level and «Square Lead» at 57 % —; at the output, below
+    // 2 %. One note from each, the mean against the RMS between 0.55 and 1 s.
+    body.appendChild(el('st-cat', 'No DC'));
+    const NAME = 'no DC (narrow pulses come out centered: < 2 % of the level)';
     let r;
     try {
       const probs = [], meds = [];
@@ -4087,23 +4087,23 @@ export async function runSelfTest() {
         let sum = 0, sq = 0, k = 0; for (let i = Math.floor(0.55 * SR); i < Math.floor(1.0 * SR); i++) { sum += d[i]; sq += d[i] * d[i]; k++; }
         const dc = Math.abs(sum / k) / Math.max(1e-9, Math.sqrt(sq / k));
         meds.push(n + ' ' + (dc * 100).toFixed(2) + ' %');
-        if (!(dc < 0.02)) probs.push(n + ': continua al ' + (dc * 100).toFixed(1) + ' % del nivel');
+        if (!(dc < 0.02)) probs.push(n + ': DC at ' + (dc * 100).toFixed(1) + ' % of the level');
       }
-      console.log('sin continua: ' + meds.join(' · '));
+      console.log('no dc: ' + meds.join(' · '));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Sin clics al mover knobs (pulir, 2026-10-25). La auditoría cambió de golpe, con una
-    // nota sonando, los 135 parámetros numéricos de un estado con casi todo encendido: solo
-    // Time del delay daba un raspazo (el cabezal recorría 3,7 s de cinta en 20 ms; ahora el
-    // tiempo de eco cambia como en una cinta, DLY_SLEW). Aquí, diez representativos: el salto
-    // a la muestra del cambio no puede ser más brusco que la nota de antes NI que la de
-    // después (×3, y por encima de −40 dB del pico).
-    body.appendChild(el('st-cat', 'Sin clics al mover knobs'));
-    const NAME = 'sin clics al mover knobs de golpe (Time del delay, cutoff, reso, drive, distorsión, realimentación, morph, master…)';
+    // No clicks when moving knobs (polish, 2026-10-25). The audit changed at once, with a
+    // note sounding, the 135 numeric parameters of a state with almost everything on: only
+    // the delay Time gave a scrape (the head traveled 3.7 s of tape in 20 ms; now the
+    // echo time changes like on a tape, DLY_SLEW). Here, ten representative ones: the jump
+    // at the sample of the change cannot be sharper than the note before NOR than the one
+    // after (×3, and above −40 dB below the peak).
+    body.appendChild(el('st-cat', 'No clicks when moving knobs'));
+    const NAME = 'no clicks when moving knobs suddenly (delay Time, cutoff, reso, drive, distortion, feedback, morph, master…)';
     let r;
     try {
       const probs = [], meds = [];
@@ -4122,23 +4122,23 @@ export async function runSelfTest() {
         let pk = 0; for (const x of d) pk = Math.max(pk, Math.abs(x));
         const jump = mx(0.495, 0.53), ratio = jump / Math.max(1e-9, mx(0.3, 0.495), mx(0.6, 0.85));
         meds.push(k + '→' + to + ' ×' + ratio.toFixed(1));
-        if (ratio > 3 && jump / Math.max(1e-9, pk) > 0.01) probs.push(k + ' → ' + to + ': salto ×' + ratio.toFixed(1));
+        if (ratio > 3 && jump / Math.max(1e-9, pk) > 0.01) probs.push(k + ' → ' + to + ': jump ×' + ratio.toFixed(1));
       }
-      console.log('knobs de golpe: ' + meds.join(' · '));
+      console.log('sudden knobs: ' + meds.join(' · '));
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
   {
-    // Medidor de salida (Roadmap 7.0 · 1.3). Motor: con 'meter-on', el limitador manda
-    // cada 50 ms los máximos del intervalo; una ráfaga a +12 dB en L marca > 6 dB de
-    // reducción y su pico de entrada, ningún pico de salida pasa del techo y en el
-    // silencio de después los picos son 0. UI (ui/meter.js, alimentado con esos datos
-    // tal cual): la ráfaga llena la barra de reducción y enciende el LED, que se queda
-    // encendido; tras 3 s de silencio, picos «−∞» y barras vacías (caen a 24 dB/s);
-    // el clic apaga el LED.
-    const NAME = 'medidor de salida (picos y reducción del limitador · LED que se queda · −∞ en silencio)';
+    // Output meter (Roadmap 7.0 · 1.3). Engine: with 'meter-on', the limiter sends
+    // the interval maxima every 50 ms; a burst at +12 dB on L shows > 6 dB of
+    // reduction and its input peak, no output peak goes over the ceiling and in the
+    // silence afterwards the peaks are 0. UI (ui/meter.js, fed with that data
+    // as is): the burst fills the reduction bar and lights the LED, which stays
+    // lit; after 3 s of silence, peaks «−∞» and empty bars (they fall at 24 dB/s);
+    // the click turns the LED off.
+    const NAME = 'output meter (peaks and limiter reduction · LED that stays lit · −∞ in silence)';
     let r;
     try {
       const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), N = Math.ceil(SR * 1.2), ctx = new OfflineAudioContext(2, N, SR);
@@ -4148,51 +4148,51 @@ export async function runSelfTest() {
       sala.comp.port.postMessage('meter-on');
       await new Promise(res => setTimeout(res, 50));
       const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
-      for (let i = Math.floor(0.1 * SR); i < Math.floor(0.4 * SR); i++) { const s = Math.sin(2 * Math.PI * 440 * i / SR); xl[i] = 4 * s; xr[i] = 0.25 * s; }   // L a +12 dB, R a −12
+      for (let i = Math.floor(0.1 * SR); i < Math.floor(0.4 * SR); i++) { const s = Math.sin(2 * Math.PI * 440 * i / SR); xl[i] = 4 * s; xr[i] = 0.25 * s; }   // L at +12 dB, R at −12
       const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
       await ctx.startRendering();
       await new Promise(res => setTimeout(res, 100));
       const grDb = m => -20 * Math.log10(m.g);
       const maxGr = Math.max(0, ...msgs.map(grDb)), maxIn = Math.max(0, ...msgs.map(m => m.i)), maxOut = Math.max(0, ...msgs.map(m => Math.max(m.l, m.r)));
       const last = msgs[msgs.length - 1];
-      if (!(msgs.length >= 18 && msgs.length <= 26)) probs.push(msgs.length + ' mensajes en 1,2 s (esperados ~24)');
-      if (!(maxGr > 6)) probs.push('la ráfaga marca ' + maxGr.toFixed(1) + ' dB de reducción (esperado > 6)');
-      if (!(20 * Math.log10(maxIn) > 12)) probs.push('pico de entrada ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB (esperado > +12)');
-      if (!(maxOut <= CEIL * 1.0001)) probs.push('un pico de salida pasa del techo (' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS)');
-      if (!last || last.l !== 0 || last.r !== 0) probs.push('en silencio los picos no son 0 (' + (last ? last.l + '/' + last.r : 'sin datos') + ')');
-      // la UI, con esos datos y luego 3 s de silencio (todo seguido: sin que entren los del motor en vivo)
+      if (!(msgs.length >= 18 && msgs.length <= 26)) probs.push(msgs.length + ' messages in 1.2 s (expected ~24)');
+      if (!(maxGr > 6)) probs.push('the burst shows ' + maxGr.toFixed(1) + ' dB of reduction (expected > 6)');
+      if (!(20 * Math.log10(maxIn) > 12)) probs.push('input peak ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB (expected > +12)');
+      if (!(maxOut <= CEIL * 1.0001)) probs.push('an output peak goes over the ceiling (' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS)');
+      if (!last || last.l !== 0 || last.r !== 0) probs.push('in silence the peaks are not 0 (' + (last ? last.l + '/' + last.r : 'no data') + ')');
+      // the UI, with that data and then 3 s of silence (all in a row: without the live engine's data getting in)
       const led = document.getElementById('mtLed'), grBar = document.querySelector('#meter .mt-gr i');
       const scale = e => +(/scaleY\(([\d.]+)\)/.exec(e.style.transform) || [0, NaN])[1];
       led.classList.remove('on');
       const t0 = performance.now() / 1000 + 10;
       let grFull = 0;
       msgs.forEach((m, k) => { feedMeter(m, t0 + k * 0.05); grFull = Math.max(grFull, scale(grBar)); });
-      if (!(grFull > 0.5)) probs.push('la barra de reducción llega a ' + grFull.toFixed(2) + ' (esperado > 0,5: más de 6 de 12 dB)');
-      if (!meterLedOn()) probs.push('la ráfaga no enciende el LED');
+      if (!(grFull > 0.5)) probs.push('the reduction bar reaches ' + grFull.toFixed(2) + ' (expected > 0.5: more than 6 of 12 dB)');
+      if (!meterLedOn()) probs.push('the burst does not light the LED');
       for (let k = 0; k < 60; k++) feedMeter({ l: 0, r: 0, i: 0, g: 1 }, t0 + (msgs.length + k) * 0.05);
       const covers = [...document.querySelectorAll('#meter .mt-ch i')].map(scale);
-      if (document.getElementById('mtPk').textContent !== '−∞') probs.push('en silencio el pico dice «' + document.getElementById('mtPk').textContent + '»');
-      if (!covers.every(c => c === 1) || scale(grBar) !== 0) probs.push('en silencio las barras no se vacían (' + covers.join('/') + ' · ' + scale(grBar) + ')');
-      if (!meterLedOn()) probs.push('el LED no se queda encendido');
+      if (document.getElementById('mtPk').textContent !== '−∞') probs.push('in silence the peak says «' + document.getElementById('mtPk').textContent + '»');
+      if (!covers.every(c => c === 1) || scale(grBar) !== 0) probs.push('in silence the bars do not empty (' + covers.join('/') + ' · ' + scale(grBar) + ')');
+      if (!meterLedOn()) probs.push('the LED does not stay lit');
       led.click();
-      if (meterLedOn()) probs.push('el clic no apaga el LED');
-      console.log('medidor: ' + msgs.length + ' mensajes · reducción máx ' + maxGr.toFixed(1) + ' dB · entrada ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB · salida ' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS');
+      if (meterLedOn()) probs.push('the click does not turn the LED off');
+      console.log('meter: ' + msgs.length + ' messages · max reduction ' + maxGr.toFixed(1) + ' dB · input ' + (20 * Math.log10(maxIn)).toFixed(1) + ' dB · output ' + (20 * Math.log10(maxOut)).toFixed(2) + ' dBFS');
       r = { name: NAME, peak: 0, ok: !probs.length, problems: probs };
-    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }
 
-  // Reset neutro (oct-2026): {} deja el oscilador A a solas y ningún módulo
-  // toca la señal (todo param `act` a 0, filtro abierto y plano, puerta); un
-  // preset NO vacío va sobre PRESET_BASE (los defaults de antes) y suena como siempre
+  // Neutral Reset (Oct 2026): {} leaves oscillator A on its own and no module
+  // touches the signal (every `act` param at 0, filter open and flat, gate); a
+  // NON-empty preset goes over PRESET_BASE (the old defaults) and sounds as always
   {
-    body.appendChild(el('st-cat', 'Reset neutro'));
+    body.appendChild(el('st-cat', 'Neutral Reset'));
     const probs = [];
     loadState({});
     const z = snapshot();
-    for (const k in PARAMS) if (PARAMS[k].act && k !== 'levelA' && z[k] !== 0) probs.push('Reset: ' + k + ' = ' + z[k]);   // el nivel A a 1: el A a solas
+    for (const k in PARAMS) if (PARAMS[k].act && k !== 'levelA' && z[k] !== 0) probs.push('Reset: ' + k + ' = ' + z[k]);   // level A at 1: A on its own
     if (!(z.levelA === 1 && z.levelB === 0 && z.detuneB === 0 && z.cutoff === PARAMS.cutoff.max && z.reso === -3 && z.s === 1))
-      probs.push('Reset no neutro: niveles ' + z.levelA + '/' + z.levelB + ' · detuneB ' + z.detuneB + ' · cutoff ' + z.cutoff + ' · reso ' + z.reso + ' · s ' + z.s);
+      probs.push('Reset not neutral: levels ' + z.levelA + '/' + z.levelB + ' · detuneB ' + z.detuneB + ' · cutoff ' + z.cutoff + ' · reso ' + z.reso + ' · s ' + z.s);
     let n = 0;
     for (const cat in FACTORY) for (const name in FACTORY[cat]) {
       const p = FACTORY[cat][name]; if (!Object.keys(p).length) continue;
@@ -4200,84 +4200,84 @@ export async function runSelfTest() {
       const k = Object.keys(PRESET_BASE).find(k => !(k in p) && q[k] !== PRESET_BASE[k]);
       if (k) probs.push(name + ': ' + k + ' = ' + q[k] + ' (base ' + PRESET_BASE[k] + ')');
     }
-    if (toControls(applyPreset(makeDefaultState(), { master: 0.5 })).cutoff !== PRESET_BASE.cutoff) probs.push('applyPreset (Partes) no va sobre la base de los presets');
+    if (toControls(applyPreset(makeDefaultState(), { master: 0.5 })).cutoff !== PRESET_BASE.cutoff) probs.push('applyPreset (Parts) does not go over the preset base');
     loadState({});
-    push({ name: 'Reset neutro · ' + n + ' presets de fábrica sobre la base de siempre', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
+    push({ name: 'Neutral Reset · ' + n + ' factory presets over the usual base', peak: 0, ok: !probs.length, problems: probs.slice(0, 4) });
   }
 
-  // Versión: X.Y.Z, la primera entrada del CHANGELOG es ella (no se publica una
-  // versión sin anotar) y la cabecera la enseña
+  // Version: X.Y.Z, the first CHANGELOG entry is this one (no version is released
+  // without a note) and the header shows it
   {
-    body.appendChild(el('st-cat', 'Publicación'));
+    body.appendChild(el('st-cat', 'Release'));
     const probs = [];
     let top = null;
     try {
       const md = await (await fetch('CHANGELOG.md', { cache: 'no-store' })).text();
       const m = /^## \[(\d+\.\d+\.\d+)\](?: — (\d{4}-\d{2}-\d{2}))?/m.exec(md) || [];
       top = m[1] || null;
-      if (m[2] !== RELEASE) probs.push('la fecha del CHANGELOG (' + m[2] + ') no es RELEASE (' + RELEASE + ')');
-    } catch (e) { probs.push('no se pudo leer CHANGELOG.md'); }
-    if (!/^\d+\.\d+\.\d+$/.test(VERSION)) probs.push('VERSION no es X.Y.Z: ' + VERSION);
-    if (top !== VERSION) probs.push('el CHANGELOG empieza por ' + top + ' y VERSION es ' + VERSION);
+      if (m[2] !== RELEASE) probs.push('the CHANGELOG date (' + m[2] + ') is not RELEASE (' + RELEASE + ')');
+    } catch (e) { probs.push('could not read CHANGELOG.md'); }
+    if (!/^\d+\.\d+\.\d+$/.test(VERSION)) probs.push('VERSION is not X.Y.Z: ' + VERSION);
+    if (top !== VERSION) probs.push('the CHANGELOG starts with ' + top + ' and VERSION is ' + VERSION);
     const badge = document.getElementById('verBadge');
-    if (!badge || badge.textContent !== 'v' + VERSION) probs.push('la cabecera no enseña v' + VERSION);
-    push({ name: 'versión ' + VERSION + ' del ' + RELEASE + ' (= primera entrada del CHANGELOG, visible en la cabecera)', peak: 0, ok: !probs.length, problems: probs });
+    if (!badge || badge.textContent !== 'v' + VERSION) probs.push('the header does not show v' + VERSION);
+    push({ name: 'version ' + VERSION + ' of ' + RELEASE + ' (= first CHANGELOG entry, visible in the header)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
-    // Ventana de entrada: un fotograma del efecto pinta algo (no un color plano),
-    // el nombre ya ha entrado entero a los 3 s y la fecha que enseña es la de RELEASE.
+    // Welcome window: one frame of the effect paints something (not a flat color),
+    // the name has fully come in by 3 s and the date it shows is RELEASE's.
     const probs = [];
     const cv = document.createElement('canvas'), fx = new SplashFx(cv);
     fx.frame(3.0);
     const d = fx.px, seen = new Set(); for (let i = 0; i < d.length; i += 7) seen.add(d[i]);
-    if (!(seen.size > 40)) probs.push('el fotograma tiene ' + seen.size + ' colores (¿plano?)');
+    if (!(seen.size > 40)) probs.push('the frame has ' + seen.size + ' colors (flat?)');
     const full = fx.tmask.reduce((a, v) => a + v, 0);
-    if (!(full > 300 && fx.stats.title === full)) probs.push('el nombre: ' + fx.stats.title + ' de ' + full + ' píxeles');
+    if (!(full > 300 && fx.stats.title === full)) probs.push('the name: ' + fx.stats.title + ' of ' + full + ' pixels');
     const want = new Date(RELEASE + 'T12:00:00').getFullYear() + '';
-    if (!splashDate(RELEASE).includes(want)) probs.push('fecha: «' + splashDate(RELEASE) + '»');
-    // «Acerca de»: el título de la cabecera la reabre (aquí, con ?selftest, empezó cerrada),
-    // con VOLVER; mientras está, una tecla no toca; Escape la cierra
+    if (!splashDate(RELEASE).includes(want)) probs.push('date: «' + splashDate(RELEASE) + '»');
+    // «About»: the header title reopens it (here, with ?selftest, it started closed),
+    // with BACK; while it is open, a key does not play; Escape closes it
     const sp = document.getElementById('splash');
-    if (!sp || !sp.hidden) probs.push('con ?selftest la ventana debería empezar cerrada');
+    if (!sp || !sp.hidden) probs.push('with ?selftest the window should start closed');
     else {
       document.getElementById('aboutBtn').click();
       const lab = document.querySelector('#spEnter span').textContent;
-      if (sp.hidden || lab !== 'BACK') probs.push('«Acerca de»: ' + (sp.hidden ? 'no se abre' : 'el botón dice ' + lab));
+      if (sp.hidden || lab !== 'BACK') probs.push('«About»: ' + (sp.hidden ? 'it does not open' : 'the button says ' + lab));
       const before = engine.voices.size;
       document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', bubbles: true }));
       const during = engine.voices.size;
       document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'z', code: 'KeyZ', bubbles: true }));
       document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
       await new Promise(res => setTimeout(res, 600));
-      if (during !== before) probs.push('con la ventana abierta el teclado toca');
-      if (!sp.hidden) probs.push('Escape no cierra el «Acerca de»');
+      if (during !== before) probs.push('with the window open the keyboard plays');
+      if (!sp.hidden) probs.push('Escape does not close the «About»');
     }
-    push({ name: 'ventana de entrada (el fotograma pinta · el nombre entero · versión y fecha · «Acerca de»)', peak: 0, ok: !probs.length, problems: probs });
+    push({ name: 'welcome window (the frame paints · the whole name · version and date · «About»)', peak: 0, ok: !probs.length, problems: probs });
   }
 
-  // Tarjeta para redes (Open Graph): título, descripción, URL e imagen presentes; la
-  // imagen con URL ABSOLUTA bajo og:url (las redes no resuelven rutas relativas), su
-  // fichero existe en el repo y mide lo que declaran og:image:width/height
+  // Social card (Open Graph): title, description, URL and image present; the
+  // image with an ABSOLUTE URL under og:url (social networks do not resolve relative paths), its
+  // file exists in the repo and measures what og:image:width/height declare
   {
     const probs = [];
     const og = p => document.querySelector(`meta[property="og:${p}"]`)?.content || '';
-    for (const p of ['title', 'description', 'url', 'image']) if (!og(p)) probs.push('falta og:' + p);
+    for (const p of ['title', 'description', 'url', 'image']) if (!og(p)) probs.push('missing og:' + p);
     const url = og('url'), img = og('image');
     let w = 0, h = 0;
-    if (!(url.startsWith('https://') && img.startsWith(url))) probs.push('og:image no es absoluta bajo og:url (' + img + ')');
+    if (!(url.startsWith('https://') && img.startsWith(url))) probs.push('og:image is not absolute under og:url (' + img + ')');
     else {
-      const im = new Image(); im.src = img.slice(url.length);   // el MISMO fichero, servido desde aquí
-      try { await im.decode(); w = im.naturalWidth; h = im.naturalHeight; } catch (e) { probs.push('no está ' + img.slice(url.length)); }
+      const im = new Image(); im.src = img.slice(url.length);   // the SAME file, served from here
+      try { await im.decode(); w = im.naturalWidth; h = im.naturalHeight; } catch (e) { probs.push('not found: ' + img.slice(url.length)); }
     }
     if (w && !(w === +og('image:width') && h === +og('image:height')))
-      probs.push('la imagen mide ' + w + '×' + h + ' y og:image:width/height dicen ' + og('image:width') + '×' + og('image:height'));
-    push({ name: 'tarjeta para redes (Open Graph, imagen ' + (w ? w + '×' + h : '—') + ')', peak: 0, ok: !probs.length, problems: probs });
+      probs.push('the image measures ' + w + '×' + h + ' and og:image:width/height say ' + og('image:width') + '×' + og('image:height'));
+    push({ name: 'social card (Open Graph, image ' + (w ? w + '×' + h : '—') + ')', peak: 0, ok: !probs.length, problems: probs });
   }
 
-  }   // ---------- fin de la tanda «checks» ----------
+  }   // ---------- end of the «checks» batch ----------
 
-  if (enTanda('fabrica')) {   // ---------- tanda «fabrica»: el banco entero, el estrés y la sonda de pares ----------
-  // el estado {} equivale al botón Reset; después, todo el banco de fábrica
+  if (enTanda('fabrica')) {   // ---------- «fabrica» batch: the whole bank, the stress test and the pair probe ----------
+  // the {} state is equivalent to the Reset button; then, the whole factory bank
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);
 
@@ -4292,39 +4292,39 @@ export async function runSelfTest() {
          (r.ok ? '' : '&why=' + encodeURIComponent(r.problems.join(' | '))));
   }
 
-  // estrés: 16 noteOn simultáneas (dispara robo de voz con MAX_POLY=10) y
-  // suelta todas a la vez (dispara el recorte de colas con MAX_TAILS=12)
+  // stress: 16 simultaneous noteOns (triggers voice stealing with MAX_POLY=10) and
+  // releases them all at once (triggers tail trimming with MAX_TAILS=12)
   {
-    body.appendChild(el('st-cat', 'Estrés'));
+    body.appendChild(el('st-cat', 'Stress'));
     let r;
     try {
       loadState({});
       const a = await renderStress(structuredClone(engine.S));
       const problems = [];
-      if (a.bad) problems.push(a.bad + ' muestras NaN/Inf');
-      else if (a.peak <= SILENCE) problems.push('silencio (pico ' + dB(a.peak) + ')');
-      else if (a.peak > 1.0) problems.push('clipping (pico ' + dB(a.peak) + ')');
-      r = { name: '16 notas + robo de voz', peak: a.peak, problems, ok: problems.length === 0 };
+      if (a.bad) problems.push(a.bad + ' NaN/Inf samples');
+      else if (a.peak <= SILENCE) problems.push('silence (peak ' + dB(a.peak) + ')');
+      else if (a.peak > 1.0) problems.push('clipping (peak ' + dB(a.peak) + ')');
+      r = { name: '16 notes + voice stealing', peak: a.peak, problems, ok: problems.length === 0 };
     } catch (e) {
-      r = { name: '16 notas + robo de voz', peak: 0, problems: ['excepción: ' + ((e && e.message) || e)], ok: false };
+      r = { name: '16 notes + voice stealing', peak: 0, problems: ['exception: ' + ((e && e.message) || e)], ok: false };
     }
     push(r);
     ping('i=' + results.length + '&ok=' + (r.ok ? 1 : 0) + '&peak=' + r.peak.toFixed(3) + '&name=stress' +
          (r.ok ? '' : '&why=' + encodeURIComponent(r.problems.join(' | '))));
   }
 
-  // Sonda de pares A/B del banco de demos (?selftest=1&demos=PREFIJO):
-  // renderiza los presets del banco cuyo nombre empieza por el prefijo y
-  // pinga el diff relativo de cada par consecutivo — la evidencia
-  // CUANTITATIVA de que el parámetro nuevo cambia el sonido (regla del
-  // banco: cada mejora entra con su par). Corre en headless igual que el
-  // resto: los pings quedan en el log del http.server.
+  // A/B pair probe of the demo bank (?selftest=1&demos=PREFIX):
+  // renders the bank presets whose name starts with the prefix and
+  // pings the relative diff of each consecutive pair — the QUANTITATIVE
+  // evidence that the new parameter changes the sound (bank rule: every
+  // improvement comes in with its pair). It runs headless just like the
+  // rest: the pings end up in the http.server log.
   const demosPrefix = new URLSearchParams(location.search).get('demos');
   if (demosPrefix) {
     try {
       const bank = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
       const names = Object.keys(bank.presets).filter(n => n.startsWith(demosPrefix));
-      // «velocity»: {prefijo: v} — pares que solo se distinguen tocando flojo (sensibilidad a la velocity)
+      // «velocity»: {prefix: v} — pairs that only differ when played softly (velocity sensitivity)
       const velOf = n => { for (const [p, v] of Object.entries(bank.velocity || {})) if (n.startsWith(p)) return v; return 1; };
       const bufs = {};
       for (const n of names) {
@@ -4339,7 +4339,7 @@ export async function runSelfTest() {
         for (let k = 0; k < len; k += 16) { const e = cA[k] - cB[k]; d += e * e; en += cA[k] * cA[k]; }
         const diff = Math.sqrt(d / Math.max(1e-12, en));
         const pA = analyze(bufs[A]), pB = analyze(bufs[B]);
-        console.log('demo par', A, '||', B, 'diff', diff.toFixed(3));
+        console.log('demo pair', A, '||', B, 'diff', diff.toFixed(3));
         ping('demo=' + encodeURIComponent(A + ' || ' + B) + '&diff=' + diff.toFixed(3) +
              '&peakA=' + pA.peak.toFixed(3) + '&peakB=' + pB.peak.toFixed(3) +
              ((pA.bad || pB.bad) ? '&bad=1' : ''));
@@ -4347,14 +4347,14 @@ export async function runSelfTest() {
     } catch (e) { ping('demo_error=' + encodeURIComponent((e && e.message) || e)); }
   }
 
-  }   // ---------- fin de la tanda «fabrica» ----------
+  }   // ---------- end of the «fabrica» batch ----------
 
-  loadState({});                             // deja el synth en valores por defecto
+  loadState({});                             // leaves the synth at its default values
   const fails = results.length - ok;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   summary.textContent = ok + '/' + results.length + ' ok · ' + secs + ' s';
   document.title = (fails || dups.length ? '✗' : '✓') + ' SELFTEST ' + ok + '/' + results.length + ' · SubSDJ';
-  console.table(results.map(r => ({ preset: r.name, ok: r.ok, pico: dB(r.peak), problemas: r.problems.join(' · ') || '—' })));
+  console.table(results.map(r => ({ preset: r.name, ok: r.ok, peak: dB(r.peak), problems: r.problems.join(' · ') || '—' })));
   ping('done=1&ok=' + ok + '&total=' + results.length + '&dups=' + dups.length + '&secs=' + secs);
   return { ok, total: results.length, fails, dups, results };
 }

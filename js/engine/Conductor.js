@@ -1,20 +1,20 @@
 /* =====================================================================
-   SubSDJ · Director — el reloj maestro de la escena: lleva la posición
-   musical (en beats; compás = 4), la armonía, el arreglo y un jugador por
-   parte. Mismo patrón que Arp/Seq: un setInterval de 25 ms que solo
-   DESPIERTA al planificador; cada jugador programa sus notas en el reloj de
-   audio con look-ahead de 120 ms. El tempo es el BPM de la sala (S.bpm,
-   compartido): si cambia, cambia desde la posición actual sin saltos.
-   La posición vive en el RELOJ COMÚN del contexto (engine/Clock.js): al
-   arrancar, el director ancla su pulso 0 y los Arp/Seq de las partes caen
-   en su rejilla.
-   Cada ~100 ms aplica lo lento: la MACRO de apertura (energía del arreglo →
-   cents en los filtros de todas las partes) y la deriva de cada jugador.
-   Offline (selftest): scheduleAll() planifica todo el tramo de golpe, sin
-   ticker — determinista con la semilla; la macro va automatizada por
-   compás en el propio AudioParam. `dry` = solo registrar eventos.
-   toJSON/fromJSON: lo que la escena guarda del director (semilla, armonía,
-   arreglo y la configuración de cada jugador).
+   SubSDJ · Conductor — the scene's master clock: it keeps the musical
+   position (in beats; bar = 4), the harmony, the arrangement and one player per
+   part. Same pattern as Arp/Seq: a 25 ms setInterval that only
+   WAKES the scheduler; each player schedules its notes on the audio
+   clock with a 120 ms look-ahead. The tempo is the Room's BPM (S.bpm,
+   shared): if it changes, it changes from the current position without jumps.
+   The position lives in the context's COMMON CLOCK (engine/Clock.js): on
+   starting, the conductor anchors its beat 0 and the parts' Arp/Seq land
+   on its grid.
+   Every ~100 ms it applies the slow stuff: the Open MACRO (arrangement energy →
+   cents on the filters of all parts) and each player's drift.
+   Offline (selftest): scheduleAll() schedules the whole stretch at once, with no
+   ticker — deterministic with the seed; the macro is automated per
+   bar on the AudioParam itself. `dry` = only log events.
+   toJSON/fromJSON: what the scene saves of the conductor (seed, harmony,
+   arrangement and each player's configuration).
    ===================================================================== */
 import { Harmony } from './Harmony.js';
 import { Player, PLAYER_DEF } from './Player.js';
@@ -32,14 +32,14 @@ export class Conductor {
     this.arr = new Arrangement(this);
     this.players = scene.parts.map((p, i) => new Player(this, p, i));
     this.timer = null; this.running = false; this.dry = false;
-    this.clock = clockOf(this.ctx);     // posición musical: origen (pulso 0) y bpm, compartidos con los Arp/Seq
+    this.clock = clockOf(this.ctx);     // musical position: origin (beat 0) and bpm, shared with the Arp/Seqs
     this._slowT = -1;
-    this.onDrift = null;                // (i, key, value) → la UI mueve el knob si es la parte que edita
+    this.onDrift = null;                // (i, key, value) → the UI moves the knob if it is the part being edited
   }
   get bpm() { return this.scene.S.bpm || 120; }
   beatLen() { return this.clock.beatLen(); }
   timeAt(beat) { return this.clock.timeAt(beat); }
-  swungTime(beat, div) { return this.clock.swungTime(beat, div); }   // el paso de `div` en `beat`, con el swing del reloj
+  swungTime(beat, div) { return this.clock.swungTime(beat, div); }   // the step of `div` at `beat`, with the clock's swing
   swingLen(beat, div) { return this.clock.swingLen(beat, div); }
   beatAt(t) { return this.clock.beatAt(t); }
   chordAtBeat(b) { return this.harmony.chordAt(Math.floor(b / BEATS_PER_BAR + 1e-9)); }
@@ -63,27 +63,27 @@ export class Conductor {
     const t = this.ctx.currentTime;
     this.players.forEach(p => {
       p.stop(t); const e = p.part.engine; e.setMacro(0);
-      // el Seq con latch seguiría la frase tras soltar la raíz: parar es parar
+      // a latched Seq would keep the phrase going after the root is released: stopping means stopping
       if (e.S.seqOn === 'on' && !e.seq.held.length && e.seq.latched) { e.seq.latched = null; e.seq._maybeStop(); }
     });
   }
-  // Pánico: para el director, cancela lo pendiente y corta todo en todas las partes
+  // Panic: stops the conductor, cancels what is pending and cuts everything in all parts
   panic() {
     this.stop();
     this.players.forEach(p => { p.clearPending(); p.part.engine.allNotesOff(); });
   }
   _tick() {
     const now = this.ctx.currentTime;
-    this.clock.setBpm(this.bpm, now);                                         // un BPM nuevo reancla en el pulso de ahora: sin saltos
+    this.clock.setBpm(this.bpm, now);                                         // a new BPM re-anchors at the current beat: no jumps
     const until = this.beatAt(now + LOOKAHEAD);
     for (const p of this.players) p.schedule(until);
-    if (now - this._slowT >= SLOW_S) {                                        // lo lento: macro de apertura y deriva
+    if (now - this._slowT >= SLOW_S) {                                        // the slow stuff: Open macro and drift
       this._slowT = now;
       const beat = this.beatAt(now), cents = this.arr.macroCents(beat / BEATS_PER_BAR);
       for (const p of this.players) { p.part.engine.setMacro(cents); p.drift(beat); }
     }
   }
-  // Offline: `secs` segundos desde t0, todo de golpe (notas + macro por compás)
+  // Offline: `secs` seconds from t0, all at once (notes + macro per bar)
   scheduleAll(secs, t0 = 0) {
     this.clock.anchor(this, t0, this.bpm);
     this.players.forEach(p => p.reset());
@@ -111,8 +111,8 @@ export class Conductor {
     (j.players || []).forEach((cfg, i) => {
       const p = this.players[i]; if (!p) return;
       p.cfg = { ...PLAYER_DEF, ...cfg }; p.derivaKey = 'off'; p.derivaBase = undefined;
-      if (p.cfg.drift === 'mix') p.cfg.drift = 'levelB';   // escenas de antes del mezclador (1.2.0)
+      if (p.cfg.drift === 'mix') p.cfg.drift = 'levelB';   // scenes from before the mixer (1.2.0)
     });
-    this.setSeed(+j.seed || 1);         // resetea jugadores y paseo con la semilla guardada
+    this.setSeed(+j.seed || 1);         // resets the players and the walk with the saved seed
   }
 }

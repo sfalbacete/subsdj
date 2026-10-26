@@ -1,1154 +1,1165 @@
 # SubSDJ · Plan
 
-Fecha: 2026-10-25 · **publicada la 1.3.0**: del Roadmap 7.0, 1.3 medidor, 2.5 macros, 2.6 tacto,
-3.2 sync, 3.3 cuerda, 4.1 delay que se desboca, 5.1 articulaciones, 5.4 swing y pulso que respira,
-5.2 notas por grado; selector de presets; y la primera pasada de pulido (216/216). Lo que se haga a
-partir de ahora va al CHANGELOG bajo «Sin publicar» hasta la siguiente.
-(Antes: 1.2.0 el 2026-10-24, con los bloques 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 y 7.1.)
+Date: 2026-10-25 · **1.3.0 published**: from Roadmap 7.0, 1.3 meter, 2.5 macros, 2.6 touch,
+3.2 sync, 3.3 string, 4.1 runaway delay, 5.1 articulations, 5.4 swing and breathing pulse,
+5.2 notes by degree; preset picker; and the first polishing pass (216/216). Whatever is done from
+now on goes into the CHANGELOG under «Unreleased» until the next one.
+(Before: 1.2.0 on 2026-10-24, with blocks 0.1-0.4, 1.1, 1.2, 2.1-2.4, 3.1 and 7.1.)
 
-**Rumbo acordado el 2026-10-25 (Sergio):** el synth ya tiene mucha maquinaria y la combinatoria
-crece; ahora toca APROVECHARLA. Criterio para cualquier feature nueva: que aporte algo diferencial,
-más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra. Orden:
-1. **Última tanda de funciones: 4.1 → 5.1 → 5.4 → 5.2.** ✔ (2026-10-25) Y se para.
-2. **Pulir y asentar** (antes de la 1.3.0): revisar la maquinaria para que dé sonido limpio — sin
-   clics, sin saturaciones raras —, que sea fiable y que invite a tocar, a experimentar, a cambiar
-   aquí y allá. Revisar y optimizar lo que hay, no añadir. ✔ *Primera pasada (2026-10-25): fábrica,
-   knobs, eventos de nota y escenas auditados — sin limitador, sin clics, sin NaN; continua quitada
-   (pulso centrado + acoplamiento en alterna); nada recortado con las Partes. Ver DISENO, «Pulir y
-   asentar».*
-3. **Publicar la 1.3.0.** ✔ (2026-10-25)
-4. **Exportación:** 6.1 (SFZ con bucles y variaciones) y 6.2 (WAV).
-5. **Inglés** ✔ (rama ingles, 2026-10-26; DISENO, «Inglés (1.4.0)») (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —
-   no multi-idioma: los soft-synths y las serigrafías de los teclados van en inglés como idioma neutro,
-   y otros idiomas (alemán) alargan las palabras en un panel fijo—. Antes del banco nuevo, para que
-   los presets nuevos nazcan ya en inglés (todos los de hoy se van a caer).
-6. **Banco nuevo (8)**, con su propio plan (ver el bloque 8).
-Descartados por el criterio: 3.4, 3.5, 4.2, 4.3 y 5.5 (ver «Lo que NO haremos»); 5.3 sin fecha.
+**Direction agreed on 2026-10-25 (Sergio):** the synth already has a lot of machinery and the
+combinations keep growing; now it is time to MAKE THE MOST OF IT. Criterion for any new feature: it
+must bring something distinctive, more expressiveness or a richer palette of sounds; if it duplicates
+what is already there, it does not go in. Order:
+1. **Last batch of features: 4.1 → 5.1 → 5.4 → 5.2.** ✔ (2026-10-25) And then it stops.
+2. **Polish and settle** (before 1.3.0): review the machinery so that it gives clean sound — no
+   clicks, no strange saturation —, so that it is reliable and invites you to play, to experiment, to
+   change things here and there. Review and optimize what is there, not add. ✔ *First pass
+   (2026-10-25): factory, knobs, note events and scenes audited — no limiter, no clicks, no NaN; DC
+   removed (centered pulse + AC coupling); nothing clipped with the Parts. See DISENO, «Polish and
+   settle».*
+3. **Publish 1.3.0.** ✔ (2026-10-25)
+4. **Export:** 6.1 (SFZ with loops and variations) and 6.2 (WAV).
+5. **English** ✔ (branch ingles, 2026-10-26; DISENO, «English (1.4.0)») (decided on 2026-10-25): the whole interface translated into English, once and ONLY into English —
+   not multi-language: soft synths and the silkscreen of keyboards use English as a neutral language,
+   and other languages (German) make the words longer on a fixed panel—. Before the new bank, so that
+   the new presets are born in English (all of today's are going to go).
+6. **New bank (8)**, with its own plan (see block 8).
+Discarded by the criterion: 3.4, 3.5, 4.2, 4.3 and 5.5 (see «What we will NOT do»); 5.3 with no date.
 
-## Roadmap 7.0 «el instrumento» (propuesto 2026-10-17 · pendiente de acordar)
+## Roadmap 7.0 «the instrument» (proposed 2026-10-17 · pending agreement)
 
-**Rumbo (Sergio):** SubSDJ es un INSTRUMENTO de diseño y generación de sonido. Más capaz, más
-expresivo, más sorprendente; abierto a otros tipos de generador además de la FM. Acompañamiento
-ligero sí; un DAW no (ni línea de tiempo, ni multipista): los sonidos se exportan (SFZ, WAV) y las
-canciones se hacen en un DAW.
+**Direction (Sergio):** SubSDJ is an INSTRUMENT for sound design and generation. More capable, more
+expressive, more surprising; open to other kinds of generator besides FM. Light accompaniment, yes;
+a DAW, no (neither a timeline nor multitrack): sounds are exported (SFZ, WAV) and songs are made in a
+DAW.
 
-**Los presets no son una restricción (Sergio, 2026-10-17).** Ninguna mejora se recorta para que los
-presets de hoy sigan sonando igual. Si algo que implementamos los rompe, se aceptan los cambios y,
-cuando toque, se rehace el banco desde cero con lo que el synth permita entonces (bloque 8). Las
-conversiones de presets viejos se hacen solo si son baratas; si no, un preset viejo se descarta con
-un aviso.
+**Presets are not a constraint (Sergio, 2026-10-17).** No improvement is cut back so that today's
+presets keep sounding the same. If something we implement breaks them, the changes are accepted and,
+when the time comes, the bank is redone from scratch with whatever the synth allows by then (block 8).
+Old presets are converted only if it is cheap; if not, an old preset is discarded with a warning.
 
-Cada bloque lleva **propósito · qué · cómo · encaje · verificación · coste · dependencias**. El
-método de siempre: selftest en verde antes y después; pares A/B en `subsdj-demos.json` con prefijo
-propio y sonda `?selftest=1&demos=PREFIJO` si es audible; capturas si es visual; DISENO.md y este
-plan al día; commit por hito. Restricción de todo bloque con UI: el panel es fijo — un control nuevo
-tiene que caber en su banda (check «nada recortado») o desplazar algo de forma acordada.
+Each block carries **purpose · what · how · fit · verification · cost · dependencies**. The usual
+method: selftest green before and after; A/B pairs in `subsdj-demos.json` with their own prefix and
+the probe `?selftest=1&demos=PREFIX` if it is audible; screenshots if it is visual; DISENO.md and
+this plan up to date; one commit per milestone. Constraint on every block with UI: the panel is
+fixed — a new control has to fit in its band (check «nothing clipped») or displace something in an
+agreed way.
 
-### Vista rápida
+### Quick view
 
-| # | Bloque | Qué nos da | Coste | Depende |
+| # | Block | What it gives us | Cost | Depends on |
 |---|--------|------------|-------|---------|
-| **0** | **Arreglos** | | | |
-| 0.1 | Teclado sin notas colgadas ✔ | atajos (Ctrl+Z) que no tocan notas; Shift y toques cancelados que no cuelgan — HECHO 2026-10-17 | bajo | — |
-| 0.2 | SFZ con las capas de velocity reales ✔ | exportar el tacto de los presets con vel→FM, vel→filtro por la matriz o FM4 — HECHO 2026-10-17 (44 de 116 con capas; antes 30) | bajo | — |
-| 0.3 | Tablas de onda sin ruido de interpolación ✔ | «Tabla» limpia: de −43 a −76 dB entre armónicos en Do4 — HECHO 2026-10-20 | bajo-medio | — |
-| 0.4 | Un reloj común ✔ | arpegiador, secuenciador, jugadores y lo nuevo en la misma rejilla — HECHO 2026-10-20 | medio | — |
-| **1** | **Taller de sonido** | | | |
-| 1.1 | Deshacer / rehacer ✔ | probar sin miedo — HECHO 2026-10-17 | bajo-medio | 0.1 |
-| 1.2 | Comparar con el guardado ✔ | ¿mi edición mejora el preset? — HECHO 2026-10-17 | bajo | 1.1 |
-| 1.3 | Medidor de salida ✔ | margen y trabajo del limitador a la vista — HECHO 2026-10-25 (junto al espectro, en Salida) | bajo-medio | — |
-| 1.4 | Biblioteca 2.0 | etiquetas, descripción de uso, buscador, escuchar sin cargar | medio | — |
-| **2** | **Expresión y movimiento** | | | |
-| 2.1 | Envolvente de modulación con bucle ✔ | ritmos de timbre atados a cada nota — HECHO 2026-10-20 (panel en Secuenciación) | medio | — |
-| 2.2 | LFO a tempo, con reinicio y de una vez ✔ | modulación en compás; LFO como envolvente — HECHO 2026-10-20 | bajo-medio | 0.4 |
-| 2.3 | Módulo de Pasos (polimetría) ✔ | timbre por pasos, complejo y rítmico — HECHO 2026-10-20 | alto | 0.4, 2.2 |
-| 2.4 | Más destinos en la matriz ✔ | niveles del mezclador (vectorial), Drive, Pitch A, Material — HECHO 2026-10-20 (Decay no: ver abajo) | bajo | — |
-| 2.5 | Macros de ejecución ✔ | un knob mueve varios destinos — HECHO 2026-10-25 (dos knobs al pie de la Matriz) | bajo | — |
-| 2.6 | Respuesta al tacto ✔ | curva de velocity, rango del bend — HECHO 2026-10-25 (barra del teclado) | bajo | — |
-| **3** | **Generadores nuevos** | | | |
-| 3.1 | Drive con carácter: asimétrico y plegado ✔ | suave/plegado + Asimetría — HECHO 2026-10-20 | bajo-medio | — |
-| 3.2 | Sincronización dura ✔ | el barrido de sync clásico — HECHO 2026-10-25 (botón en la cabecera del Osc A) | medio | 2.4 |
-| 3.3 | Cuerda física ✔ | cuerdas pulsadas de verdad — HECHO 2026-10-25 (onda Cuerda + módulo Cuerda) | medio | — |
-| 3.4 | Distorsión de fase | la síntesis de los Casio CZ | bajo-medio | — |
-| 3.5 | Aditiva: editor de armónicos | dibujar el espectro | medio | — |
-| **4** | **Carácter y espacio** | | | |
-| 4.1 | Delay que se desboca ✔ | autooscilación estable, sirenas dub — HECHO 2026-10-25 (realim. y satur. al pie del Delay) | bajo | — |
-| 4.2 | Placa: graves y modulación aleatoria | colas oscuras, menos «chorus» | medio | opcional |
-| 4.3 | Phaser | el efecto que falta junto a flanger y chorus | bajo-medio | opcional |
-| **5** | **Acompañamiento ligero** | | | |
-| 5.1 | Secuenciador: acento, ligadura, slide, repeticiones ✔ | la línea de 303 — HECHO 2026-10-25 (Mayús/Alt/Ctrl + clic en el editor) | bajo | 0.4 |
-| 5.2 | Notas por grado ✔ | el patrón sigue a la escala — HECHO 2026-10-25 | bajo-medio | — |
-| 5.3 | Acordes que se encadenan | conducción de voces y disposiciones | bajo | — |
-| 5.4 | Pulso que respira y swing ✔ | densidad que cambia por compás; swing global — HECHO 2026-10-25 (swing al pie del Arp; Respira y Ciclo en el Pulso) | bajo | 0.4 |
-| 5.5 | Arpegiador: modos y repeticiones | convergente, divergente | bajo | 0.4 |
-| **6** | **Exportar al DAW** | | | |
-| 6.1 | SFZ con bucles y variaciones | samples cortos que sostienen; round robin | medio | 0.2 |
-| 6.2 | Exportar el sonido a WAV | un clip listo para el DAW sin grabar en tiempo real | bajo | — |
-| **7** | **Fiabilidad** | | | |
-| 7.1 | Azar con semilla en los renders offline ✔ | renders repetibles; de paso, key sync del FM 2-op — HECHO 2026-10-20 | bajo-medio | — |
-| 7.2 | Huella sonora de la fábrica | ningún preset cambia de sonido sin decidirlo | medio | 7.1 |
-| 7.3 | Checks por categoría | ningún preset cuelga voces ni se pasa con acordes | bajo | — |
-| 7.4 | Versión de formato | presets y bibliotecas que nunca se cargan mal | bajo | — |
-| **8** | **Banco nuevo desde cero + idioma es/en** | solo presets interesantes, útiles, que gusten y sorprendan; synth y banco en español e inglés | medio-alto | 1.4 y lo que haya |
+| **0** | **Fixes** | | | |
+| 0.1 | Keyboard without hanging notes ✔ | shortcuts (Ctrl+Z) that do not play notes; Shift and cancelled touches that do not hang — DONE 2026-10-17 | low | — |
+| 0.2 | SFZ with the real velocity layers ✔ | export the touch of presets with vel→FM, vel→filter through the matrix or FM4 — DONE 2026-10-17 (44 of 116 with layers; 30 before) | low | — |
+| 0.3 | Wavetables without interpolation noise ✔ | clean «Wavetable»: from −43 to −76 dB between harmonics at C4 — DONE 2026-10-20 | low-medium | — |
+| 0.4 | A common clock ✔ | arpeggiator, sequencer, players and what is new on the same grid — DONE 2026-10-20 | medium | — |
+| **1** | **Sound workshop** | | | |
+| 1.1 | Undo / redo ✔ | try things without fear — DONE 2026-10-17 | low-medium | 0.1 |
+| 1.2 | Compare with the saved one ✔ | does my edit improve the preset? — DONE 2026-10-17 | low | 1.1 |
+| 1.3 | Output meter ✔ | headroom and limiter work in sight — DONE 2026-10-25 (next to the spectrum, in Output) | low-medium | — |
+| 1.4 | Library 2.0 | tags, usage description, search, listen without loading | medium | — |
+| **2** | **Expression and movement** | | | |
+| 2.1 | Looping modulation envelope ✔ | timbre rhythms tied to each note — DONE 2026-10-20 (panel in Sequencing) | medium | — |
+| 2.2 | Tempo-synced, retriggered and one-shot LFO ✔ | modulation in time; LFO as an envelope — DONE 2026-10-20 | low-medium | 0.4 |
+| 2.3 | Steps module (polymetre) ✔ | step-by-step timbre, complex and rhythmic — DONE 2026-10-20 | high | 0.4, 2.2 |
+| 2.4 | More destinations in the matrix ✔ | mixer levels (vector), Drive, Pitch A, Material — DONE 2026-10-20 (Decay no: see below) | low | — |
+| 2.5 | Performance macros ✔ | one knob moves several destinations — DONE 2026-10-25 (two knobs at the foot of the Matrix) | low | — |
+| 2.6 | Touch response ✔ | velocity curve, bend range — DONE 2026-10-25 (keyboard bar) | low | — |
+| **3** | **New generators** | | | |
+| 3.1 | Drive with character: asymmetric and folded ✔ | soft/fold + Asym — DONE 2026-10-20 | low-medium | — |
+| 3.2 | Hard sync ✔ | the classic sync sweep — DONE 2026-10-25 (button in the Osc A header) | medium | 2.4 |
+| 3.3 | Physical string ✔ | real plucked strings — DONE 2026-10-25 (String wave + String module) | medium | — |
+| 3.4 | Phase distortion | the synthesis of the Casio CZ | low-medium | — |
+| 3.5 | Additive: harmonic editor | draw the spectrum | medium | — |
+| **4** | **Character and space** | | | |
+| 4.1 | Runaway delay ✔ | stable self-oscillation, dub sirens — DONE 2026-10-25 (fdbk and sat at the foot of the Delay) | low | — |
+| 4.2 | Plate: low end and random modulation | dark tails, less «chorus» | medium | optional |
+| 4.3 | Phaser | the effect missing next to flanger and chorus | low-medium | optional |
+| **5** | **Light accompaniment** | | | |
+| 5.1 | Sequencer: accent, tie, slide, repeats ✔ | the 303 line — DONE 2026-10-25 (Shift/Alt/Ctrl + click in the editor) | low | 0.4 |
+| 5.2 | Notes by degree ✔ | the pattern follows the scale — DONE 2026-10-25 | low-medium | — |
+| 5.3 | Chords that chain | voice leading and voicings | low | — |
+| 5.4 | Breathing pulse and swing ✔ | density that changes per bar; global swing — DONE 2026-10-25 (swing at the foot of the Arp; Breathe and Cycle in the Pulse) | low | 0.4 |
+| 5.5 | Arpeggiator: modes and repeats | converge, diverge | low | 0.4 |
+| **6** | **Export to the DAW** | | | |
+| 6.1 | SFZ with loops and variations | short samples that sustain; round robin | medium | 0.2 |
+| 6.2 | Export the sound to WAV | a clip ready for the DAW without recording in real time | low | — |
+| **7** | **Reliability** | | | |
+| 7.1 | Seeded randomness in offline renders ✔ | repeatable renders; and, along the way, key sync for 2-op FM — DONE 2026-10-20 | low-medium | — |
+| 7.2 | Sound fingerprint of the factory | no preset changes its sound without deciding it | medium | 7.1 |
+| 7.3 | Checks per category | no preset hangs voices or overshoots with chords | low | — |
+| 7.4 | Format version | presets and libraries that never load wrong | low | — |
+| **8** | **New bank from scratch + es/en language** | only interesting, useful presets that people like and that surprise; synth and bank in Spanish and English | medium-high | 1.4 and whatever there is |
 
-### Orden propuesto
+### Proposed order
 
-1. **0.1 + 0.2** (una tarde: arreglos que se notan al tocar y al exportar).
-2. **1.1 + 1.2** (el taller: deshacer y comparar cambian cómo se diseña).
-3. **7.1** y la medida de **0.3** (barato; hace más estrictos los checks de todo lo que sigue). ✔
-4. **3.1 + 2.4** (sorpresa barata: plegado y morph vectorial con lo que ya hay). ✔
-5. **0.4 → 2.2 → 2.1 → 2.3** (el bloque grande: reloj, LFO a tempo, envolvente en bucle, Pasos). ✔
+1. **0.1 + 0.2** (one afternoon: fixes you notice when playing and exporting).
+2. **1.1 + 1.2** (the workshop: undo and compare change how you design).
+3. **7.1** and the measurement for **0.3** (cheap; makes the checks of everything that follows
+   stricter). ✔
+4. **3.1 + 2.4** (cheap surprise: folding and vector morph with what is already there). ✔
+5. **0.4 → 2.2 → 2.1 → 2.3** (the big block: clock, tempo-synced LFO, looping envelope, Steps). ✔
 6. **1.3, 2.5, 2.6, 3.2, 3.3** ✔ (2026-10-25).
-7. **Revisado el 2026-10-25** (arriba, «Rumbo acordado»): 4.1, 5.1, 5.4, 5.2; pulir; 1.3.0; 6.1/6.2;
-   banco nuevo (8). 1.4 y 7.2-7.4 se deciden al llegar (1.4 encaja con el banco nuevo).
+7. **Revised on 2026-10-25** (above, «Direction agreed»): 4.1, 5.1, 5.4, 5.2; polish; 1.3.0; 6.1/6.2;
+   new bank (8). 1.4 and 7.2-7.4 are decided when we get there (1.4 fits with the new bank).
 
-### Cabos sueltos (sin fecha; pequeños o de la recámara)
+### Loose ends (no date; small or from the back burner)
 
-- **Deshacer en el Editor de ondas**: la tabla dibujada vive fuera de `CONTROLS` y no entra en el
-  historial (1.1). Añadirla si se echa de menos.
-- **Visualizadores en grande**: osciloscopio y espectro de la cabecera ampliables (recámara antigua);
-  encaja con 1.3 (medidor).
-- **Escena «Kit 909»**: cuatro partes de percusión con jugadores de Pulso; mejor con el banco nuevo (8).
-- **Plegar el makeup del limitador (+1,71 dB) en el margen del máster**: cosmético, no cambia ni una
-  muestra.
-- **Granular**: aparcado desde el Roadmap 5.0 («para otro momento»).
-- **Créditos** al publicar: una línea de agradecimientos en el README y, en el CHANGELOG, @tacowars
-  donde entre algo inspirado en sus ideas (ya aparece así en la 1.1.0).
+- **Undo in the Wave Editor**: the drawn table lives outside `CONTROLS` and does not go into the
+  history (1.1). Add it if it is missed.
+- **Large visualizers**: oscilloscope and spectrum in the header, expandable (old back-burner item);
+  fits with 1.3 (meter).
+- **«909 Kit» scene**: four percussion parts with Pulse players; better with the new bank (8).
+- **Fold the limiter makeup (+1.71 dB) into the master headroom**: cosmetic, does not change a single
+  sample.
+- **Granular**: parked since Roadmap 5.0 («for another time»).
+- **Credits** on publishing: a line of acknowledgements in the README and, in the CHANGELOG, @tacowars
+  wherever something inspired by his ideas goes in (it already appears that way in 1.1.0).
 
-### Decisiones
+### Decisions
 
-Aceptadas el 2026-10-17 (las recomendaciones):
-1. **5.1** entra: acento, ligadura, slide y repeticiones del secuenciador (figuraba en «Lo que NO
-   haremos» como proyecto aparte; el patrón ya admite `7!` y `5~` y el motor los ignora).
-2. **0.1** teclado del PC por POSICIÓN física (no por la letra): el diseño tracker queda en el mismo
-   sitio en cualquier distribución de teclado.
-3. **2.5** macros como fuentes de la matriz (barato). Las que mueven cualquier parámetro con rango y
-   curva propios, no por ahora (chocan con deshacer y MIDI learn).
-6. **2.3** empieza con 4 carriles × 32 pasos.
+Accepted on 2026-10-17 (the recommendations):
+1. **5.1** goes in: accent, tie, slide and repeats in the sequencer (it was listed in «What we will
+   NOT do» as a separate project; the pattern already accepts `7!` and `5~` and the engine ignores
+   them).
+2. **0.1** computer keyboard by physical POSITION (not by the letter): the tracker layout stays in the
+   same place on any keyboard layout.
+3. **2.5** macros as matrix sources (cheap). Those that move any parameter with their own range and
+   curve, not for now (they clash with undo and MIDI learn).
+6. **2.3** starts with 4 lanes × 32 steps.
 
-5. **Idioma es/en: de la mano del banco nuevo (8)** — así los nombres y descripciones de los presets
-   nacen en los dos idiomas y la interfaz se traduce en la misma tanda.
+5. **es/en language: hand in hand with the new bank (8)** — that way the names and descriptions of
+   the presets are born in both languages and the interface is translated in the same batch.
 
-Abiertas (no bloquean nada):
-4. **4.2 y 4.3** son opcionales: ¿entran?
+Open (they do not block anything):
+4. **4.2 and 4.3** are optional: do they go in?
 
-### 0 · Arreglos
+### 0 · Fixes
 
-**0.1 · Teclado sin notas colgadas.** ✔ HECHO 2026-10-17 (detalle en DISENO.md).
-- *Hoy* (`ui/keyboard.js`): el `keydown` no mira Ctrl/Alt/Meta, así que Ctrl+Z toca un Do y
-  Ctrl+C, un Mi. La nota se archiva por `e.key`: con Shift entre pulsar y soltar llega otra tecla
-  (Shift+2 = `"`) y la nota se queda colgada hasta el pánico. No se atienden `pointercancel` (el
-  sistema cancela un toque) ni `lostpointercapture`.
-- *Qué:* (1) con Ctrl, Alt o Meta pulsados la tecla no es nota; (2) el mapa por posición física
-  (`e.code`: `KeyZ`, `Digit2`, `Comma`…): Shift deja de importar y el diseño tracker queda en su sitio
-  en AZERTY o Dvorak; (3) cada nota de ratón o dedo archivada por `pointerId`; `pointercancel` y
-  `lostpointercapture` la sueltan; `touch-action: none` en las teclas.
-- *Verificación:* check «teclado sin notas colgadas»: `keydown Digit2` + `keyup` con `key '"'` → cero
-  voces; Ctrl+`KeyZ` → ninguna voz; `pointercancel` suelta.
-- *Coste:* bajo.
+**0.1 · Keyboard without hanging notes.** ✔ DONE 2026-10-17 (details in DISENO.md).
+- *Today* (`ui/keyboard.js`): `keydown` does not look at Ctrl/Alt/Meta, so Ctrl+Z plays a C and
+  Ctrl+C an E. The note is stored by `e.key`: with Shift between press and release a different key
+  arrives (Shift+2 = `"`) and the note hangs until panic. `pointercancel` (the system cancels a
+  touch) and `lostpointercapture` are not handled.
+- *What:* (1) with Ctrl, Alt or Meta held, the key is not a note; (2) the map by physical position
+  (`e.code`: `KeyZ`, `Digit2`, `Comma`…): Shift no longer matters and the tracker layout stays in
+  place on AZERTY or Dvorak; (3) each mouse or finger note stored by `pointerId`; `pointercancel` and
+  `lostpointercapture` release it; `touch-action: none` on the keys.
+- *Verification:* check «keyboard without hanging notes»: `keydown Digit2` + `keyup` with `key '"'` →
+  zero voices; Ctrl+`KeyZ` → no voice; `pointercancel` releases.
+- *Cost:* low.
 
-**0.2 · SFZ con las capas de velocity reales.** ✔ HECHO 2026-10-17 (detalle en DISENO.md; la medida
-final es por bandas de tercio de octava, no por el tilt que se proponía aquí: el tilt no veía cambios
-en armónicos débiles).
-- *Hoy* (`ui/sfzExport.js`): dos capas solo si `filterEnvAmt ≠ 0`. Un preset con velocity → FM por la
-  matriz, velocity → filtro por la matriz o sensibilidad en los operadores de FM4 exporta UNA capa y
-  pierde el tacto.
-- *Qué:* decidir midiendo, no con una lista de parámetros: renderizar la nota de referencia a
-  velocity 0,3 y 1, igualar nivel y comparar el tilt espectral (lo que ya hace el check «Velocity en
-  FM4»). Si cambia más de un umbral → capas (2 o 3). Así, cualquier destino nuevo de la velocity queda
-  cubierto sin tocar el exportador.
-- *Verificación:* check que exporta en memoria «E-piano DX (vel→FM)» → ≥ 2 capas; Init → 1.
-- *Coste:* bajo.
+**0.2 · SFZ with the real velocity layers.** ✔ DONE 2026-10-17 (details in DISENO.md; the final
+measurement is by third-octave bands, not by the tilt proposed here: the tilt did not see changes in
+weak harmonics).
+- *Today* (`ui/sfzExport.js`): two layers only if `filterEnvAmt ≠ 0`. A preset with velocity → FM
+  through the matrix, velocity → filter through the matrix or sensitivity on the FM4 operators exports
+  ONE layer and loses the touch.
+- *What:* decide by measuring, not with a list of parameters: render the reference note at velocity
+  0.3 and 1, match levels and compare the spectral tilt (what the «Velocity in FM4» check already
+  does). If it changes more than a threshold → layers (2 or 3). That way, any new velocity destination
+  is covered without touching the exporter.
+- *Verification:* check that exports «DX E-Piano (vel→FM)» in memory → ≥ 2 layers; Init → 1.
+- *Cost:* low.
 
-**0.3 · Tablas de onda sin ruido de interpolación.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). Medido,
-el ruido no estaba en los graves sino en el registro medio (−43 dB en Do4): tablas 8× + Hermite.
-- *Hoy* (`engine/wavetable.js`): cada mip mide 4× sus armónicos (mínimo 256 muestras) y el worklet
-  interpola en línea recta. Con tablas tan cortas el error de la interpolación cae ENTRE los
-  armónicos (inarmónico): aspereza en notas graves con muchos armónicos (sierra «Tabla» en C1-C2).
-- *Qué:* (1) medir primero: sierra «Tabla» frente a sierra PolyBLEP en C1, C2 y C3, energía fuera de
-  los armónicos (FFT) en dB bajo la fundamental; (2) si el suelo pasa de unos −60 dB: tablas más
-  largas en los mips con más armónicos (16-22×: memoria ×4-5 por set) o interpolación cúbica de 4
-  puntos (Hermite: el lookup cuesta el doble, sin memoria). Se elige por medida: memoria por nodo
-  frente a CPU por muestra.
-- *Verificación:* check «tabla limpia» con el umbral medido; pares WT antes/después.
-- *Coste:* bajo-medio.
+**0.3 · Wavetables without interpolation noise.** ✔ DONE 2026-10-20 (details in DISENO.md). Once
+measured, the noise was not in the low end but in the middle register (−43 dB at C4): 8× tables +
+Hermite.
+- *Today* (`engine/wavetable.js`): each mip is 4× its harmonics long (minimum 256 samples) and the
+  worklet interpolates linearly. With such short tables the interpolation error falls BETWEEN the
+  harmonics (inharmonic): harshness on low notes with many harmonics («Wavetable» saw at C1-C2).
+- *What:* (1) measure first: «Wavetable» saw against PolyBLEP saw at C1, C2 and C3, energy outside the
+  harmonics (FFT) in dB below the fundamental; (2) if the floor is above about −60 dB: longer tables
+  in the mips with more harmonics (16-22×: memory ×4-5 per set) or 4-point cubic interpolation
+  (Hermite: the lookup costs twice as much, no memory). The choice is made by measurement: memory per
+  node versus CPU per sample.
+- *Verification:* check «clean wavetable» with the measured threshold; WT before/after pairs.
+- *Cost:* low-medium.
 
-**0.4 · Un reloj común.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). Arp y Seq cuentan en PULSOS del reloj;
-la tecla de un jugador entra con su instante (no por temporizador). Sigue pendiente: Arp/Seq OFFLINE (van por
-setInterval: hace falta para 6.2, exportar a WAV lo que suena en el Seq/Arp). La secuencia de tabla se queda
-por voz desde su noteOn (es su gracia), no en la rejilla.
-- *Propósito:* todo lo que va a tempo — arpegiador, secuenciador, jugadores y lo que viene (LFO a
-  tempo, Pasos, swing) — comparte una rejilla.
-- *Hoy:* el Arp y el Seq arrancan cada uno su reloj al pulsar (`currentTime + 0,03`); el director
-  (`Conductor`) cuenta pulsos con otro. Cuando un jugador toca una parte con Arp o Seq, la «tecla»
-  entra por `setTimeout` y el Arp/Seq arranca donde caiga: fuera de la rejilla del compás.
-- *Qué / cómo:* `engine/Clock.js` con el origen (tiempo de audio del pulso 0) y el bpm; `nextGrid(t,
-  div)`, `stepAt(t, div)`, `beatAt(t)`. Con Partes y el director en marcha, el origen es el suyo;
-  tocando a mano, el origen se fija con la primera nota (sin latencia añadida, como hoy) y se
-  conserva mientras algo suene a tempo. El Arp y el Seq calculan su paso siguiente con `nextGrid`,
-  no desde «ahora». Un cambio de bpm reancla el origen en el pulso actual, sin saltos.
-- *Encaje:* `Arp.js`, `Seq.js`, `WaveSeq.js`, `Conductor.js`; el bpm ya es común (la Sala).
-- *Verificación:* check con jugador + Seq: los pasos caen en múltiplos exactos de la división desde
-  el origen del director (|Δ| < 1 muestra); tocando a mano, la primera nota sin retraso.
-- *Coste:* medio. Es la base de 2.2, 2.3, 5.1, 5.4 y 5.5.
+**0.4 · A common clock.** ✔ DONE 2026-10-20 (details in DISENO.md). Arp and Seq count in clock
+PULSES; a player's key comes in with its instant (not by timer). Still pending: Arp/Seq OFFLINE (they
+run on setInterval: needed for 6.2, exporting to WAV what plays in the Seq/Arp). The wave sequence
+stays per voice from its noteOn (that is its charm), not on the grid.
+- *Purpose:* everything that runs in tempo — arpeggiator, sequencer, players and what is coming
+  (tempo-synced LFO, Steps, swing) — shares one grid.
+- *Today:* the Arp and the Seq each start their own clock on key press (`currentTime + 0.03`); the
+  conductor (`Conductor`) counts pulses with another one. When a player plays a part with Arp or Seq,
+  the «key» comes in through `setTimeout` and the Arp/Seq starts wherever it lands: off the bar grid.
+- *What / how:* `engine/Clock.js` with the origin (audio time of pulse 0) and the bpm; `nextGrid(t,
+  div)`, `stepAt(t, div)`, `beatAt(t)`. With Parts and the conductor running, the origin is the
+  conductor's; when playing by hand, the origin is set by the first note (no added latency, as today)
+  and kept while something plays in tempo. The Arp and the Seq compute their next step with
+  `nextGrid`, not from «now». A bpm change re-anchors the origin at the current pulse, without jumps.
+- *Fit:* `Arp.js`, `Seq.js`, `WaveSeq.js`, `Conductor.js`; the bpm is already shared (the Room).
+- *Verification:* check with player + Seq: the steps fall on exact multiples of the division from the
+  conductor's origin (|Δ| < 1 sample); playing by hand, the first note without delay.
+- *Cost:* medium. It is the basis of 2.2, 2.3, 5.1, 5.4 and 5.5.
 
-### 1 · Taller de sonido
+### 1 · Sound workshop
 
-**1.1 · Deshacer y rehacer.** ✔ HECHO 2026-10-17 (detalle en DISENO.md).
-- *Propósito:* diseñar sonidos es probar y volver; sin deshacer, se prueba con miedo.
-- *Qué:* Ctrl+Z / Ctrl+Y (y Ctrl+Mayús+Z); botones ↶ ↷ en la cabecera con lo que deshacen
-  («Deshacer Cutoff»). 100 pasos.
-- *Cómo:* `ui/undo.js`. Antes de cada GESTO, `snapshot()` (un objeto plano de ~250 claves); al
-  acabar, si algo cambió, se apila {antes, después, pantalla, parte}. Un gesto: el arrastre de un
-  knob o fader de `pointerdown` a `pointerup`; rueda o flechas agrupadas si llegan a menos de 500 ms;
-  el doble clic de reset; elegir en un selector; cargar un preset (deshacerlo devuelve el sonido de
-  antes). Deshacer aplica SOLO las claves que difieren (`CONTROLS[k].set`), no `loadState`: no corta
-  las notas que suenan. Vuelve a la pantalla donde se hizo el cambio. No entran los gestos de
-  ejecución (teclado, rueda, bend, aftertouch).
-- *Encaje:* `registry.js` (`CONTROLS`, `snapshot`); el nombre del parámetro ya se lee del DOM para la
-  pantalla Salida y sirve para el título del botón.
-- *Verificación:* check: un arrastre de cutoff = un paso; deshacer y rehacer restauran; cargar un
-  preset y deshacer vuelve al anterior; una nota sostenida sigue sonando tras deshacer.
-- *Coste:* bajo-medio.
+**1.1 · Undo and redo.** ✔ DONE 2026-10-17 (details in DISENO.md).
+- *Purpose:* designing sounds is trying and going back; without undo, you try things with fear.
+- *What:* Ctrl+Z / Ctrl+Y (and Ctrl+Shift+Z); ↶ ↷ buttons in the header showing what they undo
+  («Undo Cutoff»). 100 steps.
+- *How:* `ui/undo.js`. Before each GESTURE, `snapshot()` (a flat object of ~250 keys); at the end, if
+  something changed, {before, after, screen, part} is pushed. A gesture: dragging a knob or fader
+  from `pointerdown` to `pointerup`; wheel or arrows grouped if they arrive less than 500 ms apart;
+  the reset double click; choosing in a selector; loading a preset (undoing it brings back the sound
+  from before). Undo applies ONLY the keys that differ (`CONTROLS[k].set`), not `loadState`: it does
+  not cut the notes that are playing. It goes back to the screen where the change was made.
+  Performance gestures (keyboard, wheel, bend, aftertouch) are not included.
+- *Fit:* `registry.js` (`CONTROLS`, `snapshot`); the parameter name is already read from the DOM for
+  the Output screen and serves for the button title.
+- *Verification:* check: one cutoff drag = one step; undo and redo restore; loading a preset and
+  undoing goes back to the previous one; a sustained note keeps playing after undo.
+- *Cost:* low-medium.
 
-**1.2 · Comparar con el guardado.** ✔ HECHO 2026-10-17 (detalle en DISENO.md).
-- *Propósito:* la tecla «Compare» de los synths de hardware.
-- *Qué:* punto de «modificado» junto al nombre del preset, calculado COMPARANDO el estado con el
-  preset cargado (si devuelves el knob a su sitio, el punto se apaga); botón «Comparar»: mientras
-  está activo suena el preset guardado y, al soltarlo, vuelve tu edición intacta.
-- *Cómo:* al cargar, guardar el estado efectivo (con la base aplicada); comparación clave a clave
-  con tolerancia para decimales; Comparar aplica diferencias en un sentido y en otro con el mismo
-  mecanismo de 1.1, sin tocar el historial.
-- *Verificación:* check: editar → punto; devolver → sin punto; comparar ida y vuelta conserva la
-  edición.
-- *Coste:* bajo.
+**1.2 · Compare with the saved one.** ✔ DONE 2026-10-17 (details in DISENO.md).
+- *Purpose:* the «Compare» key of hardware synths.
+- *What:* a «modified» dot next to the preset name, computed by COMPARING the state with the loaded
+  preset (if you put the knob back where it was, the dot goes out); «Compare» button: while it is
+  active the saved preset plays and, when released, your edit comes back intact.
+- *How:* on loading, store the effective state (with the base applied); key-by-key comparison with a
+  tolerance for decimals; Compare applies differences in one direction and the other with the same
+  mechanism as 1.1, without touching the history.
+- *Verification:* check: edit → dot; put back → no dot; comparing there and back keeps the edit.
+- *Cost:* low.
 
-**1.3 · Medidor de salida.**
-- *Propósito:* ver el nivel mientras se diseña — más aún con el mezclador, que suma —: cuánto margen
-  queda y cuándo trabaja el limitador.
-- *Qué:* en la cabecera, junto al osciloscopio: picos L/R (retención 1 s, caída 24 dB/s, zonas a
-  −12 y −1 dBFS), la reducción de ganancia del limitador y un LED «limitador» que se queda encendido
-  hasta clicarlo.
-- *Cómo:* `limiter-processor.js` ya calcula la ganancia: que mande por su `port`, cada ~50 ms, el pico
-  de entrada y de salida y la reducción máxima del intervalo (máximos acumulados: sin coste extra
-  por muestra). Barras con `transform: scaleY`, sin transiciones CSS (cuestan hilo principal),
-  pintadas solo al llegar un dato y paradas con la pestaña oculta.
-- *Verificación:* check: una ráfaga a +12 dB (como en «limitador») enciende el LED y marca > 6 dB de
-  reducción; en silencio, −∞.
-- *Coste:* bajo-medio.
+**1.3 · Output meter.**
+- *Purpose:* see the level while designing — even more with the mixer, which adds up —: how much
+  headroom is left and when the limiter is working.
+- *What:* in the header, next to the oscilloscope: L/R peaks (1 s hold, 24 dB/s fall, zones at
+  −12 and −1 dBFS), the limiter's gain reduction and a «limiter» LED that stays lit until clicked.
+- *How:* `limiter-processor.js` already computes the gain: let it send through its `port`, every
+  ~50 ms, the input and output peak and the maximum reduction in the interval (accumulated maxima:
+  no extra cost per sample). Bars with `transform: scaleY`, without CSS transitions (they cost main
+  thread), painted only when data arrives and stopped while the tab is hidden.
+- *Verification:* check: a burst at +12 dB (as in «limiter») lights the LED and shows > 6 dB of
+  reduction; in silence, −∞.
+- *Cost:* low-medium.
 
-**1.4 · Biblioteca 2.0: encontrar sonidos.**
-- *Propósito:* con ~120 presets de fábrica, dos bancos y los tuyos, encontrar «un pad oscuro y
-  lento» en segundos.
-- *Qué:* (1) etiquetas por preset (oscuro, brillante, lento, percusivo, evolutivo, metálico, vocal,
-  sub, ácido…) y una descripción corta de CÓMO tocarlo («acordes abiertos en Do3-Do5; ataque de
-  12 s»); (2) buscador de varias palabras (todas en nombre, etiquetas, categoría o descripción);
-  (3) filtros por etiqueta con su recuento (el número = presets que quedarían al elegirla);
-  (4) escuchar sin cargar: mantener ▶ en una tarjeta toca una nota (o el acorde de su categoría)
-  con ese preset en un motor aparte, sin tocar tu edición; (5) ‹ › de la barra rápida recorren la
-  lista filtrada.
-- *Cómo:* claves `tags` y `desc` en el preset, fuera de `CONTROLS` (metadatos, no sonido): la
-  biblioteca las guarda con el ítem y `snapshot()` no las pisa. Etiquetado inicial de la fábrica a
-  mano, categoría a categoría, con el uso previsto que ya se fijó al igualar la sonoridad (una nota
-  o acorde de tres).
-- *Verificación:* checks del modelo (`Library` sin DOM): búsqueda con todas las palabras,
-  recuentos; la escucha no cambia el estado del rack.
-- *Coste:* medio.
+**1.4 · Library 2.0: finding sounds.**
+- *Purpose:* with ~120 factory presets, two banks and your own, find «a dark, slow pad» in seconds.
+- *What:* (1) tags per preset (dark, bright, slow, percussive, evolving, metallic, vocal, sub,
+  acid…) and a short description of HOW to play it («open chords in C3-C5; 12 s attack»);
+  (2) multi-word search (all of them in name, tags, category or description); (3) tag filters with
+  their count (the number = presets that would remain if you chose it); (4) listen without loading:
+  holding ▶ on a card plays a note (or its category's chord) with that preset on a separate engine,
+  without touching your edit; (5) ‹ › in the quick bar step through the filtered list.
+- *How:* `tags` and `desc` keys in the preset, outside `CONTROLS` (metadata, not sound): the library
+  stores them with the item and `snapshot()` does not overwrite them. Initial tagging of the factory
+  by hand, category by category, with the intended use that was already fixed when the loudness was
+  matched (a note or a three-note chord).
+- *Verification:* model checks (`Library` without DOM): search with all the words, counts; listening
+  does not change the rack state.
+- *Cost:* medium.
 
-### 2 · Expresión y movimiento
+### 2 · Expression and movement
 
-**2.1 · Envolvente de modulación con bucle.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). Panel «Env mod» en la
-pantalla Secuenciación (decisión de Sergio: la banda Voz de Diseño estaba llena); en bucle el sostenido no cuenta.
-- *Propósito:* una envolvente libre más para la matriz que además puede REPETIRSE: ritmos de timbre
-  atados a cada nota, sin tempo.
-- *Qué:* «Env mod» (ataque, decay, sustain, release, curva) como fuente de la matriz, con tres
-  modos: normal · bucle (repite ataque + decay mientras la nota está pulsada: un LFO con forma de
-  envolvente que arranca con la nota) · disparo (ignora el note-off: la curva completa siempre;
-  para percusión con gate corto).
-- *Cómo:* normal y disparo = `ConstantSource` por voz con las rampas de `_envSegs` (como la env de
-  filtro, que ya es fuente). Bucle = un `AudioBufferSource` por voz con UN ciclo A + D en un buffer y
-  `loop = true`, arrancado en `t0` (exactitud de muestra y coste mínimo, como los LFO S&H por
-  buffer); al soltar, release desde el valor actual con ancla explícita (como el VCA).
-- *Encaje:* `Voice.js` (fuente `envm` en `mxRewire`), `params.js` (`envm*`), panel en Diseño junto a
-  Env filtro si cabe en la banda Voz → Salida.
-- *Verificación:* check: en bucle con A 10 ms + D 90 ms la fuente repite a 10 Hz exactos (Goertzel
-  sobre el destino Amplitud); en disparo, un gate de 20 ms completa la curva. Pares ENVM.
-- *Coste:* medio.
+**2.1 · Looping modulation envelope.** ✔ DONE 2026-10-20 (details in DISENO.md). «Mod Env» panel on
+the Sequencing screen (Sergio's decision: the Voice band in Design was full); in loop mode the
+sustain does not count.
+- *Purpose:* one more free envelope for the matrix that can also REPEAT: timbre rhythms tied to each
+  note, without tempo.
+- *What:* «Mod Env» (attack, decay, sustain, release, curve) as a matrix source, with three modes:
+  normal · loop (repeats attack + decay while the note is held: an envelope-shaped LFO that starts
+  with the note) · trigger (ignores the note-off: always the whole curve; for percussion with a short
+  gate).
+- *How:* normal and trigger = a `ConstantSource` per voice with the ramps from `_envSegs` (like the
+  filter env, which is already a source). Loop = one `AudioBufferSource` per voice with ONE A + D
+  cycle in a buffer and `loop = true`, started at `t0` (sample accuracy and minimal cost, like the
+  buffer-based S&H LFOs); on release, release from the current value with an explicit anchor (like
+  the VCA).
+- *Fit:* `Voice.js` (source `envm` in `mxRewire`), `params.js` (`envm*`), panel in Design next to
+  Filter Env if it fits in the Voice → Output band.
+- *Verification:* check: in loop with A 10 ms + D 90 ms the source repeats at exactly 10 Hz
+  (Goertzel on the Amplitude destination); in trigger, a 20 ms gate completes the curve. ENVM pairs.
+- *Cost:* medium.
 
-**2.2 · LFO a tempo, con reinicio y de una vez.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). Sincro por LFO (selector
-por fila) y el modo de fase, uno para todos (global · por voz · reinicio · una vez). De paso: los LFO globales
-se quedaban CONGELADOS entre notas (Chrome no procesa lo que no llega a la salida); ahora corren siempre.
-- *Qué:* cada LFO con «sincro» (Speed en divisiones: 4 compases … 1/32, tresillos y puntillos) y
-  modo de fase: libre (como hoy) · reinicio (cada nota arranca el LFO en su fase 0) · una vez
-  (recorre un ciclo y se queda: otra envolvente más).
-- *Cómo:* velocidad = bpm / 60 / pulsos de la división; el LFO global se ancla al origen del reloj
-  común (su máximo cae en la rejilla). Reinicio y una vez = LFO por voz (los buffers por voz de
-  `lfoPhase 'voz'` ya existen) con fase 0 y, para una vez, `loop = false`.
-- *Verificación:* check: a 120 bpm y 1/8 el LFO va a 4 Hz con el máximo en la rejilla (± 1 ms); en
-  una vez, fijo tras un ciclo.
-- *Coste:* bajo-medio. Depende de 0.4.
+**2.2 · Tempo-synced, retriggered and one-shot LFO.** ✔ DONE 2026-10-20 (details in DISENO.md). Sync
+per LFO (selector per row) and the phase mode, one for all (global · per voice · retrig · once).
+Along the way: the global LFOs got FROZEN between notes (Chrome does not process what does not reach
+the output); now they always run.
+- *What:* each LFO with «sync» (Speed in divisions: 4 bars … 1/32, triplets and dotted) and phase
+  mode: free (as today) · retrig (each note starts the LFO at its phase 0) · once (goes through one
+  cycle and stays: yet another envelope).
+- *How:* speed = bpm / 60 / pulses of the division; the global LFO is anchored to the origin of the
+  common clock (its maximum falls on the grid). Retrig and once = per-voice LFO (the per-voice buffers
+  of `lfoPhase 'voz'` already exist) with phase 0 and, for once, `loop = false`.
+- *Verification:* check: at 120 bpm and 1/8 the LFO runs at 4 Hz with its maximum on the grid
+  (± 1 ms); in once, fixed after one cycle.
+- *Cost:* low-medium. Depends on 0.4.
 
-**2.3 · Módulo de Pasos (polimetría).** ✔ HECHO 2026-10-20 (detalle en DISENO.md). Panel en la banda de abajo de
-Secuenciación (decisión de Sergio). Ojo a la cuenta de abajo: 240 semicorcheas son 15 compases, no 30.
-- *Propósito:* el pendiente del Roadmap 6.0: el timbre moviéndose por PASOS, con ritmo, complejo sin
-  dejar de ser rítmico. Carriles simples de longitudes distintas solo vuelven a coincidir tras
-  muchos compases: 16 · 12 · 5 pasos → mcm 240 (30 compases en semicorcheas).
-- *Qué:* 4 carriles; en cada uno: longitud 1-32 pasos; división (1/32 … 1 compás, tresillos); valor
-  por paso −1..+1 dibujado con el ratón; suavizado (0 = escalón con una micro-rampa de 4 ms contra el
-  clic … 1 = curva); rotación y deriva de la rotación (un paso cada N compases: el desfase de Reich).
-  Cada carril es una FUENTE de la matriz en dos sabores: «Pasos 1» (señal continua: el escalón mueve
-  también una nota sostenida) y «Pasos 1 · nota» (el valor se fija al empezar cada nota y la
-  acompaña entera: correcto en polifonía y sin escalones dentro de una nota; para arpegios y
-  plucks). Reinicio común de todos los carriles (al empezar a tocar / cada N compases / nunca) y un
-  rótulo «el ciclo completo dura 30 compases».
-- *Cómo:* `engine/Steps.js`; los patrones en claves planas («0.5 -1 0 …», como `wsPat`): presets,
-  MIDI learn y Reset sin casos especiales. Continuo = un `ConstantSource` por carril y motor,
-  programado en el look-ahead del reloj común (`setValueAtTime` + rampa corta) y conectado por la
-  matriz como los LFO globales. Por nota = fuente escalar por voz (como «S&H por nota» en
-  `_mxConsts`), leída con el paso del reloj en `t0`. Lo aprendido: no conectar a parámetros de los
-  biquads salvo que se use (coeficientes por muestra).
-- *Encaje:* pantalla Secuenciación, junto a Arp, Seq y la secuencia de tabla. La secuencia de tabla
-  se queda como está (compatibilidad) y un carril sobre «Wavetable» la generaliza. Con 2.1 y 2.2
-  completa el trío del movimiento: envolvente que repite, LFO a tempo, pasos. Una puerta de volumen
-  a tempo (trance gate, bombeo) es un carril sobre Amplitud.
-- *Verificación:* checks: (1) la escalera de un carril en el tiempo (portadora por destino
-  Amplitud: valores y tiempos exactos); (2) 16 · 12 · 5 vuelven a coincidir en el paso 240; (3) «por
-  nota» mantiene el valor toda la nota; (4) suavizado 0 sin clic (salto máximo entre muestras
-  acotado). Pares PASOS 1-6 (pad quieto / con tres carriles; arpegio sin y con «por nota»).
-- *Coste:* alto. Depende de 0.4 y 2.2.
+**2.3 · Steps module (polymetre).** ✔ DONE 2026-10-20 (details in DISENO.md). Panel in the bottom
+band of Sequencing (Sergio's decision). Mind the count below: 240 sixteenths are 15 bars, not 30.
+- *Purpose:* the pending item from Roadmap 6.0: the timbre moving in STEPS, with rhythm, complex while
+  still rhythmic. Simple lanes of different lengths only line up again after many bars: 16 · 12 · 5
+  steps → LCM 240 (30 bars in sixteenths).
+- *What:* 4 lanes; in each one: length 1-32 steps; division (1/32 … 1 bar, triplets); value per step
+  −1..+1 drawn with the mouse; smoothing (0 = step with a 4 ms micro-ramp against the click … 1 =
+  curve); rotation and rotation drift (one step every N bars: Reich's phasing). Each lane is a matrix
+  SOURCE in two flavours: «Steps 1» (continuous signal: the step also moves a sustained note) and
+  «Steps 1 · note» (the value is fixed when each note starts and stays with it the whole note: correct
+  in polyphony and with no steps inside a note; for arpeggios and plucks). A common reset for all the
+  lanes (on starting to play / every N bars / never) and a label «the full cycle lasts 30 bars».
+- *How:* `engine/Steps.js`; the patterns in flat keys («0.5 -1 0 …», like `wsPat`): presets, MIDI
+  learn and Reset without special cases. Continuous = one `ConstantSource` per lane and engine,
+  scheduled in the look-ahead of the common clock (`setValueAtTime` + short ramp) and connected
+  through the matrix like the global LFOs. Per note = a scalar source per voice (like «S&H per note»
+  in `_mxConsts`), read with the clock's step at `t0`. Lesson learned: do not connect to biquad
+  parameters unless they are used (per-sample coefficients).
+- *Fit:* Sequencing screen, next to Arp, Seq and the wave sequence. The wave sequence stays as it is
+  (compatibility) and a lane on «Wavetable» generalizes it. With 2.1 and 2.2 it completes the
+  movement trio: an envelope that repeats, a tempo-synced LFO, steps. A tempo-synced volume gate
+  (trance gate, pumping) is a lane on Amplitude.
+- *Verification:* checks: (1) the staircase of a lane over time (carrier through the Amplitude
+  destination: exact values and times); (2) 16 · 12 · 5 line up again at step 240; (3) «per note»
+  keeps the value for the whole note; (4) smoothing 0 without a click (maximum jump between samples
+  bounded). Pairs STEPS 1-6 (static pad / with three lanes; arpeggio without and with «per note»).
+- *Cost:* high. Depends on 0.4 and 2.2.
 
-**2.4 · Más destinos en la matriz.** ✔ HECHO 2026-10-20 (detalle en DISENO.md): niveles A, B, Ring y ruido,
-Drive, Pitch A y Material (reafina los modos; sus pesos siguen al knob). Un nivel bajo 0 invierte la
-fase y se deja (AM por cero). Decay NO: Q lineal frente a un knob en log y el refuerzo ∝ √Q del ruido.
-- *Qué:* los niveles del mezclador (Osc A, Osc B, Ring, Ruido) → morph vectorial entre fuentes con
-  un LFO, una envolvente o los Pasos; Drive; Material y Decay del resonador; Pitch solo de A (para el
-  barrido de 3.2).
-- *Cómo:* los nodos existen (`gA`, `gB`, `ringX`, `noiseGain`, `dvPre`, el banco modal); la matriz
-  suma sobre su AudioParam con su escala (`MX_SPAN`). Un nivel modulado por debajo de 0 invierte la
-  fase y suena igual de fuerte: fuentes unipolares o recorte (a decidir midiendo).
-- *Verificación:* check por destino (se mueve lo que dice); pares VEC (dos osciladores fijos / los
-  mismos con un LFO lento sobre los niveles).
-- *Coste:* bajo.
+**2.4 · More destinations in the matrix.** ✔ DONE 2026-10-20 (details in DISENO.md): levels A, B,
+Ring and noise, Drive, Pitch A and Material (retunes the modes; their weights follow the knob). A
+level below 0 inverts the phase and is left that way (AM through zero). Decay NO: linear Q against a
+log knob and the ∝ √Q boost of the noise.
+- *What:* the mixer levels (Osc A, Osc B, Ring, Noise) → vector morph between sources with an LFO,
+  an envelope or the Steps; Drive; Material and Decay of the resonator; Pitch of A only (for the
+  sweep of 3.2).
+- *How:* the nodes exist (`gA`, `gB`, `ringX`, `noiseGain`, `dvPre`, the modal bank); the matrix sums
+  onto their AudioParam with its scale (`MX_SPAN`). A level modulated below 0 inverts the phase and
+  sounds just as loud: unipolar sources or clipping (to be decided by measuring).
+- *Verification:* check per destination (what it says moves); VEC pairs (two fixed oscillators / the
+  same with a slow LFO on the levels).
+- *Cost:* low.
 
-**2.5 · Macros de ejecución.**
-- *Qué:* 2 (o 4) knobs «Macro» guardados en el preset y aprendibles por MIDI, como FUENTES de la
-  matriz (igual que la rueda o la expresión): un solo knob abre el filtro, sube el drive y baja la
-  reverb a la vez, cada uno con la cantidad de su slot.
-- *Cómo:* claves `macro1`/`macro2` (0..1) en `PARAMS`; fuente constante por motor (como
-  `AudioEngine.perf` para rueda, aftertouch y expresión, que no se guardan; estas sí).
-- *Coste:* bajo. (La alternativa — macros que mueven cualquier parámetro — en Decisiones.)
+**2.5 · Performance macros.**
+- *What:* 2 (or 4) «Macro» knobs saved in the preset and MIDI-learnable, as matrix SOURCES (just like
+  the wheel or expression): a single knob opens the filter, raises the drive and lowers the reverb at
+  the same time, each with the amount of its slot.
+- *How:* keys `macro1`/`macro2` (0..1) in `PARAMS`; a constant source per engine (like
+  `AudioEngine.perf` for wheel, aftertouch and expression, which are not saved; these are).
+- *Cost:* low. (The alternative — macros that move any parameter — in Decisions.)
 
-**2.6 · Respuesta al tacto.**
-- *Qué:* curva de velocity (suave · lineal · dura) para MIDI y ratón; rango del pitch bend por preset
-  (±2 por defecto, ±12 para bajos y efectos).
-- *Coste:* bajo.
+**2.6 · Touch response.**
+- *What:* velocity curve (soft · linear · hard) for MIDI and mouse; pitch bend range per preset
+  (±2 by default, ±12 for basses and effects).
+- *Cost:* low.
 
-### 3 · Generadores nuevos
+### 3 · New generators
 
-**3.1 · Drive con carácter: asimétrico y plegado.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). En vez de tres
-modos, «carácter» suave | plegado + knob Asimetría (el sesgo, en los dos): suave + Asimetría = el asimétrico.
-- *Propósito:* dos colores que un filtro no da. Asimétrico: armónicos PARES (el cuerpo «torcido» de
-  los bombos y las válvulas). Plegado: la síntesis de la Costa Oeste (Buchla) — al subir la ganancia
-  la onda se dobla sobre sí misma y los armónicos aparecen y se mueven de forma no lineal; un
-  barrido que no se parece a ningún filtro.
-- *Qué:* selector «Carácter» en el Drive: suave (tanh, el de hoy) · asimétrico (sesgo:
-  `y = f(g·x + b) − f(b)`: sin continua y con silencio exacto) · plegado (pliegue senoidal con
-  «Simetría»). El Drive modulable por la matriz (2.4) = barridos de plegado con LFO, envolvente o
-  Pasos.
-- *Cómo:* la cadena `dvPre → WaveShaper → dvPost` de siempre; curvas nuevas compartidas (como
-  `DRIVE_CURVE`) con rango de entrada amplio (el pliegue necesita ±8); sobremuestreo 4x en el
-  plegado; el sesgo, un `ConstantSource` sumado delante del shaper.
-- *Verificación:* check: asimétrico con 2º armónico > −30 dB y continua < −80 dB; plegado con el
-  brillo subiendo de forma NO monótona con la ganancia; silencio exacto con entrada 0. Pares DRV.
-- *Coste:* bajo-medio.
+**3.1 · Drive with character: asymmetric and folded.** ✔ DONE 2026-10-20 (details in DISENO.md).
+Instead of three modes, «character» soft | fold + an Asym knob (the bias, in both): soft + Asym =
+the asymmetric one.
+- *Purpose:* two colours a filter does not give. Asymmetric: EVEN harmonics (the «twisted» body of
+  kick drums and valves). Folded: West Coast synthesis (Buchla) — as the gain rises the wave folds
+  over itself and the harmonics appear and move non-linearly; a sweep that sounds like no filter.
+- *What:* «Character» selector on the Drive: soft (tanh, today's) · asymmetric (bias:
+  `y = f(g·x + b) − f(b)`: no DC and exact silence) · fold (sine fold with «Symmetry»). The Drive
+  modulable from the matrix (2.4) = fold sweeps with an LFO, an envelope or Steps.
+- *How:* the usual `dvPre → WaveShaper → dvPost` chain; new shared curves (like `DRIVE_CURVE`) with a
+  wide input range (the fold needs ±8); 4x oversampling in the fold; the bias, a `ConstantSource`
+  added in front of the shaper.
+- *Verification:* check: asymmetric with 2nd harmonic > −30 dB and DC < −80 dB; fold with the
+  brightness rising NON-monotonically with the gain; exact silence with input 0. DRV pairs.
+- *Cost:* low-medium.
 
-**3.2 · Sincronización dura (hard sync).**
-- *Qué:* «Sync» en el Osc A: A reinicia su ciclo con cada ciclo de B. Barriendo el tono de A (pitch
-  env, Pasos o LFO sobre «Pitch A») sale el chillido clásico del lead de sync.
-- *Cómo:* los osciladores son nodos separados, pero el esclavo no necesita OÍR al maestro, solo su
-  tiempo: A lleva dentro una fase «fantasma» a la frecuencia de B (nota × octava y detune de B, que
-  se le pasan) y reinicia su fase al cruzarla, con la corrección PolyBLEP del salto (como ya hace
-  en las aristas).
-- *Verificación:* check: con A a 1,5× B, la fundamental es la de B; sin aliasing por encima de
-  −60 dB. Pares SYNC. **Hecho:** los −60 dB no eran realistas con PolyBLEP (la sierra libre ya
-  está en −43 a Do4); criterio: tan limpio como el oscilador libre a su altura (ver DISENO).
-- *Coste:* medio. Depende de 2.4 (Pitch A).
+**3.2 · Hard sync.**
+- *What:* «Sync» on Osc A: A restarts its cycle with every cycle of B. Sweeping A's pitch (pitch env,
+  Steps or LFO on «Pitch A») gives the classic scream of the sync lead.
+- *How:* the oscillators are separate nodes, but the slave does not need to HEAR the master, only its
+  timing: A carries inside a «ghost» phase at B's frequency (note × octave and detune of B, which are
+  passed to it) and resets its phase when crossing it, with the PolyBLEP correction of the jump (as it
+  already does at the edges).
+- *Verification:* check: with A at 1.5× B, the fundamental is B's; no aliasing above −60 dB. SYNC
+  pairs. **Done:** the −60 dB was not realistic with PolyBLEP (the free saw is already at −43 at
+  C4); criterion: as clean as the free oscillator at its pitch (see DISENO).
+- *Cost:* medium. Depends on 2.4 (Pitch A).
 
-**3.3 · Cuerda física (Karplus-Strong extendido).**
-- *Propósito:* una familia nueva: cuerdas pulsadas que se apagan como las de verdad (cada armónico a
-  su ritmo), con la fuerza de la pulsación cambiando el brillo.
-- *Qué:* onda «Cuerda»: excitación de ruido filtrada por la velocity; línea de retardo afinada a la
-  nota (afinación fina con allpass fraccional); filtro en el bucle (Brillo, Decay); posición de
-  pulsación (peine: cerca del puente, metálico; al centro, redondo); Rigidez (dispersión con
-  allpass: cuerdas de piano, campanas).
-- *Cómo:* en `pulse-processor.js`, un tipo más con su buffer de retardo por instancia (2205
-  muestras bastan hasta 20 Hz); reutiliza octava, detune y glide (la longitud sigue al tono).
-- *Verificación:* check: afinación ± 2 cents en C2-C6; la fundamental dura más que el 5º armónico;
-  velocity 0,3 frente a 1 cambia el brillo. Pares CUERDA.
-- *Coste:* medio.
+**3.3 · Physical string (extended Karplus-Strong).**
+- *Purpose:* a new family: plucked strings that die away like real ones (each harmonic at its own
+  rate), with the strength of the pluck changing the brightness.
+- *What:* «String» wave: noise excitation filtered by velocity; delay line tuned to the note (fine
+  tuning with a fractional allpass); filter in the loop (Bright, Decay); pluck position (comb: near
+  the bridge, metallic; in the middle, round); Stiffness (dispersion with allpass: piano strings,
+  bells).
+- *How:* in `pulse-processor.js`, one more type with its delay buffer per instance (2205 samples are
+  enough down to 20 Hz); reuses octave, detune and glide (the length follows the pitch).
+- *Verification:* check: tuning ± 2 cents in C2-C6; the fundamental lasts longer than the 5th
+  harmonic; velocity 0.3 against 1 changes the brightness. STRING pairs.
+- *Cost:* medium.
 
-**3.4 · Distorsión de fase.**
-- *Qué:* onda «Fase» (los Casio CZ): un coseno leído con la fase deformada; un knob «Forma» barre de
-  seno a sierra o pulso, y las formas «resonantes» imitan un filtro resonante sin filtro. Modulable
-  (destino «Forma»).
-- *Cómo:* en `pulse-processor.js`; «Forma» como AudioParam a-rate (como la PW). Banda limitada por
-  PolyBLEP o mips según la forma (a medir).
-- *Coste:* bajo-medio.
+**3.4 · Phase distortion.**
+- *What:* «Phase» wave (the Casio CZ): a cosine read with a warped phase; a «Shape» knob sweeps from
+  sine to saw or pulse, and the «resonant» shapes imitate a resonant filter without a filter.
+  Modulable («Shape» destination).
+- *How:* in `pulse-processor.js`; «Shape» as an a-rate AudioParam (like the PW). Band-limited by
+  PolyBLEP or mips depending on the shape (to be measured).
+- *Cost:* low-medium.
 
-**3.5 · Aditiva: editor de armónicos.**
-- *Qué:* el Editor de ondas gana un modo «Armónicos»: dibujas las amplitudes de los armónicos 1-64
-  en barras en vez de la forma de onda; la tabla «usuario» se genera desde ese espectro (la tubería
-  de tablas ya trabaja con espectros). Dos espectros dibujados y el morph = timbres que respiran. Es
-  la parte «editor de armónicos» del W3 aplazado.
-- *Coste:* medio.
+**3.5 · Additive: harmonic editor.**
+- *What:* the Wave Editor gains a «Harmonics» mode: you draw the amplitudes of harmonics 1-64 as bars
+  instead of the waveform; the «user» table is generated from that spectrum (the wavetable pipeline
+  already works with spectra). Two drawn spectra and the morph = timbres that breathe. It is the
+  «harmonic editor» part of the postponed W3.
+- *Cost:* medium.
 
-(Sin fecha: granular, aparcado desde el Roadmap 5.0.)
+(No date: granular, parked since Roadmap 5.0.)
 
-### 4 · Carácter y espacio
+### 4 · Character and space
 
-**4.1 · Delay que se desboca (dub).**
-- *Qué:* «Saturación» dentro del bucle del delay y realimentación hasta 1,1: por encima de 1 el eco
-  crece hasta que la saturación lo sujeta y se queda autooscilando a nivel estable (las sirenas del
-  dub); Damp y Wow siguen dentro del bucle.
-- *Cómo:* un WaveShaper (tanh) en la realimentación de la Sala (un `DelayNode` admite ciclos); con
-  la tanh dentro, la amplitud del bucle queda acotada por construcción.
-- *Verificación:* check: con realimentación 1,1 el nivel se estabiliza (< 1,5 dB de variación entre
-  los segundos 5 y 10) y sin NaN; con saturación 0, el delay de hoy, idéntico. Pares DUB.
-- *Coste:* bajo.
+**4.1 · Runaway delay (dub).**
+- *What:* «Saturation» inside the delay loop and feedback up to 1.1: above 1 the echo grows until the
+  saturation holds it and it stays self-oscillating at a stable level (the dub sirens); Damp and Wow
+  stay inside the loop.
+- *How:* a WaveShaper (tanh) in the feedback of the Room (a `DelayNode` allows cycles); with the tanh
+  inside, the loop amplitude is bounded by construction.
+- *Verification:* check: with feedback 1.1 the level settles (< 1.5 dB of variation between seconds
+  5 and 10) and no NaN; with saturation 0, today's delay, identical. DUB pairs.
+- *Cost:* low.
 
-**4.2 · Placa: graves y modulación aleatoria** (opcional).
-- *Qué:* decay propio de los graves (×0,5 … ×2: salas oscuras, o cortas de graves para no
-  embarrar) y la modulación de los allpass del tanque con ruido suavizado en vez de senos a 1 y
-  0,95 Hz (menos «chorus» en colas largas).
-- *Cómo:* `plate-processor.js`: un cruce de bandas en el tanque con su factor; ruido suavizado con
-  semilla. La placa ya no calcula en silencio.
-- *Verificación:* RT60 por bandas medido; pares PL.
-- *Coste:* medio.
+**4.2 · Plate: low end and random modulation** (optional).
+- *What:* a decay of its own for the low end (×0.5 … ×2: dark rooms, or short in the lows so as not
+  to muddy) and modulation of the tank allpasses with smoothed noise instead of sines at 1 and
+  0.95 Hz (less «chorus» on long tails).
+- *How:* `plate-processor.js`: a band crossover in the tank with its factor; seeded smoothed noise.
+  The plate no longer computes in silence.
+- *Verification:* RT60 measured per band; PL pairs.
+- *Cost:* medium.
 
-**4.3 · Phaser** (opcional): 4-8 etapas allpass con realimentación y LFO, junto a Flanger y Chorus.
-*Coste:* bajo-medio.
+**4.3 · Phaser** (optional): 4-8 allpass stages with feedback and LFO, next to Flanger and Chorus.
+*Cost:* low-medium.
 
-### 5 · Acompañamiento ligero
+### 5 · Light accompaniment
 
-**5.1 · Secuenciador: acento, ligadura, slide y repeticiones** (DECISIÓN 1).
-- *Hoy:* el patrón ya admite `7!` (acento) y `5~` (ligadura); `Seq.js` (`_tick`) los ignora.
-- *Qué:* `!` = más velocity + fuente de matriz «Acento» (el preset decide qué hace un acento: abrir
-  el filtro, más drive…); `~` = ligadura (la nota continúa sin redisparar); `/` = slide (en Mono,
-  legato con glide hacia la siguiente: el 303); `x2`…`x4` = repeticiones dentro del paso.
-- *Coste:* bajo. Depende de 0.4.
+**5.1 · Sequencer: accent, tie, slide and repeats** (DECISION 1).
+- *Today:* the pattern already accepts `7!` (accent) and `5~` (tie); `Seq.js` (`_tick`) ignores them.
+- *What:* `!` = more velocity + matrix source «Accent» (the preset decides what an accent does: open
+  the filter, more drive…); `~` = tie (the note carries on without retriggering); `/` = slide (in
+  Mono, legato with glide towards the next: the 303); `x2`…`x4` = repeats within the step.
+- *Cost:* low. Depends on 0.4.
 
-**5.2 · Notas por grado.** ✔ *HECHO 2026-10-25 (selector junto a las frases).* Opción del Seq «grados»: los números son grados de la escala (la de la
-Armonía con Partes, o una elegida en el Seq). «0 2 4 2» suena en mayor, dórico o pentatónica sin
-reescribirlo; pasar del último grado sube de octava, no se recorta. *Coste:* bajo-medio.
+**5.2 · Notes by degree.** ✔ *DONE 2026-10-25 (selector next to the phrases).* Seq option
+«degrees»: the numbers are degrees of the scale (the Harmony's with Parts, or one chosen in the Seq).
+«0 2 4 2» plays in major, dorian or pentatonic without rewriting it; going past the last degree goes
+up an octave, it is not clipped. *Cost:* low-medium.
 
-**5.3 · Acordes que se encadenan.** El jugador «acorde» mantiene las notas comunes entre acordes y
-mueve las demás al tono más cercano (conducción de voces), con disposiciones: cerrada, drop 2,
-abierta, por cuartas. Hoy redispara en posición cerrada en cada cambio. *Coste:* bajo.
+**5.3 · Chords that chain.** The «chord» player keeps the notes common to consecutive chords and
+moves the rest to the nearest pitch (voice leading), with voicings: close, drop 2, open, in fourths.
+Today it retriggers in close position on every change. *Cost:* low.
 
-**5.4 · Pulso que respira y swing.** El Pulso euclídeo con k entre un mínimo y un máximo que cambia
-por compás (una onda de N compases o un paseo); swing global 50-75 % aplicado por el reloj común a
-Arp, Seq, jugadores y Pasos. *Coste:* bajo. Depende de 0.4.
+**5.4 · Breathing pulse and swing.** The Euclidean Pulse with k between a minimum and a maximum that
+changes per bar (a wave of N bars or a walk); global swing 50-75 % applied by the common clock to
+Arp, Seq, players and Steps. *Cost:* low. Depends on 0.4.
 
-**5.5 · Arpegiador:** modos convergente y divergente, swing (5.4) y repeticiones. *Coste:* bajo.
+**5.5 · Arpeggiator:** converge and diverge modes, swing (5.4) and repeats. *Cost:* low.
 
-### 6 · Exportar al DAW
+### 6 · Export to the DAW
 
-**6.1 · SFZ con bucles y variaciones.**
-- *Qué:* (1) loop points automáticos en los sonidos sostenidos (en el sostenido, el tramo de
-  periodos enteros con menor discontinuidad + fundido): samples cortos y notas que sostienen lo que
-  haga falta en el sampler; (2) round robin (2-3 variantes por nota) en presets con azar (drift,
-  S&H, ruido, fases libres): el sampler no repite la misma muestra; (3) las capas de 0.2.
-- *Verificación:* check: el bucle no salta más del umbral; el `.sfz` lleva `loop_start`/`loop_end` y
-  `seq_length`.
-- *Coste:* medio. Depende de 0.2.
+**6.1 · SFZ with loops and variations.**
+- *What:* (1) automatic loop points on sustained sounds (in the sustain, the stretch of whole periods
+  with the smallest discontinuity + crossfade): short samples and notes that sustain as long as
+  needed in the sampler; (2) round robin (2-3 variants per note) on presets with randomness (drift,
+  S&H, noise, free phases): the sampler does not repeat the same sample; (3) the layers from 0.2.
+- *Verification:* check: the loop does not jump more than the threshold; the `.sfz` carries
+  `loop_start`/`loop_end` and `seq_length`.
+- *Cost:* medium. Depends on 0.2.
 
-**6.2 · Exportar el sonido a WAV.** «Exportar WAV» renderiza offline el preset tocando una nota, un
-acorde o lo que suene en el Seq/Arp durante N compases, con su cola: un clip listo para arrastrar al
-DAW, sin grabar en tiempo real. *Coste:* bajo.
+**6.2 · Export the sound to WAV.** «Export WAV» renders offline the preset playing a note, a chord or
+whatever plays in the Seq/Arp for N bars, with its tail: a clip ready to drag into the DAW, without
+recording in real time. *Cost:* low.
 
-### 7 · Fiabilidad
+### 7 · Reliability
 
-**7.1 · Azar con semilla en los renders offline.** ✔ HECHO 2026-10-20 (detalle en DISENO.md). El
-azar de los 10 dB era la fase del modulador FM 2-op, sorteada en cada nota también en directo
-(hasta 7,7 dB entre Do4 iguales): ahora arranca en la fase de la portadora (key sync, como FM4).
-(Visto al medir 0.2: varios presets FM difieren
-hasta 10 dB de un render a otro; averiguar de dónde sale ese azar.) El ruido, el punto de arranque del Golpe, la
-deriva, el S&H y las fases libres salen de un generador con semilla cuando el motor es offline (en
-directo, el azar de siempre). Renders repetibles: checks más estrictos y la huella de 7.2.
-*Coste:* bajo-medio.
+**7.1 · Seeded randomness in offline renders.** ✔ DONE 2026-10-20 (details in DISENO.md). The
+randomness of the 10 dB was the phase of the 2-op FM modulator, drawn on every note live as well (up
+to 7.7 dB between identical C4s): now it starts at the carrier's phase (key sync, like FM4).
+(Seen while measuring 0.2: several FM presets differ by up to 10 dB from one render to the next; find
+out where that randomness comes from.) The noise, the start point of the Bite, the drift, the S&H and
+the free phases come from a seeded generator when the engine is offline (live, the usual
+randomness). Repeatable renders: stricter checks and the fingerprint of 7.2.
+*Cost:* low-medium.
 
-**7.2 · Huella sonora de la fábrica** (opcional). Cada preset renderizado con un guion incómodo
-(notas fuera de la frontera de bloque, un glide, un note-off temprano) → una huella compacta (energía
-por bandas cada 50 ms) en un JSON. Con los presets fuera de las restricciones, NO sirve para
-proteger el banco: es una alarma de cambios que nadie buscaba durante un refactor (el reloj común,
-por ejemplo, no debería cambiar el sonido de nada). Un cambio buscado la renueva sin más
-(`?selftest=1&huellas=renovar`). No bit a bit: Chrome suma las entradas de un nodo en orden no fijo
-(medido: ~1e-8). *Coste:* medio. Depende de 7.1.
+**7.2 · Sound fingerprint of the factory** (optional). Each preset rendered with an awkward script
+(notes off the block boundary, a glide, an early note-off) → a compact fingerprint (energy per band
+every 50 ms) in a JSON. With presets outside the constraints, it does NOT serve to protect the bank:
+it is an alarm for changes nobody was looking for during a refactor (the common clock, for example,
+should not change the sound of anything). A deliberate change simply renews it
+(`?selftest=1&fingerprints=renew`). Not bit for bit: Chrome sums a node's inputs in a non-fixed order
+(measured: ~1e-8). *Cost:* medium. Depends on 7.1.
 
-**7.3 · Checks por categoría.** Todo preset sostenido suena en su registro; tras el release quedan
-cero voces vivas; pads y cuerdas con un acorde de 4 bajo el techo (hoy «margen» lo mide para seis).
-*Coste:* bajo.
+**7.3 · Checks per category.** Every sustained preset plays in its register; after the release there
+are zero live voices; pads and strings with a 4-note chord under the ceiling (today «headroom»
+measures it for six). *Cost:* low.
 
-**7.4 · Versión de formato.** Presets, biblioteca y escenas con su número de formato. Un fichero de
-un formato que no se entiende (más nuevo, o uno viejo cuya conversión no compensa) se lista con
-Exportar y Borrar, pero nunca se carga a medias ni sonando a otra cosa (rechazar sin destruir). Las
-conversiones baratas (v1 → v2, Mix → niveles) en una tabla ordenada. Pedir almacenamiento persistente
-(`navigator.storage.persist()`) para que el navegador no vacíe la biblioteca por falta de espacio.
-*Coste:* bajo.
+**7.4 · Format version.** Presets, library and scenes with their format number. A file in a format
+that is not understood (newer, or an old one whose conversion is not worth it) is listed with Export
+and Delete, but is never half loaded or sounding like something else (reject without destroying).
+Cheap conversions (v1 → v2, Mix → levels) in an ordered table. Ask for persistent storage
+(`navigator.storage.persist()`) so that the browser does not empty the library for lack of space.
+*Cost:* low.
 
-### 8 · Banco nuevo desde cero (idea futura; el idioma se decidió aparte: solo inglés, antes)
+### 8 · New bank from scratch (future idea; the language was decided separately: English only, before)
 
-- *Propósito:* sustituir el banco de fábrica actual (que creció bloque a bloque, muchas veces como
-  demostración de cada mejora) por uno pensado entero: solo presets interesantes, útiles, que gusten
-  y que sorprendan.
-- *Cuándo:* cuando el synth tenga lo de las fases 2 y 3 (Pasos, envolvente en bucle, generadores
-  nuevos), o antes si un cambio del motor deja el banco actual sin sentido.
-- *Cómo:* criterios por escrito antes de empezar (qué hace bueno a un preset: tocable, con un uso
-  claro, que enseñe algo del synth); cada preset con etiquetas y descripción de cómo tocarlo (1.4);
-  la sonoridad igualada por medida (como en la 1.1.0); los pares A/B de `subsdj-demos.json` siguen
-  siendo el sitio de las demostraciones técnicas, separados del banco. El banco actual se retira
-  (como mucho, exportado una vez a un JSON por si se quiere recuperar alguno).
-- *Idioma — SUPERADO el 2026-10-25: solo inglés, traducción entera antes del banco (punto 5 del
-  rumbo).* Lo que se pensó entonces: capa de textos de la interfaz (`t()` y los textos en tablas aparte;
-  ids, claves de parámetros y campos JSON intactos; «jugador» → «músico» como etiqueta) y el banco
-  nuevo escrito ya en los dos idiomas: nombre, descripción de cómo tocarlo y etiquetas con su
-  versión inglesa en el propio preset (las etiquetas como ids traducidos por tabla, para que buscar
-  funcione en cualquier idioma). Así cada preset se escribe una vez, no se traduce después.
-- *Coste:* medio-alto (diseño y oído en el banco; la capa de textos es mecánica pero toca toda la UI).
-- **Lo que pide Sergio (2026-10-25), para su plan propio cuando lleguemos:**
-  - Antes de nada, el banco actual entero a un JSON de copia, como referencia.
-  - Presets ricos, sólidos, contundentes y útiles, organizados por categorías, que exploren y
-    exploten lo que el synth sabe hacer; un banco limpio en el que cada preset diga algo y se
-    pueda usar. No es obvio ni es solo trabajo de máquina: plan con objetivos clásicos y no tan
-    clásicos, inspirado en bancos de synths conocidos, y ver hasta dónde se llega (quizá con
-    ayuda de un modelo para explorar). Aviso del compañero de Windsor: un banco bueno es
-    difícil; en el suyo muchos presets suenan parecido.
-  - Demos y pruebas FUERA del banco principal: cargables desde su .json, pero no sembradas en la
-    biblioteca.
+- *Purpose:* replace the current factory bank (which grew block by block, often as a demonstration of
+  each improvement) with one thought out as a whole: only interesting, useful presets that people
+  like and that surprise.
+- *When:* when the synth has what phases 2 and 3 bring (Steps, looping envelope, new generators), or
+  earlier if an engine change makes the current bank meaningless.
+- *How:* written criteria before starting (what makes a preset good: playable, with a clear use,
+  showing something of the synth); each preset with tags and a description of how to play it (1.4);
+  loudness matched by measurement (as in 1.1.0); the A/B pairs in `subsdj-demos.json` remain the place
+  for the technical demonstrations, separate from the bank. The current bank is retired (at most,
+  exported once to a JSON in case anyone wants to recover one).
+- *Language — SUPERSEDED on 2026-10-25: English only, full translation before the bank (point 5 of
+  the direction).* What was thought at the time: a layer of interface texts (`t()` and the texts in
+  separate tables; ids, parameter keys and JSON fields intact; «jugador» → «músico», player → musician, as a label) and
+  the new bank written in both languages from the start: name, description of how to play it and tags
+  with their English version in the preset itself (tags as ids translated by a table, so that search
+  works in any language). That way each preset is written once, not translated afterwards.
+- *Cost:* medium-high (design and listening for the bank; the text layer is mechanical but touches
+  the whole UI).
+- **What Sergio asks for (2026-10-25), for its own plan when we get there:**
+  - Before anything else, the whole current bank to a backup JSON, as a reference.
+  - Rich, solid, punchy and useful presets, organized by category, that explore and exploit what the
+    synth can do; a clean bank in which every preset says something and can be used. It is not
+    obvious, nor is it just machine work: a plan with classic and not-so-classic goals, inspired by
+    the banks of well-known synths, and see how far we get (perhaps with the help of a model to
+    explore). A warning from the Windsor colleague: a good bank is hard; in his, many presets sound
+    alike.
+  - Demos and tests OUTSIDE the main bank: loadable from their .json, but not seeded into the library.
 
 ---
 
-# Planes anteriores (histórico)
+# Earlier plans (history)
 
-Fecha: 2026-10-04 · **Roadmap 6.0 en exploración** (sección propia más abajo): el Grano se probó y se
-DESCARTÓ; la dirección buscada son sonidos complejos y escalonados (modulación por pasos); presets
-«Escalonados» con lo que ya hay; el módulo de Pasos, pendiente de que Sergio lo vea claro.
-**Roadmap 5.0 «cinescape» acordado el 2026-10-03** (sección propia más abajo;
-bloques 1 a 5 y 7 HECHOS y en master (`bbba744`), selftest 162/162; el 6 granular APARCADO «para otro
-momento»). Estado anterior (2026-09-27): Roadmap 4.0 acordado el 2026-09-10 (DISENO.md); hechas **A1 delay de
-cinta** (`1db2a19`), **B1 FM en la matriz + feedback** (`8978cd6`), **C1 Partes + mezclador**
-(`12b71f6`), **C2 Armonía + jugadores** (`f06fa8b`), **C3 Arreglo + escenas** (`8bf1f8e`) y
-**A2 Reverb de placa** (`0b77967`), **B2 Oscilador FM4** (`a4d20a4`) y **A3 Curva de envolvente**
-(2026-09-27), **13a Pantallas**, **11 runner en `tools/`** y **13b Biblioteca de presets** (2026-09-27); selftest 120/120. Los ejes B y C están
-COMPLETOS y del eje A solo queda A4. Fuera del plan:
-notas colgadas + Pánico (`4e2b47e`), cuatro
-escenas en `escenas/` (`c718c63`; la placa en las dos ambientales, `29f172d`). Este documento
-complementa a DISENO.md: allí
-vive el roadmap resumido; aquí, cada bloque pendiente con su **propósito**, qué haremos, cómo,
-cómo lo verificamos, qué cuesta y de qué depende. Cuando un bloque se termina se marca ✔ aquí
-y en DISENO.md.
+Date: 2026-10-04 · **Roadmap 6.0 under exploration** (its own section further down): the Grain was
+tried and DISCARDED; the direction sought is complex, stepped sounds (step modulation); «Stepped»
+presets with what is already there; the Steps module, pending until Sergio sees it clearly.
+**Roadmap 5.0 «cinescape» agreed on 2026-10-03** (its own section further down; blocks 1 to 5 and 7
+DONE and in master (`bbba744`), selftest 162/162; number 6, granular, PARKED «for another time»).
+Previous state (2026-09-27): Roadmap 4.0 agreed on 2026-09-10 (DISENO.md); done **A1 tape delay**
+(`1db2a19`), **B1 FM in the matrix + feedback** (`8978cd6`), **C1 Parts + mixer** (`12b71f6`),
+**C2 Harmony + players** (`f06fa8b`), **C3 Arrangement + scenes** (`8bf1f8e`) and **A2 Plate
+reverb** (`0b77967`), **B2 FM4 oscillator** (`a4d20a4`) and **A3 Envelope curve** (2026-09-27),
+**13a Screens**, **11 runner in `tools/`** and **13b Preset library** (2026-09-27); selftest 120/120.
+Axes B and C are COMPLETE and of axis A only A4 remains. Outside the plan: hanging notes + Panic
+(`4e2b47e`), four scenes in `escenas/` (`c718c63`; the plate in the two ambient ones, `29f172d`).
+This document complements DISENO.md: the summarized roadmap lives there; here, each pending block
+with its **purpose**, what we will do, how, how we verify it, what it costs and what it depends on.
+When a block is finished it is marked ✔ here and in DISENO.md.
 
-El orden de la lista es **por lo que más nos da → lo que menos**. El orden de EJECUCIÓN es otro
-y va aparte, porque conviene meter primero los baratos.
+The order of the list is **from what gives us most → least**. The order of EXECUTION is a different
+one and goes separately, because it pays to put the cheap ones in first.
 
-## Vista rápida
+## Quick view
 
-| # | Bloque | Qué nos da | Coste | Depende de |
+| # | Block | What it gives us | Cost | Depends on |
 |---|--------|------------|-------|------------|
-| 1 | **C1 Partes + mezclador** ✔ | la puerta a todo lo generativo: 4 presets sonando a la vez — HECHO | alto (arquitectura) | — |
-| 2 | **C2 Armonía + jugadores** ✔ | la musiquita: sonido que se hace solo y suena musical — HECHO | alto | — |
-| 3 | **C3 Arreglo + escenas** ✔ | ambient de verdad: evolución lenta, sesiones reproducibles — HECHO | medio | — |
-| 4 | **A2 Reverb de placa** ✔ | el «suena fino» más grande; la sala donde vive el ambient — HECHO | alto (DSP) | — |
-| 5 | **B1 fmIndex en la matriz + feedback** ✔ | pluck, campana y tacto DX por casi nada — HECHO | bajo | — |
-| 6 | **B2 Oscilador FM4** ✔ | la FM completa: 4 operadores y algoritmos — HECHO | alto | — |
-| 7 | **A3 Curva de envolvente** ✔ | ataques y decays que suenan naturales — HECHO | bajo | — |
-| 8 | **A4 Filtro BP + notch** ✔ | selector Tipo LP↔HP / BP / Notch; Goertzel: notch −39 dB, BP +23,7 dB; morph 50 % = notch a −6 dB (RMS ×0,500) — HECHO 2026-09-28 | bajo | — |
-| 9 | **LFO con S&H y deriva** ✔ | formas S&H y deriva en el botón de cada LFO (buffers en loop, playbackRate = Speed; salida fija `out`); 3 presets + pares LFO 1-6 — HECHO 2026-09-28 | bajo-medio | — |
-| 10 | **Piel del rack** ✔ | temas por tokens: tokens + check «piel», knob y slider publican `--pos`, selector leído de las hojas, temas «Cinescapes» (base) y «Clásico» — HECHO 2026-09-28 (4 commits) | medio | — |
-| 11 | **Runner headless en el repo** ✔ | selftest y capturas sin depender de la sesión — HECHO (`tools/`) | bajo | — |
-| 12 | **Recámara antigua** | swing del arp, loop points SFZ, W3 expresiones | — | — |
-| 13 | **Pantallas + biblioteca de presets** ✔ | que el synth vuelva a ser disfrutable: ver solo lo que toca; presets que se pueden ordenar, podar y querer — HECHO (13a y 13b) | 13a bajo · 13b alto | — |
-| 14 | **Percusión: kit 808/909 + flam de palmada** ✔ | 9 presets (bombo 909, caja 808, palmada, rimshot, cencerro, hat abierto, crash, ride, hit rave) con niveles medidos + knobs Golpes/Hueco en el ADSR (el tren de ráfagas del clap 808: `Voice._flam`); check «flam de palmada» y pares PRC 1-4; tras prueba de oído, bombo y caja rediseñados (envolvente de brillo FM4 + Curva 1 en toda la categoría); bug del reloj de operadores FM4 arreglado (t0 en el worklet), look-ahead adaptativo (5 ms + 2·baseLatency) y el hallazgo final: el golpe ES el escalón → ataque 0 + puerta de arranque en el worklet + t0 en frontera de bloque (golpes idénticos en directo) — HECHO 2026-10-01 | bajo | — |
-
-**Orden de ejecución acordado:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (ejes B y C completos);
-→ ~~A3~~ → ~~13a~~ (pantallas, 2026-09-27) → ~~11~~ (runner en `tools/`, de paso) → ~~13b~~ (biblioteca,
-2026-09-27; el bloque 13 completo). **10 (piel) COMPLETO el 2026-09-28** (1 tokens → 2 knob con arco → 3 selector → 4 temas) → **A4 ✔ (2026-09-28)**.
-**9 ✔ (2026-09-28). 14 (percusión + flam) ✔ (2026-10-01). Siguiente: la recámara (12) — visualizadores en grande, swing del arp, loop points SFZ, W3.** Después A4 y 9 como
-tardes sueltas. Queda también la recámara (12).
-
-**Método de siempre en cada bloque:** selftest en verde antes y después; si la mejora es audible,
-pares A/B en `subsdj-demos.json` con prefijo propio y sonda `?selftest=1&demos=PREFIJO`; si es
-visual, capturas CDP; commit por hito; DISENO.md y este plan al día.
-
-## Decisiones abiertas (te tocan a ti)
-
-1. **«Sala» como módulo de escena (C1).** ✔ DECIDIDA el 2026-09-25: opción (b), sala global por
-   envío, hecha en C1. El razonamiento, para el recuerdo: un preset mezcla dos clases de parámetros: los del
-   INSTRUMENTO (voz, inserciones, arp/seq/ws y los envíos `reverbMix`/`dlyAmt`) y los de la
-   SALA (`reverbSize`/`Damp`/`Pre`, tiempo/sync/realimentación del delay, `bpm`, `master`). Con
-   cuatro partes y una sola reverb compartida solo puede haber una sala. Opciones: (a) «el
-   último preset cargado manda» — cargar un bajo en la parte 2 encoge la catedral de la parte 1;
-   (b) la sala sale del preset a un módulo global de la escena; los presets conservan sus envíos;
-   con Partes apagadas todo como hoy. **Recomendada: (b).** Es lo que hacían los
-   multitímbricos de los 90 (la Performance tiene la reverb, cada Part su envío).
-2. **CSS de las filas `tight`** (hecho de paso en A1): los `.ctl` reparten el ancho en vez de medir
-   62 px fijos, así caben 5 knobs en una fila (Delay, y de paso el Env filtro, cuya R saltaba
-   abajo). Aceptar o revertir (una línea en `css/style.css`).
-3. **Escucha de A1:** preset «Dub de cinta» y pares DLY 1/2 (damp) y DLY 3/4 (wow) del banco de
-   demos. Si el recorrido de Damp (LP hasta 1,2 kHz, HP hasta 200 Hz) o el wow (±2,5 ms) te
-   parecen cortos o largos, son constantes al principio de `Sala.js` (vivían en
-   `AudioEngine.js` hasta C1).
-4. ✔ Resuelta en C1: 4 ranuras genéricas (constante `N_PARTS` en `engine/parts.js`) y casilla
-   «Capa» en el mezclador para que el teclado toque todas las partes.
-5. ✔ **13b · biblioteca de presets** — DECIDIDAS el 2026-09-27 (el usuario aceptó las tres
-   recomendaciones) y hechas ese mismo día. (a) ¿Los de fábrica se BORRAN de la
-   biblioteca, con «volver a traer de fábrica» como red, o solo se ocultan? **Recomendada: borrar
-   con la red** — es lo que pide «quedarse con lo que le gusta»; ocultar es un borrado que no
-   libera la lista. (b) ¿Las escenas (`escenas/*.json`) entran como sección propia? **Recomendada:
-   sí**, sección «Escenas» con la misma tarjeta (cargar = ⇧ Escena del módulo Arreglo); así hay un
-   solo sitio donde buscar. (c) ¿La barra rápida de Diseño recorre la biblioteca entera o solo una
-   sección «activa»? **Recomendada: entera**, con los optgroups = secciones y los favoritos
-   primero: ‹ › y el Program Change MIDI siguen recorriendo todo, como hoy.
-
-## Hecho fuera del plan (2026-09-26/27)
-
-- **Panel fijo** (propuesto por Sergio, 2026-10-12; rama `ui-panel`): el rack que refluía pasa a ser un
-  instrumento de 1920 × 1000 escalado a la ventana (`ui/frame.js`), Diseño entero a la vista sin scroll
-  (bandas Fuente / Voz / Modulación-efectos en el orden de la señal), selectores giratorios
-  (`ui/rotary.js`), conmutadores con LED, faders en las envolventes, banco de LFOs, pantalla Salida
-  (`ui/display.js`); fuera `ui/groups.js` y los filtros `data-screens`. Check «pantallas» con «nada
-  recortado» y check «canvas»; 170/170. Detalle en DISENO.md («Panel fijo, pantallas y cabecera»).
-- **Dependencias** (2026-10-12, misma rama): `ui/deps.js` apaga (atenuado, tocable, con motivo en tooltip y en
-  la pantalla Salida) lo que no hace nada con la configuración actual; check «dependencias»; 171/171.
-  El check del resonador, inestable, ya es determinista (2026-10-12): medía ruido con un Goertzel (un
-  sorteo de Rayleigh; el cociente de dos fallaba ~7 % en 30 repeticiones, y Material y glide tenían el mismo
-  defecto); ahora corta el ruido con la nota pulsada y mide la cola libre de los modos (τ = Q/(π·f):
-  0,731 / 0,530 s medidos frente a 0,730 / 0,530). Probado rompiendo el resonador: lo detecta.
-- **Rendimiento** (2026-10-12, misma rama; «Coro humano» con muchas teclas se cortaba): filtro sin modulación
-  conectada si no la usa, drive bajo demanda, Vocal en k-rate y sin WaveShapers si la vocal no se mueve
-  (voz −40 %; acordes encadenados 85 % → 67 %) y presupuesto de CPU común a las partes (colas primero, nunca
-  la nota sostenida de otra parte); check «presupuesto de voces»; 172/172. El Master se probó delante del
-  limitador y se dejó detrás (clipeaba). PENDIENTE de escuchar: compensación de ganancia desde 2 notas.
-- **Escenas en capa** (2026-10-12, misma rama; «clipea bastante pronto»): efectos de inserción bajo demanda
-  (motor en reposo 3,8 → 2,5 %), el presupuesto cuenta el coste fijo de los motores (en directo: 28,4 de 30,
-  13 voces vivas como mucho) y limitador nuevo en worklet (brickwall con lookahead de 6 ms, techo −1 dBFS,
-  lineal +1,71 dB debajo como el de Chrome: idéntico en nivel y retraso; apretado, sin aspereza). 172/172.
-- **Revisión tras el bloque 13** (sugerencias del usuario, 2026-09-27): cabecera como módulo fijo con
-  osciloscopio y espectro (globales, como el teclado); Diseño en grupos por función con título
-  (Osciladores / Filtro / Amplitud y modulación / Efectos), cada grupo con su rejilla, plegables
-  (clic; doble clic = solo esa); **▶/⏹** en las escenas de la biblioteca (carga + enciende Partes +
-  arranca; una sola; ⏹ no apaga las Partes); el **release sigue al knob Curva** (recta a 0, RC a 1;
-  antes exponencial fijo τ = r/4 y el gráfico lo dibujaba recto → los presets con Curva 0 sueltan
-  ahora en recta); fuera el plegado de módulos (en una rejilla de unidades no liberaba sitio) y el
-  aviso «Escena»; sin alturas fijas de 2U. Un medidor «CPU audio» (worklet cronometrando huecos
-  entre quanta: Chrome no expone la carga ni performance.now() en el worklet) se probó y se quitó
-  a petición del usuario: no medía bien. Respuestas dadas: los presets viven en localStorage (por
-  navegador y origen) con la fábrica/repo como semilla; Delay/Reverb son el mismo módulo en Diseño
-  y Secuenciación (sala compartida en Partes).
-- **Notas colgadas al parar el director** (`4e2b47e`). En partes con Arp/Seq el note-on del
-  jugador va por temporizador y, al parar dentro de la ventana de anticipación, el note-off
-  llegaba antes: el Arp se quedaba sosteniendo. Ahora los note-on pendientes se cancelan, los
-  note-off «ya» son síncronos y parar limpia el latch del Seq. Botón **⏹ Pánico** en la cabecera
-  y tecla Escape: paran el director y cortan todo en todas las partes.
-- **Cuatro escenas en `escenas/`** (`c718c63`): ambient nocturno, amanecer dórico, techno
-  hipnótico y coro robótico. Niveles equilibrados con una sonda offline que renderiza cada parte
-  en solo; la quinta del dron se cuantiza a la escala (bug cazado: nota fuera de escala en
-  hirajoshi). Las dos ambientales usan la placa (`29f172d`). El selftest las renderiza todas.
-- **Cortes con la escena tocando** (reportado por el usuario, 2026-09-27): el blur de la ventana y
-  RePág/AvPág llamaban al pánico, que cortaba todas las voces de todas las partes; ahora solo
-  sueltan las teclas del teclado. Y los jugadores Acorde/Raíz reponen sus notas en el compás
-  siguiente si alguien las cortó (cargar un preset, Reset, poli↔mono, encender el Seq); cambiar la
-  semilla en marcha suelta antes las notas. Sonda `probe-focus.mjs`.
-- **Nota colgada al cambiar de parte** (reportado por el usuario, 2026-10-01: «cambio de parte
-  mientras toco y el audio se corrompe, los instrumentos se interrumpen»): el note-off del
-  teclado/MIDI iba a la parte ACTUAL, no a la que recibió el note-on; la nota quedaba colgada en
-  la parte anterior (voz ocupada → robo de voz sobre el jugador; en mono, legato resbalando sobre
-  ella). `NoteRouter` en `engine/parts.js` manda el off a los motores que recibieron el on (también
-  Capa y blur). `Seq.unhold` y `_monoOff` ignoran ids ajenos. Check «teclado ↔ partes», 130/130.
-- **Curva de envolvente**: cazado por el usuario al primer uso — `setValueCurveAtTime` no se puede
-  cancelar a mitad en Chrome (notas colgadas y caída de la página); ahora cadena de 12 rampas.
-- **Herramientas de verificación**, hoy en `%TEMP%\subsdj-tools` (efímeras: de ahí el punto 11):
-  `run-selftest.mjs` (selftest headless + pings), `shot.mjs` (captura de un módulo por su título),
-  `golden.mjs` (render determinista con `Math.random` sembrado antes y después de un refactor,
-  comparación muestra a muestra a 16 bit), `probe-*.mjs` (sondas de la página real: partes,
-  jugadores, escenas, notas colgadas, niveles por parte, energía de las reverbs) y `patch2.mjs`
-  (reemplazos exactos multi-archivo, todo o nada).
-
-## Detalle por bloque
-
-### 1 · C1 Partes + mezclador
-
-**✔ HECHO 2026-09-25** — selftest 106/106; detalle, medidas y evidencia en DISENO.md.
-
-**Propósito.** Poder echar a andar varios instrumentos (presets) a la vez. Sin esto no existe
-nada de lo generativo. No es un multipista: nadie escribe notas.
-
-**Qué haremos.**
-- **Parte** = un `AudioEngine` completo en el AudioContext compartido, con su preset, sus voces,
-  su Arp/Seq/WaveSeq y sus inserciones (dist, flanger, chorus/ensemble). `init(ctx)` ya acepta
-  un contexto externo y el selftest ya instancia varios motores: cuatro partes son cuatro
-  motores, no una reescritura.
-- **Mezclador**: por parte nivel, pan, envío a delay y envío a reverb. La salida de cada motor
-  deja de ir a `ctx.destination` y va al mezclador.
-- **Delay y reverb compartidos** (una sola sala) → limitador → máster → analizador. Los knobs
-  `reverbMix`/`dlyAmt` del preset se leen como nivel de envío de esa parte.
-- **El rack edita la parte seleccionada.** Selector de 4 partes en la cabecera. La única
-  indirección: `registry.applyTarget` y las ~14 referencias al singleton `engine` en `ui/`
-  pasan por «parte actual». Cambiar de parte = cargar su snapshot en los controles (el mismo
-  camino que cargar un preset). Teclado y MIDI tocan la parte seleccionada.
-- **Con Partes apagadas el synth es exactamente el de hoy.** Formato de presets intacto.
-
-**Cómo (puntos delicados).**
-- Salida configurable del motor (`init(ctx, out)`): hoy `analyser.connect(ctx.destination)`.
-- Un solo BPM por escena (hoy vive en el preset): sale a la escena junto con la sala.
-- Sala global: ver decisión abierta 1.
-- CPU: 4 motores × `MAX_POLY`. Las voces solo existen mientras suenan, y a Mix 0 el banco vocal
-  no crea nodos; el coste real son las inserciones de cada parte (siempre vivas) y los dos
-  convolvers de la reverb, que pasan a ser uno compartido.
-- Módulos de UI que asumen un solo motor: SFZ (exporta la parte seleccionada), grabador
-  (captura el máster, vale tal cual), scope/espectro (máster), LEDs de actividad (parte
-  seleccionada), MIDI learn (mapa sobre la parte seleccionada: aceptable en v1).
-
-**Evidencia.** Escena offline en el selftest: 4 partes con presets distintos, N compases de
-notas programadas; sin NaN, sin clipping, cada parte audible por separado (silenciar las otras
-tres y medir pico). Captura del selector y del mezclador.
-
-**Coste.** Alto: es el bloque arquitectónico. Hecho en una sesión.
-
-### 2 · C2 Armonía + jugadores
-
-**✔ HECHO 2026-09-26** — selftest 107/107; detalle, medidas y evidencia en DISENO.md. Los cinco
-jugadores del plan quedaron en cuatro modos: Acorde con el Arp de la parte encendido ES el
-Arpegio, y Raíz con el Seq encendido ES la Frase.
-
-**Propósito.** Que suene música sin escribirla: cada parte tiene un jugador que decide qué notas
-tocar, y una armonía global hace que todo lo que toquen encaje.
-
-**Qué haremos.**
-- **Armonía (global):** raíz, escala (mayor, menor natural/armónica, dórica, mixolidia,
-  pentatónica mayor/menor, tonos enteros, hirajoshi, blues…) y progresión: lista de grados con
-  compases por acorde, o un paseo de Markov sobre funciones tonales (T→S→D→T con
-  probabilidades). Todo lo que emiten los jugadores pasa por `aEscala()` y `aAcorde()`.
-  Por qué suena musical algo aleatorio: las alturas están acotadas; densidad, registro y ritmo
-  hacen el resto.
-- **Un jugador por parte**, con parámetros propios:
-  - **Pulso**: ritmos euclídeos E(k, n) de Bjorklund (k golpes repartidos lo más uniformemente
-    posible en n pasos: E(3,8) es el tresillo cubano, E(5,8) la clave), rotación, probabilidad
-    por golpe, acento (velocity). Kick, hat, percusión.
-  - **Arpegio**: nuestro Arp actual alimentado con las notas del acorde vigente (el jugador
-    «mantiene» esas teclas); octavas y modo como hoy, más probabilidad de saltar pasos.
-  - **Melodía**: paseo aleatorio por grados de la escala con gravedad hacia las notas del
-    acorde, probabilidad de silencio, proporción paso/salto, registro acotado.
-  - **Dron**: sostiene raíz o quinta (una o dos notas), cambia con la progresión, re-dispara
-    cada N compases (para que el ataque del preset se oiga).
-  - **Frase**: nuestro Seq con la raíz puesta por el acorde vigente (la «tecla mantenida» la
-    pone el jugador).
-- **Planificación**: el mismo patrón que Arp/Seq (ticker de 25 ms + look-ahead de 120 ms sobre
-  el reloj de audio). Cada jugador solo llama a `_directOn(id, freq, vel, when)` /
-  `_directOff` de su parte: dedos virtuales, el motor no se entera. Un reloj maestro en
-  compases y tiempos derivado del BPM de la escena.
-
-**Evidencia.** Selftest: E(k,n) reproduce patrones conocidos; cuantización: el 100 % de las
-notas emitidas están en la escala; escena offline con jugadores (determinista con semilla,
-ver C3) sin NaN ni clipping. Pares A/B: mismo preset con jugador Pulso E(3,8) vs E(5,8).
-
-**Coste.** Alto. Hecho en una sesión.
-
-### 3 · C3 Arreglo y escenas
-
-**✔ HECHO 2026-09-26** — selftest 108/108; detalle, medidas y evidencia en DISENO.md. La
-«curva de densidad por parte» quedó como un umbral de entrada por parte sobre una sola curva
-de energía (más simple de entender y de tocar); las secciones salen solas de los umbrales.
-
-**Propósito.** Que la música evolucione sola a escala de minutos (eso es el ambient: cambio
-lento, colas largas, eventos escasos) y que una sesión buena se pueda repetir y guardar.
-
-**Qué haremos.**
-- **Reloj maestro** en compases; **curva de densidad** por parte sobre un ciclo largo (p. ej. 64
-  compases); **macro «energía»** que escala densidad, velocity y apertura del filtro de todas
-  las partes; **silenciar/activar** partes con probabilidad por sección.
-- **Deriva lenta**: 1-2 parámetros por parte gobernados por un LFO de minutos (las manos del
-  que improvisa): apertura del cutoff, morph de la tabla, envío a reverb…
-- **Semilla**: PRNG propio (mulberry32) para todo lo aleatorio de jugadores y arreglo. Misma
-  semilla = misma sesión.
-- **Escena** = semilla + 4 presets + armonía + sala + jugadores + arreglo → JSON exportable e
-  importable (como el banco de presets). Botón «nueva semilla». El grabador ya captura el
-  máster: grabar diez minutos de ambient es pulsar ⏺.
-
-**Evidencia.** Dos renders offline con la misma semilla son idénticos muestra a muestra; con
-semilla distinta difieren. Escena de demo en el repo.
-
-**Coste.** Medio. Hecho en una sesión.
-
-### 4 · A2 Reverb de placa algorítmica
-
-**✔ HECHO 2026-09-27** — selftest 110/110; detalle, medidas y evidencia en DISENO.md.
-
-**Propósito.** El «suena fino» más grande. Nuestra reverb es convolución con una IR de ruido
-generada por código: la cola es estática y granulada. Una reverb algorítmica tiene densidad de
-ecos que CRECE con el tiempo y modulación interna que mata los modos metálicos. Es la sala en
-la que vivirá el ambient, y lo que más impresionó del synth del compañero.
-
-**Qué haremos.** AudioWorklet `plate-processor.js` con la topología de Dattorro (1997, el linaje
-del Lexicon 224): predelay → difusión de entrada (4 allpass en serie) → tanque en figura de
-ocho (dos ramas cruzadas: allpass modulado → delay → LP de amortiguación → allpass → delay)
-con realimentación = decaimiento; salidas L/R como sumas de taps distintos del tanque. Knobs:
-Mix, Size/Decay, Damp, Modulación, Predelay. La convolución se queda como opción «Sala (IR)»
-junto a «Placa» (selector en el módulo Reverb).
-
-**Evidencia.** Selftest con impulso: la curva de energía de la cola decae de forma monótona, el
-RT60 crece con Size, L y R descorrelados (correlación < 0,5), sin NaN ni realimentación
-inestable a Decay máximo. Pares A/B: mismo pad con IR vs placa. Y oído, mucho oído.
-
-**Coste.** Hecho en una sesión: ~150 líneas de worklet + la integración en la Sala; las
-longitudes son las del artículo y la calibración (RT60 y nivel) salió de medir, no de oído.
-
-### 5 · B1 fmIndex como destino de la matriz + feedback del operador
-
-**✔ HECHO 2026-09-25** — selftest 105/105; el detalle y las medidas están en DISENO.md.
-
-**Propósito.** La FM estática aburre: el DX7 vive de que el índice de modulación cambie durante
-la nota. Con el índice en la matriz: env→índice = pluck y campana (ataque brillante, cuerpo
-suave); velocity→índice = el tacto del DX7; S&H→índice = una campana distinta por nota. Y el
-feedback del operador acerca el seno a una sierra (el truco del operador 6 del DX7).
-
-**Qué haremos.**
-- `MX_DESTS` gana `fm` («FM índice»), `MX_SPAN.fm` = rango del índice; `Voice.mxRewire`
-  conecta la ganancia del slot al AudioParam `fmIndex` del worklet (ya existe por voz, k-rate,
-  recorta en 0 por su `minValue`).
-- Param `fmFb` (0..1) en el worklet: el modulador se automodula con su salida anterior
-  (`m = sin(2π·mp + fb·mPrev)`). Knob **Feedback** en el módulo FM.
-- LED del módulo FM: activo también si la matriz usa `fm`.
-
-**Evidencia.** Selftest: con env→índice el tilt espectral de los primeros 100 ms es claramente
-mayor que el del tramo sostenido; con feedback el espectro gana armónicos (tilt sube). Presets
-«Campana DX (env→FM)», «E-piano DX (vel→FM)»; pares FM 1-4.
-
-**Coste.** Bajo: una tarde. Hecho.
-
-### 6 · B2 Oscilador «FM4»
-
-**✔ HECHO 2026-09-27** — selftest 116/116; detalle, medidas y evidencia en DISENO.md.
-
-**Propósito.** La FM completa como FUENTE que luego pasa por nuestro filtro, vocal, matriz y
-wave sequencing — lo que el DX7 nunca tuvo. Y entender de una vez los «algoritmos»: un grafo
-dirigido de quién modula a quién; las hojas modulan, las raíces suenan.
-
-**Qué haremos.** Tipo de onda nuevo `fm4` en el worklet (como lo fue «Tabla»): 4 operadores
-con ratio, nivel, feedback y decay por operador; unos 8 algoritmos elegidos (pila de 4; un
-portador con 3 moduladores en paralelo; dos pares; dos portadores con un modulador común;
-tres portadores y un modulador…) dibujados como grafos SVG en un selector; el decay por
-operador es lo que hace que un modulador brille al ataque y se apague (percusión FM, campanas,
-e-pianos). Módulo «FM4» de 2U con 4 columnas. El modo actual (seno + FM 2-op) se conserva.
-
-**Evidencia.** Selftest: cada algoritmo suena, difiere de los demás, sin NaN a índice máximo;
-el decay de un modulador se ve como caída del tilt. Presets por familia (bajo, e-piano,
-campana, kick FM, hat FM: los cuatro instrumentos del compañero, como demostración).
-
-**Coste.** Hecho en una sesión: ~90 líneas en el worklet (tabla de algoritmos + bucle de 4
-operadores), 13 params planos y el módulo FM4.
-
-### 7 · A3 Curva de envolvente
-
-**✔ HECHO 2026-09-27** — selftest 118/118; detalle y medidas en DISENO.md.
-
-**Propósito.** Ataque y decay son rampas LINEALES en amplitud; la sonoridad es logarítmica, así
-que un decay lineal «se queda colgado y luego cae de golpe». Las envolventes analógicas son
-curvas RC (exponenciales) y por eso suenan naturales. El release ya lo hicimos exponencial por
-esta razón.
-
-**Qué haremos.** Param `envCurve` (0 = lineal, 1 = exponencial) aplicado a ataque y decay de
-amp y filtro: `setValueCurveAtTime` con una curva potencia, o `setTargetAtTime` con la constante
-de tiempo derivada del tiempo del knob. Knob **Curva** en el módulo ADSR; el gráfico de la
-envolvente dibuja la curva real.
-
-**Evidencia.** Selftest: la envolvente medida sobre el VCA (RMS por ventanas) sigue la curva
-pedida; los presets antiguos (curva 0) no cambian.
-
-**Coste.** Bajo. Hecho en una tarde.
-
-### 8 · A4 Filtro BP y notch explícitos
-
-**Propósito.** Dos tipos de filtro más (los que él tiene y nosotros no) y una demostración: la
-suma de los numeradores RBJ de un LP y un HP con el mismo corte da `1 − 2cos·z⁻¹ + z⁻²`, el
-notch del cookbook. Nuestro morph al 50 % YA es un notch, a −6 dB.
-
-**Qué haremos.** Selector «Tipo» en el módulo Filtro: **LP↔HP** (el morph de hoy), **BP** (LP y
-HP en serie con el mismo corte: paso-banda de 4º orden) y **Notch** (LP + HP en paralelo a
-partes iguales, con +6 dB de compensación). Cambio estructural por nota, como la pendiente.
-
-**Evidencia.** Selftest con Goertzel: en Notch la energía en la frecuencia de corte cae más de
-20 dB frente a la de un tono lejano; en BP, lo contrario.
-
-**HECHO 2026-09-28.** `filterType` (morph | bp | notch, por nota). Medido (sierra en C3, corte en su 4º
-armónico, ventana 0,15-0,55 s): notch −39,0 dB en el corte frente a LP; BP +23,7 dB de corte sobre
-fundamental; BP 24 dB +18,6 dB más que 12; morph 50 % / notch = RMS ×0,500 (la demostración del
-cookbook, exacta). En BP la resonancia se reparte (mitad por flanco); el notch ignora la pendiente (en
-cascada los flancos llegan en fase al corte). Preset «Pad phaser (notch)»; pares FLT 1-6 (diffs
-0,92 / 1,12 / 0,61). Selftest 125/125.
-
-**Coste.** Bajo. Prioridad baja.
-
-### 9 · LFO con S&H y deriva como formas de onda
-
-**Propósito.** Hoy los LFOs son osciladores nativos (sin/tri/saw/sqr). Faltan las dos formas que
-más se usan en ambient y techno: **S&H** (escalones aleatorios a la velocidad del LFO: el
-filtro «random» rítmico) y **deriva** (random suavizado, lento: pads que respiran). Tenemos ya
-el S&H por nota en la matriz y el buffer de deriva del módulo Vocal («Vida»): es generalizarlos.
-
-**Qué haremos.** Fuente alternativa por LFO: un `AudioBufferSource` en loop con escalones
-aleatorios (S&H) o con la suma de senos sub-Hz normalizada (deriva) a la velocidad del knob,
-conmutable con las formas actuales sin tocar las rutas.
-
-**Evidencia.** Selftest: S&H→cutoff produce escalones (derivada del cutoff medido casi siempre
-0 con saltos); deriva no tiene saltos.
-
-**HECHO 2026-09-28.** Buffers compartidos por contexto (nodes.js `lfoBuffers`): S&H 128 escalones, deriva
-5 senos con ciclos enteros (0,375…1,625 × f) normalizada; `AudioBufferSourceNode` en loop con
-`playbackRate = Hz/10`; cada LFO vierte en `out` (±1) y de ahí cuelgan Level y matriz (cambiar de fuente
-no recablea). Medido: S&H 73 % de ventanas de 4 periodos quietas; deriva salto máximo 14 % del rango;
-matriz lee la forma (diff 0,51). Presets «Lead S&H (filtro random)», «Pad que respira (deriva)», «Bleeps
-S&H (pitch random)»; pares LFO 1-6 (diffs 0,40 / 1,23 / 1,38). Selftest 129/129.
-
-**Coste.** Bajo-medio.
-
-### 10 · Piel del rack (fase 3 del Roadmap 3.0)
-
-**Propósito.** Identidad propia: que el SubSDJ se reconozca a primera vista, como el primigenio
-con sus tornillos.
-
-**Decidido (2026-09-28).** Nada de motor de skins (CSS libre por selector: impuesto de mantenimiento
-× N skins); TEMAS POR TOKENS: el JS publica el estado del control y el CSS decide cómo dibujarlo.
-El tamaño no es cosa del tema (knob y `--rackU` van acoplados; la escala es el zoom del navegador).
-Referencia visual: Cinescapes Pro (superficies planas carbón, arco de valor en el knob, dos acentos
-con significado, botones píldora, tipografía en minúsculas). Pasos:
-
-1. ✔ **Tokens** *(2026-09-28)*: bloque `:root` en style.css (superficies, tinta, acentos, knob, teclado,
-   caras con `color-mix()`, sombras, radios, letra); canvas por `ui/theme.js`; check «piel» en el
-   selftest (ningún literal fuera de `:root`/`[data-theme]`, salvo negro/blanco con alfa). 121/121.
-2. ✔ **Knob con estado publicado** *(2026-09-28)*: knobs.js escribe `--pos` 0..1 en el `.knob`; el CSS gira el
-   portador `.ind` (rayita `::before`, punto `::after`) y pinta el arco (`.knob::after`, conic-gradient + mask);
-   tokens `--knob-line/-dot/-arc` a 0px apagan cada pieza. Check «knob publica --pos». 122/122.
-3. ✔ **Selector de tema** *(2026-09-28)*: `<select>` en la cabecera llenado desde las hojas (un tema = bloque
-   `:root[data-theme="id"]` con `--theme-name`; el `:root` base es el tema por defecto); `data-theme` en html,
-   localStorage, `?theme=` (shot.mjs: `THEME=id`), evento `theme-changed` + `resize`. Check con tema inyectado. 123/123.
-4. ✔ **Temas «Cinescapes»** (base) **y «Clásico»** (bloque) *(2026-09-28)*: Clásico reproduce el look anterior
-   solo con tokens (capturas a ≤ 5 niveles); Cinescapes = carbón plano, cian/violeta, punto + arco, carril
-   relleno (sliders.js publica `--pos`), píldoras, minúsculas. Tokens nuevos `--knob-face/-edge/-ring/-shadow`,
-   `--track-face/-fill`. 123/123. Quedan como capricho opcional: tornillos, placa con logo, LFOs animados.
-
-**Evidencia.** Capturas CDP en ambos temas y a varios anchos; ninguna regresión de ids ni de
+| 1 | **C1 Parts + mixer** ✔ | the door to everything generative: 4 presets playing at once — DONE | high (architecture) | — |
+| 2 | **C2 Harmony + players** ✔ | the little tune: sound that makes itself and sounds musical — DONE | high | — |
+| 3 | **C3 Arrangement + scenes** ✔ | real ambient: slow evolution, reproducible sessions — DONE | medium | — |
+| 4 | **A2 Plate reverb** ✔ | the biggest «sounds fine»; the room where ambient lives — DONE | high (DSP) | — |
+| 5 | **B1 fmIndex in the matrix + feedback** ✔ | pluck, bell and DX touch for almost nothing — DONE | low | — |
+| 6 | **B2 FM4 oscillator** ✔ | full FM: 4 operators and algorithms — DONE | high | — |
+| 7 | **A3 Envelope curve** ✔ | attacks and decays that sound natural — DONE | low | — |
+| 8 | **A4 BP + notch filter** ✔ | Type selector LP↔HP / BP / Notch; Goertzel: notch −39 dB, BP +23.7 dB; morph 50 % = notch at −6 dB (RMS ×0.500) — DONE 2026-09-28 | low | — |
+| 9 | **LFO with S&H and drift** ✔ | S&H and drift shapes on each LFO's button (looping buffers, playbackRate = Speed; fixed output `out`); 3 presets + pairs LFO 1-6 — DONE 2026-09-28 | low-medium | — |
+| 10 | **Rack skin** ✔ | themes by tokens: tokens + check «skin», knob and slider publish `--pos`, selector read from the stylesheets, themes «Cinescapes» (base) and «Classic» — DONE 2026-09-28 (4 commits) | medium | — |
+| 11 | **Headless runner in the repo** ✔ | selftest and screenshots without depending on the session — DONE (`tools/`) | low | — |
+| 12 | **Old back burner** | arp swing, SFZ loop points, W3 expressions | — | — |
+| 13 | **Screens + preset library** ✔ | make the synth enjoyable again: see only what matters; presets you can sort, prune and love — DONE (13a and 13b) | 13a low · 13b high | — |
+| 14 | **Percussion: 808/909 kit + clap flam** ✔ | 9 presets (909 kick, 808 snare, clap, rimshot, cowbell, open hat, crash, ride, rave hit) with measured levels + Hits/Gap knobs in the ADSR (the burst train of the 808 clap: `Voice._flam`); check «clap flam» and pairs PRC 1-4; after a listening test, kick and snare redesigned (FM4 brightness envelope + Curve 1 across the whole category); FM4 operator clock bug fixed (t0 in the worklet), adaptive look-ahead (5 ms + 2·baseLatency) and the final finding: the hit IS the step → attack 0 + start gate in the worklet + t0 on a block boundary (identical hits live) — DONE 2026-10-01 | low | — |
+
+**Agreed order of execution:** ~~B1~~ → ~~C1~~ → ~~C2~~ → ~~C3~~ → ~~A2~~ → ~~B2~~ (axes B and C
+complete); → ~~A3~~ → ~~13a~~ (screens, 2026-09-27) → ~~11~~ (runner in `tools/`, along the way) →
+~~13b~~ (library, 2026-09-27; block 13 complete). **10 (skin) COMPLETE on 2026-09-28** (1 tokens →
+2 knob with arc → 3 selector → 4 themes) → **A4 ✔ (2026-09-28)**.
+**9 ✔ (2026-09-28). 14 (percussion + flam) ✔ (2026-10-01). Next: the back burner (12) — large
+visualizers, arp swing, SFZ loop points, W3.** Then A4 and 9 as odd afternoons. The back burner (12)
+also remains.
+
+**Usual method in each block:** selftest green before and after; if the improvement is audible, A/B
+pairs in `subsdj-demos.json` with their own prefix and the probe `?selftest=1&demos=PREFIX`; if it is
+visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to date.
+
+## Open decisions (yours to make)
+
+1. **«Room» as a scene module (C1).** ✔ DECIDED on 2026-09-25: option (b), global room by send, done
+   in C1. The reasoning, for the record: a preset mixes two classes of parameters: those of the
+   INSTRUMENT (voice, inserts, arp/seq/ws and the sends `reverbMix`/`dlyAmt`) and those of the ROOM
+   (`reverbSize`/`Damp`/`Pre`, delay time/sync/feedback, `bpm`, `master`). With four parts and a
+   single shared reverb there can only be one room. Options: (a) «the last preset loaded rules» —
+   loading a bass into part 2 shrinks the cathedral of part 1; (b) the room moves out of the preset
+   into a global scene module; presets keep their sends; with Parts off everything as today.
+   **Recommended: (b).** It is what the multitimbral synths of the 90s did (the Performance has the
+   reverb, each Part its send).
+2. **CSS of the `tight` rows** (done along the way in A1): the `.ctl` share the width instead of
+   measuring a fixed 62 px, so 5 knobs fit in a row (Delay, and along the way the Filter Env, whose R
+   jumped down). Accept or revert (one line in `css/style.css`).
+3. **Listening to A1:** preset «Tape Dub» and pairs DLY 1/2 (damp) and DLY 3/4 (wow) from the demo
+   bank. If the range of Damp (LP down to 1.2 kHz, HP up to 200 Hz) or the wow (±2.5 ms) seems short
+   or long to you, they are constants at the top of `Sala.js` (they lived in `AudioEngine.js` until
+   C1).
+4. ✔ Resolved in C1: 4 generic slots (constant `N_PARTS` in `engine/parts.js`) and a «Layer» box in
+   the Part Mixer so the keyboard plays all the parts.
+5. ✔ **13b · preset library** — DECIDED on 2026-09-27 (the user accepted the three recommendations)
+   and done that same day. (a) Are factory presets DELETED from the library, with «restore from
+   factory» as a safety net, or only hidden? **Recommended: delete with the net** — it is what
+   «keeping what you like» asks for; hiding is a deletion that does not free up the list. (b) Do the
+   scenes (`escenas/*.json`) come in as their own section? **Recommended: yes**, a «Scenes» section
+   with the same card (load = ⇧ Scene of the Arrangement module); that way there is a single place to
+   look. (c) Does the Design quick bar step through the whole library or only an «active» section?
+   **Recommended: the whole one**, with optgroups = sections and favorites first: ‹ › and MIDI
+   Program Change keep stepping through everything, as today.
+
+## Done outside the plan (2026-09-26/27)
+
+- **Fixed panel** (proposed by Sergio, 2026-10-12; branch `ui-panel`): the rack that reflowed becomes
+  a 1920 × 1000 instrument scaled to the window (`ui/frame.js`), the whole of Design in view without
+  scrolling (bands Source / Voice / Modulation-effects in signal order), rotary selectors
+  (`ui/rotary.js`), switches with LEDs, faders on the envelopes, LFO bank, Output screen
+  (`ui/display.js`); out go `ui/groups.js` and the `data-screens` filters. Check «screens» with
+  «nothing clipped» and check «canvas»; 170/170. Details in DISENO.md («Fixed panel, screens and
+  header»).
+- **Dependencies** (2026-10-12, same branch): `ui/deps.js` switches off (dimmed, still playable, with
+  the reason in the tooltip and on the Output screen) whatever does nothing with the current
+  configuration; check «dependencies»; 171/171. The resonator check, which was unstable, is now
+  deterministic (2026-10-12): it measured noise with a Goertzel (a Rayleigh draw; the ratio of two
+  failed ~7 % over 30 repeats, and Material and glide had the same defect); now it cuts the noise
+  with the note held and measures the free tail of the modes (τ = Q/(π·f): 0.731 / 0.530 s measured
+  against 0.730 / 0.530). Tested by breaking the resonator: it detects it.
+- **Performance** (2026-10-12, same branch; «Human Choir» with many keys was cutting out): filter
+  without modulation connected if it does not use it, drive on demand, Vocal at k-rate and without
+  WaveShapers if the vowel does not move (voice −40 %; chained chords 85 % → 67 %) and a CPU budget
+  shared by the parts (tails first, never the sustained note of another part); check «voice budget»;
+  172/172. The Master was tried in front of the limiter and left behind it (it clipped). PENDING a
+  listen: gain compensation from 2 notes.
+- **Layered scenes** (2026-10-12, same branch; «it clips quite early»): insert effects on demand
+  (engine at rest 3.8 → 2.5 %), the budget counts the fixed cost of the engines (live: 28.4 of 30,
+  13 live voices at most) and a new limiter in a worklet (brickwall with 6 ms lookahead, ceiling
+  −1 dBFS, linear +1.71 dB below like Chrome's: identical in level and delay; tight, without
+  harshness). 172/172.
+- **Review after block 13** (the user's suggestions, 2026-09-27): header as a fixed module with
+  oscilloscope and spectrum (global, like the keyboard); Design in groups by function with a title
+  (Oscillators / Filter / Amplitude and modulation / Effects), each group with its grid, collapsible
+  (click; double click = only that one); **▶/⏹** on the scenes in the library (load + switch Parts
+  on + start; only one; ⏹ does not switch Parts off); the **release follows the Curve knob**
+  (straight at 0, RC at 1; before, a fixed exponential τ = r/4 and the graph drew it straight → the
+  presets with Curve 0 now release in a straight line); out go the module folding (in a grid of
+  units it did not free any space) and the «Scene» warning; no fixed 2U heights. An «audio CPU»
+  meter (a worklet timing the gaps between quanta: Chrome exposes neither the load nor
+  performance.now() in the worklet) was tried and removed at the user's request: it did not measure
+  well. Answers given: presets live in localStorage (per browser and origin) with the factory/repo as
+  seed; Delay/Reverb are the same module in Design and Sequencing (shared room in Parts).
+- **Hanging notes when stopping the conductor** (`4e2b47e`). In parts with Arp/Seq the player's
+  note-on goes by timer and, when stopping within the look-ahead window, the note-off arrived first:
+  the Arp kept sustaining. Now pending note-ons are cancelled, «immediate» note-offs are synchronous
+  and stopping clears the Seq latch. **⏹ Panic** button in the header and the Escape key: they stop
+  the conductor and cut everything in every part.
+- **Four scenes in `escenas/`** (`c718c63`): night ambient, dorian dawn, hypnotic techno and robot
+  choir. Levels balanced with an offline probe that renders each part solo; the drone's fifth is
+  quantized to the scale (bug caught: an out-of-scale note in hirajoshi). The two ambient ones use the
+  plate (`29f172d`). The selftest renders all of them.
+- **Cuts with the scene playing** (reported by the user, 2026-09-27): window blur and PgUp/PgDn
+  called panic, which cut all the voices of all the parts; now they only release the keys of the
+  keyboard. And the Chord/Root players restore their notes in the next bar if someone cut them
+  (loading a preset, Reset, poly↔mono, switching the Seq on); changing the seed while running
+  releases the notes first. Probe `probe-focus.mjs`.
+- **Hanging note when changing part** (reported by the user, 2026-10-01: «I change part while I play
+  and the audio gets corrupted, the instruments get interrupted»): the keyboard/MIDI note-off went to
+  the CURRENT part, not to the one that received the note-on; the note was left hanging in the
+  previous part (busy voice → voice stealing over the player; in mono, legato sliding over it).
+  `NoteRouter` in `engine/parts.js` sends the off to the engines that received the on (also Layer and
+  blur). `Seq.unhold` and `_monoOff` ignore foreign ids. Check «keyboard ↔ parts», 130/130.
+- **Envelope curve**: caught by the user on first use — `setValueCurveAtTime` cannot be cancelled
+  halfway in Chrome (hanging notes and the page crashing); now a chain of 12 ramps.
+- **Verification tools**, today in `%TEMP%\subsdj-tools` (ephemeral: hence point 11):
+  `run-selftest.mjs` (headless selftest + pings), `shot.mjs` (screenshot of a module by its title),
+  `golden.mjs` (deterministic render with `Math.random` seeded before and after a refactor,
+  sample-by-sample comparison at 16 bit), `probe-*.mjs` (probes of the real page: parts, players,
+  scenes, hanging notes, levels per part, reverb energy) and `patch2.mjs` (exact multi-file
+  replacements, all or nothing).
+
+## Detail by block
+
+### 1 · C1 Parts + mixer
+
+**✔ DONE 2026-09-25** — selftest 106/106; details, measurements and evidence in DISENO.md.
+
+**Purpose.** To be able to get several instruments (presets) going at once. Without this, nothing
+generative exists. It is not a multitrack: nobody writes notes.
+
+**What we will do.**
+- **Part** = a complete `AudioEngine` in the shared AudioContext, with its preset, its voices, its
+  Arp/Seq/WaveSeq and its inserts (dist, flanger, chorus/ensemble). `init(ctx)` already accepts an
+  external context and the selftest already instantiates several engines: four parts are four
+  engines, not a rewrite.
+- **Part Mixer**: per part, level, pan, send to delay and send to reverb. The output of each engine
+  stops going to `ctx.destination` and goes to the mixer.
+- **Shared delay and reverb** (a single room) → limiter → master → analyser. The preset's
+  `reverbMix`/`dlyAmt` knobs are read as that part's send level.
+- **The rack edits the selected part.** A 4-part selector in the header. The only indirection:
+  `registry.applyTarget` and the ~14 references to the `engine` singleton in `ui/` go through
+  «current part». Changing part = loading its snapshot into the controls (the same path as loading
+  a preset). Keyboard and MIDI play the selected part.
+- **With Parts off the synth is exactly today's.** Preset format intact.
+
+**How (delicate points).**
+- Configurable engine output (`init(ctx, out)`): today `analyser.connect(ctx.destination)`.
+- A single BPM per scene (today it lives in the preset): it moves out to the scene along with the
+  room.
+- Global room: see open decision 1.
+- CPU: 4 engines × `MAX_POLY`. Voices only exist while they sound, and at Mix 0 the vocal bank
+  creates no nodes; the real cost is each part's inserts (always alive) and the reverb's two
+  convolvers, which become a single shared one.
+- UI modules that assume a single engine: SFZ (exports the selected part), recorder (captures the
+  master, fine as it is), scope/spectrum (master), activity LEDs (selected part), MIDI learn (map on
+  the selected part: acceptable in v1).
+
+**Evidence.** Offline scene in the selftest: 4 parts with different presets, N bars of scheduled
+notes; no NaN, no clipping, each part audible separately (mute the other three and measure the
+peak). Screenshot of the selector and the mixer.
+
+**Cost.** High: it is the architectural block. Done in one session.
+
+### 2 · C2 Harmony + players
+
+**✔ DONE 2026-09-26** — selftest 107/107; details, measurements and evidence in DISENO.md. The five
+players of the plan ended up as four modes: Chord with the part's Arp on IS the Arpeggio, and Root
+with the Seq on IS the Phrase.
+
+**Purpose.** Music playing without writing it: each part has a player that decides which notes to
+play, and a global harmony makes everything they play fit together.
+
+**What we will do.**
+- **Harmony (global):** root, scale (major, natural/harmonic minor, dorian, mixolydian, major/minor
+  pentatonic, whole tone, hirajoshi, blues…) and progression: a list of degrees with bars per chord,
+  or a Markov walk over tonal functions (T→S→D→T with probabilities). Everything the players emit
+  goes through `aEscala()` and `aAcorde()`. Why something random sounds musical: the pitches are
+  constrained; density, register and rhythm do the rest.
+- **One player per part**, with its own parameters:
+  - **Pulse**: Bjorklund's Euclidean rhythms E(k, n) (k hits spread as evenly as possible over
+    n steps: E(3,8) is the Cuban tresillo, E(5,8) the clave), rotation, probability per hit, accent
+    (velocity). Kick, hat, percussion.
+  - **Arpeggio**: our current Arp fed with the notes of the current chord (the player «holds» those
+    keys); octaves and mode as today, plus a probability of skipping steps.
+  - **Melody**: a random walk over the degrees of the scale with gravity towards the chord notes,
+    probability of rest, step/leap ratio, constrained register.
+  - **Drone**: sustains the root or fifth (one or two notes), changes with the progression,
+    retriggers every N bars (so that the preset's attack is heard).
+  - **Phrase**: our Seq with the root set by the current chord (the player provides the «held key»).
+- **Scheduling**: the same pattern as Arp/Seq (25 ms ticker + 120 ms look-ahead on the audio
+  clock). Each player only calls `_directOn(id, freq, vel, when)` / `_directOff` of its part:
+  virtual fingers, the engine does not notice. A master clock in bars and beats derived from the
+  scene's BPM.
+
+**Evidence.** Selftest: E(k,n) reproduces known patterns; quantization: 100 % of the emitted notes
+are in the scale; offline scene with players (deterministic with a seed, see C3) without NaN or
+clipping. A/B pairs: same preset with Pulse player E(3,8) vs E(5,8).
+
+**Cost.** High. Done in one session.
+
+### 3 · C3 Arrangement and scenes
+
+**✔ DONE 2026-09-26** — selftest 108/108; details, measurements and evidence in DISENO.md. The
+«density curve per part» ended up as an entry threshold per part over a single energy curve
+(simpler to understand and to play); the sections come out of the thresholds on their own.
+
+**Purpose.** For the music to evolve on its own on a scale of minutes (that is ambient: slow change,
+long tails, sparse events) and for a good session to be repeatable and savable.
+
+**What we will do.**
+- **Master clock** in bars; **density curve** per part over a long cycle (e.g. 64 bars); **«energy»
+  macro** that scales density, velocity and filter opening of all the parts; **mute/activate** parts
+  with a probability per section.
+- **Slow drift**: 1-2 parameters per part governed by an LFO of minutes (the hands of the improviser):
+  cutoff opening, wavetable morph, reverb send…
+- **Seed**: our own PRNG (mulberry32) for everything random in players and arrangement. Same seed =
+  same session.
+- **Scene** = seed + 4 presets + harmony + room + players + arrangement → exportable and importable
+  JSON (like the preset bank). «New seed» button. The recorder already captures the master: recording
+  ten minutes of ambient is pressing ⏺.
+
+**Evidence.** Two offline renders with the same seed are identical sample by sample; with a
+different seed they differ. Demo scene in the repo.
+
+**Cost.** Medium. Done in one session.
+
+### 4 · A2 Algorithmic plate reverb
+
+**✔ DONE 2026-09-27** — selftest 110/110; details, measurements and evidence in DISENO.md.
+
+**Purpose.** The biggest «sounds fine». Our reverb is convolution with a noise IR generated by code:
+the tail is static and grainy. An algorithmic reverb has an echo density that GROWS over time and
+internal modulation that kills the metallic modes. It is the room where the ambient will live, and
+what impressed most about the colleague's synth.
+
+**What we will do.** AudioWorklet `plate-processor.js` with Dattorro's topology (1997, the lineage
+of the Lexicon 224): predelay → input diffusion (4 allpasses in series) → figure-of-eight tank (two
+cross-coupled branches: modulated allpass → delay → damping LP → allpass → delay) with feedback =
+decay; L/R outputs as sums of different taps of the tank. Knobs: Mix, Size/Decay, Damp, Modulation,
+Predelay. The convolution stays as an option «Hall (IR)» next to «Plate» (selector in the Reverb
+module).
+
+**Evidence.** Selftest with an impulse: the energy curve of the tail decays monotonically, the RT60
+grows with Size, L and R decorrelated (correlation < 0.5), no NaN or unstable feedback at maximum
+Decay. A/B pairs: same pad with IR vs plate. And listening, lots of listening.
+
+**Cost.** Done in one session: ~150 lines of worklet + the integration into the Room; the lengths
+are those of the paper and the calibration (RT60 and level) came from measuring, not from listening.
+
+### 5 · B1 fmIndex as a matrix destination + operator feedback
+
+**✔ DONE 2026-09-25** — selftest 105/105; the details and measurements are in DISENO.md.
+
+**Purpose.** Static FM is boring: the DX7 lives on the modulation index changing during the note.
+With the index in the matrix: env→index = pluck and bell (bright attack, soft body); velocity→index
+= the DX7's touch; S&H→index = a different bell per note. And operator feedback brings the sine
+closer to a saw (the trick of the DX7's operator 6).
+
+**What we will do.**
+- `MX_DESTS` gains `fm` («FM index»), `MX_SPAN.fm` = index range; `Voice.mxRewire` connects the
+  slot's gain to the worklet's `fmIndex` AudioParam (it already exists per voice, k-rate, clipped at
+  0 by its `minValue`).
+- Param `fmFb` (0..1) in the worklet: the modulator modulates itself with its previous output
+  (`m = sin(2π·mp + fb·mPrev)`). **Feedback** knob in the FM module.
+- FM module LED: active also if the matrix uses `fm`.
+
+**Evidence.** Selftest: with env→index the spectral tilt of the first 100 ms is clearly higher than
+that of the sustained stretch; with feedback the spectrum gains harmonics (tilt rises). Presets
+«DX Bell (env→FM)», «DX E-Piano (vel→FM)»; pairs FM 1-4.
+
+**Cost.** Low: one afternoon. Done.
+
+### 6 · B2 «FM4» oscillator
+
+**✔ DONE 2026-09-27** — selftest 116/116; details, measurements and evidence in DISENO.md.
+
+**Purpose.** Full FM as a SOURCE that then goes through our filter, vocal, matrix and wave
+sequencing — what the DX7 never had. And to understand the «algorithms» once and for all: a directed
+graph of who modulates whom; the leaves modulate, the roots sound.
+
+**What we will do.** New wave type `fm4` in the worklet (as «Wavetable» was): 4 operators with
+ratio, level, feedback and decay per operator; about 8 chosen algorithms (a stack of 4; one carrier
+with 3 modulators in parallel; two pairs; two carriers with a common modulator; three carriers and
+one modulator…) drawn as SVG graphs in a selector; the per-operator decay is what makes a modulator
+shine on the attack and fade out (FM percussion, bells, e-pianos). A 2U «FM4» module with 4
+columns. The current mode (sine + 2-op FM) is kept.
+
+**Evidence.** Selftest: each algorithm sounds, differs from the others, no NaN at maximum index; the
+decay of a modulator shows up as a fall in the tilt. Presets per family (bass, e-piano, bell, FM
+kick, FM hat: the colleague's four instruments, as a demonstration).
+
+**Cost.** Done in one session: ~90 lines in the worklet (algorithm table + 4-operator loop), 13 flat
+params and the FM4 module.
+
+### 7 · A3 Envelope curve
+
+**✔ DONE 2026-09-27** — selftest 118/118; details and measurements in DISENO.md.
+
+**Purpose.** Attack and decay are LINEAR ramps in amplitude; loudness is logarithmic, so a linear
+decay «hangs and then drops all at once». Analog envelopes are RC (exponential) curves and that is
+why they sound natural. We already made the release exponential for this reason.
+
+**What we will do.** Param `envCurve` (0 = linear, 1 = exponential) applied to the attack and decay
+of amp and filter: `setValueCurveAtTime` with a power curve, or `setTargetAtTime` with the time
+constant derived from the knob's time. **Curve** knob in the ADSR module; the envelope graph draws
+the real curve.
+
+**Evidence.** Selftest: the envelope measured on the VCA (RMS per window) follows the requested
+curve; old presets (curve 0) do not change.
+
+**Cost.** Low. Done in one afternoon.
+
+### 8 · A4 Explicit BP and notch filter
+
+**Purpose.** Two more filter types (the ones he has and we do not) and a demonstration: the sum of
+the RBJ numerators of an LP and an HP with the same cutoff gives `1 − 2cos·z⁻¹ + z⁻²`, the
+cookbook's notch. Our morph at 50 % ALREADY is a notch, at −6 dB.
+
+**What we will do.** «Type» selector in the Filter module: **LP↔HP** (today's morph), **BP** (LP and
+HP in series with the same cutoff: 4th-order band-pass) and **Notch** (LP + HP in parallel in equal
+parts, with +6 dB of compensation). A structural change per note, like the slope.
+
+**Evidence.** Selftest with Goertzel: in Notch the energy at the cutoff frequency drops more than
+20 dB against that of a distant tone; in BP, the opposite.
+
+**DONE 2026-09-28.** `filterType` (morph | bp | notch, per note). Measured (saw at C3, cutoff at its
+4th harmonic, window 0.15-0.55 s): notch −39.0 dB at the cutoff against LP; BP +23.7 dB of cutoff
+over fundamental; BP 24 dB +18.6 dB more than 12; morph 50 % / notch = RMS ×0.500 (the cookbook
+demonstration, exact). In BP the resonance is shared out (half per slope); the notch ignores the
+slope (in cascade the slopes arrive in phase at the cutoff). Preset «Phaser Pad (notch)»; pairs
+FLT 1-6 (diffs 0.92 / 1.12 / 0.61). Selftest 125/125.
+
+**Cost.** Low. Low priority.
+
+### 9 · LFO with S&H and drift as waveforms
+
+**Purpose.** Today the LFOs are native oscillators (sin/tri/saw/sqr). The two shapes most used in
+ambient and techno are missing: **S&H** (random steps at the LFO's speed: the rhythmic «random»
+filter) and **drift** (smoothed random, slow: pads that breathe). We already have the per-note S&H
+in the matrix and the drift buffer of the Vocal module («Life»): it is a matter of generalizing
+them.
+
+**What we will do.** An alternative source per LFO: a looping `AudioBufferSource` with random steps
+(S&H) or with the normalized sum of sub-Hz sines (drift) at the knob's speed, switchable with the
+current shapes without touching the routing.
+
+**Evidence.** Selftest: S&H→cutoff produces steps (derivative of the measured cutoff almost always
+0, with jumps); drift has no jumps.
+
+**DONE 2026-09-28.** Buffers shared per context (nodes.js `lfoBuffers`): S&H 128 steps, drift 5
+sines with whole cycles (0.375…1.625 × f) normalized; looping `AudioBufferSourceNode` with
+`playbackRate = Hz/10`; each LFO pours into `out` (±1) and Level and the matrix hang from there
+(changing source does not rewire). Measured: S&H 73 % of 4-period windows still; drift maximum jump
+14 % of the range; the matrix reads the shape (diff 0.51). Presets «S&H Lead (random filter)»,
+«Breathing Pad (drift)», «S&H Bleeps (random pitch)»; pairs LFO 1-6 (diffs 0.40 / 1.23 / 1.38).
+Selftest 129/129.
+
+**Cost.** Low-medium.
+
+### 10 · Rack skin (phase 3 of Roadmap 3.0)
+
+**Purpose.** An identity of its own: SubSDJ recognizable at first sight, like the original one with
+its screws.
+
+**Decided (2026-09-28).** No skin engine (free CSS per selector: a maintenance tax × N skins);
+THEMES BY TOKENS: the JS publishes the state of the control and the CSS decides how to draw it. Size
+is not the theme's business (knob and `--rackU` are coupled; the scale is the browser zoom). Visual
+reference: Cinescapes Pro (flat charcoal surfaces, value arc on the knob, two accents with meaning,
+pill buttons, lowercase typography). Steps:
+
+1. ✔ **Tokens** *(2026-09-28)*: a `:root` block in style.css (surfaces, ink, accents, knob, keyboard,
+   faces with `color-mix()`, shadows, radii, font); canvas through `ui/theme.js`; check «skin» in the
+   selftest (no literal outside `:root`/`[data-theme]`, except black/white with alpha). 121/121.
+2. ✔ **Knob with published state** *(2026-09-28)*: knobs.js writes `--pos` 0..1 on the `.knob`; the
+   CSS rotates the carrier `.ind` (line `::before`, dot `::after`) and paints the arc (`.knob::after`,
+   conic-gradient + mask); tokens `--knob-line/-dot/-arc` at 0px switch each piece off. Check «knob
+   publishes --pos». 122/122.
+3. ✔ **Theme selector** *(2026-09-28)*: a `<select>` in the header filled from the stylesheets (a
+   theme = a `:root[data-theme="id"]` block with `--theme-name`; the base `:root` is the default
+   theme); `data-theme` on html, localStorage, `?theme=` (shot.mjs: `THEME=id`), `theme-changed`
+   event + `resize`. Check with an injected theme. 123/123.
+4. ✔ **Themes «Cinescapes»** (base) **and «Classic»** (block) *(2026-09-28)*: Classic reproduces the
+   previous look with tokens only (screenshots within ≤ 5 levels); Cinescapes = flat charcoal,
+   cyan/violet, dot + arc, filled track (sliders.js publishes `--pos`), pills, lowercase. New tokens
+   `--knob-face/-edge/-ring/-shadow`, `--track-face/-fill`. 123/123. Left as an optional whim:
+   screws, a plate with the logo, animated LFOs.
+
+**Evidence.** CDP screenshots in both themes and at several widths; no regression of ids or of
 `PARAMS↔CONTROLS`.
 
-**Coste.** Medio. Independiente de todo: se intercala cuando apetezca.
+**Cost.** Medium. Independent of everything: slotted in whenever we feel like it.
 
-### 11 · Runner headless en el repo
+### 11 · Headless runner in the repo
 
-**✔ HECHO 2026-09-27** (de paso, con 13a): `tools/run-selftest.mjs` (sale con 1 si hay fallos) y
-`tools/shot.mjs` (módulo por título o `pantalla:NOMBRE` entera, con JS previo opcional). Ruta relativa al
-script; Chrome por la variable `CHROME` si no está en la ruta habitual. golden/sondas siguen en el temp.
+**✔ DONE 2026-09-27** (along the way, with 13a): `tools/run-selftest.mjs` (exits with 1 if there are
+failures) and `tools/shot.mjs` (module by title or a whole `pantalla:NAME`, with optional prior JS).
+Path relative to the script; Chrome through the `CHROME` variable if it is not in the usual path.
+golden/probes stay in temp.
 
-**Propósito.** Verificar sin depender de la sesión de Claude. Hoy el selftest se lanza en
-Chrome headless con dos scripts Node que viven en el scratchpad de la sesión (efímero):
-`run-selftest.mjs` (servidor estático propio en 8001 que captura los pings, CDP por
-`DevToolsActivePort`, imprime resultados, fallos y diffs de pares) y `shot.mjs` (captura PNG de
-un panel por el texto de su título). Python no está en el PATH de Git Bash, así que Node es
-el camino.
+**Purpose.** Verify without depending on Claude's session. Today the selftest is launched in
+headless Chrome with two Node scripts that live in the session's scratchpad (ephemeral):
+`run-selftest.mjs` (its own static server on 8001 that captures the pings, CDP through
+`DevToolsActivePort`, prints results, failures and pair diffs) and `shot.mjs` (PNG screenshot of a
+panel by the text of its title). Python is not on Git Bash's PATH, so Node is the way.
 
-**Qué haremos.** Copiarlos a `tools/` con una nota en DISENO.md (`node tools/run-selftest.mjs
-"selftest=1&demos=DLY"`). No es build: el proyecto sigue sin dependencias.
+**What we will do.** Copy them to `tools/` with a note in DISENO.md (`node tools/run-selftest.mjs
+"selftest=1&demos=DLY"`). It is not a build: the project still has no dependencies.
 
-**Coste.** Mínimo.
+**Cost.** Minimal.
 
-### 13 · Pantallas y biblioteca de presets (propuesto por el usuario, 2026-09-27)
+### 13 · Screens and preset library (proposed by the user, 2026-09-27)
 
-**Propósito.** El rack tiene ya ~35 módulos: en un monitor 4K está todo lleno y con zoom-out se ve
-pequeño y apabullante. No hace falta ver todo en todo momento. Tres pantallas por función, y una
-gestión de presets de verdad.
+**Purpose.** The rack already has ~35 modules: on a 4K monitor it is all packed and zoomed out it
+looks small and overwhelming. There is no need to see everything all the time. Three screens by
+function, and real preset management.
 
-**13a · Pantallas** ✔ **HECHO 2026-09-27** — selftest 119/119 (check «pantallas»); sección «Pantallas»
-de DISENO.md; capturas de las tres pantallas. Lo que quedó distinto del plan: la barra rápida vive en
-Diseño Y en Presets (guardar/borrar/exportar/importar son sus botones); un aviso «Escena» en
-Secuenciación con las Partes apagadas (explica y las enciende); la pantalla Presets estrena una
-lista v0 del banco por secciones alimentada del `<select>` (13b la sustituirá por la biblioteca);
-el teclado es `position: sticky`. El plan era: pestañas en la cabecera: **Diseño** (crear sonidos: Osc A/B,
-Mezcla, FM, FM4, Unison, Tabla de ondas + editor, Vocal, Filtro + carácter, LFOs, Env filtro,
-ADSR, Voz·Master, Matriz, Distorsión·Flanger, Chorus, Delay, Espacio, Reverb, Osciloscopio,
-Espectro), **Secuenciación** (generar y automatizar música: Arpegiador, Secuenciador,
-Tabla·secuencia, Partes/Mezclador, Armonía, Jugador, Arreglo, y Delay/Reverb en su papel de
-Sala compartida) y **Presets** (13b). Un módulo puede vivir en varias pantallas: las pantallas
-son FILTROS sobre el mismo rack (cada `.panel` lleva `data-screens="diseno secuenciacion"` y
-un CSS oculta el resto), no copias. El **teclado** en las tres, fijo abajo, para probar e
-improvisar; la barra de presets rápida se queda en Diseño. La pestaña se recuerda en
-localStorage; LEDs, plegado y el motor no se tocan. Evidencia: capturas de las tres pantallas y
-sonda que comprueba que ningún módulo queda huérfano (todos en al menos una pantalla).
+**13a · Screens** ✔ **DONE 2026-09-27** — selftest 119/119 (check «screens»); section «Screens» in
+DISENO.md; screenshots of the three screens. What turned out different from the plan: the quick bar
+lives in Design AND in Presets (save/delete/export/import are its buttons); a «Scene» notice in
+Sequencing with Parts off (it explains and switches them on); the Presets screen debuts a v0 list of
+the bank by sections fed from the `<select>` (13b will replace it with the library); the keyboard is
+`position: sticky`. The plan was: tabs in the header: **Design** (creating sounds: Osc A/B, Mixer,
+FM, FM4, Unison, Wavetable + editor, Vocal, Filter + character, LFOs, Filter Env, ADSR,
+Voice · Master, Matrix, Distortion · Flanger, Chorus, Delay, Stereo, Reverb, Oscilloscope, Spectrum),
+**Sequencing** (generating and automating music: Arpeggiator, Sequencer, Wave Sequence, Parts/Part
+Mixer, Harmony, Player, Arrangement, and Delay/Reverb in their role as the shared Room) and
+**Presets** (13b). A module can live on several screens: the screens are FILTERS over the same rack
+(each `.panel` carries `data-screens="diseno secuenciacion"` and a CSS rule hides the rest), not
+copies. The **keyboard** on all three, fixed at the bottom, for trying out and improvising; the quick
+preset bar stays in Design. The tab is remembered in localStorage; LEDs, folding and the engine are
+not touched. Evidence: screenshots of the three screens and a probe that checks that no module is
+left orphaned (all of them on at least one screen).
 
-**13b · Biblioteca de presets** ✔ **HECHO 2026-09-27** — selftest 120/120 (check «biblioteca», modelo
-sobre almacenamiento falso); detalle en DISENO.md («Grabación, presets y arpegiador» y Roadmap
-4.0); capturas de la pantalla con favorito y filtro. Distinto del plan: el arrastre también reordena
-dentro de la sección; las escenas son ítems de tipo «escena» en una sección normal («Escenas»);
-importar FUNDE (nunca sustituye) y acepta biblioteca, banco v2 o escena; la barra rápida lista toda
-la biblioteca con ★ Favoritos primero (‹ › y Program Change saltan ese grupo). El plan era (una o
-dos sesiones): hoy la gestión es un selector apretado y
-los presets viven en tres sitios: fábrica (código), `subsdj-demos.json` / `subsdj-presets-2.0.json`
-(ficheros) y los del usuario (localStorage). Una BIBLIOTECA única (`subsdj.biblioteca.v1` en
-localStorage, exportable/importable entera como JSON) con SECCIONES que se crean, renombran y
-borran; mover presets entre secciones, borrar, renombrar, favoritos, buscar; los de fábrica y
-los ficheros del repo como SEMILLA: se importan a la biblioteca la primera vez (y desde un botón
-«volver a traer de fábrica») y a partir de ahí manda el usuario: quedarse con lo que le gusta y
-tirar lo que no. Pantalla con lista por secciones, previsualización al pulsar (carga en la parte
-que edita el rack; el teclado suena debajo) y arrastrar para mover. El selector rápido y el
-Program Change MIDI recorren la biblioteca. Evidencia: selftest del modelo (crear/mover/borrar
-secciones y presets, importar/exportar ida y vuelta, migración de los tres orígenes sin
-duplicados) y sonda de la pantalla.
+**13b · Preset library** ✔ **DONE 2026-09-27** — selftest 120/120 (check «library», model over fake
+storage); details in DISENO.md («Recording, presets and arpeggiator» and Roadmap 4.0); screenshots
+of the screen with a favorite and a filter. Different from the plan: dragging also reorders within
+the section; the scenes are items of type «scene» in a normal section («Scenes»); importing MERGES
+(never replaces) and accepts a library, a v2 bank or a scene; the quick bar lists the whole library
+with ★ Favorites first (‹ › and Program Change skip that group). The plan was (one or two
+sessions): today the management is a cramped selector and the presets live in three places: factory
+(code), `subsdj-demos.json` / `subsdj-presets-2.0.json` (files) and the user's (localStorage). A
+single LIBRARY (`subsdj.biblioteca.v1` in localStorage, exportable/importable whole as JSON) with
+SECTIONS that are created, renamed and deleted; moving presets between sections, deleting, renaming,
+favorites, search; the factory ones and the repo files as a SEED: they are imported into the library
+the first time (and from a «restore from factory» button) and from then on the user rules: keep what
+they like and throw away what they do not. A screen with a list by sections, preview on click (loads
+into the part the rack is editing; the keyboard plays underneath) and drag to move. The quick
+selector and MIDI Program Change step through the library. Evidence: selftest of the model
+(create/move/delete sections and presets, import/export there and back, migration of the three
+origins without duplicates) and a probe of the screen.
 
-**Decisiones, tomadas el 2026-09-27 (punto 5 de «Decisiones abiertas»): borrar con la red de ⟲,
-escenas como sección, barra rápida entera con ★ primero.** Eran: ¿los presets de fábrica se pueden
-BORRAR de la biblioteca (con
-«volver a traer de fábrica» como red) o solo ocultar? ¿Las escenas (`escenas/*.json`) entran
-también en la biblioteca, como sección propia? ¿La barra rápida de Diseño muestra la biblioteca
-entera o solo una sección «activa»?
+**Decisions, taken on 2026-09-27 (point 5 of «Open decisions»): delete with the ⟲ net, scenes as a
+section, whole quick bar with ★ first.** They were: can the factory presets be DELETED from the
+library (with «restore from factory» as a net) or only hidden? Do the scenes (`escenas/*.json`) also
+go into the library, as their own section? Does the Design quick bar show the whole library or only
+an «active» section?
 
-### 12 · Recámara antigua (ya en DISENO.md)
+### 12 · Old back burner (already in DISENO.md)
 
-- **Visualizadores en grande**: el osciloscopio y el espectro de la cabecera (170×36) ampliables
-  cuando haga falta verlos bien (pedido por el usuario «eventualmente», 2026-09-27).
-- **Arpegiador**: más divisiones y swing.
-- **Escena «Kit 909»**: cuatro partes de percusión (bombo, caja, hat, palmada) con jugadores de
-  Pulso E(k,n) — todo existe ya (C1 + C2 + los presets del punto 14); falta componer la escena.
-- **Exportador SFZ**: loop points automáticos (hoy nota sostenible ~3 s + release).
-- **Wavetable W3**: expresiones `f(x, t)` que generan una familia de frames coherentes, y/o
-  editor de armónicos (aditiva pura). Decisión aplazada.
+- **Large visualizers**: the header's oscilloscope and spectrum (170×36) expandable when you need to
+  see them properly (requested by the user «eventually», 2026-09-27).
+- **Arpeggiator**: more divisions and swing.
+- **«909 Kit» scene**: four percussion parts (kick, snare, hat, clap) with Pulse players E(k,n) —
+  it all exists already (C1 + C2 + the presets of point 14); the scene remains to be composed.
+- **SFZ exporter**: automatic loop points (today a sustainable note ~3 s + release).
+- **Wavetable W3**: `f(x, t)` expressions that generate a family of coherent frames, and/or a
+  harmonic editor (pure additive). Decision postponed.
 
-## Roadmap 5.0 «cinescape» (acordado 2026-10-03)
+## Roadmap 5.0 «cinescape» (agreed 2026-10-03)
 
-Origen: Sergio, jugando con el synth, no saca «sonidos que llamen la atención»: timbres
-interesantes pero clásicos. Quiere lo de las películas: largo, profundo, ambiental, rico en
-texturas. Diagnóstico (DISENO.md, sección Roadmap 5.0): tres propiedades que el oído lee como
-«sinte de los 80» — LFOs globales (todo se mueve a la vez), constantes de tiempo de instrumento
-(ataque ≤ 2 s, release ≤ 3 s, LFO ≥ 0,05 Hz, sala ≤ 4 s) y espectro siempre armónico y estable.
-La receta del tutorial (sierra + cuadrada + unísono + LP24 + reverb) es el pad clásico de fábrica.
+Origin: Sergio, playing with the synth, does not get «sounds that grab your attention»: interesting
+but classic timbres. He wants what you hear in films: long, deep, ambient, rich in textures.
+Diagnosis (DISENO.md, section Roadmap 5.0): three properties that the ear reads as «80s synth» —
+global LFOs (everything moves at once), instrument time constants (attack ≤ 2 s, release ≤ 3 s,
+LFO ≥ 0.05 Hz, room ≤ 4 s) and a spectrum that is always harmonic and stable. The tutorial recipe
+(saw + square + unison + LP24 + reverb) is the classic factory pad.
 
-| # | Bloque | Qué nos da | Coste | Depende de |
+| # | Block | What it gives us | Cost | Depends on |
 |---|--------|------------|-------|------------|
-| 1 | **Tiempo ×10 + octava por oscilador** ✔ | la escala del paisaje: 20 s de ataque, 30 s de release, LFOs de minutos, sala de 20 s, delay de 4 s; suboscilador — HECHO 2026-10-03 | bajo | — |
-| 2 | **Deriva por voz + fase por voz** ✔ | cada nota del acorde evoluciona por su cuenta: fuente «Deriva (voz)» + selector LFO global / por voz (fase Weyl determinista) — HECHO 2026-10-03 | bajo | 1 |
-| 3 | **Shimmer + freeze en la Sala** ✔ | la cola sube octavas y se vuelve coro etéreo (Eno/Lanois, BigSky); freeze = decay ≈ 1 con la entrada cerrada — HECHO 2026-10-03 (bucle calibrado por energía de la reverb) | medio | — |
-| 4 | **Fuentes de ejecución** ✔ | rueda, aftertouch y expresión como fuentes de la matriz: el pad se TOCA durante 30 s — HECHO 2026-10-03 (+ rueda en pantalla bajo el teclado) | bajo | — |
-| 5 | **Resonadores** ✔ | cuencos, metal frotado, viento sobre cuerdas: banco modal por voz afinado a la nota, Material cuerda↔barra, ruido reforzado ∝ √Q — HECHO 2026-10-03 | medio | 1, 2 |
-| 6 | **Granular** | nubes de granos sobre la tabla de usuario o lo último grabado (recorder): lo único que no repite nunca — APARCADO 2026-10-03 («para otro momento») | alto | 1, 2 |
-| 7 | **Cinta en máster** ✔ | siseo + wow de pocos ms + saturación suave sobre toda la mezcla: el pegamento degradado — HECHO 2026-10-03 (módulo Cinta, claves de la Sala, exactas a 0) | bajo | — |
+| 1 | **Time ×10 + octave per oscillator** ✔ | the scale of the landscape: 20 s attack, 30 s release, LFOs of minutes, 20 s room, 4 s delay; sub-oscillator — DONE 2026-10-03 | low | — |
+| 2 | **Per-voice drift + per-voice phase** ✔ | each note of the chord evolves on its own: source «Drift (voice)» + LFO selector global / per voice (deterministic Weyl phase) — DONE 2026-10-03 | low | 1 |
+| 3 | **Shimmer + freeze in the Room** ✔ | the tail rises in octaves and turns into an ethereal choir (Eno/Lanois, BigSky); freeze = decay ≈ 1 with the input closed — DONE 2026-10-03 (loop calibrated by the reverb's energy) | medium | — |
+| 4 | **Performance sources** ✔ | wheel, aftertouch and expression as matrix sources: the pad is PLAYED for 30 s — DONE 2026-10-03 (+ on-screen wheel under the keyboard) | low | — |
+| 5 | **Resonators** ✔ | bowls, bowed metal, wind over strings: a modal bank per voice tuned to the note, Material string↔bar, noise boosted ∝ √Q — DONE 2026-10-03 | medium | 1, 2 |
+| 6 | **Granular** | clouds of grains over the user table or the last recording (recorder): the only thing that never repeats — PARKED 2026-10-03 («for another time») | high | 1, 2 |
+| 7 | **Tape on the master** ✔ | hiss + a few ms of wow + soft saturation over the whole mix: the degraded glue — DONE 2026-10-03 (Tape module, Room keys, exact at 0) | low | — |
 
-**Orden acordado:** 1 → 2 → escuchar → 3 (shimmer) → 4 → 7; 5 y 6 cuando tiempo y decorrelación estén
-resueltos (sin eso también sonarían clásicos). Receta para probar el diagnóstico con lo que ya hay:
-Capa con cuatro partes (sub seno con drift · supersaw 7 voces LP 600 Hz + LFO 0,05 Hz + ensemble ·
-ruido con Vocal «u» y Vida · campana FM4 con release largo), Placa a Size 4.
+**Agreed order:** 1 → 2 → listen → 3 (shimmer) → 4 → 7; 5 and 6 when time and decorrelation are
+solved (without that they would also sound classic). A recipe to test the diagnosis with what is
+already there: Layer with four parts (sine sub with drift · 7-voice supersaw LP 600 Hz + LFO
+0.05 Hz + ensemble · noise with Vowel «u» and Life · FM4 bell with a long release), Plate at Size 4.
 
-**1 · Tiempo ×10 + octava por oscilador** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Resumen:
-rangos ×10 en log con `lmin` (posición 0 = 0 exacto), sliders que guardan el valor exacto, Speed de
-LFO desde 0,005 Hz, Delay 4 s (`DLY_MAX`), Size 20 s (IR ~55 ms de generación; placa con tabla
-RT60→decay ampliada con medidas en Node entre 1 y 15 s: 16,2 ↔ 0,93 · 21,8 ↔ 0,95 · 26,3 ↔ 0,96),
-predelay 250 ms, `octA`/`octB` −2..+2 como ratio de frecuencia (stepper «Octava» junto a «Apiladas»),
-`MAX_TAILS` 16 con fundido de 350 ms. Cuatro checks nuevos (148/148), categoría «Cinescape»
-(«Pad glaciar (ataque 12 s)», «Drone de sótano (−2 octavas)»), pares TIEMPO 1-4 y OCT 1-2.
-Fuera a propósito: subir el tope de Mix de reverb (0,6; los niveles están igualados por medida) y
-los Speed de chorus/flanger (efectos, no paisaje).
+**1 · Time ×10 + octave per oscillator** ✔ **DONE 2026-10-03** — details in DISENO.md. Summary:
+ranges ×10 in log with `lmin` (position 0 = exactly 0), sliders that store the exact value, LFO
+Speed from 0.005 Hz, Delay 4 s (`DLY_MAX`), Size 20 s (IR ~55 ms to generate; plate with the
+RT60→decay table extended with measurements in Node between 1 and 15 s: 16.2 ↔ 0.93 · 21.8 ↔ 0.95 ·
+26.3 ↔ 0.96), predelay 250 ms, `octA`/`octB` −2..+2 as a frequency ratio («Octave» stepper next to
+«Stack»), `MAX_TAILS` 16 with a 350 ms fade. Four new checks (148/148), category «Cinescape»
+(«Glacial Pad (12 s attack)», «Basement Drone (−2 octaves)»), pairs TIME 1-4 and OCT 1-2. Left out
+on purpose: raising the reverb Mix ceiling (0.6; the levels are matched by measurement) and the
+chorus/flanger Speeds (effects, not landscape).
 
-**2 · Deriva por voz + fase por voz** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del
-plan: la deriva usa el buffer de deriva de los LFO (`lfoBuffers.drift`, mulberry32) y no el `wander`
-de Vocal; la fase por voz NO es aleatoria sino la secuencia de Weyl k·φ (determinista: renders y SFZ
-reproducibles, el selftest la mide), con un selector `lfoPhase` global/por voz por nota (bit-compatible
-por defecto); los LFO por voz son buffers de un periodo (un OscillatorNode no admite fase inicial),
-no PeriodicWaves. Medidas: corr entre notas 1,000 global / −0,738 por voz (= cos 2π·0,618), deriva
-0,122, renders bit a bit iguales; 151/151. Preset «Pad de cuatro vientos»; pares FASE 1-2 y DERIVA 1-2.
-Lección: los checks que miden amplitud por voz deben renderizar a −12 dB o el limitador de la Sala
-acopla las pistas. El plan era: fuente «Deriva (por voz)» en `MX_SOURCES` desde un offset aleatorio
-y fase aleatoria por voz para los LFOs dedicados.
+**2 · Per-voice drift + per-voice phase** ✔ **DONE 2026-10-03** — details in DISENO.md. Different
+from the plan: the drift uses the LFOs' drift buffer (`lfoBuffers.drift`, mulberry32) and not
+Vocal's `wander`; the per-voice phase is NOT random but the Weyl sequence k·φ (deterministic:
+reproducible renders and SFZ, the selftest measures it), with an `lfoPhase` selector global/per
+voice per note (bit-compatible by default); the per-voice LFOs are one-period buffers (an
+OscillatorNode does not accept an initial phase), not PeriodicWaves. Measurements: corr between notes
+1.000 global / −0.738 per voice (= cos 2π·0.618), drift 0.122, renders bit-for-bit identical;
+151/151. Preset «Four Winds Pad»; pairs PHASE 1-2 and VDRIFT 1-2. Lesson: checks that measure
+amplitude per voice must render at −12 dB or the Room's limiter couples the tracks. The plan was:
+source «Drift (per voice)» in `MX_SOURCES` from a random offset and random phase per voice for the
+dedicated LFOs.
 
-**3 · Shimmer + freeze** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del plan: la
-ganancia del bucle NO es fija: se calibra contra la energía de la reverb (IR 0,07·Size por la
-constante de normalización del ConvolverNode; placa medida en Node, tabla `PLATE_G`) para que la
-energía por vuelta sea amt·0,8 — con ganancia fija no había coro (cada vuelta perdía ~9 dB; el
-check lo cazó). Ventanas seno (no Hann) a media vuelta: potencia constante. Freeze a decay 0,9995
-(el worklet sube su tope a 1) y como botón, no parámetro; con la IR se desactiva. Medidas: 440 →
-880 Hz relación 8710; cola a 3-4 s +14 dB (placa) / +30 dB (IR) con shimmer; estable (7 s/2 s
-0,006 / 0,125); congelada mantiene 0,969 a los 5 s; 155/155. Preset «Pad shimmer»; pares SHIM 1-4.
-El plan era: worklet pitch shifter granular (dos granos con ventana Hann y lectura en dientes de
-sierra, +12 o +7 st) en un bucle reverb → LP → shifter → ×amt → reverb; Freeze con decay 0,999.
+**3 · Shimmer + freeze** ✔ **DONE 2026-10-03** — details in DISENO.md. Different from the plan: the
+loop gain is NOT fixed: it is calibrated against the reverb's energy (IR 0.07·Size because of the
+ConvolverNode's normalization constant; plate measured in Node, table `PLATE_G`) so that the energy
+per round trip is amt·0.8 — with a fixed gain there was no choir (each round trip lost ~9 dB; the
+check caught it). Sine windows (not Hann) at half a turn: constant power. Freeze at decay 0.9995
+(the worklet raises its ceiling to 1) and as a button, not a parameter; with the IR it is disabled.
+Measurements: 440 → 880 Hz ratio 8710; tail at 3-4 s +14 dB (plate) / +30 dB (IR) with shimmer;
+stable (7 s/2 s 0.006 / 0.125); frozen it holds 0.969 at 5 s; 155/155. Preset «Shimmer Pad»; pairs
+SHIM 1-4. The plan was: a granular pitch shifter worklet (two grains with a Hann window and sawtooth
+reading, +12 or +7 st) in a loop reverb → LP → shifter → ×amt → reverb; Freeze with decay 0.999.
 
-**4 · Fuentes de ejecución** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Como estaba planeado:
-ConstantSource 0..1 por fuente y motor (`AudioEngine.perf`), `parts.setPerf` a todas las partes,
-`handleMidi` exportado para la sonda. Añadido: rueda en pantalla bajo el teclado (sigue al CC1).
-Decisiones: CC1/CC11 alimentan la fuente SIEMPRE además del mapeo (de fábrica CC1 → vibrato); el
-aftertouch polifónico se trata como el de canal (la fuente es por motor); 0 = reposo. Medidas:
-rueda → cutoff tilt ×5,4; aftertouch → pitch 185,0 Hz exactos; expresión → amplitud ×0,200; MIDI
-sintético → fuentes 1 / 0,504 / 0; 157/157. Preset «Pad de ejecución». Sin par A/B (son gestos, no
-viven en el preset): la evidencia es el check. El plan era: rueda (CC1), aftertouch y expresión
-(CC11) como fuentes de la matriz; verificación con sonda MIDI sintética.
+**4 · Performance sources** ✔ **DONE 2026-10-03** — details in DISENO.md. As planned: a
+ConstantSource 0..1 per source and engine (`AudioEngine.perf`), `parts.setPerf` to all the parts,
+`handleMidi` exported for the probe. Added: an on-screen wheel under the keyboard (it follows CC1).
+Decisions: CC1/CC11 ALWAYS feed the source in addition to the mapping (factory CC1 → vibrato);
+polyphonic aftertouch is treated like channel aftertouch (the source is per engine); 0 = rest.
+Measurements: wheel → cutoff tilt ×5.4; aftertouch → pitch exactly 185.0 Hz; expression → amplitude
+×0.200; synthetic MIDI → sources 1 / 0.504 / 0; 157/157. Preset «Performance Pad». No A/B pair
+(they are gestures, they do not live in the preset): the evidence is the check. The plan was: wheel
+(CC1), aftertouch and expression (CC11) as matrix sources; verification with a synthetic MIDI probe.
 
-**5 · Resonadores** ✔ **HECHO 2026-10-03** — detalle en DISENO.md. Distinto del plan: módulo propio
-(`engine/reson.js`, 6 biquads bandpass por voz tras el Vocal), no un modo del Vocal ni combs
-Karplus-Strong (un bucle con DelayNode nativo tiene 128 muestras de latencia mínima: no afina por encima
-de ~340 Hz). Knob Material = morph log entre cuerda (armónicos) y barra libre (∝ (2n+1)²); Decay = Q
-10→600; Brillo con Σg² constante. Hallazgo: dos caminos de entrada — tonal a 0 dB, ruido ∝ √Q —
-porque la potencia de ruido que pasa un resonador es ∝ f/Q. Medidas: 2º modo 37× / 82× en su sitio
-según Material; selectividad ×1,1 (Q 10) vs ×19 (Q 600); cuenco con ruido −15,7 dB; sigue el glide
-(40×); 162/162. Presets «Cuenco tibetano» y «Metal frotado»; pares RES 1-4. El plan era: modo
-«resonador» del banco Vocal (ratios inarmónicos, Q alta, ruido como fuente) o banco de combs
-Karplus-Strong por voz.
+**5 · Resonators** ✔ **DONE 2026-10-03** — details in DISENO.md. Different from the plan: a module of
+its own (`engine/reson.js`, 6 bandpass biquads per voice after the Vocal), not a mode of the Vocal
+nor Karplus-Strong combs (a loop with a native DelayNode has a minimum latency of 128 samples: it
+does not tune above ~340 Hz). Material knob = log morph between string (harmonics) and free bar
+(∝ (2n+1)²); Decay = Q 10→600; Bright with constant Σg². Finding: two input paths — tonal at 0 dB,
+noise ∝ √Q — because the noise power that passes through a resonator is ∝ f/Q. Measurements: 2nd
+mode 37× / 82× in its place depending on Material; selectivity ×1.1 (Q 10) vs ×19 (Q 600); bowl
+with noise −15.7 dB; follows the glide (40×); 162/162. Presets «Singing Bowl» and «Bowed Metal»;
+pairs RES 1-4. The plan was: a «resonator» mode of the Vocal bank (inharmonic ratios, high Q, noise
+as the source) or a bank of Karplus-Strong combs per voice.
 
-**6 · Granular** — modo de onda
-«grano» en el worklet (N granos leyendo la tabla con fases aleatorias y ventanas Hann, densidad y
-dispersión de tono/pan) o granulador sobre el buffer del recorder. Coste alto.
+**6 · Granular** — a «grain» wave mode in the worklet (N grains reading the table with random phases
+and Hann windows, density and pitch/pan scatter) or a granulator on the recorder's buffer. High
+cost.
 
-**7 · Cinta en máster** ✔ **HECHO 2026-10-03, revisado tras escucharlo** — detalle en DISENO.md. En la
-Sala (suma → cinta → limitador): saturación tanh(x) con entrada 1 + sat² (hasta ×2) y pérdida de
-agudos, y wow (línea de 8 ms con deriva 'drift' a 0,8 Hz ≈ ±33 ct medidos + flutter 6,5 Hz ≈ ±6 ct);
-las dos exactas a 0 (el wow a 0 no añade latencia). Revisión por el oído de Sergio: la primera
-saturación (k = 2, ×3) petardeaba con tres notas (intermodulación del sub) → curva suave y knob al
-cuadrado; el wow a ±7 ct no se oía, y a ±15 tampoco → ±33 a tope (cinta estropeada a propósito) y el
-check prueba también el camino del knob (set en vivo: 16,8 Hz, igual que naciendo a tope; sospecha
-de caché de módulos en el navegador: Ctrl+F5); el siseo fijo NO aportaba → quitado (el aire por nota
-ya es el knob Ruido). Check: 3er armónico 0,0019 / 0,0139 / 0,1035 a 0 / 0,3 / 1, nivel ×1,00; wow
-16,8 Hz de vaivén a 440 Hz; 159/159. Preset «Pad de cinta (nostalgia)»; pares CINTA 1-4. El plan era: ruido a −50 dB, DelayNode
-de pocos ms modulado, tanh suave; en la Sala.
+**7 · Tape on the master** ✔ **DONE 2026-10-03, revised after listening to it** — details in
+DISENO.md. In the Room (sum → tape → limiter): saturation tanh(x) with input 1 + sat² (up to ×2)
+and treble loss, and wow (an 8 ms line with 'drift' wander at 0.8 Hz ≈ ±33 ct measured + flutter
+6.5 Hz ≈ ±6 ct); both exact at 0 (wow at 0 adds no latency). Revision by Sergio's ear: the first
+saturation (k = 2, ×3) crackled with three notes (intermodulation of the sub) → a soft curve and the
+knob squared; the wow at ±7 ct could not be heard, nor at ±15 → ±33 at full (deliberately broken
+tape) and the check also tests the knob's path (set live: 16.8 Hz, the same as being born at full;
+suspected module cache in the browser: Ctrl+F5); the fixed hiss did NOT add anything → removed (the
+per-note air is already the Noise knob). Check: 3rd harmonic 0.0019 / 0.0139 / 0.1035 at 0 / 0.3 /
+1, level ×1.00; wow 16.8 Hz of sway at 440 Hz; 159/159. Preset «Tape Pad (nostalgia)»; pairs
+TAPE 1-4. The plan was: noise at −50 dB, a modulated DelayNode of a few ms, soft tanh; in the Room.
 
-## Roadmap 6.0 — en exploración (2026-10-04)
+## Roadmap 6.0 — under exploration (2026-10-04)
 
-Origen: «¿cómo conseguimos sonidos más ricos, con más textura?». Contexto completo en DISENO.md.
+Origin: «how do we get richer sounds, with more texture?». Full context in DISENO.md.
 
-**Descartado: 1 · Grano** (la voz × ruido de ancho B: temblor / raspa / aliento pegados a los
-armónicos). Se hizo entero (módulo, check, pares GRANO 1-8, dos presets) y, tras escucharlo: «no era lo
-que esperaba, ni lo que buscaba». Quitado del código sin commit. Respondía a «textura» como grano FINO
-(ms); lo buscado era otra escala. Lo que se aprendió y vale para lo que venga: el limitador de la Sala
-(−3 dB) va ANTES del master — un pad normal ya roza el limitador, y cualquier fuente con mucha cresta
-(ruido multiplicado, picos gaussianos) pierde nivel ahí; para medir niveles sin él, bajar `amplitude`.
+**Discarded: 1 · Grain** (the voice × noise of bandwidth B: tremor / rasp / breath stuck to the
+harmonics). It was done in full (module, check, pairs GRAIN 1-8, two presets) and, after listening to
+it: «it was not what I expected, nor what I was looking for». Removed from the code without a commit.
+It answered «texture» as FINE grain (ms); what was sought was another scale. What was learned and
+holds for whatever comes: the Room's limiter (−3 dB) comes BEFORE the master — a normal pad already
+brushes the limiter, and any source with a high crest factor (multiplied noise, Gaussian peaks)
+loses level there; to measure levels without it, lower `amplitude`.
 
-**La dirección buscada: sonidos complejos y escalonados** — el timbre moviéndose por pasos, con ritmo,
-generado por LFO o similar. Paso 1 (en curso): presets «Escalonados» con lo que YA hay (S&H, secuencia
-de tabla, LFO crudos en la matriz, fase por voz, delay a tempo) para oír hasta dónde llega la
-topología actual. Paso 2 (pendiente de que Sergio lo vea claro, NO planificar aún): módulo de **Pasos**
-— carriles de distinta longitud (polimetría: 16·12·5 → mcm 240 pasos), división y valor por paso,
-como fuentes de la matriz; generalizar lo que la secuencia de tabla ya hace para wtPos. Y LFO a tempo.
+**The direction sought: complex, stepped sounds** — the timbre moving in steps, with rhythm,
+generated by an LFO or similar. Step 1 (in progress): «Stepped» presets with what is ALREADY there
+(S&H, wave sequence, raw LFOs in the matrix, per-voice phase, tempo-synced delay) to hear how far
+the current topology goes. Step 2 (pending until Sergio sees it clearly, do NOT plan yet): a
+**Steps** module — lanes of different lengths (polymetre: 16·12·5 → LCM 240 steps), division and
+value per step, as matrix sources; generalize what the wave sequence already does for wtPos. And a
+tempo-synced LFO.
 
-## Lo que NO haremos (decidido)
+## What we will NOT do (decided)
 
-- **Piano roll / línea de tiempo** con notas escritas: para eso están los DAWs y el SFZ es el
-  puente. Lo generativo son jugadores, no partituras.
-- **Duplicar el rack por parte**: el rack edita la parte seleccionada.
-- **Secuenciador multipista tipo DAW** (decisión del Roadmap 3.0, sigue vigente).
-- **Seq fase 2** (ties, acentos, cuantización, step-record): solo como proyecto aparte. *Revisado
-  2026-10-17: acento, ligadura, slide y repeticiones vuelven como propuesta (Roadmap 7.0, 5.1,
-  pendiente de decisión); cuantización y step-record siguen fuera.*
-- **Un DAW** (decidido 2026-10-17): ni línea de tiempo, ni multipista, ni regiones, ni automatización
-  por pistas, ni mezclador con inserciones por canal. SubSDJ es un instrumento de diseño y
-  generación de sonido; las canciones se hacen en un DAW con los sonidos exportados (SFZ, WAV).
-- **Piano acústico** y **generación estática de samples** del synth original: aparcados.
-- **Descartados el 2026-10-25 por el criterio «que aporte algo diferencial»** (el synth ya lo cubre):
-  **3.4 distorsión de fase** (su barrido es el del filtro o el morph de la tabla, y sus formas
-  resonantes, las del filtro resonante y el sync); **3.5 editor de armónicos** (otra forma de
-  dibujar lo que ya dibuja el Editor de ondas); **4.2 placa con graves propios** (retoque, solo si
-  se oye un fallo); **4.3 phaser** (se solapa con flanger, chorus y el notch con LFO); **5.5 modos
-  del arpegiador** (poco). **5.3 acordes encadenados**: sin fecha.
-- **El teclado se queda**: es el banco de pruebas para confeccionar un sonido antes de guardarlo
-  como preset y usarlo en una escena.
+- **Piano roll / timeline** with written notes: that is what DAWs are for and the SFZ is the bridge.
+  The generative side is players, not scores.
+- **Duplicating the rack per part**: the rack edits the selected part.
+- **DAW-style multitrack sequencer** (a Roadmap 3.0 decision, still in force).
+- **Seq phase 2** (ties, accents, quantization, step-record): only as a separate project. *Revised
+  2026-10-17: accent, tie, slide and repeats come back as a proposal (Roadmap 7.0, 5.1, pending a
+  decision); quantization and step-record stay out.*
+- **A DAW** (decided 2026-10-17): no timeline, no multitrack, no regions, no per-track automation,
+  no mixer with per-channel inserts. SubSDJ is an instrument for sound design and generation; songs
+  are made in a DAW with the exported sounds (SFZ, WAV).
+- **Acoustic piano** and **static sample generation** from the original synth: parked.
+- **Discarded on 2026-10-25 by the criterion «it must bring something distinctive»** (the synth
+  already covers it): **3.4 phase distortion** (its sweep is that of the filter or the wavetable
+  morph, and its resonant shapes, those of the resonant filter and sync); **3.5 harmonic editor**
+  (another way of drawing what the Wave Editor already draws); **4.2 plate with its own low end** (a
+  touch-up, only if a flaw is heard); **4.3 phaser** (it overlaps with flanger, chorus and the notch
+  with an LFO); **5.5 arpeggiator modes** (too little). **5.3 chained chords**: no date.
+- **The keyboard stays**: it is the test bench for crafting a sound before saving it as a preset and
+  using it in a scene.

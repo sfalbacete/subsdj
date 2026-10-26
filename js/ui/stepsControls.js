@@ -1,13 +1,13 @@
-/* SubSDJ · panel «Pasos» (Roadmap 7.0 · 2.3): cuatro carriles de valores
-   −1..+1 que la matriz usa como fuentes («Pasos i» y «Pasos i · nota»).
-   Cada carril: un canvas donde se DIBUJAN los pasos arrastrando (la altura es
-   el valor; cerca del centro se pega a 0), un stepper de longitud (1..32), la
-   división, el suavizado, la rotación y la deriva de la rotación. Arriba, el
-   reinicio común y cuánto tarda en repetirse todo («el ciclo completo dura…»).
-   Los patrones son claves planas (st{i}Pat, como wsPat): presets, Reset y
-   deshacer sin casos especiales; sin `el`, fuera de MIDI learn. El ancho de
-   un paso es FIJO (32 por fila): un carril de 5 ocupa 5/32 y la polimetría se
-   ve. El marcador sigue al paso que suena (calculado del reloj común). */
+/* SubSDJ · «Steps» panel (Roadmap 7.0 · 2.3): four lanes of −1..+1 values
+   that the matrix uses as sources («Steps i» and «Steps i · note»).
+   Each lane: a canvas where the steps are DRAWN by dragging (the height is
+   the value; near the center it snaps to 0), a length stepper (1..32), the
+   division, the smoothing, the rotation and the rotation drift. On top, the
+   common reset and how long the whole thing takes to repeat («the full cycle lasts…»).
+   The patterns are flat keys (st{i}Pat, like wsPat): presets, Reset and
+   undo with no special cases; no `el`, so outside MIDI learn. The width of
+   a step is FIXED (32 per row): a 5-step lane takes 5/32 and the polymeter
+   shows. The marker follows the sounding step (computed from the common clock). */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget, bindSelect } from './registry.js';
@@ -18,7 +18,7 @@ import { fitCanvas, uiZoom } from './frame.js';
 const fmtV = v => String(Math.round(v * 100) / 100);
 const valsOf = i => parseSteps(part().S['st' + i + 'Pat']);
 const setPat = (i, vals) => CONTROLS['st' + i + 'Pat'].set(vals.map(fmtV).join(' '));
-const SNAP = 0.08;   // cerca del centro, el paso vale 0 (dibujar un cero a mano es imposible si no)
+const SNAP = 0.08;   // near the center, the step is 0 (otherwise drawing a zero by hand is impossible)
 const fmtBars = b => b >= 1 ? (Number.isInteger(b) ? b : b.toFixed(2)) + (b === 1 ? ' bar' : ' bars') : (Math.round(b * 4 * 100) / 100) + ' beats';
 
 export function bindStepsControls() {
@@ -59,7 +59,7 @@ function initLane(i, canvas) {
     fit();
     const vals = valsOf(i), n = vals.length, play = part().ready ? part().steps.playingStep(i) : -1, w = cw();
     g.clearRect(0, 0, W, H);
-    g.fillStyle = tint('--dim', .06); g.fillRect(PAD + n * w, PAD, W - 2 * PAD - n * w, H - 2 * PAD);   // más allá de la longitud
+    g.fillStyle = tint('--dim', .06); g.fillRect(PAD + n * w, PAD, W - 2 * PAD - n * w, H - 2 * PAD);   // beyond the length
     g.strokeStyle = tint('--dim', .18); g.lineWidth = 1; g.strokeRect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
     const y0 = yOf(0);
     g.strokeStyle = tint('--dim', .22); g.beginPath(); g.moveTo(PAD, y0); g.lineTo(PAD + n * w, y0); g.stroke();
@@ -92,13 +92,13 @@ function initLane(i, canvas) {
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
   document.addEventListener('param-change', e => { if (e.detail.target === 'st' + i + 'Pat') draw(); });
-  window.addEventListener('resize', draw);                 // screens.js dispara resize al cambiar de pestaña
+  window.addEventListener('resize', draw);                 // screens.js fires resize on tab change
   let last = -2;
   setInterval(() => { const p = part().ready ? part().steps.playingStep(i) : -1; if (p !== last) { last = p; draw(); } }, 40);
   draw();
 }
 
-// Stepper de longitud: + añade un paso a 0, − quita el último
+// Length stepper: + adds a step at 0, − removes the last one
 function initLen(i, row) {
   const num = row.querySelector('.num'), dec = row.querySelector('[data-stlen="-"]'), inc = row.querySelector('[data-stlen="+"]');
   const sync = () => { if (num) num.textContent = valsOf(i).length; };

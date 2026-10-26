@@ -1,19 +1,19 @@
 /* =====================================================================
-   SubSDJ · pantalla de entrada — una ventana modal sobre el instrumento
-   (que se ve detrás, apagado). Arriba, una pantallita de demoscene
-   old-school a baja resolución (BW × BH, escalada a píxel doble):
-     · fondo: PLASMA (suma de senos que se desplazan) con paleta cíclica, más
-       la INTERFERENCIA de dos fuentes de ondas que se mueven en Lissajous:
-       sus anillos se cruzan y dan el moiré;
-     · el NOMBRE relleno de barras de cobre (el «Copper» del Amiga: un color
-       por línea que se desplaza), con canto de luz, sombra y un brillo que lo
-       recorre; entra con un fundido de TRAMA ordenada (Bayer 4×4), que es
-       como se hacían los fundidos con pocos colores.
-   Debajo, en HTML: el botón ENTRAR, que además arranca el audio (un
-   navegador no deja sonar sin un gesto), y al pie la versión, su fecha
-   (RELEASE), el código y la licencia. Intro también entra; mientras está,
-   el teclado no toca notas. La ventana se escala con el instrumento.
-   Fuera con ?selftest o ?nosplash (pruebas y capturas: tools/shot.mjs).
+   SubSDJ · welcome window — a modal window over the instrument
+   (visible behind it, dimmed). On top, a small old-school demoscene
+   screen at low resolution (BW × BH, scaled to double pixels):
+     · background: PLASMA (a sum of moving sines) with a cyclic palette, plus
+       the INTERFERENCE of two wave sources moving in Lissajous figures:
+       their rings cross and produce the moiré;
+     · the NAME filled with copper bars (the Amiga «Copper»: one color
+       per line, scrolling), with a lit edge, a shadow and a glint that
+       sweeps across it; it fades in with an ordered DITHER (Bayer 4×4), which is
+       how fades were done with few colors.
+   Below, in HTML: the ENTER button, which also starts the audio (a
+   browser won't make sound without a gesture), and at the bottom the version, its date
+   (RELEASE), the code and the license. Enter also gets you in; while it is up,
+   the keyboard plays no notes. The window scales with the instrument.
+   Off with ?selftest or ?nosplash (tests and screenshots: tools/shot.mjs).
    ===================================================================== */
 import { VERSION, RELEASE } from '../version.js';
 import { part } from '../engine/parts.js';
@@ -21,16 +21,16 @@ import { setStatus } from './status.js';
 import { tokenList } from './theme.js';
 import { uiZoom } from './frame.js';
 
-const BW = 168, BH = 66;        // búfer de baja resolución (se ve a 336 × 132: píxel doble)
+const BW = 168, BH = 66;        // low-resolution buffer (shown at 336 × 132: double pixels)
 const TAU = Math.PI * 2;
 const SIN_N = 2048, SIN = new Float32Array(SIN_N);
 for (let i = 0; i < SIN_N; i++) SIN[i] = Math.sin(i / SIN_N * TAU);
-const sn = x => SIN[((x * (SIN_N / TAU)) | 0) & (SIN_N - 1)];   // seno por tabla (x en radianes, cualquier signo)
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];   // umbrales 4×4 (0..15)
+const sn = x => SIN[((x * (SIN_N / TAU)) | 0) & (SIN_N - 1)];   // table sine (x in radians, any sign)
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];   // 4×4 thresholds (0..15)
 
-// --- Paletas (256 entradas) a partir de paradas de color. Las paradas viven en
-// css/style.css (:root, --sp-plasma / --sp-copper): los colores de la marca, en un
-// solo sitio; se leen al crear el primer efecto.
+// --- Palettes (256 entries) built from color stops. The stops live in
+// css/style.css (:root, --sp-plasma / --sp-copper): the brand colors, in a
+// single place; they are read when the first effect is created.
 const rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 function ramp(stops, cyclic) {
   const n = stops.length, out = [];
@@ -63,18 +63,18 @@ export class SplashFx {
     this.stats = { title: 0 };
     this.exitT = null;
     this._titleMask();
-    const v = new Uint16Array(BW * BH);                          // viñeta + líneas de barrido: un poco de tubo
+    const v = new Uint16Array(BW * BH);                          // vignette + scanlines: a bit of CRT tube
     for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
       const dx = (x / BW - 0.5) * 1.5, dy = (y / BH - 0.5) * 1.8;
       v[y * BW + x] = Math.round(256 * Math.max(0.3, 1 - 0.5 * (dx * dx + dy * dy)) * (y & 1 ? 0.86 : 1));
     }
     this.vig = v;
   }
-  // El nombre, una vez: texto en un lienzo aparte → máscara de píxeles, tan grande como quepa
+  // The name, once: text on a separate canvas → pixel mask, as large as it fits
   _titleMask() {
     const { W, H } = this, o = document.createElement('canvas'); o.width = W; o.height = H;
     const g = o.getContext('2d');
-    g.fillStyle = 'white'; g.textAlign = 'center'; g.textBaseline = 'middle';   // solo es una máscara
+    g.fillStyle = 'white'; g.textAlign = 'center'; g.textBaseline = 'middle';   // it is only a mask
     const font = sz => `900 ${sz}px "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif`;
     let sz = Math.round(H * 0.46); g.font = font(sz);
     const w = g.measureText('SubSDJ').width, avail = W * 0.84;
@@ -88,10 +88,10 @@ export class SplashFx {
 
   frame(t) {
     const { W, H, px, vig } = this;
-    const ex = this.exitT !== null ? ease((t - this.exitT) / 0.4) : 0;   // salida: todo se enciende
+    const ex = this.exitT !== null ? ease((t - this.exitT) / 0.4) : 0;   // exit: everything lights up
     const fade = Math.min(1, t / 1.0) * 0.8 * (1 + ex * 1.5);
     const pal = new Uint32Array(256); for (let i = 0; i < 256; i++) pal[i] = pack(PAL_BG[i], fade);
-    // fuentes de la interferencia (Lissajous) y centro del plasma radial
+    // interference sources (Lissajous) and center of the radial plasma
     const s1x = W * (0.5 + 0.38 * sn(t * 0.31)), s1y = H * (0.5 + 0.34 * sn(t * 0.43 + 1)), s2x = W * (0.5 + 0.40 * sn(t * 0.27 + 2)), s2y = H * (0.5 + 0.36 * sn(t * 0.37 + 4));
     const rcx = W * (0.5 + 0.3 * sn(t * 0.21)), rcy = H * (0.5 + 0.3 * sn(t * 0.17 + 3));
     const cyc = t * 34;
@@ -105,11 +105,11 @@ export class SplashFx {
         px[i] = dim(pal[((p + 4) * 22 + k * 20 + cyc) & 255], vig[i]);
       }
     }
-    // --- el nombre: cobre que sube, canto de luz, sombra y brillo; entra con trama
+    // --- the name: rising copper, lit edge, shadow and glint; fades in with dither
     const tIn = Math.max(0, Math.min(1, (t - 0.5) / 0.9)), thr = tIn * 16;
     if (tIn > 0) {
       const tm = this.tmask, { x0, x1, y0, y1 } = this.tbox, span = 256 / Math.max(1, y1 - y0) * 0.7;
-      const swp = ((t - 0.5) * 0.4) % 2.4 - 0.3;                           // brillo que recorre el nombre
+      const swp = ((t - 0.5) * 0.4) % 2.4 - 0.3;                           // glint sweeping across the name
       let n = 0;
       for (let y = Math.max(1, y0 - 1); y <= Math.min(H - 2, y1 + 2); y++) for (let x = Math.max(1, x0 - 1); x <= Math.min(W - 2, x1 + 2); x++) {
         const i = y * W + x;
@@ -117,11 +117,11 @@ export class SplashFx {
         if (tm[i]) {
           n++;
           let c = pack(PAL_COPPER[(((y - y0) * span - t * 60) | 0) & 255], 1 + ex);
-          if (!tm[i - W] || !tm[i - 1]) c = 0xffffffff;                     // canto de luz
+          if (!tm[i - W] || !tm[i - 1]) c = 0xffffffff;                     // lit edge
           else if (!tm[i + W]) c = dim(c, 140);
           const f = (x - x0) / (x1 - x0 + 1) - swp + (y - y0) * 0.01; if (f > 0 && f < 0.07) c = 0xffffffff;
           px[i] = c;
-        } else if (tm[i - W - 1]) px[i] = dim(px[i], 64);                  // sombra arrojada
+        } else if (tm[i - W - 1]) px[i] = dim(px[i], 64);                  // drop shadow
       }
       this.stats.title = n;
     }
@@ -129,9 +129,9 @@ export class SplashFx {
   }
 }
 
-// Una sola ventana en la página: se abre al cargar (entrada: ENTRAR arranca el audio)
-// y se reabre como «Acerca de» (el título de la cabecera, el menú Archivo): VOLVER,
-// Escape o un clic fuera la cierran. Al cerrar se OCULTA (no se borra) y se para el efecto.
+// A single window on the page: it opens on load (welcome: ENTER starts the audio)
+// and reopens as «About» (the header title, the File menu): BACK,
+// Escape or a click outside close it. On close it is HIDDEN (not removed) and the effect stops.
 let open = () => {};
 export const openSplash = (about = true) => open(about);
 
@@ -142,23 +142,23 @@ export function initSplash() {
   el.querySelector('#spVer').textContent = 'v' + VERSION;
   el.querySelector('#spDate').textContent = splashDate(RELEASE);
   const fx = new SplashFx(el.querySelector('canvas'));
-  const scale = () => { card.style.zoom = uiZoom(); };          // a la escala del instrumento (en una 4K al 150 %, ~1,3)
+  const scale = () => { card.style.zoom = uiZoom(); };          // at the instrument's scale (on a 4K at 150 %, ~1.3)
   let t0 = null, raf = 0, shown = false, about = false, timer = 0;
   const loop = now => {
     if (t0 === null) t0 = now;
     fx.frame((now - t0) / 1000);
     raf = requestAnimationFrame(loop);
   };
-  // Mientras está la ventana, el teclado no toca notas. Se registra UNA vez, aquí, antes que el
-  // teclado (que también escucha en captura sobre window): el primero registrado, el primero en oír.
+  // While the window is up, the keyboard plays no notes. Registered ONCE, here, before the
+  // keyboard (which also listens in capture on window): first registered, first to hear.
   const keys = e => {
     if (!shown) return;
     if (e.key === 'Enter' || e.key === ' ' || (about && e.key === 'Escape')) close();
-    e.stopImmediatePropagation(); e.preventDefault();          // también frente a otros listeners de window (el teclado escucha ahí)
+    e.stopImmediatePropagation(); e.preventDefault();          // also against other window listeners (the keyboard listens there)
   };
   function close() {
     if (!shown) return; shown = false;
-    if (!about) try {                                         // la entrada: el gesto que el navegador pide para sonar
+    if (!about) try {                                         // the welcome: the gesture the browser requires before making sound
       const e = part();
       if (e && e.ctx && e.ctx.state === 'suspended') e.ctx.resume().then(() => setStatus('powerInfo', 'on', 'audio on')).catch(() => {});
     } catch (err) {}
@@ -179,8 +179,8 @@ export function initSplash() {
   };
   addEventListener('keydown', keys, true);
   btn.addEventListener('click', close);
-  el.addEventListener('click', e => { if (about && !card.contains(e.target)) close(); });   // «Acerca de»: un clic fuera también cierra
+  el.addEventListener('click', e => { if (about && !card.contains(e.target)) close(); });   // «About»: a click outside also closes
   const q = new URLSearchParams(location.search);
-  if (q.has('selftest') || q.has('nosplash')) el.hidden = true;   // pruebas y capturas: sin entrada (el «Acerca de» sigue)
+  if (q.has('selftest') || q.has('nosplash')) el.hidden = true;   // tests and screenshots: no welcome (the «About» still works)
   else open(false);
 }

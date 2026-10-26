@@ -1,25 +1,25 @@
-/* SubSDJ · selector rápido de presets (cabecera). Sustituye al <select>:
-   con 300 presets en 16 secciones, un desplegable largo no se recorre.
-   El botón enseña el preset actual; al abrirlo, un panel con buscador
-   (sin acentos ni mayúsculas), las categorías a la izquierda (Todos,
-   ★ Favoritos y cada sección, con cuántos coinciden con lo buscado) y la
-   lista a la derecha. Pensado para PROBAR deprisa:
-     clic          carga y deja el panel abierto (el foco sale del buscador:
-                   el teclado del PC vuelve a tocar notas para escucharlo)
-     ↑ ↓           mueve y carga (como ‹ ›, dentro de lo filtrado)
-     Intro / doble clic   carga y cierra
-     Esc / clic fuera     cierra (Esc no hace pánico mientras esté abierto)
-   «Navegar todos» lleva a la pantalla Presets con la misma búsqueda. Solo
-   presets: las escenas viven en la pantalla Presets. Aquí solo se pinta:
-   cargar va por presetBank (el mismo camino que ‹ › y la pantalla Presets). */
+/* SubSDJ · quick preset picker (header). Replaces the <select>:
+   with 300 presets in 16 sections, a long dropdown can't be browsed.
+   The button shows the current preset; opening it, a panel with a search box
+   (accent- and case-insensitive), the categories on the left (All,
+   ★ Favorites and each section, with how many match the search) and the
+   list on the right. Designed to AUDITION quickly:
+     click         loads and leaves the panel open (focus leaves the search box:
+                   the PC keyboard plays notes again so you can hear it)
+     ↑ ↓           moves and loads (like ‹ ›, within the filtered list)
+     Enter / double click   loads and closes
+     Esc / click outside    closes (Esc doesn't panic while it is open)
+   «Browse all» goes to the Presets screen with the same search. Presets
+   only: scenes live on the Presets screen. Here we only paint:
+   loading goes through presetBank (the same path as ‹ › and the Presets screen). */
 import { library, normaliza } from '../engine/library.js';
 import { loadPresetId, currentPreset, currentPresetId } from './presetBank.js';
 import { showScreen } from './screens.js';
 
 const $ = id => document.getElementById(id);
-const ALL = '*', FAV = '★';           // categorías que no son secciones
+const ALL = '*', FAV = '★';           // categories that aren't sections
 let btn, nameEl, pop, search, cats, list, count;
-let q = '', cat = ALL, hi = null, vis = [];   // hi: el resaltado (cursor de ↑ ↓); vis: ids visibles en orden
+let q = '', cat = ALL, hi = null, vis = [];   // hi: the highlighted one (↑ ↓ cursor); vis: visible ids in order
 
 const isOpen = () => !pop.hidden;
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -31,7 +31,7 @@ function label() {
     'Choose a preset: search, filter by category, ↑ ↓ to audition (‹ › step through the whole library)';
 }
 
-// Lo que coincide con la búsqueda, por categoría (para los contadores) y lo de la elegida
+// What matches the search, per category (for the counters) and in the chosen one
 function matches() {
   const nq = normaliza(q);
   return library.presets().filter(it => !nq || normaliza(it.name).includes(nq));
@@ -40,11 +40,11 @@ const inCat = (it, c) => c === ALL || (c === FAV ? it.fav : it.section === c);
 
 function render() {
   const hits = matches(), cur = currentPresetId();
-  // categorías: Todos, ★ (si hay favoritos) y cada sección que tenga presets
+  // categories: All, ★ (if there are favorites) and every section that has presets
   cats.innerHTML = '';
   const secs = library.secciones().filter(s => library.items(s.id).some(it => it.type === 'preset'));
   const entries = [[ALL, 'All'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favorites']] : []), ...secs.map(s => [s.id, s.name])];
-  if (!entries.some(([id]) => id === cat)) cat = ALL;   // la sección elegida desapareció
+  if (!entries.some(([id]) => id === cat)) cat = ALL;   // the chosen section disappeared
   for (const [id, nombre] of entries) {
     const n = hits.filter(it => inCat(it, id)).length;
     const c = mk('div', 'pp-cat' + (id === cat ? ' on' : '') + (n ? '' : ' empty'));
@@ -52,7 +52,7 @@ function render() {
     c.addEventListener('click', () => { cat = id; hi = null; render(); });
     cats.appendChild(c);
   }
-  // lista: en «Todos», por secciones con su título; en una categoría, seguida
+  // list: in «All», by sections with their title; in a category, continuous
   const scroll = list.scrollTop;
   list.innerHTML = ''; vis = [];
   const shown = hits.filter(it => inCat(it, cat));
@@ -72,12 +72,12 @@ function row(it, cur) {
   const r = mk('div', 'pp-item' + (it.id === cur ? ' cur' : '')); r.dataset.id = it.id;
   const star = mk('span', 'pp-star' + (it.fav ? ' on' : ''), '★');
   star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites»';
-  star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repinta
+  star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repaints
   r.appendChild(star);
   r.appendChild(mk('span', 'pp-name', it.name));
   if (cat === FAV) r.appendChild(mk('span', 'pp-tag', library.seccion(it.section)?.name || ''));
   r.addEventListener('click', () => { hi = it.id; load(it.id); });
-  r.addEventListener('dblclick', () => close());   // el primer clic ya lo cargó
+  r.addEventListener('dblclick', () => close());   // the first click already loaded it
   return r;
 }
 function paintHi(scrollTo = false) {
@@ -87,7 +87,7 @@ function paintHi(scrollTo = false) {
     if (on && scrollTo) r.scrollIntoView({ block: 'nearest' });
   }
 }
-function load(id) { if (id && id !== currentPresetId()) loadPresetId(id); }   // preset-loaded → mark() repinta «actual»
+function load(id) { if (id && id !== currentPresetId()) loadPresetId(id); }   // preset-loaded → mark() repaints «current»
 function mark() {
   label();
   if (!isOpen()) return;
@@ -110,7 +110,7 @@ function open() {
 function close() {
   if (!isOpen()) return;
   pop.hidden = true; btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false');
-  if (pop.contains(document.activeElement)) document.activeElement.blur();   // que las teclas vuelvan al piano
+  if (pop.contains(document.activeElement)) document.activeElement.blur();   // so the keys go back to the piano
 }
 
 export function initPresetPicker() {
@@ -118,19 +118,19 @@ export function initPresetPicker() {
   search = $('ppSearch'); cats = $('ppCats'); list = $('ppList'); count = $('ppCount');
   if (!btn) return;
   btn.addEventListener('click', () => (isOpen() ? close() : open()));
-  // El buscador es un <input type=text>: keyboard.js no toca notas mientras se escribe
+  // The search box is an <input type=text>: keyboard.js plays no notes while typing
   search.addEventListener('input', () => { q = search.value; hi = null; list.scrollTop = 0; render(); });
   search.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
     else if (e.key === 'PageDown' || e.key === 'PageUp') { e.preventDefault(); move(e.key === 'PageDown' ? 10 : -10); }
   });
-  // ↑ ↓ e Intro, esté el foco en el buscador o fuera (tras un clic en la lista)
+  // ↑ ↓ and Enter, whether focus is in the search box or outside (after a click on the list)
   window.addEventListener('keydown', e => {
     if (!isOpen() || e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); move(e.key === 'ArrowDown' ? 1 : -1); }
     else if (e.key === 'Enter') { e.preventDefault(); load(hi); close(); }
   });
-  // Esc con el foco fuera del buscador: keyboard.js pregunta antes de hacer pánico
+  // Esc with focus outside the search box: keyboard.js asks before panicking
   document.addEventListener('escape-first', e => { if (isOpen()) { e.preventDefault(); close(); } });
   document.addEventListener('pointerdown', e => { if (isOpen() && !pop.contains(e.target) && !btn.contains(e.target)) close(); }, true);
   $('ppAll').addEventListener('click', () => {

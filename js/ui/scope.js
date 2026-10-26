@@ -1,11 +1,11 @@
-/* SubSDJ · osciloscopio (dominio del tiempo) + analizador de espectro del
-   máster, en la pantalla «Salida» (lo que suena: todas las partes). Canvas a
-   resolución física (devicePixelRatio × zoom del instrumento). */
+/* SubSDJ · oscilloscope (time domain) + spectrum analyzer of the
+   master, on the «Output» screen (what is sounding: all parts). Canvases at
+   physical resolution (devicePixelRatio × instrument zoom). */
 import { part } from '../engine/parts.js';
 import { token, tint, hue } from './theme.js';
 import { uiZoom } from './frame.js';
 
-const dpr = () => (window.devicePixelRatio || 1) * uiZoom();   // px físicos por px de diseño (el instrumento va escalado)
+const dpr = () => (window.devicePixelRatio || 1) * uiZoom();   // physical px per design px (the instrument is scaled)
 function fit(c) { c.width = Math.round((c.clientWidth || 170) * dpr()); c.height = Math.round((c.clientHeight || 36) * dpr()); }
 
 export function initScope(scopeCanvas, specCanvas) {
@@ -33,9 +33,9 @@ export function initScope(scopeCanvas, specCanvas) {
   function drawSpectrum(data) {
     const w = specCanvas.width, h = specCanvas.height, bins = data.length;
     fctx.clearRect(0, 0, w, h);
-    const bars = Math.min(64, bins), bw = w / bars, h0 = hue('--accent');   // vira alrededor del tono del acento
+    const bars = Math.min(64, bins), bw = w / bars, h0 = hue('--accent');   // shifts around the accent's hue
     for (let i = 0; i < bars; i++) {
-      const idx = Math.min(bins - 1, Math.floor(Math.pow(i / bars, 2) * bins)); // énfasis en graves
+      const idx = Math.min(bins - 1, Math.floor(Math.pow(i / bars, 2) * bins)); // emphasis on lows
       const v = data[idx] / 255, bh = v * h;
       fctx.fillStyle = `hsl(${h0 - v * 45}, 80%, ${28 + v * 32}%)`;
       fctx.fillRect(i * bw, h - bh, Math.max(1, bw - dpr()), bh);

@@ -1,5 +1,5 @@
 /* =====================================================================
-   SubSDJ · punto de entrada. Sirve por HTTP (módulos ES + AudioWorklet).
+   SubSDJ · entry point. Serve over HTTP (ES modules + AudioWorklet).
    ===================================================================== */
 import { engine } from './engine/AudioEngine.js';
 import { bindKnobs } from './ui/knobs.js';
@@ -37,49 +37,49 @@ import { initHistory } from './ui/history.js';
 import { setStatus, isStatus } from './ui/status.js';
 import { VERSION } from './version.js';
 
-// 1) UI primero (render inmediato; los controles guardan estado aunque el audio aún no exista)
-document.getElementById('verBadge').textContent = 'v' + VERSION;   // junto al título (js/version.js)
-initFrame();          // el instrumento: objeto de tamaño fijo escalado a la ventana (antes que cualquier canvas mida)
-initTheme();          // piel: ?theme= o el tema recordado, antes de que ningún canvas lea tokens
-initSplash();         // ventana de entrada (demoscene; ya está en el HTML y tapa el montaje): tras initFrame, para su escala; ENTRAR arranca el audio
-for (const id of ['aboutBtn', 'verBadge', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «Acerca de»: la misma ventana
-bindMatrixControls(); // genera las filas de la matriz (crea sus .knob: SIEMPRE antes de bindKnobs)
-bindKnobs();          // knobs para casi todo (log/fmt viven en el knob)
-bindSliders();        // sliders SOLO en el ADSR: una envolvente se dibuja, no se gira
+// 1) UI first (immediate render; the controls keep state even though the audio doesn't exist yet)
+document.getElementById('verBadge').textContent = 'v' + VERSION;   // next to the title (js/version.js)
+initFrame();          // the instrument: fixed-size object scaled to the window (before any canvas measures)
+initTheme();          // skin: ?theme= or the remembered theme, before any canvas reads tokens
+initSplash();         // welcome window (demoscene; already in the HTML, covering the assembly): after initFrame, for its scale; ENTER starts the audio
+for (const id of ['aboutBtn', 'verBadge', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «About»: the same window
+bindMatrixControls(); // generates the matrix rows (creates their .knob: ALWAYS before bindKnobs)
+bindKnobs();          // knobs for almost everything (log/fmt live in the knob)
+bindSliders();        // sliders ONLY in the ADSR: an envelope is drawn, not turned
 bindOscControls();
-bindSeqControls();   // secuenciador (antes de initMidiMap/initPresetBank: CONTROLS ya poblado)
-bindWsControls();    // secuencia de tabla (wave sequencing)
-bindStepsControls(); // Pasos: cuatro carriles para la matriz (Roadmap 7.0 · 2.3)
-initRotaries();      // selectores giratorios: los .seg.rot ya tienen su posición activa
-initFm4Graph();      // grafo del algoritmo FM4 bajo su selector (sigue a fm4Alg y al Feedback)
+bindSeqControls();   // sequencer (before initMidiMap/initPresetBank: CONTROLS already populated)
+bindWsControls();    // Wave Sequence (wave sequencing)
+bindStepsControls(); // Steps: four lanes for the matrix (Roadmap 7.0 · 2.3)
+initRotaries();      // rotary selectors: the .seg.rot already have their active position
+initFm4Graph();      // FM4 algorithm graph under its selector (follows fm4Alg and the Feedback)
 initKeyboard();
-initMidiMap();       // mapeo CC→control con MIDI learn (necesita CONTROLS ya poblado)
-initMIDI();          // teclado MIDI: velocity, pitch bend, sustain + CCs vía midimap
+initMidiMap();       // CC→control mapping with MIDI learn (needs CONTROLS already populated)
+initMIDI();          // MIDI keyboard: velocity, pitch bend, sustain + CCs via midimap
 initPresetBank();
-initPresetPicker();  // selector rápido de la cabecera: buscar, categorías, ↑ ↓ para probar
-initLibraryScreen(); // pantalla Presets: la biblioteca (secciones, ★, buscar, arrastrar, escenas)
-initRecorder();      // grabación de la salida a WAV
-initSfzExport();     // preset actual → multisample SFZ (zip)
+initPresetPicker();  // the header's quick picker: search, categories, ↑ ↓ to audition
+initLibraryScreen(); // Presets screen: the Library (sections, ★, search, drag, scenes)
+initRecorder();      // recording of the output to WAV
+initSfzExport();     // current preset → SFZ multisample (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
-initScreens();       // pestañas Diseño / Secuenciación / Presets (un panel fijo cada una; recuerdan la elección)
-initActivity();      // LEDs de actividad (después de los binders: lee engine.S ya poblado)
-initWaveEditor();    // editor de la tabla «usuario» (estado propio, fuera de CONTROLS)
-initHelp();          // tooltips «?» por módulo (los textos ya no ocupan superficie)
-initPartsControls(); // modo Partes: selector en la cabecera + mezclador (después de help: etiqueta los h2)
-initPlayerControls(); // armonía + jugadores de la escena (escucha scene-changed / part-changed)
-initDisplay();       // pantalla Salida (último parámetro tocado), menú Archivo y avisos del banco
-initDeps();          // apaga (atenuado, tocable) lo que no hace nada con la configuración actual, con su motivo
-initHistory();       // deshacer / rehacer por gestos (Ctrl+Z · Ctrl+Y) y comparar con el preset guardado
+initScreens();       // Design / Sequencing / Presets tabs (one fixed panel each; they remember the choice)
+initActivity();      // activity LEDs (after the binders: reads engine.S already populated)
+initWaveEditor();    // editor of the «user» table (its own state, outside CONTROLS)
+initHelp();          // «?» tooltips per module (the texts no longer take up surface)
+initPartsControls(); // Parts mode: selector in the header + Part Mixer (after help: it tags the h2s)
+initPlayerControls(); // the scene's harmony + players (listens to scene-changed / part-changed)
+initDisplay();       // Output display (last parameter touched), File menu and bank notices
+initDeps();          // dims (still touchable) what does nothing with the current settings, with its reason
+initHistory();       // undo / redo by gestures (Ctrl+Z · Ctrl+Y) and compare with the saved preset
 
-// Los <select> sueltan el foco al elegir: si no, las teclas del piano QWERTY
-// siguen navegando el desplegable por primera letra y cambian la selección.
+// <select>s drop focus after a choice: otherwise the QWERTY piano keys
+// keep browsing the dropdown by first letter and change the selection.
 document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.target.blur(); });
 
-// 2) Motor de audio (carga el worklet; el contexto arranca suspendido y se reanuda al primer gesto)
+// 2) Audio engine (loads the worklet; the context starts suspended and resumes on the first gesture)
 engine.init()
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
-    initMeter();         // medidor de salida: picos L/R y reducción del limitador
+    initMeter();         // output meter: L/R peaks and limiter reduction
     if (!isStatus('powerInfo', 'on')) setStatus('powerInfo', 'wait', 'audio ready: press a key or a note to play');
   })
   .catch(err => {
@@ -87,8 +87,8 @@ engine.init()
     setStatus('powerInfo', 'err', 'error starting the audio (see the console)');
   });
 
-// 3) Self-test (?selftest=1): renderiza los presets de fábrica en un
-//    OfflineAudioContext y valida la salida. No necesita el audio real.
+// 3) Self-test (?selftest=1): renders the factory presets in an
+//    OfflineAudioContext and validates the output. It doesn't need the real audio.
 if (new URLSearchParams(location.search).has('selftest')) {
   import('./selftest.js')
     .then(m => m.runSelfTest())

@@ -1,11 +1,11 @@
-/* SubSDJ · banco de presets sobre la BIBLIOTECA (engine/library.js). Aquí
-   vive el preset ACTUAL (su id) y el camino para cargarlo; el selector
-   rápido de la cabecera es ui/presetPicker.js (buscar, categorías) y la
-   vista grande, ui/libraryScreen.js. Solo presets: las escenas viven en la
-   pantalla Presets. ‹ › y el program change MIDI recorren la biblioteca en
-   orden. Guardar, borrar, exportar e importar actúan sobre la biblioteca
-   entera. Cada cambio del modelo emite library-changed; cambiar el actual
-   sin cargarlo (una parte, guardar), preset-marked. */
+/* SubSDJ · preset bank on top of the LIBRARY (engine/library.js). Here
+   lives the CURRENT preset (its id) and the path to load it; the header's
+   quick picker is ui/presetPicker.js (search, categories) and the
+   large view, ui/libraryScreen.js. Presets only: scenes live on the
+   Presets screen. ‹ › and MIDI program change step through the Library in
+   order. Save, delete, export and import act on the whole
+   Library. Every model change emits library-changed; changing the current one
+   without loading it (a part, saving), preset-marked. */
 import { library, SEC_MIOS } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
@@ -13,37 +13,37 @@ import { record, markSaved } from './history.js';
 
 let curId = null, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
-export const limpiar = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // descarta claves desconocidas
-export function presetBankReady() { return ready; }   // la siembra de los bancos del repo es asíncrona
+export const limpiar = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // drops unknown keys
+export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
 const asPreset = id => { const it = id && library.item(id); return it && it.type === 'preset' ? it : null; };
 export const currentPreset = () => asPreset(curId);
 export const currentPresetId = () => currentPreset() ? curId : null;
-// Marcar el actual SIN cargarlo (la parte que se elige, lo recién guardado). Si ya
-// no existe queda sin actual (el rack conserva el sonido).
+// Mark the current one WITHOUT loading it (the part being chosen, what was just saved). If it
+// no longer exists there is no current one (the rack keeps the sound).
 export function markPreset(id) {
   curId = asPreset(id) ? id : null;
   document.dispatchEvent(new CustomEvent('preset-marked', { detail: { value: curId } }));
   return !!curId;
 }
 export function markPresetByName(nombre) { const it = library.presets().find(p => p.name === nombre); return it ? markPreset(it.id) : false; }
-export function navIds() { return library.presets().map(it => it.id); }   // la biblioteca en orden (sección a sección)
+export function navIds() { return library.presets().map(it => it.id); }   // the Library in order (section by section)
 
 function loadCurrent() {
   const it = library.item(curId);
   if (!it || it.type !== 'preset') return;
-  record('Preset «' + it.name + '»', () => loadState(it.data), { saved: true });   // deshacer devuelve el sonido de antes
+  record('Preset «' + it.name + '»', () => loadState(it.data), { saved: true });   // undo brings back the previous sound
   msg('Loaded: ' + it.name);
-  document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.name, value: it.id } }));   // el mezclador etiqueta la parte
+  document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.name, value: it.id } }));   // the Part Mixer labels the part
 }
 export function loadPresetId(id) { if (!asPreset(id)) return false; curId = id; loadCurrent(); return true; }
 export function stepPreset(dir) {
   const nav = navIds(), n = nav.length; if (!n) return;
   const i = nav.indexOf(curId);
-  curId = nav[(((i + dir) % n) + n) % n];   // recorre con wrap-around
+  curId = nav[(((i + dir) % n) + n) % n];   // steps with wrap-around
   loadCurrent();
 }
-export function loadPresetIndex(i) {           // program change n → preset n de la biblioteca (módulo su tamaño)
+export function loadPresetIndex(i) {           // program change n → preset n of the Library (modulo its size)
   const nav = navIds(), n = nav.length; if (!n) return;
   curId = nav[((i % n) + n) % n];
   loadCurrent();
@@ -52,11 +52,11 @@ export function loadPresetIndex(i) {           // program change n → preset n 
 export function initPresetBank() {
   msgEl = document.getElementById('presetMsg');
 
-  library.load();                                // primera vez: siembra la fábrica y los presets de usuario antiguos
+  library.load();                                // first time: seeds the factory and the old user presets
   library.onChange = () => { if (!asPreset(curId)) curId = null; document.dispatchEvent(new CustomEvent('library-changed')); };
   const init = library.presets().find(it => it.name === 'Init (default)');
   curId = init ? init.id : null;
-  if (!library.data.files)                    // bancos del repo y escenas: por fetch, una vez
+  if (!library.data.files)                    // repo banks and scenes: by fetch, once
     ready = library.sembrarFicheros().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });
 
   document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
@@ -65,8 +65,8 @@ export function initPresetBank() {
     const inp = document.getElementById('presetName');
     const name = (inp.value || '').trim();
     if (!name) { inp.focus(); msg('Type a name to save.'); return; }
-    // Mismo nombre que el preset cargado → se actualiza donde esté; si no, en
-    // «★ Míos» (encima del que tenga ese nombre allí, o nuevo).
+    // Same name as the loaded preset → it is updated wherever it is; otherwise, in
+    // «★ Mine» (over the one with that name there, or as a new one).
     const cur = currentPreset();
     let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
     if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
@@ -74,7 +74,7 @@ export function initPresetBank() {
     if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
     else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MIOS + ' (this browser).'); }
     markPreset(id); inp.value = '';
-    markSaved();                                  // lo que suena ES ahora el preset guardado: ● se apaga
+    markSaved();                                  // what is sounding IS now the saved preset: ● goes off
   });
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = currentPreset();
@@ -84,7 +84,7 @@ export function initPresetBank() {
   });
   document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Default values.'); });
 
-  // ---- exportar / importar la biblioteca entera (JSON) ----
+  // ---- export / import the whole Library (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {
     const j = library.exportar();
     download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library.json');

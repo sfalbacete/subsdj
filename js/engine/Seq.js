@@ -1,42 +1,42 @@
 /* =====================================================================
-   SubSDJ · secuenciador de pasos con transposición por teclado.
-   Cuando seqOn == 'on', noteOn/noteOff del engine desvían aquí las notas:
-   la tecla mantenida NO suena — es la RAÍZ que transpone la frase (seqPat,
-   offsets en semitonos, '.' = silencio). El loop no se reinicia al cambiar
-   de tecla (el índice sigue; seqRetrig lo reinicia en rejilla). Con
-   seqLatch la frase sigue sonando al soltar, con la última raíz.
-   Mismo scheduler que el arpegiador: setInterval de 25 ms que solo
-   DESPIERTA al planificador; el timing fino lo pone el look-ahead de
-   120 ms sobre el reloj de audio. División musical sobre S.bpm, en la
-   rejilla del RELOJ COMÚN (engine/Clock.js), como el arpegiador: dos Seq de
-   dos partes, o un Seq y un Arp, caen juntos. Una tecla puede llegar con su
-   instante («when», la de un jugador): es raíz a partir de ese paso.
-   ARTICULACIONES (Roadmap 7.0 · 5.1), sufijos del paso en el patrón:
-     !   acento: suena más fuerte que los pasos sin acento (si el patrón tiene
-         alguno, los demás bajan a SEQ_UNACCENT) y enciende la fuente de la
-         matriz «Acento» de esa nota — el preset decide qué hace un acento
-     ~   ligadura: la nota NO se corta; el paso siguiente la continúa sin ataque
-         nuevo (si tiene otra altura, salta a ella)
-     /   slide: como la ligadura, pero la altura RESBALA hasta la del paso
-         siguiente (el Glide del preset, o SEQ_SLIDE si está a 0): el 303
-     x2…x4  repeticiones: el paso se dispara 2-4 veces dentro de su tiempo
-   Se combinan: «7!/», «0x3», «3!~».
-   NOTAS POR GRADO (Roadmap 7.0 · 5.2): con seqNotes = una escala, el número
-   del paso es un GRADO contado desde la tecla mantenida (pasar del último sube
-   de octava); con 'harmony', los grados de la escala de la ESCENA (Partes) a
-   partir de la tecla — la raíz del acorde si la pone el jugador —: la frase se
-   mueve dentro de la tonalidad. 'semitones' = como siempre.
+   SubSDJ · step sequencer with keyboard transposition.
+   When seqOn == 'on', the engine's noteOn/noteOff divert the notes here:
+   the held key does NOT sound — it is the ROOT that transposes the phrase (seqPat,
+   offsets in semitones, '.' = rest). The loop does not restart when the
+   key changes (the index carries on; seqRetrig restarts it on the grid). With
+   seqLatch the phrase keeps playing after release, with the last root.
+   Same scheduler as the arpeggiator: a 25 ms setInterval that only
+   WAKES the scheduler; fine timing comes from the 120 ms look-ahead
+   on the audio clock. Musical division over S.bpm, on the
+   grid of the COMMON CLOCK (engine/Clock.js), like the arpeggiator: two Seqs in
+   two parts, or a Seq and an Arp, land together. A key may arrive with its own
+   instant («when», a player's): it is the root from that step on.
+   ARTICULATIONS (Roadmap 7.0 · 5.1), step suffixes in the pattern:
+     !   accent: sounds louder than the unaccented steps (if the pattern has
+         any, the others drop to SEQ_UNACCENT) and lights the matrix source
+         «Accent» for that note — the preset decides what an accent does
+     ~   tie: the note is NOT cut; the next step continues it with no new
+         attack (if it has another pitch, it jumps to it)
+     /   slide: like the tie, but the pitch SLIDES to the next step's
+         (the preset's Glide, or SEQ_SLIDE if it is at 0): the 303
+     x2…x4  repeats: the step fires 2-4 times within its time
+   They combine: «7!/», «0x3», «3!~».
+   NOTES BY DEGREE (Roadmap 7.0 · 5.2): with seqNotes = a scale, the step's
+   number is a DEGREE counted from the held key (going past the last one goes up
+   an octave); with 'harmony', the degrees of the SCENE's scale (Parts) counted
+   from the key — the chord's root if the player sets it —: the phrase
+   moves within the key. 'semitones' = as always.
    ===================================================================== */
 import { clockOf, DIV_BEATS } from './Clock.js';
 import { ESCALAS } from './Harmony.js';
 export const SEQ_MAX_STEPS = 16, SEQ_OFF_MIN = -12, SEQ_OFF_MAX = 24;
-const SEQ_UNACCENT = 0.6;   // con acentos en el patrón, los pasos sin acento suenan a este factor de la velocity
-const SEQ_SLIDE = 0.06;     // s: el slide con el Glide a 0 (el tiempo fijo del 303)
-const SEQ_RATCHET_GATE = 0.8;   // fracción de cada golpe de una repetición (deja hueco para el siguiente ataque)
+const SEQ_UNACCENT = 0.6;   // with accents in the pattern, unaccented steps sound at this factor of the velocity
+const SEQ_SLIDE = 0.06;     // s: the slide with Glide at 0 (the 303's fixed time)
+const SEQ_RATCHET_GATE = 0.8;   // fraction of each hit of a repeat (leaves room for the next attack)
 
-// Token: entero con sufijos opcionales en cualquier orden — '!' acento, '~'
-// ligadura, '/' slide (ligadura y slide se excluyen: gana el último), 'x2'…'x4'
-// repeticiones. '.' o cualquier token inválido = silencio (null). Offsets clampeados.
+// Token: integer with optional suffixes in any order — '!' accent, '~'
+// tie, '/' slide (tie and slide exclude each other: the last one wins), 'x2'…'x4'
+// repeats. '.' or any invalid token = rest (null). Offsets clamped.
 export function parsePattern(str) {
   return String(str || '').trim().split(/\s+/).filter(Boolean)
     .slice(0, SEQ_MAX_STEPS)
@@ -54,7 +54,7 @@ export function parsePattern(str) {
       return st;
     });
 }
-// El token de un paso (para el editor): altura + sufijos en orden canónico
+// A step's token (for the editor): pitch + suffixes in canonical order
 export const stepToken = st => !st ? '.'
   : String(st.off) + (st.accent ? '!' : '') + (st.slide ? '/' : st.tie ? '~' : '') + (st.rep > 1 ? 'x' + st.rep : '');
 
@@ -63,21 +63,21 @@ export const stepFreq = (rootFreq, off) => rootFreq * Math.pow(2, off / 12);
 export class Seq {
   constructor(engine) {
     this.e = engine;
-    this.held = [];          // {id, freq, vel, from} en orden de pulsación (cima = raíz; from: instante en que entra)
-    this.latched = null;     // {freq, vel} si latch retiene la frase al soltar todo
+    this.held = [];          // {id, freq, vel, from} in press order (top = root; from: the instant it comes in)
+    this.latched = null;     // {freq, vel} if latch holds the phrase once everything is released
     this.idx = 0;
     this.timer = null;
     this.nextT = 0;
-    this.playQ = [];         // pasos ya planificados {i, t0, t1} — para el marcador de la UI
-    this._patStr = null; this._pat = [];   // caché del parseo por identidad de string
-    this.tie = null;         // {id, t}: off de la nota ligada (gate 1), pendiente del on siguiente
-    this.retrigAt = null;    // seqRetrig con una tecla que entra más tarde: la frase vuelve al paso 0 en ese paso
-    this.link = null;        // {id, mode: 'tie'|'slide'}: la nota que el paso anterior dejó ligada al siguiente
-    this.nid = 0;            // contador de ids de nota (las repeticiones gastan varios por paso)
+    this.playQ = [];         // steps already scheduled {i, t0, t1} — for the UI's marker
+    this._patStr = null; this._pat = [];   // parse cache by string identity
+    this.tie = null;         // {id, t}: off of the tied note (gate 1), pending the next on
+    this.retrigAt = null;    // seqRetrig with a key that comes in later: the phrase goes back to step 0 at that step
+    this.link = null;        // {id, mode: 'tie'|'slide'}: the note the previous step left tied to the next
+    this.nid = 0;            // note id counter (repeats use up several per step)
   }
 
   _div() { return DIV_BEATS[this.e.S.seqDiv] || 0.25; }
-  // Empezar a ir a tempo con el primer paso en t (o en la rejilla, si ya hay otros)
+  // Start running in tempo with the first step at t (or on the grid, if others are already running)
   _begin(t) { this.idx = 0; clockOf(this.e.ctx).begin(this, t, this._div(), this.e.bpm); }
   hold(id, freq, vel, when = null) {
     if (!this.held.find(h => h.id === id)) this.held.push({ id, freq, vel, from: when === null ? 0 : when });
@@ -85,14 +85,14 @@ export class Seq {
       this.playQ = [];
       this._begin(when === null ? this.e.ctx.currentTime + 0.03 : when);
       this.timer = setInterval(() => this._tick(), 25);
-      this._tick();                                   // el primer paso, ya: no depende de cuándo llegue el primer intervalo
-    } else if (this.e.S.seqRetrig === 'on') {           // reinicia la frase EN REJILLA (nextT intacto: sin flams)
+      this._tick();                                   // the first step, now: it does not depend on when the first interval arrives
+    } else if (this.e.S.seqRetrig === 'on') {           // restarts the phrase ON THE GRID (nextT untouched: no flams)
       if (when === null) this.idx = 0; else this.retrigAt = when;
     }
   }
   unhold(id) {
     const gone = this.held.find(h => h.id === id);
-    if (!gone) return;   // id que no sosteníamos (note-off de otra parte, o tras un allNotesOff): ni toca el latch ni para la frase
+    if (!gone) return;   // an id we were not holding (note-off from another part, or after an allNotesOff): neither touches the latch nor stops the phrase
     this.held = this.held.filter(h => h.id !== id);
     if (!this.held.length) {
       if (this.e.S.seqLatch === 'on') this.latched = { freq: gone.freq, vel: gone.vel };
@@ -100,41 +100,41 @@ export class Seq {
     }
   }
   _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this.playQ = []; this._flushTie(); this._unlink(this.e.ctx.currentTime); clockOf(this.e.ctx).leave(this); } }
-  // la nota que quedaba ligada al paso siguiente termina en t
+  // the note left tied to the next step ends at t
   _unlink(t) { const l = this.link; if (l) { this.link = null; this.e._directOff(l.id, t); } }
-  // Note-off programado en el reloj de audio y emitido YA, en orden con los on:
-  // así el motor sabe si dos pasos se solapan por el gate (en mono: legato o
-  // redisparo), no por cuánto se adelanta el planificador. Con gate 1 la nota
-  // toca a la siguiente: su off se emite DESPUÉS del on siguiente (ligadura).
+  // Note-off scheduled on the audio clock and emitted NOW, in order with the ons:
+  // this way the engine knows whether two steps overlap because of the gate (in mono: legato or
+  // retrigger), not because of how far ahead the scheduler runs. With gate 1 the note
+  // touches the next one: its off is emitted AFTER the next on (tie).
   _off(id, t, tie) { if (tie) this.tie = { id, t }; else this.e._directOff(id, t); }
   _flushTie() { const p = this.tie; if (p) { this.tie = null; this.e._directOff(p.id, p.t); } }
 
   stop() { this.held = []; this.latched = null; this._maybeStop(); this.e.allNotesOff(); }
 
-  // Raíz con prioridad de última nota; con latch, la última soltada
+  // Root with last-note priority; with latch, the last one released
   _root() {
-    for (let i = this.held.length - 1; i >= 0; i--) if (!(this.held[i].from > this.nextT + 1e-6)) return this.held[i];   // la última que ya ha entrado
+    for (let i = this.held.length - 1; i >= 0; i--) if (!(this.held[i].from > this.nextT + 1e-6)) return this.held[i];   // the last one that has already come in
     return this.latched;
   }
 
-  // Escala de los grados (intervalos desde su tónica) e índice de la tecla en ella; null = semitonos
+  // Scale of the degrees (intervals from its tonic) and index of the key in it; null = semitones
   _scale(rootFreq) {
     const mode = this.e.S.seqNotes;
     if (!mode || mode === 'semitones') return null;
     if (mode !== 'harmony') return { I: ESCALAS[mode] || ESCALAS.major, i0: 0 };
     const h = this.e.harmony ? this.e.harmony() : null;
-    if (!h) return { I: ESCALAS.major, i0: 0 };      // sin escena no hay armonía: mayor desde la tecla
+    if (!h) return { I: ESCALAS.major, i0: 0 };      // no scene, no harmony: major from the key
     const I = h.notes, pc = ((Math.round(69 + 12 * Math.log2(rootFreq / 440)) - h.root) % 12 + 12) % 12;
-    let i0 = 0; for (let i = 0; i < I.length; i++) if (I[i] <= pc) i0 = i;   // la tecla (o el grado de debajo, si no es de la escala)
+    let i0 = 0; for (let i = 0; i < I.length; i++) if (I[i] <= pc) i0 = i;   // the key (or the degree below it, if it is not in the scale)
     return { I, i0 };
   }
-  // Semitonos sobre la tecla del paso «off» (con grados: su grado; el grado 0 es la tecla)
+  // Semitones above the key for step «off» (with degrees: its degree; degree 0 is the key)
   semis(off, rootFreq) {
     const sc = this._scale(rootFreq); if (!sc) return off;
     const { I, i0 } = sc, len = I.length, j = i0 + off, oct = Math.floor(j / len), idx = j - oct * len;
     return 12 * oct + I[idx] - I[i0];
   }
-  // Pasos de una octava en el editor: 12 semitonos o los grados de la escala
+  // Steps in an octave for the editor: 12 semitones or the scale's degrees
   octaveSteps() { const sc = this._scale(261.63); return sc ? sc.I.length : 12; }
 
   _steps() {
@@ -143,8 +143,8 @@ export class Seq {
     return this._pat;
   }
 
-  // Paso que SUENA ahora mismo (no el planificado): la UI pinta con esto el
-  // marcador. Poda la cola de pasos vencidos; -1 si parado o aún sin sonar.
+  // The step SOUNDING right now (not the scheduled one): the UI draws the
+  // marker with this. Prunes the queue of expired steps; -1 if stopped or not sounding yet.
   playingStep() {
     if (!this.timer || !this.e.ctx) return -1;
     const t = this.e.ctx.currentTime;
@@ -159,33 +159,33 @@ export class Seq {
     while (this.nextT < ctx.currentTime + 0.12) {
       if (this.retrigAt !== null && this.retrigAt <= this.nextT + 1e-6) { this.idx = 0; this.retrigAt = null; }
       const steps = this._steps(), root = this._root();
-      if (!steps.length || !root) return;              // (una raíz que aún no ha entrado: el paso espera)
-      const dur = clock.stepSecs(this, div);           // con swing, el par se reparte desigual
-      const st = steps[this.idx % steps.length];       // módulo en cada paso: patrón editable en vivo
+      if (!steps.length || !root) return;              // (a root that has not come in yet: the step waits)
+      const dur = clock.stepSecs(this, div);           // with swing, the pair is split unevenly
+      const st = steps[this.idx % steps.length];       // modulo on every step: pattern editable live
       this.playQ.push({ i: this.idx % steps.length, t0: this.nextT, t1: this.nextT + dur });
-      if (this.playQ.length > 64) this.playQ.shift();  // tope por si la UI no consume (panel colapsado)
-      if (st) {                                        // null = silencio: el tiempo avanza igual
+      if (this.playQ.length > 64) this.playQ.shift();  // cap in case the UI does not consume (collapsed panel)
+      if (st) {                                        // null = rest: time advances all the same
         const gate = Math.max(0.05, Math.min(1, S.seqGate)), f = stepFreq(root.freq, this.semis(st.off, root.freq)), t = this.nextT;
         const linkNext = st.slide ? 'slide' : st.tie ? 'tie' : null;
-        if (this.link) {                               // el paso anterior pidió ligadura o slide: este CONTINÚA su nota
+        if (this.link) {                               // the previous step asked for a tie or slide: this one CONTINUES its note
           const { id, mode } = this.link; this.link = null;
           this.e._directGlide(id, f, t, mode === 'slide' ? (S.glide > 0 ? S.glide : SEQ_SLIDE) : 0);
           if (linkNext) this.link = { id, mode: linkNext };
           else this._off(id, t + dur * gate, gate >= 1);
         } else {
-          // acento: con acentos en el patrón, los demás pasos bajan; la fuente «Acento» de la matriz, en la nota
+          // accent: with accents in the pattern, the other steps drop; the matrix's «Accent» source, in the note
           const vel = st.accent || !steps.some(s => s && s.accent) ? root.vel : root.vel * SEQ_UNACCENT;
           const n = st.rep, sub = dur / n;
-          for (let k = 0; k < n; k++) {                // repeticiones: n golpes dentro del paso
-            const id = 'seq' + (this.nid++ % 16), tk = t + k * sub, last = k === n - 1;   // ids rotatorios, disjuntos de 'arp'+n
+          for (let k = 0; k < n; k++) {                // repeats: n hits within the step
+            const id = 'seq' + (this.nid++ % 16), tk = t + k * sub, last = k === n - 1;   // rotating ids, disjoint from 'arp'+n
             this.e._directOn(id, f, vel, tk, st.accent ? 1 : 0);
-            if (k === 0) this._flushTie();             // la ligada (gate 1) del paso anterior se suelta tras este on
+            if (k === 0) this._flushTie();             // the tied note (gate 1) of the previous step is released after this on
             if (last && linkNext) this.link = { id, mode: linkNext };
             else if (n > 1) this.e._directOff(id, tk + sub * Math.min(gate, SEQ_RATCHET_GATE));
             else this._off(id, tk + sub * gate, gate >= 1);
           }
         }
-      } else { this._flushTie(); this._unlink(this.nextT); }   // silencio: la ligada termina aquí
+      } else { this._flushTie(); this._unlink(this.nextT); }   // rest: the tied note ends here
       this.idx++;
       clock.advance(this, div);
     }

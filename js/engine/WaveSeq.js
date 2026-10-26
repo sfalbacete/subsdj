@@ -1,31 +1,31 @@
 /* =====================================================================
-   SubSDJ · secuencia de tabla (wave sequencing, a la Korg Wavestation).
-   El morph de la tabla deja de ser un knob y pasa a ser una FRASE: pasos
-   de frames (0..7, '.' = mantener) a división musical, con fundido entre
-   pasos. No genera espectro nuevo — organiza EN EL TIEMPO los frames que
-   ya hay (ritmo en el dominio del timbre, no del pitch).
-   Cómo: automatización del AudioParam wtPos POR VOZ (setValueAtTime +
-   linearRampToValueAtTime desde su noteOn). Al ser el valor INTRÍNSECO
-   del param, la matriz sigue sumando encima (sus rutas son inputs).
-   Cada voz arranca su frase en su noteOn: un acorde arpegiado deja las
-   voces desfasadas dentro de la misma frase (imposible con un LFO global).
-   El fundido es una rampa que ATRAVIESA los frames intermedios (fase
-   alineada: barrido de morph, no crossfade A→B puro — y suena mejor).
-   Planificación:
-     - contexto OFFLINE (selftest, SFZ, render de presets): todo de golpe
-       en attach(), hasta el final del buffer — no hay setInterval fiable
-       cuando el render va más rápido que el reloj de pared.
-     - tiempo real, modo '1shot': la frase entera en attach() (≤16 pasos,
-       acotado) — envolvente de timbre multi-tramo, se queda en el último.
-     - tiempo real, modo 'loop': mismo patrón que Arp/Seq — setInterval de
-       25 ms que solo DESPIERTA al planificador; look-ahead de 120 ms sobre
-       el reloj de audio. Editar patrón/división/bpm en vivo entra en el
-       siguiente paso planificado.
+   SubSDJ · wave sequence (wave sequencing, à la Korg Wavestation).
+   The table morph stops being a knob and becomes a PHRASE: steps
+   of frames (0..7, '.' = hold) at a musical division, with a crossfade between
+   steps. It generates no new spectrum — it arranges IN TIME the frames that
+   are already there (rhythm in the timbre domain, not the pitch domain).
+   How: automation of the wtPos AudioParam PER VOICE (setValueAtTime +
+   linearRampToValueAtTime from its noteOn). Since this is the param's INTRINSIC
+   value, the matrix still adds on top (its routes are inputs).
+   Each voice starts its phrase at its noteOn: an arpeggiated chord leaves the
+   voices offset within the same phrase (impossible with a global LFO).
+   The crossfade is a ramp that GOES THROUGH the intermediate frames (phase-
+   aligned: a morph sweep, not a pure A→B crossfade — and it sounds better).
+   Scheduling:
+     - OFFLINE context (selftest, SFZ, preset render): everything at once
+       in attach(), up to the end of the buffer — there is no reliable setInterval
+       when the render runs faster than the wall clock.
+     - real time, '1shot' mode: the whole phrase in attach() (≤16 steps,
+       bounded) — a multi-segment timbre envelope; it stays on the last one.
+     - real time, 'loop' mode: same pattern as Arp/Seq — a 25 ms setInterval
+       that only WAKES the scheduler; 120 ms look-ahead on the
+       audio clock. Editing pattern/division/bpm live takes effect on the
+       next scheduled step.
    ===================================================================== */
-export const WS_MAX_STEPS = 16, WS_TOP = 7;   // tokens 0..7 = los 8 frames de un set (pos = n/7)
+export const WS_MAX_STEPS = 16, WS_TOP = 7;   // tokens 0..7 = the 8 frames of a set (pos = n/7)
 
-// Token: frame 0..7 (números fuera de rango se recortan); '.' o cualquier
-// otra cosa = mantener la posición anterior (null). El tiempo avanza igual.
+// Token: frame 0..7 (out-of-range numbers are clamped); '.' or anything
+// else = hold the previous position (null). Time advances all the same.
 export function parseWsPattern(str) {
   return String(str || '').trim().split(/\s+/).filter(Boolean)
     .slice(0, WS_MAX_STEPS)
@@ -35,10 +35,10 @@ export function parseWsPattern(str) {
 export class WaveSeq {
   constructor(engine) {
     this.e = engine;
-    this.looping = new Set();     // voces en loop (tiempo real): el ticker las extiende
+    this.looping = new Set();     // voices in loop (real time): the ticker extends them
     this.timer = null;
-    this.uiVoice = null;          // la voz más reciente pinta el marcador de la UI
-    this.playQ = [];              // sus pasos ya planificados {i, t0, t1}
+    this.uiVoice = null;          // the most recent voice drives the UI's marker
+    this.playQ = [];              // its steps already scheduled {i, t0, t1}
     this._patStr = null; this._pat = [];
   }
 
@@ -49,12 +49,12 @@ export class WaveSeq {
   }
   _dur() {
     const S = this.e.S;
-    return (60 / this.e.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.wsDiv] || 0.25);   // el BPM de la sala (en Partes, el de todas)
+    return (60 / this.e.bpm) * ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25 }[S.wsDiv] || 0.25);   // the Room's BPM (with Parts, shared by all)
   }
 
-  // Engancha una voz recién creada (la llaman los dos `new Voice` del engine).
-  // Solo actúa con wsOn y algún oscilador en modo 'wavetable'; el estado de la
-  // frase vive EN la voz ({idx, nextT, pos}) — el ticker es compartido.
+  // Hooks up a freshly created voice (called from both of the engine's `new Voice`).
+  // Only acts with wsOn and some oscillator in 'wavetable' mode; the phrase's
+  // state lives IN the voice ({idx, nextT, pos}) — the ticker is shared.
   attach(v) {
     const S = this.e.S;
     if (S.wsOn !== 'on') return;
@@ -66,7 +66,7 @@ export class WaveSeq {
     if (offline) {
       this._extend(v, this.e.ctx.length / this.e.ctx.sampleRate);
     } else if (S.wsMode === '1shot') {
-      this._extend(v, Infinity);                 // acotado por la longitud de la frase
+      this._extend(v, Infinity);                 // bounded by the phrase's length
     } else {
       this._extend(v, this.e.ctx.currentTime + 0.12);
       this.looping.add(v);
@@ -74,11 +74,11 @@ export class WaveSeq {
     }
   }
 
-  // Planifica pasos de la voz hasta `horizon`. En '1shot' se detiene al agotar
-  // la frase (idx no cicla); en loop cicla con módulo POR PASO (editable en vivo).
+  // Schedules the voice's steps up to `horizon`. In '1shot' it stops when the
+  // phrase runs out (idx does not cycle); in loop it cycles with a PER-STEP modulo (editable live).
   _extend(v, horizon) {
     const S = this.e.S, w = v._ws;
-    // pestaña oculta: consumir en seco los pasos perdidos (pos al día, sin ráfaga)
+    // hidden tab: silently consume the missed steps (pos up to date, no burst)
     const now = this.e.ctx.currentTime;
     while (w.nextT < now - 0.05 && S.wsMode !== '1shot') {
       const st = this._steps()[w.idx % this._steps().length];
@@ -92,9 +92,9 @@ export class WaveSeq {
       const i = w.idx % steps.length, st = steps[i], dur = this._dur(), t = w.nextT;
       if (st !== null) {
         const to = st / WS_TOP;
-        const xf = w.first ? 0 : Math.max(0, Math.min(1, S.wsXf)) * dur;  // el paso 1 ARRANCA clavado
+        const xf = w.first ? 0 : Math.max(0, Math.min(1, S.wsXf)) * dur;  // step 1 STARTS pinned
         for (const wt of w.wts) {
-          wt.setValueAtTime(w.pos, t);           // ancla: la rampa parte de aquí, no del evento previo
+          wt.setValueAtTime(w.pos, t);           // anchor: the ramp starts here, not from the previous event
           if (xf > 0.003) wt.linearRampToValueAtTime(to, t + xf);
           else wt.setValueAtTime(to, t);
         }
@@ -102,7 +102,7 @@ export class WaveSeq {
       }
       if (v === this.uiVoice) {
         this.playQ.push({ i, t0: t, t1: t + dur });
-        if (this.playQ.length > 64) this.playQ.shift();   // tope por si la UI no consume
+        if (this.playQ.length > 64) this.playQ.shift();   // cap in case the UI does not consume
       }
       w.first = false;
       w.idx++;
@@ -119,8 +119,8 @@ export class WaveSeq {
     if (!this.looping.size) { clearInterval(this.timer); this.timer = null; }
   }
 
-  // Paso que SUENA ahora en la voz más reciente (para el marcador de la UI);
-  // -1 si no hay voz secuenciando. Poda la cola de pasos vencidos.
+  // The step SOUNDING now in the most recent voice (for the UI's marker);
+  // -1 if no voice is sequencing. Prunes the queue of expired steps.
   playingStep() {
     if (!this.uiVoice || this.uiVoice.disposed || !this.e.ctx) return -1;
     const t = this.e.ctx.currentTime;

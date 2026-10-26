@@ -1,7 +1,7 @@
-/* SubSDJ · ayuda por módulo: las explicaciones ya no ocupan superficie de
-   panel — viven en un <div class="help"> oculto dentro del módulo y se
-   muestran con el icono «?» del h2 (patrón del synth modular). El tooltip
-   es un div fijo único reposicionado junto al icono. */
+/* SubSDJ · per-module help: the explanations no longer take up panel
+   surface — they live in a hidden <div class="help"> inside the module and are
+   shown with the «?» icon in the h2 (pattern from the modular synth). The tooltip
+   is a single fixed div repositioned next to the icon. */
 export function initHelp() {
   const tip = document.createElement('div');
   tip.id = 'helpTip'; tip.hidden = true;
@@ -24,7 +24,7 @@ export function initHelp() {
     };
     q.addEventListener('mouseenter', show);
     q.addEventListener('mouseleave', () => { tip.hidden = true; });
-    q.addEventListener('click', e => {           // táctil: alterna; y que NO pliegue el módulo
+    q.addEventListener('click', e => {           // touch: toggles; and must NOT fold the module
       e.stopPropagation();
       tip.hidden ? show() : (tip.hidden = true);
     });

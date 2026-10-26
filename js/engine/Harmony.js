@@ -1,18 +1,18 @@
 /* =====================================================================
-   SubSDJ · Armonía — la tonalidad de la escena: raíz + escala + progresión.
-   Todo lo que emiten los jugadores pasa por aquí: por eso lo aleatorio
-   suena musical — el conjunto de alturas está ACOTADO (escala) y las notas
-   «de reposo» de cada compás también (acorde vigente); densidad, registro y
-   ritmo hacen el resto.
-   Acordes por terceras SOBRE LA ESCALA: grado, +2, +4, +6 pasos de escala.
-   En una escala de 7 notas salen las tríadas/séptimas diatónicas (I = do-mi-
-   sol, ii = re-fa-la…); en una pentatónica los «saltos de dos» siguen dentro
-   de la escala: nunca sale una nota ajena.
-   Progresión: lista de grados con N compases por acorde («1 6 4 5»), o un
-   PASEO de funciones tonales (T reposo · S tensión suave · D tensión que
-   resuelve) con las probabilidades del uso común: de T se va a S o D, de S
-   casi siempre a D, D resuelve a T. Determinista: PRNG con semilla
-   (mulberry32) — misma semilla, misma sesión (base de las escenas de C3).
+   SubSDJ · Harmony — the scene's key: root + scale + progression.
+   Everything the players emit goes through here: that is why the randomness
+   sounds musical — the set of pitches is BOUNDED (scale) and so are each bar's
+   «resting» notes (current chord); density, register and
+   rhythm do the rest.
+   Chords stacked in thirds OVER THE SCALE: degree, +2, +4, +6 scale steps.
+   In a 7-note scale the diatonic triads/sevenths come out (I = C-E-
+   G, ii = D-F-A…); in a pentatonic the «skips of two» stay within
+   the scale: a foreign note never comes out.
+   Progression: a list of degrees with N bars per chord («1 6 4 5»), or a
+   WALK of tonal functions (T rest · S mild tension · D tension that
+   resolves) with common-practice probabilities: from T it goes to S or D, from S
+   almost always to D, D resolves to T. Deterministic: seeded PRNG
+   (mulberry32) — same seed, same session (the basis of C3's scenes).
    ===================================================================== */
 export const ESCALAS = {
   'major':          [0, 2, 4, 5, 7, 9, 11],
@@ -32,9 +32,9 @@ export const ESCALAS = {
 export const NOTAS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const GRADOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
-// PRNG con semilla (mulberry32, 32 bits): misma semilla ⇒ misma secuencia.
-// Cada jugador y la armonía llevan su PROPIO flujo: cambiar un jugador no
-// altera lo que hacen los demás.
+// Seeded PRNG (mulberry32, 32 bits): same seed ⇒ same sequence.
+// Each player and the harmony carry their OWN stream: changing one player does not
+// alter what the others do.
 export function mulberry32(a) {
   return () => {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -44,14 +44,14 @@ export function mulberry32(a) {
   };
 }
 
-// Funciones tonales de cada grado y transiciones (probabilidades) del paseo
+// Tonal functions of each degree and transitions (probabilities) of the walk
 const FUNCION = { 1: 'T', 2: 'S', 3: 'T', 4: 'S', 5: 'D', 6: 'T', 7: 'D' };
 const SIGUIENTE = { T: [['S', 0.45], ['D', 0.35], ['T', 0.20]],
                     S: [['D', 0.60], ['T', 0.30], ['S', 0.10]],
                     D: [['T', 0.80], ['S', 0.05], ['D', 0.15]] };
-const GRADOS_DE = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repetidos = más probables
+const GRADOS_DE = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repeated = more likely
 
-// «1 6 4 5», «I vi IV V»… → [1, 6, 4, 5] (1..7; lo que no se entiende se salta)
+// «1 6 4 5», «I vi IV V»… → [1, 6, 4, 5] (1..7; whatever is not understood is skipped)
 export function parseProg(str) {
   const rom = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7 };
   const out = String(str || '').trim().split(/[\s,·|-]+/).filter(Boolean).map(tok => {
@@ -70,14 +70,14 @@ export class Harmony {
   setSeed(seed) { this.seed = seed; this._walk = []; this._rng = mulberry32((seed * 7919 + 17) | 0); }
   get notes() { return ESCALAS[this.scale] || ESCALAS.major; }
 
-  // Grado vigente en el compás `bar` (cada acorde dura `bars` compases)
+  // Current degree at bar `bar` (each chord lasts `bars` bars)
   degreeAt(bar) {
     const i = Math.max(0, Math.floor(bar / Math.max(1, this.bars)));
     if (this.mode === 'functions') return this._walkDegree(i);
     const p = this.prog && this.prog.length ? this.prog : [1];
     return p[i % p.length];
   }
-  // Paseo de funciones: se genera bajo demanda y se guarda (determinista con la semilla)
+  // Function walk: generated on demand and stored (deterministic with the seed)
   _walkDegree(i) {
     while (this._walk.length <= i) {
       const prev = this._walk.length ? this._walk[this._walk.length - 1] : 1;
@@ -89,14 +89,14 @@ export class Harmony {
     }
     return this._walk[i];
   }
-  // Acorde del compás: {degree, rootPc, tones:[4 clases de altura 0..11]}
+  // The bar's chord: {degree, rootPc, tones:[4 pitch classes 0..11]}
   chordAt(bar) {
     const deg = this.degreeAt(bar), n = this.notes, len = n.length;
     const tones = [0, 1, 2, 3].map(j => (this.root + n[(deg - 1 + 2 * j) % len]) % 12);
     return { degree: deg, rootPc: tones[0], tones, bar };
   }
   scaleSet() { return new Set(this.notes.map(n => (this.root + n) % 12)); }
-  // Nota MIDI → la más cercana de la escala (empate: hacia abajo)
+  // MIDI note → the nearest one in the scale (tie: downward)
   quantize(midi, pcs = this.scaleSet()) {
     for (let d = 0; d <= 6; d++) {
       if (pcs.has((((midi - d) % 12) + 12) % 12)) return midi - d;
@@ -104,7 +104,7 @@ export class Harmony {
     }
     return midi;
   }
-  // Notas MIDI en [lo, hi] cuya clase de altura está en `pcs`
+  // MIDI notes in [lo, hi] whose pitch class is in `pcs`
   notesIn(lo, hi, pcs) { const out = []; for (let m = lo; m <= hi; m++) if (pcs.has(m % 12)) out.push(m); return out; }
   nombre(bar) { const c = this.chordAt(bar); return (GRADOS[c.degree - 1] || c.degree) + ' · ' + NOTAS[c.rootPc]; }
 }

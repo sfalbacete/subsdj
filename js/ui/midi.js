@@ -1,18 +1,18 @@
 /* =====================================================================
-   SubSDJ · entrada Web MIDI.
-   Notas con velocity -> pressNote/releaseNote (comparte ids y visuales con
-   el teclado en pantalla), pasada por la curva de tacto (keyboard.js).
-   Pitch bend normalizado (−1..1) -> setBend de cada parte, que lo escala por
-   el rango de su preset (bendRange). Sustain (CC64) retenido aquí, salvo que el usuario lo
-   remapee. El resto de CCs pasa por el mapa de midimap.js (MIDI learn);
-   de fábrica: CC1 -> vibrato, CC74/CC71 -> cutoff/resonancia (los
-   controles giran en pantalla: misma filosofía que un panel analógico).
-   Program change n -> preset n del banco (módulo del tamaño del banco).
-   Fuentes de EJECUCIÓN de la matriz (Roadmap 5.0 · bloque 4): la rueda (CC1)
-   y la expresión (CC11) alimentan SIEMPRE su fuente ('wheel', 'expr'), además
-   de lo que tengan mapeado (de fábrica, CC1 → vibrato: quitar ese mapeo deja
-   la rueda solo para la matriz); el aftertouch de canal (y el polifónico, que
-   se trata igual: la fuente es por motor) alimenta 'at'.
+   SubSDJ · Web MIDI input.
+   Notes with velocity -> pressNote/releaseNote (shares ids and visuals with
+   the on-screen keyboard), passed through the touch curve (keyboard.js).
+   Normalized pitch bend (−1..1) -> setBend of each part, which scales it by
+   its preset's range (bendRange). Sustain (CC64) is held here, unless the user
+   remaps it. The rest of the CCs go through the midimap.js map (MIDI learn);
+   factory: CC1 -> vibrato, CC74/CC71 -> cutoff/resonance (the
+   controls turn on screen: same philosophy as an analog panel).
+   Program change n -> preset n of the bank (modulo the bank size).
+   PERFORMANCE sources of the matrix (Roadmap 5.0 · block 4): the wheel (CC1)
+   and expression (CC11) ALWAYS feed their source ('wheel', 'expr'), on top
+   of whatever they are mapped to (factory: CC1 → vibrato; removing that mapping leaves
+   the wheel for the matrix only); channel aftertouch (and polyphonic, which
+   is treated the same: the source is per engine) feeds 'at'.
    ===================================================================== */
 import { part, eachPart, setPerf } from '../engine/parts.js';
 import { pressNote, releaseNote, touchCurve } from './keyboard.js';
@@ -21,45 +21,45 @@ import { loadPresetIndex } from './presetBank.js';
 import { setStatus } from './status.js';
 
 let pedal = false;
-const pedalHeld = new Set();     // notas soltadas con el pedal pisado
+const pedalHeld = new Set();     // notes released while the pedal is down
 
-// Fuente de ejecución → motores (todas las partes) + aviso a la UI (la rueda en pantalla sigue al CC1)
+// Performance source → engines (all parts) + notice to the UI (the on-screen wheel follows CC1)
 function perf(id, v) { setPerf(id, v); document.dispatchEvent(new CustomEvent('perf-change', { detail: { id, value: v } })); }
 
-// Un mensaje MIDI (sus bytes). Exportado: la sonda del selftest lo llama con mensajes sintéticos.
+// One MIDI message (its bytes). Exported: the selftest probe calls it with synthetic messages.
 export function handleMidi(data) {
   const [st, d1, d2] = data;
   const cmd = st & 0xf0;
   if (cmd === 0x90 && d2 > 0) {                        // note on
     part().resume();
-    if (pedalHeld.has(d1)) { pedalHeld.delete(d1); releaseNote(d1); }   // retrigger de nota sostenida
+    if (pedalHeld.has(d1)) { pedalHeld.delete(d1); releaseNote(d1); }   // retrigger of a sustained note
     pressNote(d1, touchCurve(d2 / 127));
   } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {   // note off
     if (pedal) pedalHeld.add(d1);
     else releaseNote(d1);
   } else if (cmd === 0xb0) {                           // control change
-    if (learnCapture(d1)) return;                      // modo learn: liga este CC al control elegido
-    if (d1 === 1) perf('wheel', d2 / 127);             // rueda y expresión: fuentes de la matriz, SIEMPRE (además del mapeo)
+    if (learnCapture(d1)) return;                      // learn mode: binds this CC to the chosen control
+    if (d1 === 1) perf('wheel', d2 / 127);             // wheel and expression: matrix sources, ALWAYS (on top of the mapping)
     else if (d1 === 11) perf('expr', d2 / 127);
-    if (applyCC(d1, d2 / 127)) return;                 // mapeo del usuario (midimap.js)
-    if (d1 === 64) {                                   // sustain (si no está remapeado)
+    if (applyCC(d1, d2 / 127)) return;                 // user mapping (midimap.js)
+    if (d1 === 64) {                                   // sustain (if not remapped)
       pedal = d2 >= 64;
       if (!pedal) { pedalHeld.forEach(n => releaseNote(n)); pedalHeld.clear(); }
     }
-  } else if (cmd === 0xd0) {                           // aftertouch de canal → fuente 'at'
+  } else if (cmd === 0xd0) {                           // channel aftertouch → source 'at'
     perf('at', d1 / 127);
-  } else if (cmd === 0xa0) {                           // aftertouch polifónico: como el de canal (la fuente es por motor, no por nota)
+  } else if (cmd === 0xa0) {                           // polyphonic aftertouch: like channel (the source is per engine, not per note)
     perf('at', d2 / 127);
-  } else if (cmd === 0xc0) {                           // program change → preset del banco
+  } else if (cmd === 0xc0) {                           // program change → bank preset
     loadPresetIndex(d1);
-  } else if (cmd === 0xe0) {                           // pitch bend: −1..1 (el rango lo pone el preset)
+  } else if (cmd === 0xe0) {                           // pitch bend: −1..1 (the preset sets the range)
     eachPart(e => e.setBend((((d2 << 7) | d1) - 8192) / 8192));
   }
 }
 function onMsg(e) { handleMidi(e.data); }
 
 export function initMIDI() {
-  if (!navigator.requestMIDIAccess) {                  // navegador sin Web MIDI
+  if (!navigator.requestMIDIAccess) {                  // browser without Web MIDI
     const btn = document.getElementById('midiLearnBtn');
     if (btn) btn.hidden = true;
     setStatus('midiInfo', '', 'this browser has no Web MIDI');
@@ -69,10 +69,10 @@ export function initMIDI() {
     const rebind = () => {
       const names = [];
       acc.inputs.forEach(inp => { inp.onmidimessage = onMsg; names.push(inp.name); });
-      setDevice(names[0] || null);                     // carga el mapa de ESTE aparato
-      setStatus('midiInfo', names.length ? 'on' : '', names.length ? 'MIDI: ' + names.join(' · ') : 'no MIDI device');   // símbolo de la cabecera
+      setDevice(names[0] || null);                     // loads the map of THIS device
+      setStatus('midiInfo', names.length ? 'on' : '', names.length ? 'MIDI: ' + names.join(' · ') : 'no MIDI device');   // header symbol
     };
-    acc.onstatechange = rebind;                        // conectar/desconectar en caliente
+    acc.onstatechange = rebind;                        // hot plug/unplug
     rebind();
-  }).catch(() => setStatus('midiInfo', '', 'MIDI: no permission from the browser'));   // permiso denegado: sin MIDI, sin ruido
+  }).catch(() => setStatus('midiInfo', '', 'MIDI: no permission from the browser'));   // permission denied: no MIDI, no fuss
 }

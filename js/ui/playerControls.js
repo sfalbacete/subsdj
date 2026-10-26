@@ -1,13 +1,13 @@
 /* =====================================================================
-   SubSDJ · UI de la escena generativa: módulos «Armonía» (raíz, escala,
-   progresión, modo lista/funciones, semilla, ▶ Tocar), «Jugador» (el de la
-   parte que edita el rack: modo + sus knobs; su arreglo,
-   Entra / Deriva, es una fila del módulo Arreglo)
-   y «Arreglo» (energía, vaivén, ciclo, apertura, sorpresa + la ESCENA:
-   ⇩ exportar, ⇧ importar, ↺ última — se autoguarda cada pocos segundos).
-   Solo visibles con la escena encendida (partsControls los muestra/oculta).
-   Los ajustes viven en el director de la escena (engine/Conductor.js), no
-   en los presets: el preset es el instrumento, el jugador es el músico.
+   SubSDJ · generative scene UI: «Harmony» module (root, scale,
+   progression, list/functions mode, seed, ▶ Play), «Player» (the one of the
+   part the rack is editing: mode + its knobs; its arrangement,
+   Enters / Drift, is a row of the Arrangement module)
+   and «Arrangement» (energy, sway, cycle, open, surprise + the SCENE:
+   ⇩ export, ⇧ import, ↺ last — autosaved every few seconds).
+   Only visible with the scene on (partsControls shows/hides them).
+   The settings live in the scene's conductor (engine/Conductor.js), not
+   in the presets: the preset is the instrument, the player is the musician.
    ===================================================================== */
 import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene } from '../engine/parts.js';
 import { ESCALAS, NOTAS, GRADOS, parseProg } from '../engine/Harmony.js';
@@ -17,14 +17,14 @@ import { CONTROLS } from './registry.js';
 import { download } from './recorder.js';
 
 const $ = id => document.getElementById(id);
-const LS_ESCENA = 'subsdj.scene.v2', LS_ESCENA_V1 = 'subsdj.escena.v1';   // la de hasta la 1.3.0: ↺ Last la lee si no hay otra
+const LS_ESCENA = 'subsdj.scene.v2', LS_ESCENA_V1 = 'subsdj.escena.v1';   // the one up to 1.3.0: ↺ Last reads it if there is no other
 const conductor = () => { const sc = getScene(); return sc ? sc.conductor : null; };
 const int = v => String(Math.round(v));
-// knobs por modo: [clave, etiqueta, min, max, entero?]
+// knobs per mode: [key, label, min, max, integer?]
 const KNOBS = {
   pulse:   [['k', 'Hits', 1, 16, 1], ['n', 'Steps', 4, 32, 1], ['rot', 'Rot', 0, 31, 1], ['prob', 'Prob', 0, 1],
             ['gate', 'Gate', 0.05, 1], ['accent', 'Accent', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1],
-            ['breathe', 'Breathe', 0, 8, 1], ['breatheCycle', 'Cycle', 2, 16, 1]],   // el pulso que respira (Roadmap 7.0 · 5.4)
+            ['breathe', 'Breathe', 0, 8, 1], ['breatheCycle', 'Cycle', 2, 16, 1]],   // the breathing pulse (Roadmap 7.0 · 5.4)
   chord:  [['notes', 'Notes', 3, 4, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
   melody: [['density', 'Density', 0, 1], ['rest', 'Rest', 0, 1], ['gravity', 'Gravity', 0, 1],
             ['range', 'Range', 1, 3, 1], ['legato', 'Legato', 0.1, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
@@ -33,12 +33,12 @@ const KNOBS = {
 const ARR_KNOBS = [['energy', 'Energy', 0, 1], ['sway', 'Sway', 0, 1], ['cycle', 'Cycle', 4, 64, 1],
                    ['open', 'Open', 0, 1], ['surprise', 'Surprise', 0, 1]];
 let infoTimer = null, saveTimer = null;
-// los ajustes del director no pasan por el registro: avisan a ui/deps.js (qué está apagado) a mano
+// the conductor's settings don't go through the registry: they notify ui/deps.js (what is off) by hand
 const depsRefresh = () => document.dispatchEvent(new Event('deps-refresh'));
 
 const knobEl = lab => { const ctl = document.createElement('div'); ctl.className = 'ctl';
   ctl.innerHTML = `<div class="knob"><div class="ind"></div></div><div class="lab">${lab}</div><div class="val"></div>`; return ctl; };
-// knob pequeño con la etiqueta delante (las filas compactas: el arreglo de la parte)
+// small knob with the label in front (the compact rows: the part's arrangement)
 const ksEl = lab => { const ctl = document.createElement('div'); ctl.className = 'ctl ks'; ctl.dataset.lab = lab;
   ctl.innerHTML = `<span class="th">${lab}</span><div class="knob"><div class="ind"></div></div><div class="val"></div>`; return ctl; };
 function knobRow(host, specs, cfg, onSet) {
@@ -57,7 +57,7 @@ function buildPlayerUI() {
   $('playerWho').textContent = 'Part ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : '');
   document.querySelectorAll('#playerMode button').forEach(b => b.classList.toggle('active', b.dataset.pm === pl.cfg.mode));
   knobRow($('playerKnobs'), KNOBS[pl.cfg.mode] || [], pl.cfg);
-  // arreglo de la parte (fila compacta del panel Arreglo): Entra (umbral) · Deriva (parámetro) · Cantidad
+  // the part's arrangement (compact row of the Arrangement panel): Enters (threshold) · Drift (parameter) · Amount
   $('arrPartWho').textContent = 'part ' + (sc.sel + 1);
   const host = $('playerArr'); host.innerHTML = '';
   const kU = ksEl('enters'); kU.dataset.key = 'threshold'; host.appendChild(kU);
@@ -88,7 +88,7 @@ function setPlayBtn(on) {
   if (!on) { $('harmInfo').textContent = 'stopped'; $('arrInfo').textContent = '—'; }
 }
 export function isPlaying() { const c = conductor(); return !!(c && c.running); }
-// ▶ Tocar y los ▶/⏹ de las escenas en la biblioteca pasan por aquí; avisa con play-changed
+// ▶ Play and the scenes' ▶/⏹ in the Library go through here; announces with play-changed
 export function setPlaying(on) {
   const c = conductor(); if (!c) return false;
   if (on && !c.running) { part().resume(); c.start(); }
@@ -106,12 +106,12 @@ function refreshInfo() {
     ' · playing ' + c.players.map((p, i) => c.arr.stateAt(bar, i, p.cfg).active && p.cfg.mode !== 'off' ? (i + 1) : '·').join('');
 }
 
-// ---------- escena: exportar / importar / última ----------
+// ---------- scene: export / import / last ----------
 function saveLast() { const sc = getScene(); if (!sc) return; try { localStorage.setItem(LS_ESCENA, JSON.stringify(sceneToJSON(sc))); } catch (e) {} }
-export async function loadScene(json) {   // también desde la biblioteca (pantalla Presets)
-  if (!sceneOn()) { await enableScene(); document.dispatchEvent(new CustomEvent('scene-loaded')); }   // enciende (y la UI se monta)
+export async function loadScene(json) {   // also from the Library (Presets screen)
+  if (!sceneOn()) { await enableScene(); document.dispatchEvent(new CustomEvent('scene-loaded')); }   // switches on (and the UI is assembled)
   applySceneJSON(getScene(), json);
-  document.dispatchEvent(new CustomEvent('scene-loaded'));   // partsControls: tiras + rack + scene-changed → aquí syncAll
+  document.dispatchEvent(new CustomEvent('scene-loaded'));   // partsControls: strips + rack + scene-changed → syncAll here
 }
 function syncAll() { syncHarmonyUI(); buildPlayerUI(); }
 
@@ -140,7 +140,7 @@ export function initPlayerControls() {
     const pl = currentPlayer(); if (!pl || !PLAYER_MODES.includes(b.dataset.pm)) return;
     pl.setMode(b.dataset.pm); buildPlayerUI();
   }));
-  // escena
+  // scene
   $('sceneExp').addEventListener('click', () => {
     const sc = getScene(); if (!sc) return;
     const d = new Date(), p = x => String(x).padStart(2, '0');

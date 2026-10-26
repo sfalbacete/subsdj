@@ -1,12 +1,12 @@
-/* SubSDJ · knobs rotatorios (arrastre vertical). Config en PARAMS (tabla única).
-   Soportan `log` (cutoff: el arrastre trabaja en posición 0..1 con mapeo
-   exponencial, como hacían los sliders) y `fmt` (presentación específica).
-   attachKnob() es el knob a secas — arrastre, doble clic = default, formato,
-   atenuado a 0 si `act` — sin saber de PARAMS ni del registro: lo reutiliza
-   el mezclador de partes (nivel / pan / envíos por parte).
-   CONTRATO CON LA PIEL: el knob no dibuja nada; publica su posición 0..1 en
-   la variable CSS --pos del .knob (y .off cuando un `act` está a 0) y el CSS
-   decide qué hace con ella: girar la rayita, el punto, pintar el arco… */
+/* SubSDJ · rotary knobs (vertical drag). Config in PARAMS (single table).
+   They support `log` (cutoff: the drag works on a 0..1 position with exponential
+   mapping, as the sliders used to) and `fmt` (specific display formatting).
+   attachKnob() is the bare knob — drag, double click = default, formatting,
+   dimmed at 0 if `act` — knowing nothing about PARAMS or the registry: the
+   Part Mixer reuses it (level / pan / sends per part).
+   CONTRACT WITH THE SKIN: the knob draws nothing; it publishes its 0..1 position in
+   the CSS variable --pos of the .knob (and .off when an `act` is at 0) and the CSS
+   decides what to do with it: turn the tick, the dot, paint the arc… */
 import { part } from '../engine/parts.js';
 import { PARAMS, posToVal, valToPos } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
@@ -17,16 +17,16 @@ function fmt(v, unit) {
   return s + unit;
 }
 
-// cfg: {min, max, def, log?, fmt?, unit?, act?} · onChange(value) al girar (y al arrancar).
+// cfg: {min, max, def, log?, fmt?, unit?, act?} · onChange(value) when turned (and at startup).
 export function attachKnob(el, cfg, onChange) {
   const unit = cfg.unit || '';
   const valEl = el.parentElement.querySelector('.val');
   let value = cfg.def;
   const render = () => {
     const pos = cfg.log ? valToPos(cfg, value) : (value - cfg.min) / (cfg.max - cfg.min);
-    el.style.setProperty('--pos', pos.toFixed(4));           // estado publicado: el CSS gira / pinta con esto
+    el.style.setProperty('--pos', pos.toFixed(4));           // published state: the CSS turns / paints with this
     if (valEl) valEl.textContent = cfg.fmt ? cfg.fmt(value) : fmt(value, unit);
-    if (cfg.act) el.classList.toggle('off', value === 0);   // 0 = apagado: rayita atenuada
+    if (cfg.act) el.classList.toggle('off', value === 0);   // 0 = off: dimmed tick
   };
   const setVal = v => { value = Math.min(cfg.max, Math.max(cfg.min, v)); render(); onChange(value); };
   render(); onChange(value);
@@ -40,7 +40,7 @@ export function attachKnob(el, cfg, onChange) {
   el.addEventListener('pointermove', e => {
     if (!dragging) return;
     const dy = startY - e.clientY, fine = e.shiftKey ? 0.25 : 1;
-    if (cfg.log) {                              // en espacio-posición: resolución pareja en graves y agudos
+    if (cfg.log) {                              // in position space: even resolution in lows and highs
       const p = Math.min(1, Math.max(0, startP + dy / 200 * fine));
       setVal(posToVal(cfg, p));
     } else {
@@ -57,7 +57,7 @@ export function attachKnob(el, cfg, onChange) {
 export function bindKnobs() {
   document.querySelectorAll('.knob').forEach(el => {
     const name = el.dataset.knob, cfg = PARAMS[name];
-    if (!cfg) return;                                        // knobs sin PARAMS (mezclador): no son controles del preset
+    if (!cfg) return;                                        // knobs without PARAMS (Part Mixer): not preset controls
     const target = cfg.t || name;
     const k = attachKnob(el, cfg, v => applyTarget(target, v));
     CONTROLS[name] = { get: k.get, set: k.set, def: cfg.def, el: el.parentElement };

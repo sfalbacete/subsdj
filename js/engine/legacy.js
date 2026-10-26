@@ -1,27 +1,27 @@
 /* =====================================================================
-   SubSDJ · lo guardado hasta la 1.3.0, en castellano → inglés (1.4.0).
-   Los presets, escenas, bibliotecas y mapas MIDI guardaban claves y
-   valores en castellano ('placa', 'tocar', vocVida…), y la fábrica tenía
-   nombres en castellano. Desde la 1.4.0 todo lo que se escribe va en
-   inglés; lo de antes se traduce AL CARGARLO, con estas tablas, y suena
-   exactamente igual (check «compatibilidad 1.3.0»). Las bibliotecas
-   guardan COPIAS, así que la traducción es para siempre.
+   SubSDJ · what was saved up to 1.3.0, Spanish → English (1.4.0).
+   Presets, scenes, libraries and MIDI maps stored keys and
+   values in Spanish ('placa', 'tocar', vocVida…), and the factory had
+   Spanish names. From 1.4.0 on, everything that is written is in
+   English; older data is translated ON LOAD, with these tables, and sounds
+   exactly the same (check «1.3.0 compatibility»). Libraries
+   store COPIES, so the translation is forever.
    ===================================================================== */
 
-// Claves de parámetro renombradas (también en los mapas MIDI: midimap.RENAMED)
+// Renamed parameter keys (also in MIDI maps: midimap.RENAMED)
 export const PARAM_KEYS = { vocVida: 'vocLife', vocBrillo: 'vocBright', resBrillo: 'resBright' };
 
-// Escalas (Harmony.ESCALAS; las usan las escenas y el Seq por grados)
+// Scales (Harmony.ESCALAS; used by the scenes and by the Seq in degrees)
 export const SCALES = {
   'mayor': 'major', 'menor': 'minor', 'menor armónica': 'harmonic minor', 'dórica': 'dorian',
   'frigia': 'phrygian', 'lidia': 'lydian', 'mixolidia': 'mixolydian', 'penta mayor': 'major penta',
   'penta menor': 'minor penta', 'tonos enteros': 'whole tone',
 };
-// Compases ('1 c' = un compás): divisiones a tempo de LFOs y Pasos, deriva y reinicio de los Pasos
+// Bars ('1 c' = one bar): tempo divisions of LFOs and Steps, drift and reset of the Steps
 const BARS = { '1 c': '1 bar', '2 c': '2 bars', '4 c': '4 bars', '8 c': '8 bars', '16 c': '16 bars' };
 const SYNC = { libre: 'free', ...BARS };
 
-// Valores de los parámetros de texto, por clave
+// Values of the text parameters, by key
 export const VALUES = {
   waveA: { tabla: 'wavetable', cuerda: 'string' },
   waveB: { tabla: 'wavetable', cuerda: 'string' },
@@ -37,7 +37,7 @@ export const VALUES = {
   st1Drift: BARS, st2Drift: BARS, st3Drift: BARS, st4Drift: BARS,
 };
 
-// Un preset (claves de PARAMS) de antes → el de ahora. Sin nada que traducir, el mismo objeto.
+// A preset (PARAMS keys) from before → today's. With nothing to translate, the same object.
 export function migratePreset(p) {
   if (!p || typeof p !== 'object') return p;
   let q = null;
@@ -48,16 +48,16 @@ export function migratePreset(p) {
   return q || p;
 }
 
-// ---------- nombres (glosario: docs/GLOSARIO.md) ----------
-// Categorías de fábrica y secciones fijas de la biblioteca
+// ---------- names (glossary: docs/GLOSARIO.md) ----------
+// Factory categories and fixed library sections
 export const SECTION_NAMES = {
   'Básicos': 'Basics', 'Bajos': 'Bass', 'Escalonados': 'Stepped', 'Voz': 'Voice', 'Plucks & Teclas': 'Plucks & Keys',
   'Cuerdas': 'Plucked Strings', 'Órgano': 'Organ', 'Percusión': 'Percussion', 'FX & Atmósferas': 'FX & Atmospheres',
   '★ Míos': '★ Mine', 'Escenas': 'Scenes', 'Importados': 'Imported', 'Demos A/B': 'A/B Demos',
 };
-// Presets de fábrica, de «Presets 2.0» y escenas del repo
+// Factory presets, «Presets 2.0» presets and repo scenes
 export const PRESET_NAMES = {
-  // Bajos
+  // Bass
   'Bajo RC (curva)': 'RC Bass (curve)', 'Sub redondo': 'Round Sub', 'Bajo grueso': 'Fat Bass', 'Bajo pluck': 'Pluck Bass',
   'Ácido 303': 'Acid 303', 'Slide bass': 'Slide Bass', 'Wobble dub': 'Dub Wobble', 'Bajo cremoso (24 dB)': 'Creamy Bass (24 dB)',
   'Bajo camaleón (nota→PW)': 'Chameleon Bass (note→PW)',
@@ -77,18 +77,18 @@ export const PRESET_NAMES = {
   'Pad de cuatro vientos (deriva por voz)': 'Four Winds Pad (per-voice drift)', 'Pad shimmer (coro que sube)': 'Shimmer Pad (rising choir)',
   'Pad de ejecución (rueda, aftertouch, pedal)': 'Performance Pad (wheel, aftertouch, pedal)', 'Pad de cinta (nostalgia)': 'Tape Pad (nostalgia)',
   'Cuenco tibetano (ruido + resonador)': 'Singing Bowl (noise + resonator)', 'Metal frotado (sierra + resonador)': 'Bowed Metal (saw + resonator)',
-  // Escalonados
+  // Stepped
   'Un S&H, tres destinos': 'One S&H, Three Targets', 'Tabla, filtro y puerta (16 · 8 · tresillo)': 'Table, Filter and Gate (16 · 8 · triplet)',
   'Escalera de ocho (3 LFO cuadrados)': 'Eight-Step Stairs (3 square LFOs)', 'Melodía de LFO (tonos enteros)': 'LFO Melody (whole tone)',
   'Acorde que habla (S&H por voz)': 'Talking Chord (per-voice S&H)', 'Tres ciclos que tardan 30 s (5 · 6 · 8 · 16)': 'Three Cycles, 30 s Around (5 · 6 · 8 · 16)',
-  // Voz
+  // Voice
   'Coro humano': 'Human Choir', 'Robot parlante': 'Talking Robot', 'Madrigal (vocal por nota)': 'Madrigal (vowel per note)',
   'Voz glotal (esfuerzo)': 'Glottal Voice (effort)', 'Percusión vocal (ka)': 'Vocal Percussion (ka)',
-  // Plucks & Teclas
+  // Plucks & Keys
   'Campana (Ring)': 'Bell (Ring)', 'Caja de música': 'Music Box', 'Piano eléctrico': 'Electric Piano', 'Pluck supersaw': 'Supersaw Pluck',
   'Teclas al tacto (vel→filtro)': 'Touch Keys (vel→filter)', 'Campanas de tabla (S&H)': 'Wavetable Bells (S&H)',
   'Ataque digital (1shot)': 'Digital Attack (1shot)', 'Pluck lotería (S&H)': 'Lottery Pluck (S&H)',
-  // Cuerdas
+  // Plucked Strings
   'Guitarra de nailon': 'Nylon Guitar', 'Guitarra de doce cuerdas': 'Twelve-String Guitar', 'Arpa': 'Harp',
   'Bajo pulsado': 'Plucked Bass', 'Piano de cuerda': 'String Piano', 'Campana de cuerda': 'String Bell',
   // FM
@@ -99,15 +99,15 @@ export const PRESET_NAMES = {
   // FM4
   'FM4 · Brass pila': 'FM4 · Stacked Brass', 'FM4 · E-piano pares': 'FM4 · Paired E-Piano', 'FM4 · Campana densa': 'FM4 · Dense Bell',
   'FM4 · Bombo': 'FM4 · Kick',
-  // Órgano
+  // Organ
   'Órgano trémolo': 'Tremolo Organ', 'Órgano pleno': 'Full Organ', 'Órgano de iglesia': 'Church Organ', 'Órgano de tabla': 'Wavetable Organ',
-  // Percusión
+  // Percussion
   'Bombo 808': '808 Kick', 'Bombo 909': '909 Kick', 'Tom sintético': 'Synth Tom', 'Caja zap': 'Zap Snare', 'Caja 808': '808 Snare',
   'Palmada 808': '808 Clap', 'Rimshot 909': '909 Rimshot', 'Cencerro 808': '808 Cowbell', 'Hat abierto': 'Open Hat',
   'Hat FM (feedback)': 'FM Hat (feedback)', 'Crash 909': '909 Crash', 'Ride 909': '909 Ride', 'Hit rave': 'Rave Hit', 'Láser zap': 'Laser Zap',
   // Stabs
   'Hoover rave': 'Rave Hoover', 'Supersaw stab': 'Supersaw Stab', 'Stab metálico': 'Metallic Stab',
-  // FX & Atmósferas
+  // FX & Atmospheres
   'Bleeps S&H (pitch random)': 'S&H Bleeps (random pitch)', 'Drone sci-fi': 'Sci-Fi Drone', 'Riser tensión': 'Tension Riser',
   'Nave espacial': 'Spaceship', 'Blip resonante': 'Resonant Blip', 'Wobble sincopado': 'Syncopated Wobble', 'Dub de cinta': 'Tape Dub',
   // Presets 2.0
@@ -123,13 +123,13 @@ export const PRESET_NAMES = {
   'Tecla · Clavecín': 'Keys · Harpsichord', 'Tecla · Vibráfono': 'Keys · Vibraphone', 'Tecla · Acordeón': 'Keys · Accordion',
   'Textura · Hi-hat': 'Texture · Hi-Hat', 'Textura · Caja 909': 'Texture · 909 Snare', 'Textura · Olas': 'Texture · Waves',
   'Textura · Viento polar': 'Texture · Polar Wind', 'Textura · Radio vieja': 'Texture · Old Radio', 'Textura · Motor diésel': 'Texture · Diesel Engine',
-  // escenas del repo
+  // repo scenes
   'Amanecer dórico': 'Dorian Dawn', 'Ambient nocturno (demo)': 'Night Ambient (demo)', 'Coro robótico': 'Robot Choir', 'Techno hipnótico': 'Hypnotic Techno',
 };
-// 'Cine · Tundra', 'Koto', 'Pluck', 'Reese', 'FM4 · Hat'… ya estaban en inglés (o son nombres propios)
+// 'Cine · Tundra', 'Koto', 'Pluck', 'Reese', 'FM4 · Hat'… were already in English (or are proper names)
 export const presetName = n => PRESET_NAMES[n] || n;
 
-// ---------- escenas: subsdj-escena-v1 → subsdj-scene-v2 ----------
+// ---------- scenes: subsdj-escena-v1 → subsdj-scene-v2 ----------
 export const SCENE_FORMAT = 'subsdj-scene-v2';
 const PLAYER_KEYS = { acento: 'accent', respira: 'breathe', cicloP: 'breatheCycle', notas: 'notes', densidad: 'density', silencio: 'rest',
   gravedad: 'gravity', rango: 'range', quinta: 'fifth', cada: 'every', umbral: 'threshold', deriva: 'drift', derivaAmt: 'driftAmt' };
@@ -144,7 +144,7 @@ export function migrateScene(j) {
   const d = j.director || {}, a = d.armonia;
   return defined({
     format: SCENE_FORMAT, name: j.nombre !== undefined ? presetName(j.nombre) : undefined, note: j.nota, date: j.fecha,
-    room: j.sala ? migratePreset(j.sala) : undefined,   // bpm, dlySync ('libre')…: claves de parámetro
+    room: j.sala ? migratePreset(j.sala) : undefined,   // bpm, dlySync ('libre')…: parameter keys
     conductor: j.director ? defined({
       seed: d.seed,
       harmony: a ? defined({ root: a.root, scale: SCALES[a.scale] || a.scale, prog: a.prog, bars: a.bars, mode: HARMONY_MODES[a.modo] || a.modo }) : undefined,
@@ -167,12 +167,12 @@ export function migrateScene(j) {
   });
 }
 
-// ---------- biblioteca: subsdj-biblioteca-v1 → subsdj-library-v2 ----------
+// ---------- library: subsdj-biblioteca-v1 → subsdj-library-v2 ----------
 export const LIBRARY_FORMAT = 'subsdj-library-v2';
-const ORIGINS = { usuario: 'user', fabrica: 'factory', escena: 'scene' };   // 'v2', 'demos', 'import': igual
-// Un ítem de antes: claves en inglés y datos traducidos; si viene de la fábrica, del
-// banco o de las escenas del repo y no se renombró (su nombre es el de su semilla),
-// el nombre traducido y la semilla con él (así «Restore factory» no lo duplica).
+const ORIGINS = { usuario: 'user', fabrica: 'factory', escena: 'scene' };   // 'v2', 'demos', 'import': unchanged
+// An item from before: keys in English and data translated; if it comes from the factory, the
+// bank or the repo scenes and was not renamed (its name is its seed's),
+// the name is translated and the seed along with it (so «Restore factory» does not duplicate it).
 function migrateItem(it) {
   const type = it.tipo === 'escena' ? 'scene' : 'preset', origin = ORIGINS[it.origen] || it.origen;
   let name = it.nombre, seed = it.semilla || null;
@@ -184,8 +184,8 @@ function migrateItem(it) {
   const data = type === 'scene' ? migrateScene(it.datos || {}) : migratePreset(it.datos || {});
   return { id: it.id, type, name, section: it.seccion, fav: !!it.fav, origin, seed, data };
 }
-// Biblioteca entera (la guardada o un fichero exportado). Las demos A/B salen del
-// banco principal en 1.4.0: sus ítems sembrados se van, y su sección si queda vacía.
+// A whole library (the saved one or an exported file). The A/B demos leave the
+// main bank in 1.4.0: their seeded items go, and so does their section if it is left empty.
 export function migrateLibrary(d, { dropDemos = true } = {}) {
   if (!d || d.formato !== 'subsdj-biblioteca-v1') return d;
   let items = (d.items || []).filter(it => it && typeof it === 'object').map(migrateItem);

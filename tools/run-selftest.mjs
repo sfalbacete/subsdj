@@ -1,16 +1,16 @@
-// SubSDJ · selftest en Chrome headless vía CDP, sin dependencias (solo Node ≥ 22 y Chrome).
-// Uso:  node tools/run-selftest.mjs ["selftest=1&demos=DLY"] ["<expresión JS extra a evaluar al final>"]
-// Levanta un servidor estático propio (8001; el 8000 suele ser el de desarrollo) que además
-// recoge los pings del selftest (selftest.ping?done=1…), lanza Chrome con un perfil temporal,
-// lee DevToolsActivePort, navega a ?selftest=1 y espera el ping «done». Imprime título,
-// resumen, pares de demos (diff/picos), filas fallidas con su motivo, logs de medida y
-// errores JS. Chrome se cierra por CDP (Browser.close). Sale con 1 si hay fallos.
-// TANDAS: cientos de OfflineAudioContext en una sola página la cuelgan (ver js/selftest.js),
-// así que el selftest va en dos tandas — ?tanda=checks y ?tanda=fabrica —, cada una en un
-// Chrome nuevo, y aquí se suman. Con «tanda=…» en la consulta, solo esa. Si una página deja
-// de responder, se dice (y cuenta como fallo) en vez de esperar para siempre.
-// BASE=https://sfalbacete.github.io/subsdj/ → el selftest de la versión PUBLICADA: los pings se
-// pierden en el servidor ajeno, así que se espera al título final (✓/✗ SELFTEST n/m).
+// SubSDJ · selftest in headless Chrome via CDP, no dependencies (only Node ≥ 22 and Chrome).
+// Usage:  node tools/run-selftest.mjs ["selftest=1&demos=DLY"] ["<extra JS expression to evaluate at the end>"]
+// Starts its own static server (8001; 8000 is usually the dev one) that also
+// collects the selftest pings (selftest.ping?done=1…), launches Chrome with a temporary profile,
+// reads DevToolsActivePort, navigates to ?selftest=1 and waits for the «done» ping. Prints title,
+// summary, demo pairs (diff/peaks), failed rows with their reason, measurement logs and
+// JS errors. Chrome is closed via CDP (Browser.close). Exits with 1 if anything failed.
+// BATCHES: hundreds of OfflineAudioContexts in a single page hang it (see js/selftest.js),
+// so the selftest runs in two batches — ?tanda=checks and ?tanda=fabrica —, each in a
+// fresh Chrome, and they are added up here. With «tanda=…» in the query, only that one. If a page stops
+// responding, that is reported (and counts as a failure) instead of waiting forever.
+// BASE=https://sfalbacete.github.io/subsdj/ → the selftest of the PUBLISHED version: the pings are
+// lost on the foreign server, so it waits for the final title (✓/✗ SELFTEST n/m).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 import os from 'node:os'; import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PORT = 8001;
@@ -18,8 +18,8 @@ const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application
 const q = process.argv[2] || 'selftest=1';
 const BASE = process.env.BASE || null;
 const TANDAS = /(^|&)tanda=/.test(q) ? [null] : ['checks', 'fabrica'];
-const TANDA_MAX_MS = 300000;   // lo que puede tardar una tanda
-const EV_MAX_MS = 15000;       // lo que puede tardar la página en contestar una pregunta
+const TANDA_MAX_MS = 300000;   // how long a batch may take
+const EV_MAX_MS = 15000;       // how long the page may take to answer a question
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
                '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 
-// Una tanda en un Chrome nuevo: devuelve lo que se imprime al final
+// One batch in a fresh Chrome: returns what gets printed at the end
 async function tanda(qs) {
   pings = [];
   const profile = path.join(os.tmpdir(), 'subsdj-cdp-' + Date.now());
@@ -45,7 +45,7 @@ async function tanda(qs) {
     '--no-first-run', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { detached: true, stdio: 'ignore' }).unref();
   let port = 0;
   for (let i = 0; i < 150 && !port; i++) { await sleep(200); try { port = +fs.readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0]; } catch {} }
-  if (!port) { console.error('sin DevToolsActivePort (¿ruta de Chrome? variable de entorno CHROME)'); process.exit(2); }
+  if (!port) { console.error('no DevToolsActivePort (Chrome path? environment variable CHROME)'); process.exit(2); }
   const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
   const page = targets.find(t => t.type === 'page');
   const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -56,13 +56,13 @@ async function tanda(qs) {
     if (m.id && pend.has(m.id)) { pend.get(m.id)(m.result || m.error); pend.delete(m.id); }
     else if (m.method === 'Runtime.exceptionThrown') { const d = m.params.exceptionDetails; errs.push((d.text || '') + ' ' + (d.exception?.description || '') + ' @' + (d.url || '') + ':' + d.lineNumber); }
     else if (m.method === 'Runtime.consoleAPICalled' && (m.params.type === 'error' || m.params.type === 'warning')) errs.push(m.params.type + ': ' + m.params.args.map(a => a.value ?? a.description).join(' '));
-    else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'log') {   // logs de medida de los checks («placa: cola …»)
+    else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'log') {   // measurement logs from the checks («plate: tail …»)
       const s = m.params.args.map(a => a.value ?? a.description).join(' ');
       if (/^[a-záéíóúñ0-9 ]+:/i.test(s) && !/^demo par/.test(s)) logs.push(s);
     }
   };
   const send = (method, params = {}) => new Promise(r => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
-  // una pregunta a la página, con límite: una página colgada no contesta (null)
+  // a question to the page, with a time limit: a hung page doesn't answer (null)
   const ev = async expr => (await Promise.race([send('Runtime.evaluate', { expression: expr, returnByValue: true }), sleep(EV_MAX_MS).then(() => null)]))?.result?.value ?? null;
   await send('Runtime.enable'); await send('Page.enable');
   await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + qs });
@@ -80,7 +80,7 @@ async function tanda(qs) {
   out.demos = pings.filter(p => p.demo || p.demo_error);
   out.title = colgada ? null : await ev('document.title');
   out.fails = colgada ? null : await ev(`[...document.querySelectorAll('#stBody .st-row.fail')].map(r => r.querySelector('.st-name').textContent + ' :: ' + (r.nextElementSibling && r.nextElementSibling.classList.contains('st-err') ? r.nextElementSibling.textContent : ''))`);
-  if (colgada) out.ultima = 'la página dejó de responder tras ' + out.secs.toFixed(0) + ' s';
+  if (colgada) out.ultima = 'the page stopped responding after ' + out.secs.toFixed(0) + ' s';
   if (process.argv[3] && !colgada) out.extra = await ev(process.argv[3]);
   await Promise.race([send('Browser.close'), sleep(3000)]); ws.close();
   return out;
@@ -88,20 +88,20 @@ async function tanda(qs) {
 
 const res = [];
 for (const t of TANDAS) res.push(await tanda(t ? q + '&tanda=' + t : q));
-// suma de las tandas
+// sum of the batches
 let ok = 0, total = 0, bien = true;
-const nombre = r => (r.qs.match(/tanda=(\w+)/) || [, 'todo'])[1];
+const nombre = r => (r.qs.match(/tanda=(\w+)/) || [, 'all'])[1];
 const partes = res.map(r => {
   const m = /([✓✗]) SELFTEST (\d+)\/(\d+)/.exec(r.title || '');
-  if (!m) { bien = false; return nombre(r) + ' ' + (r.colgada ? 'COLGADA' : 'sin título'); }
+  if (!m) { bien = false; return nombre(r) + ' ' + (r.colgada ? 'HUNG' : 'no title'); }
   ok += +m[2]; total += +m[3]; if (m[1] !== '✓') bien = false;
   return nombre(r) + ' ' + m[2] + '/' + m[3];
 });
 console.log('title:', (bien ? '✓' : '✗') + ' SELFTEST ' + ok + '/' + total + ' · SubSDJ' + (res.length > 1 ? ' (' + partes.join(' · ') + ')' : ''));
-for (const r of res) console.log('done:', JSON.stringify(r.done), 'en', r.secs.toFixed(1), 's', r.ultima ? '· ' + r.ultima : '');
+for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.toFixed(1), 's', r.ultima ? '· ' + r.ultima : '');
 for (const r of res) for (const p of r.demos)
   console.log('demo:', p.demo || ('ERROR ' + p.demo_error), '| diff', p.diff, '| peaks', p.peakA, p.peakB, p.bad ? '| BAD' : '');
-const fails = res.flatMap(r => r.fails || (r.colgada ? ['(tanda ' + nombre(r) + ') :: ' + r.ultima] : []));
+const fails = res.flatMap(r => r.fails || (r.colgada ? ['(batch ' + nombre(r) + ') :: ' + r.ultima] : []));
 console.log('fails:', JSON.stringify(fails));
 for (const r of res) if ('extra' in r) console.log('extra:', JSON.stringify(r.extra));
 for (const r of res) for (const l of r.logs) console.log('log:', l);

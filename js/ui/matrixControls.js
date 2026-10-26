@@ -1,8 +1,8 @@
-/* SubSDJ · panel «Matriz de modulación»: MX_SLOTS filas [fuente ▾] → [destino ▾] × knob.
-   Las filas se GENERAN aquí desde MX_SOURCES/MX_DESTS (params.js, tabla única):
-   el HTML solo aporta el contenedor #mxRows. OJO al orden de arranque: esto
-   crea los .knob de cantidad, así que en main.js va ANTES de bindKnobs().
-   Los selects se registran en CONTROLS con `opts` (zonas para MIDI learn). */
+/* SubSDJ · «Modulation matrix» panel: MX_SLOTS rows [source ▾] → [destination ▾] × knob.
+   The rows are GENERATED here from MX_SOURCES/MX_DESTS (params.js, single table):
+   the HTML only provides the #mxRows container. MIND the startup order: this
+   creates the amount .knob elements, so in main.js it goes BEFORE bindKnobs().
+   The selects are registered in CONTROLS with `opts` (zones for MIDI learn). */
 import { MX_SLOTS, MX_SOURCES, MX_DESTS } from '../engine/params.js';
 import { bindSelect as bindSel } from './registry.js';
 

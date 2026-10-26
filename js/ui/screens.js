@@ -1,12 +1,12 @@
-/* SubSDJ · pantallas: Diseño / Secuenciación / Presets. Cada pestaña es un
-   panel FIJO propio (<div class="screen" data-screen-body="…">): se enseña
-   uno y se esconden los otros, sin reflujo — cada módulo tiene su sitio.
-   Módulos COMPARTIDOS (data-slot="delay"…): Salida, Delay, Reverb y Cinta
-   hacen falta en Diseño (efecto del preset) y en Secuenciación (sala de la
-   escena). No se copian: cada pantalla declara su hueco (data-slot-host) y
-   al cambiar de pestaña el MISMO nodo se mueve al hueco de la que se ve —
-   controles, canvas y escuchadores intactos. Aquí también se marca la
-   pestaña y se recuerda la elección. El motor y los LEDs no se enteran. */
+/* SubSDJ · screens: Design / Sequencing / Presets. Each tab is its own
+   FIXED panel (<div class="screen" data-screen-body="…">): one is shown
+   and the others hidden, with no reflow — every module has its place.
+   SHARED modules (data-slot="delay"…): Output, Delay, Reverb and Tape
+   are needed in Design (preset effect) and in Sequencing (the scene's
+   Room). They are not copied: each screen declares its slot (data-slot-host) and
+   on tab change the SAME node is moved into the slot of the visible one —
+   controls, canvases and listeners intact. Here the tab is also marked
+   and the choice remembered. The engine and the LEDs never notice. */
 export const SCREENS = ['diseno', 'secuenciacion', 'presets'];
 const LS_KEY = 'subsdj.screen.v1';
 let cur = null;
@@ -21,13 +21,13 @@ export function showScreen(s) {
   document.querySelectorAll('#screenTabs button').forEach(b => b.classList.toggle('active', b.dataset.screen === s));
   for (const b of document.querySelectorAll('.screen')) b.hidden = b.dataset.screenBody !== s;
   const body = screenBody(s);
-  for (const m of document.querySelectorAll('[data-slot]')) {   // compartidos: al hueco de esta pantalla (si tiene)
+  for (const m of document.querySelectorAll('[data-slot]')) {   // shared: into this screen's slot (if it has one)
     const host = body && body.querySelector('[data-slot-host="' + m.dataset.slot + '"]');
     if (host && m.parentElement !== host) host.appendChild(m);
   }
-  try { localStorage.setItem(LS_KEY, s); } catch { /* sin persistencia */ }
-  // Los canvas de una pantalla que estaba oculta medían 0: un resize los re-ajusta
-  // (ADSR, seq, tabla, editor de ondas, osciloscopio).
+  try { localStorage.setItem(LS_KEY, s); } catch { /* no persistence */ }
+  // The canvases of a screen that was hidden measured 0: a resize re-fits them
+  // (ADSR, seq, wavetable, Wave Editor, oscilloscope).
   window.dispatchEvent(new Event('resize'));
   document.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: s } }));
 }
@@ -36,9 +36,9 @@ export function initScreens() {
   const tabs = document.getElementById('screenTabs'); if (!tabs) return;
   tabs.addEventListener('click', e => {
     const b = e.target.closest('button[data-screen]'); if (!b) return;
-    showScreen(b.dataset.screen); b.blur();   // sin foco: las teclas siguen siendo del piano
+    showScreen(b.dataset.screen); b.blur();   // no focus: the keys still belong to the piano
   });
   let saved = null;
-  try { saved = localStorage.getItem(LS_KEY); } catch { /* sin persistencia */ }
+  try { saved = localStorage.getItem(LS_KEY); } catch { /* no persistence */ }
   showScreen(saved);
 }

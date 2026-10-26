@@ -1,15 +1,15 @@
 /* =====================================================================
-   SubSDJ · mega-banco de presets, organizado por tipo de sonido.
-   FORMATO v2: valores en ESPACIO-MOTOR (cutoff en Hz, tiempos en s…),
-   las claves son los nombres canónicos de PARAMS. Cada preset declara
-   sólo lo que se desvía de la BASE DE LOS PRESETS (params.PRESET_BASE: los
-   defaults de antes, no los neutros de Reset); los nombres son ÚNICOS en
-   todo el banco (el lookup es por nombre).
-   Los presets de usuario v1 (cutoff = posición 0..1 del slider) se
-   migran automáticamente a v2 la primera vez (v1 queda como copia).
-   REGLA cutLFO: el LFO de cutoff SUMA Hz al valor base (Voice.js), así
-   que cutoff − cutLfoLvl debe quedar ≥ ~150 Hz; si la suma cruza 0 el
-   lowpass se clava en 0 Hz y el preset se apaga en cada semiciclo.
+   SubSDJ · preset mega-bank, organized by type of sound.
+   FORMAT v2: values in ENGINE SPACE (cutoff in Hz, times in s…),
+   the keys are the canonical PARAMS names. Each preset declares
+   only what deviates from the PRESET BASE (params.PRESET_BASE: the
+   old defaults, not Reset's neutral ones); names are UNIQUE across
+   the whole bank (the lookup is by name).
+   v1 user presets (cutoff = slider position 0..1) are
+   migrated automatically to v2 the first time (v1 stays as a copy).
+   cutLFO RULE: the cutoff LFO ADDS Hz to the base value (Voice.js), so
+   cutoff − cutLfoLvl must stay ≥ ~150 Hz; if the sum crosses 0 the
+   lowpass gets stuck at 0 Hz and the preset goes silent every half cycle.
    ===================================================================== */
 import { PARAMS, posToVal } from './params.js';
 
@@ -19,8 +19,8 @@ export const FACTORY = {
   },
 
   'Bass': {
-    /* curva RC: el mismo bajo pluck con ataque y decay exponenciales — compáralo
-       con «Bajo pluck» (lineal): el golpe llega antes y el cuerpo se posa sin escalón */
+    /* RC curve: the same pluck bass with exponential attack and decay — compare it
+       with «Pluck Bass» (linear): the hit arrives sooner and the body settles without a step */
     'RC Bass (curve)': { waveA: 'sawtooth', waveB: 'square', levelA: 0.65, levelB: 0.35, cutoff: 448, reso: 6,
       filterEnvAmt: 2600, envCurve: 0.85, a: 0.004, d: 0.35, s: 0.15, r: 0.15, master: 3.11 },
     'Round Sub': { waveA: 'sine', waveB: 'triangle', levelA: 0.65, levelB: 0.35, cutoff: 448, reso: 1,
@@ -40,8 +40,8 @@ export const FACTORY = {
     'Creamy Bass (24 dB)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 10, levelA: 0.55, levelB: 0.45,
       cutoff: 420, reso: 3, filterSlope: '24', filterDrive: 0.5, filterEnvAmt: 1200,
       a: 0.005, d: 0.25, s: 0.5, r: 0.2, master: 2.99 },
-    /* matriz: nota→PW — abajo pulso ancho (gordo), arriba estrecho (nasal):
-       el timbre cambia a lo largo del teclado, no solo el brillo */
+    /* matrix: note→PW — wide pulse (fat) at the bottom, narrow (nasal) at the top:
+       the timbre changes across the keyboard, not just the brightness */
     'Chameleon Bass (note→PW)': { waveA: 'square', waveB: 'square', pulseWidth: 0.35, levelA: 0.65, levelB: 0.35,
       cutoff: 900, reso: 3, keytrack: 0.3, filterEnvAmt: 1500,
       mx1src: 'note', mx1dst: 'pw', mx1amt: -0.35,
@@ -49,8 +49,8 @@ export const FACTORY = {
   },
 
   'Leads': {
-    /* LFO S&H: el filtro salta a un valor aleatorio en cada paso del LFO (6 Hz) —
-       el «random» rítmico del techno; el eco a corcheas engancha los escalones */
+    /* S&H LFO: the filter jumps to a random value on every LFO step (6 Hz) —
+       techno's rhythmic «random»; the eighth-note echo locks onto the steps */
     'S&H Lead (random filter)': { waveA: 'sawtooth', waveB: 'square', levelA: 0.7, levelB: 0.3, cutoff: 900, reso: 8,
       cutLfoShape: 'sh', cutLfoLvl: 700, cutLfoSpd: 6, filterEnvAmt: 800, a: 0.005, d: 0.2, s: 0.7, r: 0.15,
       dlyAmt: 0.25, dlySync: '1/8', bpm: 120, master: 1.45 },
@@ -69,8 +69,8 @@ export const FACTORY = {
       detuneB: 5, levelA: 0.5, levelB: 0.5, cutoff: 2890, reso: 2, a: 0.02, d: 0.2, s: 0.8, r: 0.3, width: 0.3, reverbMix: 0.15, master: 1 },
     'Vibrato Flute': { waveA: 'sine', waveB: 'triangle', levelA: 0.6, levelB: 0.4, freqLfoLvl: 18, freqLfoSpd: 5.5,
       cutoff: 2890, a: 0.08, d: 0.1, s: 0.9, r: 0.2, reverbMix: 0.28, width: 0.2, master: 1.35 },
-    /* matriz: el MISMO LFO hace el vibrato (ruta dedicada) y abre el filtro
-       (ruta de matriz, crudo): wah y pitch en fase, como la mano de un guitarrista */
+    /* matrix: the SAME LFO does the vibrato (dedicated route) and opens the filter
+       (matrix route, raw): wah and pitch in phase, like a guitarist's hand */
     'Vibrato Wah': { waveA: 'sawtooth', waveB: 'square', detuneB: 8, levelA: 0.6, levelB: 0.4,
       freqLfoLvl: 25, freqLfoSpd: 5, lfoFade: 0.5,
       cutoff: 1600, reso: 4, mx1src: 'lfoFreq', mx1dst: 'cutoff', mx1amt: 0.25,
@@ -78,18 +78,18 @@ export const FACTORY = {
   },
 
   'Pads': {
-    /* A4 · notch: LP + HP en paralelo (cero exacto en el corte) barrido por el
-       LFO — un phaser de una sola muesca; compáralo con Low↔Hi al 50 %, que es
-       el mismo notch a −6 dB */
-    /* LFO deriva: el cutoff y la afinación vagan despacio sin repetirse (random
-       suavizado): el pad respira en vez de oscilar */
+    /* A4 · notch: LP + HP in parallel (exact zero at the cutoff) swept by the
+       LFO — a single-notch phaser; compare it with Low↔Hi at 50 %, which is
+       the same notch at −6 dB */
+    /* drift LFO: the cutoff and the tuning wander slowly without repeating (smoothed
+       random): the pad breathes instead of oscillating */
     'Breathing Pad (drift)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octavesB: 2, levelA: 0.5, levelB: 0.5,
       cutoff: 1400, reso: 1.5, cutLfoShape: 'drift', cutLfoLvl: 600, cutLfoSpd: 0.3, freqLfoShape: 'drift', freqLfoLvl: 6, freqLfoSpd: 0.4,
       a: 0.7, d: 0.5, s: 0.85, r: 1.8, width: 0.5, chMode: 'ensemble', chAmt: 0.4, chSpd: 0.4, reverbMix: 0.35, master: 1.01 },
     'Phaser Pad (notch)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, levelA: 0.5, levelB: 0.5, cutoff: 1100, reso: 4,
       filterType: 'notch', cutLfoLvl: 700, cutLfoSpd: 0.25, a: 0.5, d: 0.5, s: 0.8, r: 1.2, width: 0.45, reverbMix: 0.25, master: 1.01 },
-    /* placa algorítmica (Dattorro): densidad que crece y tanque modulado —
-       pásalo a «Sala (IR)» para oír la diferencia: la cola de la placa respira */
+    /* algorithmic plate (Dattorro): growing density and a modulated tank —
+       switch it to «Hall (IR)» to hear the difference: the plate's tail breathes */
     'Plate Pad': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -8, detuneB: 10, octavesB: 2, levelA: 0.5, levelB: 0.5,
       cutoff: 1400, reso: 1.5, a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
       reverbType: 'plate', reverbMix: 0.4, reverbSize: 3.2, reverbDamp: 0.35, reverbPre: 0.02, master: 1.03 },
@@ -135,29 +135,29 @@ export const FACTORY = {
       chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3, freqLfoLvl: 6, freqLfoSpd: 5, lfoFade: 0.6,
       a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
       reverbMix: 0.32, reverbSize: 3, reverbDamp: 0.55, reverbPre: 0.03, master: 0.98 },
-    /* matriz: S&H→pitch (cada nota nace ±18 ct, poli analógico), env→cutoff
-       en octavas (exponencial), y el LFO de trémolo CRUDO paneando lento */
+    /* matrix: S&H→pitch (each note is born ±18 ct off, analog poly), env→cutoff
+       in octaves (exponential), and the RAW tremolo LFO panning slowly */
     'Matrix Pad': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 6, levelA: 0.5, levelB: 0.5,
       cutoff: 1400, reso: 1.5, a: 0.5, d: 0.5, s: 0.85, r: 1.6,
       mx1src: 'rnd', mx1dst: 'pitch', mx1amt: 0.015,
       mx2src: 'env', mx2dst: 'cutoff', mx2amt: 0.3,
       mx3src: 'lfoAmp', mx3dst: 'pan', mx3amt: 0.6, ampLfoSpd: 0.3,
       width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 0.95 },
-    /* tabla 'formant' + matriz env→wt: cada nota barre de vocal (el morph
-       cabalga la envolvente) — síntesis wavetable con la matriz cerrando el círculo */
+    /* 'formant' table + matrix env→wt: each note sweeps through vowels (the morph
+       rides the envelope) — wavetable synthesis with the matrix closing the circle */
     'Vowel Choir (wavetable)': { waveA: 'wavetable', waveB: 'wavetable', detuneA: -5, detuneB: 7, levelA: 0.5, levelB: 0.5,
       wtSet: 'formant', wtPos: 0.2, mx1src: 'env', mx1dst: 'wt', mx1amt: 0.5,
       cutoff: 4000, a: 0.8, d: 0.6, s: 0.8, r: 2.0, chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5,
       width: 0.6, reverbMix: 0.35, reverbSize: 3, master: 1.38 },
-    /* secuencia de tabla en loop: acorde MANTENIDO = groove tímbrico al BPM
-       (los '.' alargan pasos: ritmo desigual); cada voz desfasa su frase */
+    /* looping wave sequence: a HELD chord = a timbral groove at the BPM
+       (the '.' lengthen steps: uneven rhythm); each voice offsets its phrase */
     'Wavestation Texture (ws)': { waveA: 'wavetable', waveB: 'wavetable', detuneA: -5, detuneB: 7, levelA: 0.5, levelB: 0.5,
       wtSet: 'metallic', wtPos: 0,
       wsOn: 'on', wsPat: '0 . 7 . 3 5 7 2', wsDiv: '1/16', wsXf: 0.3,
       cutoff: 5000, reso: 1, a: 0.15, d: 0.4, s: 0.85, r: 1.5,
       dlySync: '1/8', dlyAmt: 0.25, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 1.16 },
-    /* matriz: UN solo LFO lento (cutLFO crudo a 0.08 Hz, su Level a 0) movien-
-       do TRES destinos a la vez — filtro, pan y ±14 ct: deriva correlacionada */
+    /* matrix: ONE single slow LFO (raw cutLFO at 0.08 Hz, its Level at 0) mov-
+       ing THREE destinations at once — filter, pan and ±14 ct: correlated drift */
     'Organic Drift': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, levelA: 0.55, levelB: 0.45,
       cutoff: 1300, reso: 1.5, cutLfoSpd: 0.08,
       mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.35,
@@ -166,89 +166,89 @@ export const FACTORY = {
       a: 0.8, d: 0.5, s: 0.85, r: 2.0, width: 0.4, reverbMix: 0.3, reverbSize: 3, master: 0.96 },
   },
 
-  /* módulo Vocal (banco de formantes por voz): tres esquinas del espacio
-     robot ↔ humano — Q fina y formantes clavados = máquina; Q natural +
-     Vida (micro-deriva) + drift + vibrato con fade + aliento = coro */
-  /* Roadmap 5.0 «cinescape»: sonidos a la escala del paisaje — tiempos ×10
-     (ataques de 10 s, releases de 20-30 s, LFOs de minutos, salas de 20 s) y
-     octava por oscilador (−1 = suboscilador, −2 = sótano). La categoría crece
-     con cada bloque del roadmap. */
+  /* Vocal module (per-voice formant bank): three corners of the
+     robot ↔ human space — narrow Q and pinned formants = machine; natural Q +
+     Life (micro-drift) + drift + vibrato with fade + breath = choir */
+  /* Roadmap 5.0 «cinescape»: sounds at the scale of the landscape — times ×10
+     (10 s attacks, 20-30 s releases, LFOs of minutes, 20 s reverbs) and
+     octave per oscillator (−1 = sub-oscillator, −2 = basement). The category grows
+     with each block of the roadmap. */
   'Cinescape': {
-    /* bloque 1: 12 s de ataque, 25 s de release, env de filtro propia aún más
-       lenta (8 s) y deriva de cutoff a 0,02 Hz (una vuelta cada 50 s); B una
-       octava abajo ancla el grave. Mantén un acorde y espera: entra de la nada */
+    /* block 1: 12 s attack, 25 s release, its own filter env even slower
+       (8 s) and cutoff drift at 0.02 Hz (one turn every 50 s); B an
+       octave down anchors the low end. Hold a chord and wait: it comes in from nothing */
     'Glacial Pad (12 s attack)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -7, detuneB: 9, octB: -1, levelA: 0.55, levelB: 0.45,
       uniVoices: '3', uniDetune: 10, drift: 4, cutoff: 700, reso: 1.2, filterSlope: '24',
       fenvMode: 'own', filterEnvAmt: 900, fa: 8, fd: 6, fs: 0.5, fr: 20,
       cutLfoShape: 'drift', cutLfoLvl: 250, cutLfoSpd: 0.02,
       a: 12, d: 4, s: 1, r: 25, envCurve: 0.4, width: 0.6, chMode: 'ensemble', chAmt: 0.35, chSpd: 0.25,
       reverbType: 'plate', reverbMix: 0.5, reverbSize: 14, reverbDamp: 0.4, reverbPre: 0.06, master: 0.84 },
-    /* bloque 1: A dos octavas abajo (C3 → C1, 32 Hz) y B seno una abajo; mono con
-       glide de 3 s (la nota nueva RESBALA), filtro casi cerrado con deriva lenta */
+    /* block 1: A two octaves down (C3 → C1, 32 Hz) and B a sine one down; mono with
+       a 3 s glide (the new note SLIDES), filter almost closed with slow drift */
     'Basement Drone (−2 octaves)': { waveA: 'sawtooth', octA: -2, waveB: 'sine', octB: -1, levelA: 0.6, levelB: 0.4, drift: 6,
       cutoff: 420, reso: 3, filterSlope: '24', cutLfoShape: 'drift', cutLfoLvl: 200, cutLfoSpd: 0.03,
       mode: 'mono', glide: 3, a: 4, d: 2, s: 1, r: 12, envCurve: 0.3, width: 0, dist: 0.2,
       reverbType: 'plate', reverbMix: 0.35, reverbSize: 9, reverbDamp: 0.6, master: 1.83 },
-    /* bloque 2: Deriva (voz) → cutoff y → pan a 0,04 Hz, LFO de vibrato POR VOZ con
-       fade de 4 s — cuatro notas, cuatro vientos: cada una abre, cierra y se pasea
-       por el estéreo a su aire. Compáralo con LFO · fase global: el bloque respira */
+    /* block 2: Drift (voice) → cutoff and → pan at 0.04 Hz, PER-VOICE vibrato LFO with
+       a 4 s fade — four notes, four winds: each one opens, closes and strolls
+       across the stereo field at its own pace. Compare it with LFO · global phase: the block breathes */
     'Four Winds Pad (per-voice drift)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octB: -1, levelA: 0.55, levelB: 0.45,
       uniVoices: '2', uniDetune: 8, cutoff: 750, reso: 1.5, filterSlope: '24',
       mx1src: 'drift', mx1dst: 'cutoff', mx1amt: 0.4, mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.8, mxDriftSpd: 0.04,
       lfoPhase: 'voice', freqLfoLvl: 5, freqLfoSpd: 0.15, lfoFade: 4,
       a: 6, d: 3, s: 1, r: 15, envCurve: 0.4, width: 0.3, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'plate', reverbMix: 0.45, reverbSize: 12, reverbDamp: 0.4, reverbPre: 0.05, master: 0.76 },
-    /* bloque 3: shimmer — la cola vuelve a entrar en la placa una octava arriba en
-       cada vuelta y se convierte en un coro que asciende (Eno/Lanois). Toca una
-       nota grave, suéltala y escucha cómo sube sola; ❄ Freeze la deja ahí */
+    /* block 3: shimmer — the tail re-enters the plate an octave up on
+       every pass and turns into a rising choir (Eno/Lanois). Play a
+       low note, release it and hear it rise on its own; ❄ Freeze holds it there */
     'Shimmer Pad (rising choir)': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, octB: -1, levelA: 0.6, levelB: 0.4,
       cutoff: 1200, reso: 1, filterSlope: '24', drift: 3,
       a: 1.5, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'plate', reverbMix: 0.55, reverbSize: 8, reverbDamp: 0.3, reverbPre: 0.03, shimAmt: 0.7, shimInt: '+12', master: 0.99 },
-    /* bloque 4: fuentes de ejecución — la rueda (bajo el teclado o CC1) abre el
-       filtro dos octavas, la presión del teclado MIDI añade resonancia y el pedal
-       de expresión (CC11) apaga al pisar: el pad se TOCA durante la nota. En
-       reposo (todo a 0) es un pad oscuro y quieto */
+    /* block 4: performance sources — the wheel (below the keyboard or CC1) opens the
+       filter two octaves, the MIDI keyboard's pressure adds resonance and the expression
+       pedal (CC11) turns it down when pressed: the pad is PLAYED during the note. At
+       rest (all at 0) it is a dark, still pad */
     'Performance Pad (wheel, aftertouch, pedal)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, octB: -1, levelA: 0.55, levelB: 0.45,
       cutoff: 450, reso: 1.5, filterSlope: '24', lfoPhase: 'voice',
       mx1src: 'wheel', mx1dst: 'cutoff', mx1amt: 0.5, mx2src: 'at', mx2dst: 'reso', mx2amt: 0.6, mx3src: 'expr', mx3dst: 'amp', mx3amt: -0.8,
       mx4src: 'drift', mx4dst: 'pan', mx4amt: 0.5, mxDriftSpd: 0.05,
       a: 2, d: 2, s: 1, r: 8, envCurve: 0.3, width: 0.4, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.3,
       reverbType: 'plate', reverbMix: 0.4, reverbSize: 8, reverbDamp: 0.3, master: 0.96 },
-    /* bloque 7: cinta en el máster — saturación suave que pega la mezcla y wow que
-       hace vagar el tono de todo: el pegamento degradado de Arnalds y Frahm. Pon
-       los dos knobs de Cinta a 0 y compara: lo mismo suena «digital» */
+    /* block 7: tape on the master — soft saturation that glues the mix and wow that
+       makes the pitch of everything wander: the degraded glue of Arnalds and Frahm. Set
+       both Tape knobs to 0 and compare: the same thing sounds «digital» */
     'Tape Pad (nostalgia)': { waveA: 'sawtooth', waveB: 'triangle', detuneA: -5, detuneB: 7, octB: -1, levelA: 0.6, levelB: 0.4,
       cutoff: 900, reso: 1, filterSlope: '24', lfoPhase: 'voice', drift: 3,
       mx1src: 'drift', mx1dst: 'pan', mx1amt: 0.5, mxDriftSpd: 0.05,
       a: 1.2, d: 2, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.25, chSpd: 0.3,
       reverbType: 'plate', reverbMix: 0.4, reverbSize: 6, reverbDamp: 0.4, reverbPre: 0.03,
       tapeSat: 0.5, tapeWow: 0.5, master: 1.86 },
-    /* bloque 5: resonador modal excitado por RUIDO — seis modos de cuenco (1 · 2,76 ·
-       5,40…) afinados a la nota, Q alta: el cuenco tarda en cantar y sigue cantando.
-       Mantén la nota y espera; cada voz es un cuenco (deriva por voz en el pan) */
+    /* block 5: modal resonator excited by NOISE — six bowl modes (1 · 2.76 ·
+       5.40…) tuned to the note, high Q: the bowl takes a while to sing and keeps singing.
+       Hold the note and wait; each voice is a bowl (per-voice drift on the pan) */
     'Singing Bowl (noise + resonator)': { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, noiseColor: 0.2,
       resAmt: 1, resMat: 1, resDecay: 0.85, resBright: 0.45, cutoff: 9000, reso: 0.7, lfoPhase: 'voice',
       mx1src: 'drift', mx1dst: 'pan', mx1amt: 0.6, mxDriftSpd: 0.05,
       a: 1.5, d: 2, s: 1, r: 12, envCurve: 0.3, width: 0.3,
       reverbType: 'plate', reverbMix: 0.5, reverbSize: 10, reverbDamp: 0.3, reverbPre: 0.04, master: 0.53 },
-    /* bloque 5: sierra por un resonador a medio camino entre cuerda y barra (inarmónico
-       como un piano preparado), Q media y algo de ruido: metal que zumba */
+    /* block 5: a saw through a resonator halfway between string and bar (inharmonic
+       like a prepared piano), medium Q and some noise: humming metal */
     'Bowed Metal (saw + resonator)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octB: -1, levelA: 0.6, levelB: 0.4, noise: 0.25, noiseColor: -0.2,
       resAmt: 0.75, resMat: 0.55, resDecay: 0.6, resBright: 0.6, filterDrive: 0.25, cutoff: 2500, reso: 1, filterSlope: '24',
       a: 0.8, d: 1.5, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.2, chSpd: 0.3,
       reverbType: 'plate', reverbMix: 0.4, reverbSize: 7, reverbDamp: 0.4, master: 2.19 },
   },
 
-  /* Escalonados: el timbre moviéndose por PASOS con lo que ya hay (Roadmap 6.0,
-     exploración). Todos a 120 bpm, donde semicorchea = 8 Hz, corchea = 4 Hz y
-     tresillo de corchea = 6 Hz (los LFO van en Hz, no a tempo). Truco común: un
-     LFO CRUDO entra en la matriz aunque su knob Level esté a 0, así que los LFO
-     que no se usan para lo suyo (reso, PWM sin onda cuadrada…) son fuentes de
-     pasos extra, cada una a su velocidad. Mantén una nota o un acorde. */
+  /* Stepped: the timbre moving in STEPS with what is already there (Roadmap 6.0,
+     exploration). All at 120 bpm, where a sixteenth = 8 Hz, an eighth = 4 Hz and
+     an eighth-note triplet = 6 Hz (the LFOs run in Hz, not in tempo). Common trick: a
+     RAW LFO enters the matrix even if its Level knob is at 0, so the LFOs
+     not used for their own job (reso, PWM without a square wave…) are extra
+     step sources, each at its own speed. Hold a note or a chord. */
   'Stepped': {
-    /* UN S&H a corcheas mueve a la vez cutoff, resonancia y pan: cada paso es
-       un color y un sitio nuevos (la «computadora» de las pelis de los 70) */
+    /* ONE S&H in eighths moves cutoff, resonance and pan at once: each step is
+       a new color and a new place (the «computer» of 70s movies) */
     'One S&H, Three Targets': { waveA: 'sawtooth', waveB: 'square', detuneB: 5, pulseWidth: 0.35, levelA: 0.65, levelB: 0.35,
       cutoff: 1100, reso: 6, filterSlope: '24',
       cutLfoShape: 'sh', cutLfoSpd: 4,
@@ -256,10 +256,10 @@ export const FACTORY = {
       mx3src: 'lfoCut', mx3dst: 'pan', mx3amt: 0.7,
       a: 0.01, d: 0.4, s: 0.85, r: 0.8, bpm: 120, dlyAmt: 0.3, dlySync: '1/8.', dlyDamp: 0.4,
       reverbType: 'plate', reverbMix: 0.25, reverbSize: 3, master: 0.67 },
-    /* tres capas a tres velocidades: la secuencia de tabla cambia de timbre a
-       semicorcheas (patrón escrito), el filtro salta al azar a corcheas (S&H) y
-       una puerta cuadrada va en tresillos (el LFO de trémolo, crudo, a la
-       amplitud): 4 contra 3. En un acorde, cada voz arranca su frase en su nota */
+    /* three layers at three speeds: the wave sequence changes timbre in
+       sixteenths (written pattern), the filter jumps at random in eighths (S&H) and
+       a square gate runs in triplets (the tremolo LFO, raw, to the
+       amplitude): 4 against 3. In a chord, each voice starts its phrase on its own note */
     'Table, Filter and Gate (16 · 8 · triplet)': { waveA: 'wavetable', waveB: 'wavetable', detuneA: -6, detuneB: 6, levelA: 0.5, levelB: 0.5,
       wtSet: 'formant', wtPos: 0, wsOn: 'on', wsPat: '0 3 7 1 5 2 6 4', wsDiv: '1/16', wsXf: 0.1,
       cutoff: 2200, reso: 3, filterSlope: '24',
@@ -267,12 +267,12 @@ export const FACTORY = {
       mx1src: 'lfoCut', mx1dst: 'cutoff', mx1amt: 0.3, mx2src: 'lfoAmp', mx2dst: 'amp', mx2amt: 0.6,
       a: 0.02, d: 0.5, s: 0.9, r: 1.2, width: 0.5, bpm: 120, dlyAmt: 0.3, dlySync: '1/8.', dlyDamp: 0.3,
       reverbType: 'plate', reverbMix: 0.3, reverbSize: 3.5, master: 0.59 },
-    /* tres LFO CUADRADOS a 1, 2 y 4 Hz sumados en el cutoff con pesos 4:2:1 son
-       un contador binario: ocho escalones de ~400 cents (la cuadrada nativa
-       vale ±0,849, ver la Melodía) que se repiten cada segundo (dos tiempos a
-       120). Recién creado el motor salen en escalera;
-       al cargarlo en vivo las fases de los LFO no se reinician y la escalera se
-       baraja — mismos ocho niveles, mismo ciclo, otro orden */
+    /* three SQUARE LFOs at 1, 2 and 4 Hz summed into the cutoff with weights 4:2:1 are
+       a binary counter: eight steps of ~400 cents (the native square
+       is worth ±0.849, see the Melody) that repeat every second (two beats at
+       120). With a freshly created engine they come out as a staircase;
+       when loaded live the LFO phases are not reset and the staircase gets
+       shuffled — same eight levels, same cycle, another order */
     'Eight-Step Stairs (3 square LFOs)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 8, levelA: 0.6, levelB: 0.4,
       cutoff: 1000, reso: 9, filterSlope: '24',
       cutLfoShape: 'square', cutLfoSpd: 1, resLfoShape: 'square', resLfoSpd: 2, pwmLfoShape: 'square', pwmLfoSpd: 4,
@@ -280,13 +280,13 @@ export const FACTORY = {
       mx3src: 'lfoPwm', mx3dst: 'cutoff', mx3amt: 0.05,
       a: 0.01, d: 0.3, s: 0.9, r: 0.8, bpm: 120, dlyAmt: 0.25, dlySync: '1/8',
       reverbType: 'plate', reverbMix: 0.25, reverbSize: 2.5, master: 0.55 },
-    /* el mismo contador, al PITCH: 400 + 200 + 100 cents → ocho notas a tono
-       entero (con +100 ct de afinación caen en la escala de tonos enteros de
-       la nota), una por corchea; el LFO de trémolo cuadrado a 8 Hz articula
-       las semicorcheas. Una melodía que nadie ha escrito: la tocan los LFO.
-       Ojo a los pesos (0,3926 y no 1/3): la cuadrada NATIVA del navegador está
-       limitada en banda y normaliza a 1 el pico de Gibbs, así que su meseta
-       vale ±0,849 — con 1/3 los tonos enteros salían de 170 cents (medido) */
+    /* the same counter, on PITCH: 400 + 200 + 100 cents → eight notes a whole
+       tone apart (with +100 ct of tuning they fall on the note's whole-tone
+       scale), one per eighth; the square tremolo LFO at 8 Hz articulates
+       the sixteenths. A melody nobody has written: the LFOs play it.
+       Mind the weights (0.3926 and not 1/3): the browser's NATIVE square is
+       band-limited and normalizes the Gibbs peak to 1, so its plateau
+       is worth ±0.849 — with 1/3 the whole tones came out at 170 cents (measured) */
     'LFO Melody (whole tone)': { waveA: 'square', waveB: 'triangle', octB: 1, pulseWidth: 0.4, levelA: 0.7, levelB: 0.3,
       cutoff: 2400, reso: 4, freqCents: 100,
       cutLfoShape: 'square', cutLfoSpd: 1, resLfoShape: 'square', resLfoSpd: 2, pwmLfoShape: 'square', pwmLfoSpd: 4,
@@ -295,9 +295,9 @@ export const FACTORY = {
       mx3src: 'lfoPwm', mx3dst: 'pitch', mx3amt: 0.0981, mx4src: 'lfoAmp', mx4dst: 'amp', mx4amt: 0.75,
       a: 0.01, d: 0.2, s: 0.9, r: 0.5, bpm: 120, dlyAmt: 0.35, dlySync: '1/8.', dlyDamp: 0.4,
       reverbType: 'plate', reverbMix: 0.2, reverbSize: 2.5, master: 0.41 },
-    /* LFO POR VOZ en S&H: cada nota de un acorde salta por su cuenta — la vocal
-       (corcheas) y el sitio en el estéreo, y el filtro en tresillos. Mantén un
-       acorde de tres o cuatro notas: un coro de máquinas que habla a pasos */
+    /* PER-VOICE LFO in S&H: each note of a chord jumps on its own — the vowel
+       (eighths) and the place in the stereo field, and the filter in triplets. Hold a
+       chord of three or four notes: a choir of machines that talks in steps */
     'Talking Chord (per-voice S&H)': { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -5, detuneB: 6, levelA: 0.5, levelB: 0.5,
       cutoff: 3000, reso: 1.5, vocAmt: 0.85, vocVowel: 0.5, vocQ: 0.4, vocBright: 0.6,
       lfoPhase: 'voice', cutLfoShape: 'sh', cutLfoSpd: 4, resLfoShape: 'sh', resLfoSpd: 6,
@@ -305,12 +305,12 @@ export const FACTORY = {
       mx3src: 'lfoRes', mx3dst: 'cutoff', mx3amt: 0.25,
       a: 0.03, d: 0.5, s: 0.9, r: 1.5, width: 0.3, bpm: 120, dlyAmt: 0.25, dlySync: '1/8.',
       reverbType: 'plate', reverbMix: 0.35, reverbSize: 4, master: 0.91 },
-    /* la idea del «módulo de Pasos», a medias: cuatro ciclos de longitudes
-       distintas — cuadradas de 5, 6 y 8 semicorcheas (1,6 · 1,333 · 1 Hz) al
-       cutoff, a la vocal y al pan, y una frase de tabla de 16 — no vuelven a
-       coincidir hasta mcm(5, 6, 8, 16) = 240 semicorcheas: 30 s. Cada capa es
-       tonta y regular; juntas parecen no repetirse. (Aquí cada «carril» solo
-       tiene dos valores y no se puede escribir: eso es lo que añadiría Pasos) */
+    /* the idea of the «Steps module», halfway there: four cycles of different
+       lengths — squares of 5, 6 and 8 sixteenths (1.6 · 1.333 · 1 Hz) to the
+       cutoff, the vowel and the pan, and a wave phrase of 16 — they do not
+       line up again until lcm(5, 6, 8, 16) = 240 sixteenths: 30 s. Each layer is
+       dumb and regular; together they seem never to repeat. (Here each «lane» only
+       has two values and cannot be written: that is what Steps would add) */
     'Three Cycles, 30 s Around (5 · 6 · 8 · 16)': { waveA: 'wavetable', waveB: 'sawtooth', detuneB: 7, octB: -1, levelA: 0.65, levelB: 0.35,
       wtSet: 'metallic', wtPos: 0, wsOn: 'on', wsPat: '0 2 4 7 . 5 3 1 6 . 2 7 . 4 1 .', wsDiv: '1/16', wsXf: 0.2,
       cutoff: 1600, reso: 4, filterSlope: '24', vocAmt: 0.6, vocQ: 0.45,
@@ -327,8 +327,8 @@ export const FACTORY = {
       noise: 0.08, noiseColor: 0.5, drift: 3, cutoff: 4500, reso: 0.8,
       chMode: 'ensemble', chAmt: 0.55, chSpd: 0.5, freqLfoLvl: 8, freqLfoSpd: 5.2, lfoFade: 0.8,
       a: 0.5, d: 0.5, s: 0.85, r: 1.6, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 1.04 },
-    /* el LFO de cutoff CRUDO (Level 0) balbucea las vocales; sin vibrato,
-       sin drift, sin Vida: formantes congelados = máquina que habla */
+    /* the RAW cutoff LFO (Level 0) babbles the vowels; no vibrato,
+       no drift, no Life: frozen formants = a talking machine */
     'Talking Robot': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.45, levelA: 0.65, levelB: 0.35,
       vocAmt: 1, vocVowel: 0.5, vocQ: 0.05, vocLife: 0,
       cutLfoSpd: 1.3, mx1src: 'lfoCut', mx1dst: 'vow', mx1amt: 0.7,
@@ -338,18 +338,18 @@ export const FACTORY = {
       mx1src: 'rnd', mx1dst: 'vow', mx1amt: 1,
       drift: 2, cutoff: 4500, reso: 0.8, chMode: 'ensemble', chAmt: 0.4, chSpd: 0.5,
       a: 0.4, d: 0.5, s: 0.85, r: 1.4, width: 0.6, reverbMix: 0.3, reverbSize: 2.8, master: 1.31 },
-    /* la fuente CORRECTA: pulso glotal (set 'glottal') en vez de sierra;
-       env→wt = el esfuerzo vocal cabalga la envolvente (ataca prensado,
-       se relaja al sostener) + Brillo alto = solista que corta la mezcla */
+    /* the CORRECT source: glottal pulse (set 'glottal') instead of a saw;
+       env→wt = the vocal effort rides the envelope (attacks pressed,
+       relaxes while sustaining) + high Bright = a soloist that cuts through the mix */
     'Glottal Voice (effort)': { waveA: 'wavetable', wtSet: 'glottal', wtPos: 0.2, levelA: 1, levelB: 0,
       vocAmt: 0.85, vocVowel: 0.55, vocQ: 0.6, vocLife: 0.5, vocBright: 0.75,
       mx1src: 'env', mx1dst: 'wt', mx1amt: 0.6,
       freqLfoLvl: 9, freqLfoSpd: 5.2, lfoFade: 0.6, drift: 2, cutoff: 5000, reso: 0.8,
       a: 0.15, d: 0.4, s: 0.8, r: 0.9, width: 0.4, reverbMix: 0.25, master: 2.15 },
-    /* la receta calibrada DE OÍDO (2026-08-18): el Golpe con sentido vive
-       BAJO (~0.12 — más arriba degenera en percusión); la consonante la
-       redondean el ruido con color y una pizca de drive. Ataque rápido:
-       cada nota silabiza «ka» (cambia la vocal y cambia la consonante) */
+    /* the recipe calibrated BY EAR (2026-08-18): a meaningful Bite lives
+       LOW (~0.12 — higher up it degenerates into percussion); the consonant is
+       rounded off by colored noise and a pinch of drive. Fast attack:
+       each note syllabifies «ka» (the vowel changes and so does the consonant) */
     'Vocal Percussion (ka)': { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.4, levelA: 0.7, levelB: 0.3,
       vocAmt: 1, vocVowel: 0.5, vocQ: 0.45, vocAtk: 0.12, vocBright: 0.6,
       noise: 0.12, noiseColor: 0.35, dist: 0.18,
@@ -368,25 +368,25 @@ export const FACTORY = {
       filterEnvAmt: 2000, a: 0.003, d: 0.5, s: 0.25, r: 0.3, width: 0.3, reverbMix: 0.2, master: 1.55 },
     'Supersaw Pluck': { waveA: 'supersaw', spread: 0.6, levelA: 0.8, levelB: 0.2, cutoff: 1260, reso: 3, filterEnvAmt: 3000,
       a: 0.002, d: 0.25, s: 0.1, r: 0.2, width: 0.5, reverbMix: 0.25, dlyAmt: 0.25, master: 0.89 },
-    /* matriz: vel→cutoff en octavas — tocar fuerte ABRE el filtro (con teclado
-       MIDI: la dinámica es timbre, no solo volumen; base grave a propósito) */
+    /* matrix: vel→cutoff in octaves — playing hard OPENS the filter (with a MIDI
+       keyboard: dynamics are timbre, not only volume; low base on purpose) */
     'Touch Keys (vel→filter)': { waveA: 'sine', waveB: 'triangle', levelA: 0.4675, levelB: 0.3825, ring: 0.15,
       cutoff: 800, filterEnvAmt: 800, mx1src: 'vel', mx1dst: 'cutoff', mx1amt: 0.55,
       a: 0.003, d: 0.5, s: 0.25, r: 0.3, width: 0.3, reverbMix: 0.2, master: 1.55 },
-    /* tabla 'metallic' + S&H→wt y →pan: cada campana con su mezcla de
-       parciales y su sitio en el estéreo */
+    /* 'metallic' table + S&H→wt and →pan: each bell with its own mix of
+       partials and its own place in the stereo field */
     'Wavetable Bells (S&H)': { waveA: 'wavetable', levelA: 1, levelB: 0, wtSet: 'metallic', wtPos: 0.3,
       mx1src: 'rnd', mx1dst: 'wt', mx1amt: 0.35, mx2src: 'rnd', mx2dst: 'pan', mx2amt: 0.7,
       a: 0.002, d: 1.4, s: 0.0, r: 1.0, dlyAmt: 0.25, dlyTime: 0.4,
       width: 0.4, reverbMix: 0.35, master: 1 },
-    /* secuencia 1shot rapidísima: arranca en el frame brillante y se asienta
-       en el suave — "sample de ataque + synth de cuerpo", el truco del D-50 */
+    /* very fast 1shot sequence: starts on the bright frame and settles
+       on the soft one — "attack sample + synth body", the D-50 trick */
     'Digital Attack (1shot)': { waveA: 'wavetable', levelA: 1, levelB: 0, wtSet: 'analog', wtPos: 1,
       wsOn: 'on', wsMode: '1shot', wsPat: '7 5 1', wsDiv: '1/16', wsXf: 1,
       cutoff: 3500, reso: 1.5, a: 0.003, d: 0.5, s: 0.55, r: 0.3,
       dlyAmt: 0.2, dlyTime: 0.3, width: 0.3, reverbMix: 0.2, master: 1.27 },
-    /* matriz: S&H→cutoff y →pan — cada nota sale con un color y un sitio
-       distintos (correlacionados: la MISMA tirada por voz); brutal con el arp */
+    /* matrix: S&H→cutoff and →pan — each note comes out with a different color and
+       place (correlated: the SAME roll per voice); brutal with the arp */
     'Lottery Pluck (S&H)': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.3, levelA: 0.6, levelB: 0.4,
       cutoff: 700, reso: 5, filterEnvAmt: 1800,
       mx1src: 'rnd', mx1dst: 'cutoff', mx1amt: 0.35,
@@ -394,11 +394,11 @@ export const FACTORY = {
       a: 0.002, d: 0.2, s: 0.0, r: 0.15, dlyAmt: 0.3, dlyTime: 0.4, width: 0.2, master: 0.99 },
   },
 
-  /* Cuerdas (Roadmap 7.0 · 3.3): la onda «Cuerda» (Karplus-Strong). Envolvente en
-     puerta (sustain 1): la cuerda se apaga sola con su Decay; el release es la mano
-     que la apaga al soltar. Master medido por el PICO del rasgueo (−3 dBFS), no por
-     la sonoridad media: una púa es casi todo ataque, y llevarla a −14 LUFS haría que
-     el limitador se comiera el golpe. */
+  /* Plucked Strings (Roadmap 7.0 · 3.3): the «String» wave (Karplus-Strong). Envelope as a
+     gate (sustain 1): the string dies away on its own with its Decay; the release is the hand
+     that mutes it when the key is let go. Master measured by the PEAK of the strum (−3 dBFS),
+     not by average loudness: a pick is almost all attack, and bringing it to −14 LUFS would
+     make the limiter eat the hit. */
   'Plucked Strings': {
     'Nylon Guitar': { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.3, strDecay: 2.5, strPos: 0.18,
       cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.35, reverbMix: 0.2, width: 0.3, master: 1.76 },
@@ -443,46 +443,46 @@ export const FACTORY = {
       cutoff: 2890, a: 0.7, d: 0.6, s: 0.8, r: 2.0, width: 0.6, reverbMix: 0.4, reverbSize: 3, master: 0.51 },
     'Sci-Fi FM': { waveA: 'sine', waveB: 'sine', levelA: 0.5, levelB: 0.5, fmRatio: 5.7, fmIndex: 6,
       cutLfoLvl: 2000, cutLfoSpd: 0.18, a: 0.6, d: 0.6, s: 0.85, r: 2.0, dlyAmt: 0.3, dlyTime: 0.6, width: 0.5, reverbMix: 0.4, master: 0.76 },
-    /* matriz → FM índice: el índice CABALGA la envolvente (env = el ADSR de amp
-       en modo «= Amp»): ataque brillante que se apaga con la nota — la campana
-       y el pluck del DX7, imposibles con índice fijo */
+    /* matrix → FM index: the index RIDES the envelope (env = the amp ADSR
+       in «follow Amp Env» mode): a bright attack that fades with the note — the DX7's
+       bell and pluck, impossible with a fixed index */
     'DX Bell (env→FM)': { waveA: 'sine', waveB: 'sine', detuneB: 5, levelA: 0.6, levelB: 0.4, fmRatio: 3.5, fmIndex: 0.6,
       mx1src: 'env', mx1dst: 'fm', mx1amt: 0.5,
       a: 0.002, d: 1.8, s: 0.0, r: 1.2, dlyAmt: 0.2, dlyTime: 0.35, width: 0.45, reverbMix: 0.35, reverbSize: 2.8, master: 0.8 },
-    /* velocity → FM índice: pegar fuerte abre el timbre, no solo el volumen (el
-       tacto del DX7); un env→FM corto (env propia, 120 ms) pone el «tine» del ataque */
+    /* velocity → FM index: hitting hard opens the timbre, not only the volume (the
+       DX7's touch); a short env→FM (own env, 120 ms) adds the attack's «tine» */
     'DX E-Piano (vel→FM)': { waveA: 'sine', waveB: 'sine', levelA: 0.6, levelB: 0.4, fmRatio: 1, fmIndex: 0.5,
       mx1src: 'vel', mx1dst: 'fm', mx1amt: 0.2, mx2src: 'env', mx2dst: 'fm', mx2amt: 0.15,
       fenvMode: 'own', fa: 0.002, fd: 0.12, fs: 0.0, fr: 0.2,
       a: 0.002, d: 0.9, s: 0.25, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.3, reverbMix: 0.22, master: 0.65 },
-    /* feedback del modulador: su seno se vuelve sierra y el brass gana mordiente */
+    /* modulator feedback: its sine turns into a saw and the brass gains bite */
     'FM Brass (feedback)': { waveA: 'sine', waveB: 'sine', detuneB: 7, levelA: 0.5, levelB: 0.5, fmRatio: 1, fmIndex: 1.2, fmFb: 0.45,
       mx1src: 'env', mx1dst: 'fm', mx1amt: 0.25,
       a: 0.06, d: 0.3, s: 0.7, r: 0.25, width: 0.35, reverbMix: 0.2, master: 0.87 },
   },
 
   'FM4': {
-    /* pila 4→3→2→1: los moduladores altos decaen rápido (ataque con mordiente),
-       el 2 se queda (cuerpo brass); feedback en el 4 */
+    /* stack 4→3→2→1: the high modulators decay fast (an attack with bite),
+       op 2 stays (brass body); feedback on op 4 */
     'FM4 · Stacked Brass': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '0', fmFb: 0.3,
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.55, fm4D2: 4, fm4R3: 1, fm4L3: 0.35, fm4D3: 0.4, fm4R4: 1, fm4L4: 0.3, fm4D4: 0.18,
       cutoff: 9000, a: 0.05, d: 0.3, s: 0.8, r: 0.3, width: 0.3, reverbMix: 0.18, master: 0.66 },
-    /* dos pares: 2→1 es el cuerpo (ratio 1 con modulador 14 = el «tine»), 4→3 el golpe;
-       los dos moduladores con sensibilidad a la velocity: tocado suave es redondo,
-       fuerte saca el tine y el gruñido (a velocity 1 suena como antes) */
+    /* two pairs: 2→1 is the body (ratio 1 with modulator 14 = the «tine»), 4→3 the hit;
+       both modulators with velocity sensitivity: played soft it is round,
+       hard brings out the tine and the growl (at velocity 1 it sounds as before) */
     'FM4 · Paired E-Piano': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '1',
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 14, fm4L2: 0.12, fm4D2: 0.1, fm4R3: 1, fm4L3: 0.7, fm4D3: 4, fm4R4: 1, fm4L4: 0.35, fm4D4: 0.6,
       fm4V2: 0.8, fm4V4: 0.7,
       cutoff: 9000, a: 0.002, d: 1.0, s: 0.2, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.35, reverbMix: 0.22, master: 0.8 },
-    /* tres moduladores en paralelo con ratios no enteros: espectro inarmónico denso */
+    /* three modulators in parallel with non-integer ratios: dense inharmonic spectrum */
     'FM4 · Dense Bell': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '2',
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 3.5, fm4L2: 0.45, fm4D2: 1.2, fm4R3: 5.19, fm4L3: 0.3, fm4D3: 0.8, fm4R4: 7.3, fm4L4: 0.2, fm4D4: 0.5,
       cutoff: 12000, a: 0.002, d: 2.2, s: 0, r: 1.6, dlyAmt: 0.2, dlySync: '1/4.', width: 0.5, reverbMix: 0.35, reverbSize: 2.8, master: 0.5 },
-    /* bombo FM: modulador 2 con decay de 30 ms = el «clic», pitch env = el cuerpo */
+    /* FM kick: modulator 2 with a 30 ms decay = the «click», pitch env = the body */
     'FM4 · Kick': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '0',
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
       pitchEnvAmt: 1800, pitchEnvDec: 0.05, cutoff: 800, envCurve: 1, a: 0, d: 0.5, s: 0, r: 0.3, dist: 0.2, master: 1.48 },
-    /* aditivo con feedback a tope en el 4: ruido metálico; ratios altos no enteros + paso-alto = hat */
+    /* additive with full feedback on op 4: metallic noise; high non-integer ratios + high-pass = hat */
     'FM4 · Hat': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fmFb: 1,
       fm4R1: 5.7, fm4L1: 0.5, fm4D1: 0.06, fm4R2: 8.3, fm4L2: 0.5, fm4D2: 0.05, fm4R3: 11.1, fm4L3: 0.4, fm4D3: 0.08, fm4R4: 6.9, fm4L4: 0.6, fm4D4: 0.07,
       cutoff: 7000, morph: 1, a: 0, d: 0.09, s: 0, r: 0.06, width: 0.25, master: 3.18 },
@@ -495,34 +495,34 @@ export const FACTORY = {
       cutoff: 5770, reso: 1, a: 0.005, d: 0.05, s: 1.0, r: 0.1, width: 0.3, master: 0.69 },
     'Church Organ': { waveA: 'sine', waveB: 'sine', octavesA: 2, octavesB: 3, detuneB: 4, levelA: 0.5, levelB: 0.5,
       cutoff: 7100, a: 0.05, d: 0.1, s: 1.0, r: 0.4, width: 0.4, reverbMix: 0.45, reverbSize: 3.5, master: 1.04 },
-    /* tabla 'organ': morph = tirar de drawbars (de flauta a pleno) */
+    /* 'organ' table: morph = pulling out drawbars (from flute to full) */
     'Wavetable Organ': { waveA: 'wavetable', waveB: 'wavetable', octavesB: 2, detuneB: 4, levelA: 0.65, levelB: 0.35,
       wtSet: 'organ', wtPos: 0.75, cutoff: 7100, a: 0.01, d: 0.05, s: 1.0, r: 0.15,
       width: 0.3, reverbMix: 0.2, master: 0.94 },
   },
 
-  /* Percusión: un kit 808/909 sintético a propósito — así sonaban las cajas de
-     ritmos: bombo = seno con caída de pitch; caja = cuerpo tonal corto + ruido;
-     platos = FM caótica + ruido por paso-alto. Casi todos llevan Curva 1: un
-     parche real es un resonador amortiguado y decae exponencialmente desde el
-     primer instante; con rampas rectas el sonido se queda en meseta y se corta
-     (sonaba a nota con puerta, no a golpe). Pensados para tocarse en la octava
-     de C3 (la del selftest); el teclado transpone. */
+  /* Percussion: a deliberately synthetic 808/909 kit — that is how drum machines
+     sounded: kick = sine with a pitch drop; snare = short tonal body + noise;
+     cymbals = chaotic FM + high-passed noise. Almost all of them use Curve 1: a
+     real drumhead is a damped resonator and decays exponentially from the
+     first instant; with straight ramps the sound plateaus and then gets cut off
+     (it sounded like a gated note, not a hit). Meant to be played in the octave
+     of C3 (the selftest's); the keyboard transposes. */
   'Percussion': {
-    /* lo que hace «golpe» es una ENVOLVENTE DE BRILLO: los primeros 30 ms ricos en
-       armónicos (el parche excitado) y enseguida solo el seno (el cuerpo). Aquí la
-       pone el operador 2 del FM4: ratio 1 con decay de 30 ms = armónicos de sierra
-       que se apagan; el 3 (ratio 0,5, 20 ms) es el sub-clic. Blip de pitch corto
-       (700 ct en 40 ms, el de la 808 es pequeño) y caída exponencial. Hasta
-       2026-10-01 era un seno con barrido de 1800 ct y caída lineal: a cualquier
-       octava sonaba a bajo con puerta, no a bombo (elegido a oído entre siete
-       candidatos renderizados) */
+    /* what makes the «hit» is a BRIGHTNESS ENVELOPE: the first 30 ms rich in
+       harmonics (the excited drumhead) and right away only the sine (the body). Here
+       FM4's operator 2 provides it: ratio 1 with a 30 ms decay = saw harmonics
+       that die out; op 3 (ratio 0.5, 20 ms) is the sub-click. Short pitch blip
+       (700 ct in 40 ms, the 808's is small) and exponential drop. Until
+       2026-10-01 it was a sine with an 1800 ct sweep and a linear drop: at any
+       octave it sounded like a gated bass, not a kick (picked by ear among seven
+       rendered candidates) */
     '808 Kick': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '0',
       fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
       pitchEnvAmt: 700, pitchEnvDec: 0.04, cutoff: 2500, envCurve: 1,
       a: 0, d: 0.55, s: 0.0, r: 0.3, dist: 0.3, master: 2.02 },
-    /* 909: el clic es el triángulo B + un soplo de ruido con aire; el drive por voz
-       (tanh antes del filtro) aprieta el cuerpo; barrido de pitch más largo que el 808 */
+    /* 909: the click is triangle B + a breath of airy noise; the per-voice drive
+       (tanh before the filter) tightens the body; a longer pitch sweep than the 808's */
     '909 Kick': { waveA: 'sine', waveB: 'triangle', levelA: 0.8, levelB: 0.2, noise: 0.12, noiseColor: 0.5,
       pitchEnvAmt: 1000, pitchEnvDec: 0.07, cutoff: 2200, filterDrive: 0.3, dist: 0.4,
       envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.3, amplitude: 1, master: 2.37 },
@@ -531,61 +531,61 @@ export const FACTORY = {
     'Zap Snare': { waveA: 'triangle', levelA: 1, levelB: 0, noise: 0.7, pitchEnvAmt: 1200, pitchEnvDec: 0.04,
       cutoff: 2890, morph: 0.35, filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.1, fs: 0.0,
       envCurve: 1, a: 0, d: 0.25, s: 0.0, r: 0.12, amplitude: 1, master: 2.37 },
-    /* la 808: dos senos a 180 y 330 Hz (relación 1,83 — no es una octava, por eso
-       van como portadoras del FM4 aditivo: ratios 1,38 y 2,52 sobre C3) que mueren
-       en ~100 ms por su decay de operador, + ruido con mucho aire que dura más y cae
-       exponencialmente (el ADSR con Curva 1: con rampas rectas el ruido aguantaba
-       150 ms plano y sonaba a «shhh» con puerta; elegido a oído, 2026-10-01) */
+    /* the 808: two sines at 180 and 330 Hz (ratio 1.83 — not an octave, which is why
+       they go as carriers of the additive FM4: ratios 1.38 and 2.52 over C3) that die
+       in ~100 ms through their operator decay, + very airy noise that lasts longer and falls
+       exponentially (the ADSR with Curve 1: with straight ramps the noise held
+       150 ms flat and sounded like a gated «shhh»; picked by ear, 2026-10-01) */
     '808 Snare': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
       fm4R1: 1.38, fm4L1: 1, fm4D1: 0.11, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 2.52, fm4L3: 0.6, fm4D3: 0.07, fm4R4: 1, fm4L4: 0, fm4D4: 4,
       noise: 1, noiseColor: 0.7, pitchEnvAmt: 400, pitchEnvDec: 0.03, cutoff: 12000, reso: 1,
       envCurve: 1, a: 0, d: 0.3, s: 0.0, r: 0.15, dist: 0.1, reverbMix: 0.1, reverbSize: 0.8, master: 1.38 },
-    /* clap 808: no es un golpe de ruido — son tres ráfagas a ~11 ms (Flam) y luego
-       la cola, todo por un paso-banda a ~1,3 kHz (que se come casi toda la energía
-       del ruido: de ahí amplitude y master a tope y algo de distorsión, que además
-       le da el grano de la 808); al seno de A lo quita el propio BP (130 Hz queda
-       tres octavas por debajo del corte) */
+    /* 808 clap: it is not a single noise hit — it is three bursts ~11 ms apart (Flam) and then
+       the tail, all through a band-pass at ~1.3 kHz (which eats almost all the noise's
+       energy: hence amplitude and master at full and some distortion, which also
+       gives it the 808's grain); A's sine is removed by the BP itself (130 Hz sits
+       three octaves below the cutoff) */
     '808 Clap': { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, noiseColor: 0.1, filterType: 'bp', cutoff: 1300, reso: 2.5,
       hits: 3, hitGap: 0.011, a: 0, d: 0.28, s: 0.0, r: 0.12, envCurve: 0.6, dist: 0.35,
       reverbMix: 0.15, reverbSize: 0.9, width: 0.3, amplitude: 1, master: 2.37 },
-    /* rimshot 909: un «ping» — paso-banda resonante que la envolvente del filtro
-       barre en 30 ms, sobre un triángulo con caída de pitch brusca y ruido; la
-       distorsión pone el chasquido */
+    /* 909 rimshot: a «ping» — a resonant band-pass that the filter envelope
+       sweeps in 30 ms, over a triangle with an abrupt pitch drop and noise; the
+       distortion adds the snap */
     '909 Rimshot': { waveA: 'triangle', levelA: 1, levelB: 0, noise: 0.8, noiseColor: 0.5, pitchEnvAmt: 1200, pitchEnvDec: 0.012,
       filterType: 'bp', cutoff: 1700, reso: 5, filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.03, fs: 0.0, fr: 0.05,
       envCurve: 1, a: 0, d: 0.1, s: 0.0, r: 0.06, filterDrive: 0.2, dist: 0.6, amplitude: 1, master: 2.37 },
-    /* cencerro 808: dos osciladores a 587 y 845 Hz (relación 1,44: ratios 4,49 y 6,46
-       sobre C3, portadoras aditivas); la 808 usa cuadradas por un paso-banda: aquí los
-       senos pasan por el drive (tanh), que les crea armónicos e intermodulación, y un
-       BP ancho a 1,2 kHz deja el cuerpo y se queda con el «clank» */
+    /* 808 cowbell: two oscillators at 587 and 845 Hz (ratio 1.44: ratios 4.49 and 6.46
+       over C3, additive carriers); the 808 uses squares through a band-pass: here the
+       sines go through the drive (tanh), which creates harmonics and intermodulation, and a
+       wide BP at 1.2 kHz drops the body and keeps the «clank» */
     '808 Cowbell': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
       fm4R1: 4.49, fm4L1: 1, fm4D1: 0.45, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 6.46, fm4L3: 1, fm4D3: 0.3, fm4R4: 1, fm4L4: 0, fm4D4: 4,
       filterDrive: 0.5, dist: 0.45, filterType: 'bp', cutoff: 1200, reso: 1.2,
       envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.2, width: 0.2, amplitude: 1, master: 2.37 },
-    /* hat abierto: el mismo hat FM (feedback a tope = ruido metálico) con el decay
-       largo y un poco de ruido con aire; el cerrado es «Hat FM (feedback)» */
+    /* open hat: the same FM hat (full feedback = metallic noise) with a long
+       decay and a bit of airy noise; the closed one is «FM Hat (feedback)» */
     'Open Hat': { waveA: 'sine', levelA: 1, levelB: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1, noise: 0.3, noiseColor: 0.8,
       cutoff: 7000, morph: 1, a: 0, d: 0.45, s: 0.0, r: 0.3, width: 0.25, master: 1.3 },
-    /* FM con feedback a tope: el modulador entra en caos = ruido metálico; ratio
-       no entero + paso-alto (morph 1) = hi-hat sin tocar el generador de ruido */
+    /* FM with full feedback: the modulator goes chaotic = metallic noise; non-integer
+       ratio + high-pass (morph 1) = hi-hat without touching the noise generator */
     'FM Hat (feedback)': { waveA: 'sine', levelA: 1, levelB: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1,
       cutoff: 6500, morph: 1, a: 0, d: 0.09, s: 0.0, r: 0.06, width: 0.2, master: 1.77 },
-    /* crash 909: cuatro portadoras aditivas con ratios no enteros y feedback a tope
-       en la 4 (caos = ruido metálico) que decaen en ~1 s, + ruido blanco con aire,
-       todo por paso-alto; un platillo real tiene miles de modos: esto suena a 909 */
+    /* 909 crash: four additive carriers with non-integer ratios and full feedback
+       on op 4 (chaos = metallic noise) that decay in ~1 s, + airy white noise,
+       all through a high-pass; a real cymbal has thousands of modes: this sounds like a 909 */
     '909 Crash': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fmFb: 1,
       fm4R1: 3.7, fm4L1: 0.5, fm4D1: 1.3, fm4R2: 5.3, fm4L2: 0.5, fm4D2: 1.0, fm4R3: 7.9, fm4L3: 0.4, fm4D3: 0.8, fm4R4: 4.1, fm4L4: 0.7, fm4D4: 1.1,
       noise: 0.55, noiseColor: 0.6, cutoff: 3500, morph: 1, envCurve: 1, a: 0, d: 2.0, s: 0.0, r: 1.2,
       reverbMix: 0.2, reverbSize: 2.0, width: 0.4, master: 1.3 },
-    /* ride 909: como el crash pero con un «ping» (portadora 1 a ratio 9, decay largo)
-       que sobrevive al chapoteo corto de las otras tres */
+    /* 909 ride: like the crash but with a «ping» (carrier 1 at ratio 9, long decay)
+       that outlives the short splash of the other three */
     '909 Ride': { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fmFb: 0.7,
       fm4R1: 9.0, fm4L1: 0.55, fm4D1: 1.4, fm4R2: 5.3, fm4L2: 0.3, fm4D2: 0.45, fm4R3: 7.9, fm4L3: 0.3, fm4D3: 0.35, fm4R4: 11.3, fm4L4: 0.5, fm4D4: 0.3,
       noise: 0.25, noiseColor: 0.7, cutoff: 4000, morph: 1, envCurve: 1, a: 0, d: 1.4, s: 0.0, r: 0.8,
       reverbMix: 0.12, reverbSize: 1.5, width: 0.3, amplitude: 1, master: 2.37 },
-    /* hit rave (el «orchestra hit» de los 90): sierra + cuadrada en unison ×3 con
-       pizca de ruido, envolvente de filtro propia que cierra en 250 ms, distorsión,
-       caída de pitch corta y sala pequeña */
+    /* rave hit (the 90s «orchestra hit»): saw + square in ×3 unison with a
+       pinch of noise, its own filter envelope closing in 250 ms, distortion,
+       a short pitch drop and a small room */
     'Rave Hit': { waveA: 'sawtooth', waveB: 'square', octavesB: 2, uniVoices: '3', uniDetune: 18, levelA: 0.5, levelB: 0.5, noise: 0.12,
       pitchEnvAmt: 200, pitchEnvDec: 0.08, cutoff: 1500, reso: 2, filterEnvAmt: 4500, fenvMode: 'own', fa: 0.001, fd: 0.25, fs: 0.0, fr: 0.2,
       envCurve: 1, a: 0, d: 0.6, s: 0.0, r: 0.3, dist: 0.3, reverbMix: 0.25, reverbSize: 1.2, width: 0.6, amplitude: 1, master: 2.13 },
@@ -604,9 +604,9 @@ export const FACTORY = {
   },
 
   'FX & Atmospheres': {
-    /* S&H por la MATRIZ al pitch (±720 ct, 5 saltos/s): una nota mantenida se
-       vuelve una melodía aleatoria — el ordenador de la nave; el Level del LFO
-       queda a 0: solo la matriz lo lee */
+    /* S&H through the MATRIX to pitch (±720 ct, 5 jumps/s): a held note
+       becomes a random melody — the spaceship's computer; the LFO's Level
+       stays at 0: only the matrix reads it */
     'S&H Bleeps (random pitch)': { waveA: 'square', waveB: 'sine', levelA: 0.6, levelB: 0.4, cutoff: 3000, reso: 2,
       freqLfoShape: 'sh', freqLfoSpd: 5, mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.6,
       a: 0.003, d: 0.1, s: 0.8, r: 0.2, dlyAmt: 0.35, dlySync: '1/8.', bpm: 120, reverbMix: 0.2, master: 1.03 },
@@ -624,9 +624,9 @@ export const FACTORY = {
       cutLfoLvl: 1000, cutLfoSpd: 2, cutLfoShape: 'square', dist: 0.25,
       dlyAmt: 0.35, dlySync: '1/8.', bpm: 140, panLfoLvl: 0.4, panLfoSpd: 0.8,
       a: 0.005, d: 0.3, s: 0.8, r: 0.2, master: 1.26 },
-    /* delay de cinta: el bucle pierde agudos en cada vuelta (Damp) y el wow
-       desafina un pelo cada repetición — el eco dub que un delay digital
-       limpio no da (a Damp 0 y Wow 0 es el ping-pong de siempre) */
+    /* tape delay: the loop loses highs on every pass (Damp) and the wow
+       detunes each repeat a hair — the dub echo that a clean digital
+       delay does not give (at Damp 0 and Wow 0 it is the usual ping-pong) */
     'Tape Dub': { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.4, detuneB: 5, levelA: 0.6, levelB: 0.4,
       cutoff: 1800, reso: 4, filterEnvAmt: 2200, a: 0.003, d: 0.18, s: 0, r: 0.25,
       dlyAmt: 0.6, dlySync: '1/4.', bpm: 90, dlyDamp: 0.65, dlyWow: 0.35,
@@ -634,19 +634,19 @@ export const FACTORY = {
   },
 };
 
-// Los nombres son únicos en todo el banco -> lookup plano.
+// Names are unique across the whole bank -> flat lookup.
 export function factoryPreset(name) {
   for (const cat in FACTORY) if (name in FACTORY[cat]) return FACTORY[cat][name];
   return null;
 }
 
-// ---------- presets de usuario (localStorage) ----------
-const LS_V1 = 'subsdj.presets.v1';       // v1: cutoff en posición 0..1 del slider
-const LS_V2 = 'subsdj.presets.v2';       // v2: espacio-motor
+// ---------- user presets (localStorage) ----------
+const LS_V1 = 'subsdj.presets.v1';       // v1: cutoff as slider position 0..1
+const LS_V2 = 'subsdj.presets.v2';       // v2: engine space
 
-// v1 -> v2: sólo cutoff cambia de espacio (posición 0..1 -> Hz). El resto de
-// claves ya coincidían con el espacio-motor. Idempotente (un cutoff en Hz
-// nunca es <= 1, y una posición nunca es > 1).
+// v1 -> v2: only cutoff changes space (position 0..1 -> Hz). The other
+// keys already matched engine space. Idempotent (a cutoff in Hz
+// is never <= 1, and a position is never > 1).
 export function migrateV1(p) {
   const q = { ...p };
   if (typeof q.cutoff === 'number' && q.cutoff <= 1) q.cutoff = Math.round(posToVal(PARAMS.cutoff, q.cutoff));
@@ -661,7 +661,7 @@ export function loadUser() {
     if (v1 && typeof v1 === 'object') {
       const out = {};
       for (const name in v1) out[name] = migrateV1(v1[name]);
-      localStorage.setItem(LS_V2, JSON.stringify(out));   // v1 se conserva como copia de seguridad
+      localStorage.setItem(LS_V2, JSON.stringify(out));   // v1 is kept as a backup copy
       return out;
     }
   } catch (e) {}

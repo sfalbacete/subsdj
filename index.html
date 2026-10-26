@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SubSDJ</title>
-<!-- Tarjeta al compartir el enlace (Open Graph: Facebook, LinkedIn, WhatsApp…; twitter:card para X).
-     La imagen va con URL ABSOLUTA (las redes no resuelven rutas relativas); el check «tarjeta
-     para redes» del selftest vigila que el fichero exista y mida lo que dicen width/height. -->
+<!-- Card shown when the link is shared (Open Graph: Facebook, LinkedIn, WhatsApp…; twitter:card for X).
+     The image goes with an ABSOLUTE URL (the networks don't resolve relative paths); the selftest's
+     «social card» check makes sure the file exists and measures what width/height say. -->
 <meta name="description" content="A synthesizer in your browser, built with the Web Audio API: subtractive, FM, wavetables, formants, resonators, effects, parts and generative music. Nothing to install.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SubSDJ">
@@ -24,8 +24,8 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<!-- VENTANA DE ENTRADA (ui/splash.js): modal sobre el instrumento apagado; ENTRAR (o Intro)
-     arranca el audio. Estática aquí para que esté desde el primer pintado. -->
+<!-- WELCOME WINDOW (ui/splash.js): modal over the dimmed instrument; ENTER (or the Enter key)
+     starts the audio. Static here so it is there from the first paint. -->
 <div id="splash">
   <div class="sp-card" role="dialog" aria-modal="true" aria-label="SubSDJ">
     <canvas id="splashFx"></canvas>
@@ -36,21 +36,21 @@
     <div class="sp-foot"><span><b>SubSDJ</b> <span id="spVer"></span> · <span id="spDate"></span></span><span class="sp-links"><a href="https://github.com/sfalbacete/subsdj" target="_blank" rel="noopener"><svg class="sp-gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>code</a><span>·</span><span>AGPL-3.0</span></span></div>
   </div>
 </div>
-<!-- EL INSTRUMENTO (ui/frame.js): un objeto de 1920 × 1000 px que se escala
-     entero para caber en la ventana; nada refluye, cada módulo tiene SIEMPRE
-     el mismo sitio. Cabecera + cuerpo (una pantalla por pestaña, cada una con
-     su panel fijo) + teclado.
-     PANELES: bandas (.band) de secciones (.panel) separadas por una línea de
-     serigrafía; las bandas siguen la señal de izquierda a derecha y de arriba
-     abajo. Las explicaciones viven en <div class="help"> (tooltip del «?» del
-     h2, ui/help.js): son el manual, nunca ocupan superficie.
-     MANDOS: .knob (grande .big / pequeño dentro de .ks), selector giratorio
-     (.seg.rot, ui/rotary.js), conmutador con LED (.seg.tog), fader vertical
-     (.slider.fader, ui/sliders.js). Los dos primeros son los <button> de un
-     .seg de siempre con otra cara: bindSeg y el registro no cambian.
-     COMPARTIDOS: Salida, Delay, Reverb y Cinta están en Diseño y en
-     Secuenciación; llevan data-slot y ui/screens.js los MUEVE al hueco
-     (data-slot-host) de la pantalla que se ve. -->
+<!-- THE INSTRUMENT (ui/frame.js): a 1920 × 1000 px object that is scaled
+     as a whole to fit the window; nothing reflows, every module ALWAYS has
+     the same place. Header + body (one screen per tab, each with
+     its fixed panel) + keyboard.
+     PANELS: bands (.band) of sections (.panel) separated by a screen-printed
+     line; the bands follow the signal from left to right and from top
+     to bottom. The explanations live in <div class="help"> (tooltip of the h2's «?»,
+     ui/help.js): they are the manual, they never take up surface.
+     CONTROLS: .knob (large .big / small inside .ks), rotary selector
+     (.seg.rot, ui/rotary.js), switch with LED (.seg.tog), vertical fader
+     (.slider.fader, ui/sliders.js). The first two are the <button>s of an
+     ordinary .seg with another face: bindSeg and the registry don't change.
+     SHARED: Output, Delay, Reverb and Tape are in Design and in
+     Sequencing; they carry data-slot and ui/screens.js MOVES them into the slot
+     (data-slot-host) of the screen being shown. -->
 <div id="inst">
 <header>
   <h1 id="aboutBtn" title="About SubSDJ">SubSDJ</h1>
@@ -102,10 +102,10 @@
     <span class="seg" id="partSel" hidden><button data-p="0" title="Edit part 1">1</button><button data-p="1" title="Edit part 2">2</button><button data-p="2" title="Edit part 3">3</button><button data-p="3" title="Edit part 4">4</button></span>
   </span>
   <select id="themeSel" title="Theme: the instrument's skin (colors and shapes; the window sets the size). Remembered."></select>
-  <!-- Estado en dos símbolos (ui/status.js pone la clase y el tooltip): audio
-       (apagado · esperando el primer gesto · activo · error) y MIDI (sin
-       aparato · conectado). Sin texto: el color cuenta el estado y el
-       tooltip lo explica. SVG con currentColor: toman el color del tema. -->
+  <!-- Status in two symbols (ui/status.js sets the class and the tooltip): audio
+       (off · waiting for the first gesture · active · error) and MIDI (no
+       device · connected). No text: the color tells the state and the
+       tooltip explains it. SVG with currentColor: they take the theme's color. -->
   <span id="status">
     <span id="powerInfo" class="st" title="loading audio…"><svg viewBox="0 0 16 16"><path d="M8 2.4v5.4"/><path d="M5.2 4.8a4.6 4.6 0 1 0 5.6 0"/></svg></span>
     <span id="midiInfo" class="st" title="no MIDI device"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3"/><circle class="pin" cx="11.5" cy="8" r="1.3"/><circle class="pin" cx="10.47" cy="10.47" r="1.3"/><circle class="pin" cx="8" cy="11.5" r="1.3"/><circle class="pin" cx="5.53" cy="10.47" r="1.3"/><circle class="pin" cx="4.5" cy="8" r="1.3"/></svg></span>
@@ -114,10 +114,10 @@
 
 <main id="screens">
 
-<!-- ===================== DISEÑO ===================== -->
+<!-- ===================== DESIGN ===================== -->
 <div class="screen" data-screen-body="diseno">
 
-<!-- BANDA 1 · FUENTE: los osciladores y sus motores (los que no aplican a la onda elegida se atenúan EN SU SITIO) -->
+<!-- BAND 1 · SOURCE: the oscillators and their engines (those that don't apply to the chosen wave are dimmed IN PLACE) -->
 <div class="band" id="bandFuente">
   <div class="panel osc">
     <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Hard sync: A restarts its cycle with every cycle of B. B sets the note (it can sit at level 0: it keeps time without sounding) and A's pitch becomes TIMBRE: sweep «Pitch A» from the matrix (Filter env, LFO, Steps, wheel, macro) for the classic screaming sync lead">sync</button></h2>
@@ -277,7 +277,7 @@
   </div>
 </div>
 
-<!-- BANDA 2 · CUERPO → FILTRO → ENVOLVENTES → VOZ → SALIDA (el orden del audio por voz) -->
+<!-- BAND 2 · BODY → FILTER → ENVELOPES → VOICE → OUTPUT (the per-voice audio order) -->
 <div class="band" id="bandVoz">
   <div class="panel">
     <h2>Vocal</h2>
@@ -390,7 +390,7 @@
   </div>
 </div>
 
-<!-- BANDA 3 · MODULACIÓN | EFECTOS (en el orden de la cadena) -->
+<!-- BAND 3 · MODULATION | EFFECTS (in chain order) -->
 <div class="band" id="bandModFx">
   <div class="panel">
     <h2>LFOs</h2>
@@ -515,7 +515,7 @@
 
 </div><!-- /diseno -->
 
-<!-- ===================== SECUENCIACIÓN ===================== -->
+<!-- ===================== SEQUENCING ===================== -->
 <div class="screen" data-screen-body="secuenciacion" hidden>
 
 <div class="band" id="bandSeq">
@@ -728,7 +728,7 @@
 
 </main>
 
-<!-- TECLADO: parte del instrumento (se escala con él) -->
+<!-- KEYBOARD: part of the instrument (scales with it) -->
 <div id="kbWrap">
   <div id="keyboard"></div>
   <div id="kbBar">
@@ -743,7 +743,7 @@
 </div>
 </div><!-- /inst -->
 
-<!-- BARRA MIDI LEARN (visible solo en modo learn) -->
+<!-- MIDI LEARN BAR (visible only in learn mode) -->
 <div id="midiBar" hidden>
   <span class="mm-hint">🎛 <b>MIDI LEARN</b> · click a control and move the hardware knob · the bank's ‹ › too (button = edge) · right-click = unbind · <kbd>Esc</kbd> exits</span>
   <label title="The knob does nothing until it reaches or crosses the value on screen (no jumps when you change preset)">

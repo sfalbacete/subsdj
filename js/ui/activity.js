@@ -1,10 +1,10 @@
-/* SubSDJ · LEDs de actividad: qué partes del synth están HACIENDO algo.
-   "Activo" es computable: casi toda cantidad tiene el 0 como valor inerte
-   (esos params llevan act:true en PARAMS, que además atenúa su knob).
-   Un LED por sección (en el h2) y otro por fila del banco de LFOs. OJO: un LFO cuenta
-   como activo si su Level > 0 O si algún slot de la matriz lo usa en crudo.
-   Event-driven: escucha el 'param-change' que ya emite el registro y
-   recalcula con debounce de un frame — sin polling. */
+/* SubSDJ · activity LEDs: which parts of the synth are DOING something.
+   "Active" is computable: almost every amount has 0 as its inert value
+   (those params carry act:true in PARAMS, which also dims their knob).
+   One LED per section (in the h2) and another per row of the LFO bank. NOTE: an LFO counts
+   as active if its Level > 0 OR if some matrix slot uses it raw.
+   Event-driven: listens to the 'param-change' the registry already emits and
+   recomputes with a one-frame debounce — no polling. */
 import { part } from '../engine/parts.js';
 import { MX_SLOTS } from '../engine/params.js';
 
@@ -12,7 +12,7 @@ const srcUsed = (S, id) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i 
 const dstUsed = (S, id) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'dst'] === id && S['mx' + i + 'amt']) return true; return false; };
 const mxAny   = S => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] !== 'off' && S['mx' + i + 'amt']) return true; return false; };
 
-// Filas del banco de LFOs (por su data-lfo, inmune a los títulos).
+// Rows of the LFO bank (by their data-lfo, immune to the titles).
 const LFOS = {
   pwm:  S => S.pwmLfoLvl > 0 || srcUsed(S, 'lfoPwm'),
   amp:  S => S.ampLfoLvl > 0 || srcUsed(S, 'lfoAmp'),
@@ -22,10 +22,10 @@ const LFOS = {
   pan:  S => S.panLfoLvl > 0,
 };
 const anyWave = (S, w) => S.oscA.wave === w || S.oscB.wave === w;
-// Secciones (por el título del h2 — OJO: renombrar un h2 obliga a tocar esto):
-// "aquí se mueve algo" — extras sobre el camino base (el filtro o el ADSR
-// siempre existen; el LED marca movimiento). Cada fila del banco de LFOs
-// lleva además su LED.
+// Sections (by the h2 title — NOTE: renaming an h2 means touching this):
+// "something is moving here" — extras on top of the base path (the filter or the ADSR
+// always exist; the LED marks movement). Each row of the LFO bank
+// also carries its own LED.
 const PANELES = {
   'Mixer':           S => S.ring > 0 || S.noise > 0 || S.drift > 0 || ['lvlA', 'lvlB', 'lvlRing', 'lvlNoise'].some(d => dstUsed(S, d)),
   'FM':              S => S.fmIndex > 0 || dstUsed(S, 'fm'),
@@ -50,7 +50,7 @@ const PANELES = {
   'Arpeggiator':     S => S.arpMode !== 'off',
   'Sequencer':       S => S.seqOn === 'on',
 };
-// (Lo que NO hace nada con la configuración actual se apaga en ui/deps.js.)
+// (What does NOTHING with the current settings is dimmed in ui/deps.js.)
 
 export function initActivity() {
   const leds = [];

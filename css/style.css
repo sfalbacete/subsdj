@@ -1,52 +1,52 @@
 /* =====================================================================
-   TOKENS DE PIEL (bloque 10). Regla de la casa: TODO color, cara, sombra,
-   radio y letra vive en este bloque; el resto de la hoja solo usa var(--…)
-   y color-mix() sobre ellos, y los canvas los leen por js/ui/theme.js.
-   Fuera de aquí solo se admiten rgba(0,0,0,·) y rgba(255,255,255,·): son
-   sombra y brillo (física del relieve), no color. El selftest («piel») lo
-   vigila en style.css, js/ui y index.html: nada puede quedar a fuego.
-   Un tema = otro bloque :root[data-theme="…"] que redefine lo que quiera;
-   va en :root (html) y no en body porque los tokens compuestos (caras,
-   pulgar, teclas) resuelven sus var(--accent) donde se declaran.
+   SKIN TOKENS (block 10). House rule: EVERY color, face, shadow,
+   radius and font lives in this block; the rest of the sheet only uses var(--…)
+   and color-mix() on them, and the canvases read them through js/ui/theme.js.
+   Outside of here only rgba(0,0,0,·) and rgba(255,255,255,·) are allowed: they are
+   shadow and highlight (the physics of relief), not color. The selftest («skin»)
+   watches over it in style.css, js/ui and index.html: nothing may be hard-coded.
+   A theme = another :root[data-theme="…"] block that redefines whatever it wants;
+   it goes on :root (html) and not on body because the composite tokens (faces,
+   thumb, keys) resolve their var(--accent) where they are declared.
    ===================================================================== */
 :root{
-  --theme-id:"cinescapes"; --theme-name:"Carbon";   /* el bloque base ES el tema por defecto (theme.js lo lista); el id es el de siempre: no se pierde la elección recordada */
-  /* superficies, de fuera adentro: carbón plano, sin halo */
-  --bg:#15171c;          /* página */
-  --bg-glow:var(--bg);   /* halo radial en lo alto del fondo (aquí ninguno: plano) */
-  --panel:#22252d; --panel2:var(--panel);   /* cara de módulo (plana) */
-  --well:#1a1d23;        /* hueco: inputs, selects, botones planos, kbd, tooltip */
-  --screen:#0f1114;      /* cristal de los visualizadores y cama del teclado */
-  --edge:#2f333c;        /* bordes */
-  --edge-hi:#454a56;     /* relieve más claro: scroll al pasar, ★ apagada, indicador inerte */
-  --line:#121418;        /* separadores oscuros: borde de knob, entre botones, LED */
-  /* tinta */
+  --theme-id:"cinescapes"; --theme-name:"Carbon";   /* the base block IS the default theme (theme.js lists it); the id is the usual one: the remembered choice isn't lost */
+  /* surfaces, from the outside in: flat carbon, no halo */
+  --bg:#15171c;          /* page */
+  --bg-glow:var(--bg);   /* radial halo at the top of the background (none here: flat) */
+  --panel:#22252d; --panel2:var(--panel);   /* module face (flat) */
+  --well:#1a1d23;        /* well: inputs, selects, flat buttons, kbd, tooltip */
+  --screen:#0f1114;      /* glass of the visualizers and bed of the keyboard */
+  --edge:#2f333c;        /* borders */
+  --edge-hi:#454a56;     /* lighter relief: scroll on hover, unlit ★, inert indicator */
+  --line:#121418;        /* dark separators: knob border, between buttons, LED */
+  /* ink */
   --ink:#dfe3ea; --dim:#8b919d;
-  --ink-on-accent:#06212b; --ink-on-accent2:#1a0b33;   /* texto sobre acento */
-  /* acentos: cian = rack, violeta = osciladores, rojo = alarma, ámbar = ★ */
+  --ink-on-accent:#06212b; --ink-on-accent2:#1a0b33;   /* text on accent */
+  /* accents: cyan = rack, violet = oscillators, red = alarm, amber = ★ */
   --accent:#3fc6f2; --accent2:#a78bfa; --hot:#ff6b7a; --star:#ffd166;
-  /* knob (knobs.js solo publica --pos 0..1). La CAJA mide siempre 44 px (es la
-     huella en la rejilla y la zona de arrastre); dentro, el disco físico se
-     encoge --knob-disc-inset para que el arco de valor quede separado de él
-     sin salirse de la caja (en una fila de 5 knobs no hay sitio fuera). */
+  /* knob (knobs.js only publishes --pos 0..1). The BOX always measures 44 px (it is
+     the footprint on the grid and the drag area); inside, the physical disc
+     shrinks by --knob-disc-inset so the value arc stays apart from it
+     without leaving the box (in a row of 5 knobs there is no room outside). */
   --knob:#262a33; --knobhi:#474d5a;
-  --knob-face:radial-gradient(circle at 50% 26%,var(--knobhi),var(--knob) 66%);   /* la luz cae desde arriba */
-  --knob-disc-inset:4px;                   /* aire entre la caja y el disco (0px = el disco es la caja) */
-  --knob-edge-w:2px;                       /* grosor del bisel */
-  --knob-bevel:linear-gradient(180deg,color-mix(in srgb,white 28%,var(--knob)),color-mix(in srgb,black 55%,var(--knob)));   /* bisel: brillo arriba, sombra abajo */
-  --knob-ring:color-mix(in srgb,white 5%,transparent); --knob-ring-r:11px;   /* muesca: anillo de 1px a ese radio */
+  --knob-face:radial-gradient(circle at 50% 26%,var(--knobhi),var(--knob) 66%);   /* the light falls from above */
+  --knob-disc-inset:4px;                   /* air between the box and the disc (0px = the disc is the box) */
+  --knob-edge-w:2px;                       /* bevel thickness */
+  --knob-bevel:linear-gradient(180deg,color-mix(in srgb,white 28%,var(--knob)),color-mix(in srgb,black 55%,var(--knob)));   /* bevel: highlight on top, shadow below */
+  --knob-ring:color-mix(in srgb,white 5%,transparent); --knob-ring-r:11px;   /* notch: 1px ring at that radius */
   --knob-shadow:0 5px 10px rgba(0,0,0,.5);
-  --knob-line:0px; --knob-line-top:5px;    /* rayita: largo (0px = sin rayita) y arranque desde la caja */
-  --knob-dot:5px; --knob-dot-top:9px;      /* punto: diámetro (0px = sin punto) y arranque desde la caja */
-  --knob-arc:2px; --knob-arc-gap:2px;      /* arco de valor: grosor (0px = sin arco) y aire hasta el disco (4 = 2 + 2: justo en el borde de la caja) */
-  --knob-arc-track:rgba(0,0,0,.35);        /* carril del arco (los 270° aún por recorrer) */
-  /* slider (ADSR): carril plano que se rellena hasta el pulgar (sliders.js publica --pos) */
+  --knob-line:0px; --knob-line-top:5px;    /* tick: length (0px = no tick) and start from the box */
+  --knob-dot:5px; --knob-dot-top:9px;      /* dot: diameter (0px = no dot) and start from the box */
+  --knob-arc:2px; --knob-arc-gap:2px;      /* value arc: thickness (0px = no arc) and air to the disc (4 = 2 + 2: right on the edge of the box) */
+  --knob-arc-track:rgba(0,0,0,.35);        /* arc track (the 270° still to travel) */
+  /* slider (ADSR): flat track that fills up to the thumb (sliders.js publishes --pos) */
   --track-face:var(--well); --track-fill:var(--accent);
-  /* teclado: marfil, ébano y fieltro */
+  /* keyboard: ivory, ebony and felt */
   --key-w:#e9ebef; --key-w-edge:#b4b9c2; --key-w-ink:#6b7280;
   --key-b:#1b1e24; --key-b-edge:#0b0d10; --key-b-ink:#8b919d;
   --felt:#27505e;
-  /* caras compuestas (aquí planas; el Clásico las hace degradado) */
+  /* composite faces (flat here; Classic makes them gradients) */
   --panel-face:var(--panel);
   --btn-face:var(--well);
   --btn-face-hi:color-mix(in srgb,var(--well) 84%,white);
@@ -58,18 +58,18 @@
   --key-b-on:color-mix(in srgb,var(--accent2) 55%,var(--key-b));
   --shadow-panel:none;
   --shadow-pop:0 10px 30px rgba(0,0,0,.6);
-  /* forma y letra: píldoras, esquinas suaves, etiquetas en minúsculas */
+  /* shape and font: pills, soft corners, lowercase labels */
   --r-panel:14px; --r-ctl:8px; --r-btn:999px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
-  --lab-case:none; --lab-space:0;            /* etiquetas de control */
-  --title-case:none; --title-space:.3px;     /* pestañas, barra de presets */
-  --sec-case:uppercase; --sec-space:1.6px;   /* título de sección del panel: serigrafía */
-  color-scheme:dark;   /* widgets nativos (popups, scrollbars sin estilar) en oscuro */
+  --lab-case:none; --lab-space:0;            /* control labels */
+  --title-case:none; --title-space:.3px;     /* tabs, preset bar */
+  --sec-case:uppercase; --sec-space:1.6px;   /* panel section title: screen printing */
+  color-scheme:dark;   /* native widgets (popups, unstyled scrollbars) in dark */
 }
 
-/* TEMA «Clásico»: el look original del SubSDJ (verde y cian, degradados,
-   relieve, MAYÚSCULAS espaciadas). Es también la prueba de que los tokens
-   cubren todo: si algo no se puede recuperar desde aquí, está a fuego. */
+/* «Classic» THEME: the original SubSDJ look (green and cyan, gradients,
+   relief, spaced CAPITALS). It is also the proof that the tokens
+   cover everything: if something can't be brought back from here, it is hard-coded. */
 :root[data-theme="clasico"]{
   --theme-name:"Classic";
   --bg:#0d1014; --bg-glow:#1a2230; --panel:#161b22; --panel2:#1b222c; --well:#0f141a; --screen:#05080b;
@@ -103,30 +103,30 @@
   --lab-case:uppercase; --lab-space:.5px; --title-case:uppercase; --title-space:1.5px;
 }
 
-/* Barras de scroll finas a juego (ventana, paneles y desplegables) */
+/* Thin matching scrollbars (window, panels and dropdowns) */
 ::-webkit-scrollbar{width:10px;height:10px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--edge);border:3px solid transparent;background-clip:padding-box;border-radius:8px;}
 ::-webkit-scrollbar-thumb:hover{background:var(--edge-hi);border-width:2px;background-clip:padding-box;}
 ::-webkit-scrollbar-corner{background:transparent;}
 
-/* Desplegables con picker estilizable (Chrome 135+): el popup pasa a ser DOM
-   normal — tema oscuro a juego y la barra de scroll fina de arriba. En
-   navegadores sin ::picker() la regla se descarta entera y queda el nativo. */
+/* Dropdowns with a stylable picker (Chrome 135+): the popup becomes ordinary
+   DOM — matching dark theme and the thin scrollbar above. In
+   browsers without ::picker() the whole rule is dropped and the native one stays. */
 select, select::picker(select){appearance:base-select;}
 select::picker(select){background:var(--well);border:1px solid var(--edge);border-radius:8px;
   box-shadow:0 12px 28px rgba(0,0,0,.55);padding:4px;
-  scrollbar-width:thin;scrollbar-color:var(--edge-hi) transparent;}   /* ::-webkit-scrollbar no encadena tras ::picker() */
+  scrollbar-width:thin;scrollbar-color:var(--edge-hi) transparent;}   /* ::-webkit-scrollbar doesn't chain after ::picker() */
 select option{padding:5px 8px;border-radius:5px;font-size:12px;}
 select option:hover,select option:focus{background:var(--panel2);}
 select option:checked{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);}
 select optgroup{padding:2px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;}
 select optgroup option{color:var(--ink);font-size:12px;text-transform:none;letter-spacing:0;}
 *{box-sizing:border-box;}
-/* EL INSTRUMENTO (ui/frame.js): #inst mide SIEMPRE 1920 × 1000 y se escala
-   entero con zoom para caber en la ventana; nada refluye. html.frame-scroll =
-   la ventana es tan pequeña que el zoom tocó suelo (MIN_ZOOM): entonces hay
-   scroll. margin:auto (no justify-content) centra sin cortar al desbordar. */
+/* THE INSTRUMENT (ui/frame.js): #inst ALWAYS measures 1920 × 1000 and is scaled
+   as a whole with zoom to fit the window; nothing reflows. html.frame-scroll =
+   the window is so small that the zoom hit the floor (MIN_ZOOM): then there is
+   scrolling. margin:auto (not justify-content) centers without clipping on overflow. */
 html{margin:0;height:100%;}
 body{margin:0;height:100%;overflow:hidden;display:flex;}
 html.frame-scroll body{overflow:auto;}
@@ -136,78 +136,78 @@ body{
   -webkit-user-select:none; user-select:none;
 }
 #inst{width:1920px;height:1000px;flex:none;margin:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
-/* Ningún canvas aporta tamaño propio: lo pone SOLO el CSS. Sin esto, un canvas
-   en una caja que mide lo que su contenido toma su backing store (width/height,
-   que fitCanvas pone a tamaño × dpr × zoom) como ancho natural: cada redibujado
-   lo agrandaba otro ×dpr×zoom (a 1,95 en una 4K al 150 %) hasta que el canvas
-   reventaba. contain:size = se maqueta como si estuviera vacío. */
+/* No canvas contributes a size of its own: ONLY the CSS sets it. Without this, a canvas
+   in a box sized to its content takes its backing store (width/height,
+   which fitCanvas sets to size × dpr × zoom) as its natural width: every redraw
+   enlarged it by another ×dpr×zoom (1.95 on a 4K at 150 %) until the canvas
+   blew up. contain:size = it is laid out as if it were empty. */
 #inst canvas{contain:size;}
-/* Logo: degradado acento→acento2 recortado al texto (background-clip:text)
-   que fluye despacio (el fondo mide el doble y se desplaza una vuelta, ida y
-   vuelta) y un halo por drop-shadow: un text-shadow se pintaría POR ENCIMA
-   del degradado recortado, el filtro actúa sobre el resultado. Todo sale de
-   los tokens: el logo cambia con el tema. A propósito SIN
-   prefers-reduced-motion: Windows con «Efectos de animación» apagados lo
-   activa y el navegador dejaría el logo quieto; es un vaivén de 10 s. */
+/* Logo: accent→accent2 gradient clipped to the text (background-clip:text)
+   that flows slowly (the background is twice as wide and shifts one lap, back
+   and forth) and a halo via drop-shadow: a text-shadow would paint ON TOP
+   of the clipped gradient, the filter acts on the result. Everything comes from
+   the tokens: the logo changes with the theme. Deliberately WITHOUT
+   prefers-reduced-motion: Windows with «Animation effects» turned off
+   enables it and the browser would leave the logo still; it is a 10 s sway. */
 h1{font-size:18px;margin:0;letter-spacing:2px;
   background:linear-gradient(100deg,var(--accent),var(--accent2),var(--accent)) 0 0 / 200% 100%;
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent) 40%,transparent));
   animation:logoFlow 10s ease-in-out infinite;}
 @keyframes logoFlow{50%{background-position:100% 0;filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent2) 55%,transparent));}}
-/* Cabecera: una sola fila fija — título, pestañas, presets (con «Archivo ▾»), botones, tema y estado */
+/* Header: a single fixed row — title, tabs, presets (with «File ▾»), buttons, theme and status */
 header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;
   background:var(--panel-face);border:1px solid var(--edge);border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
 header .sp{flex:1;}
 .badge{font-size:11px;color:var(--dim);}
-/* Estado (audio · MIDI): dos iconos SVG con currentColor; la clase pone el color (ui/status.js) */
+/* Status (audio · MIDI): two SVG icons with currentColor; the class sets the color (ui/status.js) */
 #status{display:inline-flex;align-items:center;gap:10px;}
 #status .st{display:inline-flex;color:var(--dim);cursor:help;transition:color .2s;}
 #status .st svg{display:block;width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
 #status .st svg .pin{fill:currentColor;stroke:none;}
-#status .st.wait{color:var(--accent);animation:stWait 2.4s ease-in-out infinite;}   /* «te toca»: late despacio */
+#status .st.wait{color:var(--accent);animation:stWait 2.4s ease-in-out infinite;}   /* «your turn»: pulses slowly */
 #status .st.on{color:var(--accent);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--accent) 60%,transparent));}
 #status .st.err{color:var(--hot);}
 @keyframes stWait{50%{opacity:.3;}}
-/* Botones, selects e inputs de una línea: misma letra (la del tema; los
-   controles no la heredan solos) y line-height FIJO, así todos miden lo
-   mismo (16 + 2·5 + 2 = 28 px). Con line-height «normal» cada uno salía de
-   su fuente: el botón 26 px, el select 29 px. */
+/* Buttons, selects and single-line inputs: same font (the theme's; the
+   controls don't inherit it on their own) and a FIXED line-height, so they all measure
+   the same (16 + 2·5 + 2 = 28 px). With line-height «normal» each one came out of
+   its font: the button 26 px, the select 29 px. */
 .btn{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);
   padding:5px 12px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;letter-spacing:.5px;}
 .btn:hover{border-color:var(--accent);color:var(--accent);}
 .btn:active{transform:translateY(1px);}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.nav{padding:5px 10px;font-size:15px;font-weight:700;}
-.btn.ico{padding:7px 11px;line-height:0;}   /* botón-icono (editor de ondas): el SVG mide lo que una línea de texto de 12 px */
-.row.we-bar{flex-wrap:nowrap;}   /* el editor de ondas, estrecho desde que entró el módulo Cuerda: la barra en una fila… */
-.we-bar .btn.ico{padding:7px 6px;min-width:0;flex:0 1 auto;}   /* …también a zoom < 1, donde el redondeo de píxeles la partía: los iconos ceden 1 px */
+.btn.ico{padding:7px 11px;line-height:0;}   /* icon button (Wave Editor): the SVG measures what a 12 px line of text does */
+.row.we-bar{flex-wrap:nowrap;}   /* the Wave Editor, narrow since the String module came in: the bar on one row… */
+.we-bar .btn.ico{padding:7px 6px;min-width:0;flex:0 1 auto;}   /* …also at zoom < 1, where pixel rounding broke it: the icons give up 1 px */
 .btn.ico svg{display:block;width:17px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
-/* Selects: un solo hueco para todos, a la altura de un .btn (mismo padding y
-   cuerpo de letra). Antes cada select llevaba el suyo (3-4 px, 11 px) y salía
-   más bajo que los botones de al lado; y con appearance:base-select el
-   navegador no añade marco propio: el hueco que se ve es EXACTAMENTE este.
-   Los de la matriz (tres por fila) se aprietan un poco, más abajo. */
+/* Selects: a single well for all of them, at the height of a .btn (same padding and
+   font size). Each select used to carry its own (3-4 px, 11 px) and came out
+   shorter than the buttons beside it; and with appearance:base-select the
+   browser adds no frame of its own: the well you see is EXACTLY this one.
+   The matrix ones (three per row) are squeezed a little, further down. */
 select{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
   padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;cursor:pointer;}
 select:hover{border-color:var(--accent);color:var(--accent);}
-#themeSel{border-radius:var(--r-btn);padding:5px 12px;letter-spacing:.5px;}   /* en la cabecera va entre .btn: misma píldora */
+#themeSel{border-radius:var(--r-btn);padding:5px 12px;letter-spacing:.5px;}   /* in the header it sits between .btn: same pill */
 
-/* Partes: botón + selector 1-4 en la cabecera; mezclador; etiqueta «sala» */
+/* Parts: button + 1-4 selector in the header; Part Mixer; «room» tag */
 #partsBar{display:flex;align-items:center;gap:8px;}
 #partSel{display:inline-flex;}
 #partSel[hidden]{display:none;}
 #partSel button{padding:5px 11px;font-size:12px;}
 .panel[hidden]{display:none;}
-/* Módulos de Partes con las Partes apagadas: en su sitio, atenuados (no se
-   esconden: la posición no cambia). El mezclador vacío dice qué hacer. */
+/* Parts modules with Parts off: in place, dimmed (they aren't
+   hidden: the position doesn't change). The empty Part Mixer says what to do. */
 .panel.parts-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
 .panel.parts-off h2{opacity:.6;}
 #mixStrips:empty::before{content:"Turn on «Parts» in the header: four instruments over a shared room.";
   font-size:11px;color:var(--dim);}
 .mix{display:flex;gap:10px;flex-wrap:nowrap;align-items:stretch;}
 .strip{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;
-  padding:6px 8px;display:flex;flex-direction:column;gap:4px;}   /* justo: con las cuatro partes, el panel fijo no da para más */
+  padding:6px 8px;display:flex;flex-direction:column;gap:4px;}   /* tight: with the four parts, the fixed panel has no room for more */
 .strip.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
 .strip.muted .row{opacity:.45;}
 .strip .pname{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);padding:5px 8px;
@@ -216,7 +216,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .strip.cur .pname{color:var(--accent);}
 .strip .pname.static{cursor:default;color:var(--accent);text-transform:var(--title-case);letter-spacing:var(--title-space);text-align:center;}
 .strip.sala{flex:0 1 200px;}
-.strip .shead{display:flex;gap:6px;align-items:center;}   /* nombre + M en una fila */
+.strip .shead{display:flex;gap:6px;align-items:center;}   /* name + M on one row */
 .strip .shead .pname{flex:1;min-width:0;}
 .strip .mute{flex:none;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
@@ -224,7 +224,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
 .tag-sala{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-on-accent);background:var(--accent);
   border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;}
-/* Armonía / Jugador */
+/* Harmony / Player */
 #harmony input{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
   padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;}
 #harmony select{flex:1;}
@@ -234,19 +234,19 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .harmlay .vcol{gap:7px;min-width:200px;}
 #harmRoot{width:70px;flex:none;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
-/* Arreglo de la parte (en el panel Arreglo): fila compacta como los pies de la Matriz y el Delay */
+/* The part's arrangement (in the Arrangement panel): compact row like the footers of the Matrix and the Delay */
 .arr-part{gap:10px;margin-top:6px;align-items:center;}
-.arr-part .fieldlab{flex:none;color:var(--accent);}   /* de quién es la fila */
+.arr-part .fieldlab{flex:none;color:var(--accent);}   /* whose row it is */
 #playerArr{gap:10px;align-items:center;}
 #playerArr .ks .th{width:auto;}
 #playerArr .ks .val{width:30px;}
 #playerArr select{font-size:10px;padding:2px 4px;max-width:96px;}
-/* Presets en la cabecera: ‹ selector › nombre Guardar «Archivo ▾» */
+/* Presets in the header: ‹ picker › name Save «File ▾» */
 #presetBar{display:flex;align-items:center;gap:8px;}
 #presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);width:150px;
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
-/* Selector rápido de presets (ui/presetPicker.js): botón con el actual (mismo hueco que un select)
-   y, al abrirlo, buscador + categorías a la izquierda + lista a la derecha */
+/* Quick preset picker (ui/presetPicker.js): button with the current one (same well as a select)
+   and, when open, search box + categories on the left + list on the right */
 #presetPick{width:230px;display:flex;align-items:center;gap:6px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;text-align:left;}
 #presetPickName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -258,7 +258,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .pp-top{display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid var(--edge);}
 #presetBar #ppSearch{flex:1;width:auto;}
 .pp-count{flex:none;min-width:70px;text-align:right;color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;}
-.pp-main{display:flex;height:476px;}   /* caben las ~19 categorías sin desplazar */
+.pp-main{display:flex;height:476px;}   /* the ~19 categories fit without scrolling */
 .pp-cats,.pp-list{overflow-y:auto;padding:4px;scrollbar-width:thin;scrollbar-color:var(--edge-hi) transparent;}
 .pp-cats{width:172px;flex:none;border-right:1px solid var(--edge);}
 .pp-list{flex:1;min-width:0;}
@@ -268,7 +268,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .pp-cat.empty{opacity:.4;}
 .pp-cname,.pp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pp-cn,.pp-tag{flex:none;color:var(--dim);font-size:10px;font-variant-numeric:tabular-nums;}
-.pp-item.hi{box-shadow:inset 0 0 0 1px var(--edge-hi);}              /* el cursor de ↑ ↓ */
+.pp-item.hi{box-shadow:inset 0 0 0 1px var(--edge-hi);}              /* the ↑ ↓ cursor */
 .pp-sec{padding:9px 8px 3px;color:var(--dim);font-size:10px;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .pp-sec:first-child{padding-top:3px;}
 .pp-star{flex:none;color:var(--edge-hi);font-size:11px;}
@@ -277,10 +277,10 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .pp-none{padding:16px 8px;color:var(--dim);font-size:12px;}
 .pp-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px;border-top:1px solid var(--edge);}
 .pp-keys{color:var(--dim);font-size:10px;}
-/* ● modificado (ui/history.js): lo que suena ya no es el preset guardado. Apagado, apenas se ve */
+/* ● modified (ui/history.js): what is sounding is no longer the saved preset. Off, it is barely visible */
 #modDot{font-size:11px;line-height:1;color:var(--edge);margin:0 -4px;transition:color .15s;cursor:default;}
 #modDot.on{color:var(--accent2);}
-/* deshacer · rehacer · comparar */
+/* undo · redo · compare */
 #editBar{display:flex;align-items:center;gap:4px;margin-left:4px;}
 .btn:disabled{opacity:.35;cursor:default;pointer-events:none;}
 .menuWrap{position:relative;}
@@ -288,19 +288,19 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   background:var(--well);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:var(--shadow-pop);}
 .menu[hidden]{display:none;}
 .menu .btn{text-align:left;border-radius:var(--r-ctl);}
-/* Avisos del banco (guardado, importado…): flotan bajo la cabecera y se apagan solos (ui/display.js) */
+/* Bank notices (saved, imported…): they float under the header and fade out by themselves (ui/display.js) */
 #presetMsg{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);z-index:20;pointer-events:none;
   font-size:11px;color:var(--ink);background:var(--well);border:1px solid var(--edge);border-radius:var(--r-btn);
   padding:4px 12px;white-space:nowrap;box-shadow:var(--shadow-pop);opacity:0;transition:opacity .3s;}
 #presetMsg.show{opacity:1;}
 
-/* PANTALLAS Y BANDAS. Cada pestaña es un .screen con su panel fijo: bandas
-   (.band) de alto fijo y secciones (.panel) separadas por una línea, como la
-   serigrafía de un frontal. Las secciones miden lo que su contenido (flex
-   auto) y .grow reparte el sobrante: así no hay celdas vacías estiradas.
-   Los módulos compartidos (data-slot) cuelgan de un .slot con display:
-   contents: para la banda son una sección más. */
-#screens{flex:none;height:744px;display:flex;}   /* el cuerpo mide lo mismo en todas las pantallas; el teclado se queda el resto */
+/* SCREENS AND BANDS. Each tab is a .screen with its fixed panel: fixed-height
+   bands (.band) and sections (.panel) separated by a line, like the
+   screen printing of a front panel. Sections measure what their content does (flex
+   auto) and .grow shares out the leftover: so there are no stretched empty cells.
+   The shared modules (data-slot) hang from a .slot with display:
+   contents: for the band they are one more section. */
+#screens{flex:none;height:744px;display:flex;}   /* the body measures the same on every screen; the keyboard keeps the rest */
 .screen{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
 .screen[hidden]{display:none;}
 .band{flex:none;display:flex;min-width:0;background:var(--panel-face);border:1px solid var(--edge);
@@ -319,28 +319,28 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .hrow{display:flex;gap:2px;align-items:flex-end;}
 .vcol{display:flex;flex-direction:column;gap:6px;align-items:center;}
 .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;}
-.row.tight{gap:2px;}   /* filas de knobs generadas (mezclador): los .ctl reparten el ancho */
+.row.tight{gap:2px;}   /* generated knob rows (Part Mixer): the .ctl share the width */
 .row.tight .ctl{flex:1 1 0;width:auto;min-width:46px;}
 .ctl{display:flex;flex-direction:column;align-items:center;gap:4px;width:58px;}
-.hrow.narrow .ctl{width:52px;}   /* fila densa (Filtro: morph, keytrack y el grupo del drive) */
+.hrow.narrow .ctl{width:52px;}   /* dense row (Filter: morph, keytrack and the drive group) */
 .ctl .lab{font-size:10px;color:var(--dim);text-align:center;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .ctl .val{font-size:10px;color:var(--ink);min-height:12px;}
 
-/* Knob: el JS solo publica el estado (--pos 0..1, knobs.js) y el CSS decide qué
-   dibuja con él. .ind es un portador transparente que gira; su ::before es la
-   rayita y su ::after el punto (el halo, un drop-shadow del portador: de lo
-   que no se dibuja no hay halo). El ::after del knob es el arco de valor: un
-   conic-gradient recortado a anillo con mask (en una mask el color da igual,
-   solo cuenta el alfa). Los tokens --knob-line / --knob-dot / --knob-arc a
-   0px apagan cada pieza: un tema elige rayita, punto, arco o mezcla sin JS. */
+/* Knob: the JS only publishes the state (--pos 0..1, knobs.js) and the CSS decides what
+   to draw with it. .ind is a transparent carrier that rotates; its ::before is the
+   tick and its ::after the dot (the halo, a drop-shadow of the carrier: what
+   isn't drawn has no halo). The knob's ::after is the value arc: a
+   conic-gradient clipped to a ring with mask (in a mask the color doesn't matter,
+   only the alpha counts). The tokens --knob-line / --knob-dot / --knob-arc at
+   0px switch each piece off: a theme picks tick, dot, arc or a mix without JS. */
 .knob{width:44px;height:44px;border-radius:50%;cursor:ns-resize;position:relative;--knob-ind:var(--accent);--knob-glow:var(--knob-ind);}
-/* El disco físico: encogido --knob-disc-inset dentro de la caja. Tres capas de
-   fondo: la muesca (anillo radial de 1px a --knob-ring-r), la cara (--knob-face,
-   que debe ser una IMAGEN: un color plano se escribe linear-gradient(c,c)) y el
-   bisel, que es la capa border-box asomando bajo un borde transparente (truco
-   del borde-degradado: luz arriba, sombra abajo, sin nodos de más). */
+/* The physical disc: shrunk by --knob-disc-inset inside the box. Three background
+   layers: the notch (1px radial ring at --knob-ring-r), the face (--knob-face,
+   which must be an IMAGE: a flat color is written linear-gradient(c,c)) and the
+   bevel, which is the border-box layer peeking out under a transparent border (the
+   gradient-border trick: light on top, shadow below, no extra nodes). */
 .knob::before{content:"";position:absolute;inset:var(--knob-disc-inset);border-radius:50%;border:var(--knob-edge-w) solid transparent;
-  background:radial-gradient(circle,transparent calc(var(--knob-ring-r) - 1.5px),var(--knob-ring) calc(var(--knob-ring-r) - 1px) var(--knob-ring-r),transparent calc(var(--knob-ring-r) + .5px)) padding-box,   /* medio píxel de transición: anillo suave, no dentado */
+  background:radial-gradient(circle,transparent calc(var(--knob-ring-r) - 1.5px),var(--knob-ring) calc(var(--knob-ring-r) - 1px) var(--knob-ring-r),transparent calc(var(--knob-ring-r) + .5px)) padding-box,   /* half a pixel of transition: a smooth ring, not jagged */
     var(--knob-face) padding-box,var(--knob-bevel) border-box;
   box-shadow:var(--knob-shadow);}
 .knob .ind{position:absolute;inset:0;transform:rotate(calc(-135deg + var(--pos,0) * 270deg));pointer-events:none;
@@ -353,9 +353,9 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   background:conic-gradient(from 225deg,var(--knob-ind) calc(var(--pos,0) * 270deg),var(--knob-arc-track) 0 270deg,transparent 0);
   mask:radial-gradient(farthest-side,transparent calc(100% - var(--knob-arc)),black calc(100% - var(--knob-arc) + 1px));}
 .panel.osc .knob{--knob-ind:var(--accent2);}
-/* Knob grande (el mando principal de su sección: Cutoff) y pequeño (bancos:
-   LFOs, matriz, operadores FM4). Mismo knob, otra caja: se reescalan las
-   piezas del disco (muesca, punto) para que no se salgan. */
+/* Large knob (the main control of its section: Cutoff) and small (banks:
+   LFOs, matrix, FM4 operators). Same knob, another box: the disc's
+   pieces (notch, dot) are rescaled so they don't stick out. */
 .knob.big{width:56px;height:56px;--knob-ring-r:15px;--knob-dot:6px;--knob-dot-top:11px;--knob-line-top:6px;}
 .ks{flex-direction:row;width:auto;gap:4px;}
 .ks .knob{width:24px;height:24px;flex:none;--knob-disc-inset:2px;--knob-edge-w:1px;--knob-ring-r:5px;--knob-dot:3px;--knob-dot-top:4px;
@@ -367,7 +367,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .slider .head{display:flex;justify-content:space-between;font-size:10px;}
 .slider .head .lab{color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .slider .head .val{color:var(--ink);}
-/* Carril del slider: relleno hasta el pulgar (sliders.js publica --pos; el pulgar mide 16px) sobre la cara del carril */
+/* Slider track: filled up to the thumb (sliders.js publishes --pos; the thumb measures 16px) over the track face */
 input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
   background:linear-gradient(var(--track-fill),var(--track-fill)) 0 0 / calc(var(--pos,0) * (100% - 16px) + 8px) 100% no-repeat,var(--track-face);outline:none;width:100%;
   box-shadow:inset 0 1px 2px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.04);}
@@ -381,10 +381,10 @@ input[type=range]:active::-webkit-slider-thumb{
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid color-mix(in srgb,var(--accent) 30%,black);border-radius:50%;
   background:var(--thumb-face);cursor:pointer;
   box-shadow:0 2px 5px rgba(0,0,0,.55), 0 0 9px color-mix(in srgb,var(--accent) 40%,transparent), inset 0 1px 1px rgba(255,255,255,.45);}
-/* Fader vertical (envolventes, como en Juno/Jupiter): el mismo <input range>
-   de sliders.js puesto de pie con writing-mode (Chrome 124+: abajo = mínimo
-   con direction:rtl). Carril relleno desde abajo hasta la tapa (--pos) y tapa
-   rectangular de fader con su raya de índice. */
+/* Vertical fader (envelopes, as on the Juno/Jupiter): the same <input range>
+   from sliders.js stood upright with writing-mode (Chrome 124+: bottom = minimum
+   with direction:rtl). Track filled from the bottom up to the cap (--pos) and a
+   rectangular fader cap with its index line. */
 .slider.fader{width:34px;align-items:center;gap:3px;}
 .slider.fader .lab,.slider.fader .val{font-size:10px;text-align:center;white-space:nowrap;}
 .slider.fader .lab{color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
@@ -396,7 +396,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
   border:1px solid var(--edge-hi);box-shadow:0 2px 3px rgba(0,0,0,.55);}
 .slider.fader input[type=range]:active::-webkit-slider-thumb{filter:brightness(1.15);box-shadow:0 1px 2px rgba(0,0,0,.6),0 0 8px color-mix(in srgb,var(--accent) 50%,transparent);}
 
-.seg{display:flex;border:1px solid var(--edge);border-radius:var(--r-ctl);overflow:hidden;   /* radio de control, no píldora: sus botones son estrechos (flex:1, sin aire) y una píldora se comería el texto */
+.seg{display:flex;border:1px solid var(--edge);border-radius:var(--r-ctl);overflow:hidden;   /* control radius, not a pill: its buttons are narrow (flex:1, no air) and a pill would eat the text */
   background:var(--well);box-shadow:0 2px 4px rgba(0,0,0,.35);}
 .seg button{flex:1;background:var(--btn-face);border:none;color:var(--dim);
   padding:5px 0;font-size:11px;cursor:pointer;
@@ -410,10 +410,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.waves button{font-size:9px;padding:5px 1px;}
 .panel:not(.osc) .seg button.active{background:var(--seg-on);color:var(--ink-on-accent);
   box-shadow:inset 0 2px 4px rgba(0,0,0,.35), inset 0 -1px 1px rgba(255,255,255,.3);}
-/* Selector giratorio (ui/rotary.js): el .seg pierde su caja y sus botones
-   pasan a ser las posiciones serigrafiadas alrededor de un knob central (la
-   JS pone left/top de cada botón y crea el knob). Sin arco de valor: un
-   selector señala, no «llena»; lleva rayita en todos los temas. */
+/* Rotary selector (ui/rotary.js): the .seg loses its box and its buttons
+   become the positions screen-printed around a central knob (the
+   JS sets each button's left/top and creates the knob). No value arc: a
+   selector points, it doesn't «fill»; it carries a tick in every theme. */
 .seg.rot{display:block;position:relative;width:104px;height:80px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
 .seg.rot button,.seg.rot button + button,.panel:not(.osc) .seg.rot button{position:absolute;transform:translate(-50%,-50%);flex:none;
   padding:1px 2px;border:none;background:none;box-shadow:none;font-size:9px;line-height:1;color:var(--dim);white-space:nowrap;}
@@ -424,7 +424,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.rot .knob{position:absolute;left:30px;top:20px;--knob-arc:0px;--knob-line:9px;--knob-line-top:6px;--knob-dot:0px;}
 .ctl.rotc{width:auto;gap:0;}
 .ctl.rotc .rcap{font-size:9px;color:var(--dim);min-height:11px;margin-top:2px;}
-/* Grafo del algoritmo FM4 (ui/fm4Graph.js): portadoras con el acento del módulo, moduladores apagados */
+/* FM4 algorithm graph (ui/fm4Graph.js): carriers in the module's accent, modulators dimmed */
 .fm4g{margin-top:4px;line-height:0;}
 .fm4g svg{display:block;overflow:visible;}
 .fm4g rect{fill:var(--well);stroke:var(--dim);stroke-width:1;}
@@ -434,8 +434,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .fm4g path.o{stroke:var(--accent2);}
 .fm4g path.fb{stroke:var(--edge-hi);stroke-dasharray:2 2;}
 .fm4g path.fb.on{stroke:var(--accent2);stroke-dasharray:none;}
-/* Conmutador con LED: el .seg de 2-3 opciones como lista de LEDs con su
-   rótulo (el Poli/Mono del hardware). Clic en un rótulo = elegirlo. */
+/* Switch with LED: the 2-3 option .seg as a list of LEDs with their
+   label (the hardware's Poly/Mono). Click on a label = pick it. */
 .seg.tog{display:flex;flex-direction:column;gap:4px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
 .seg.tog button,.seg.tog button + button,.panel:not(.osc) .seg.tog button{flex:none;display:flex;align-items:center;gap:6px;padding:1px 0;
   border:none;background:none;box-shadow:none;font-size:10px;color:var(--dim);text-align:left;white-space:nowrap;}
@@ -453,20 +453,20 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .stepper button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);}
 .stepper .num{min-width:14px;text-align:center;font-size:13px;}
 .fieldlab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);margin-bottom:4px;}
-/* Bancos en tabla (LFOs, operadores FM4): la etiqueta va UNA vez por columna
-   (.th) y una por fila (.rn), como un mezclador. Cada fila del banco de LFOs
-   es un .lfo-row con display:contents (sus celdas son de la rejilla, pero la
-   fila sigue existiendo para el LED y el atenuado). */
+/* Table banks (LFOs, FM4 operators): the label goes ONCE per column
+   (.th) and once per row (.rn), like a mixer. Each row of the LFO bank
+   is a .lfo-row with display:contents (its cells belong to the grid, but the
+   row still exists for the LED and the dimming). */
 .tbl{display:grid;gap:3px 8px;align-items:center;}
 .th{font-size:9px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 .rn{font-size:10px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;}
 .lfo-bank{grid-template-columns:auto 40px auto auto auto;}
-.lfo-bank select,.lfo-foot select{font-size:9px;line-height:1.2;padding:2px 3px;letter-spacing:.3px;}   /* a la escala de los botones de forma */
+.lfo-bank select,.lfo-foot select{font-size:9px;line-height:1.2;padding:2px 3px;letter-spacing:.3px;}   /* at the scale of the shape buttons */
 .fm4ops{grid-template-columns:28px repeat(4,auto);gap:3px 4px;margin-left:4px;}
-.fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: con 4 columnas no caben 46 px por valor */
+.fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: with 4 columns 46 px per value don't fit */
 .lfo-row{display:contents;}
-/* Pasos (Roadmap 7.0 · 2.3): una fila por carril; canvas de ancho FIJO (32 pasos) */
-.ps-grid{grid-template-columns:12px 288px auto auto auto auto auto;gap:2px 8px;}   /* 288: el Jugador necesitaba el sitio (9 px por paso con 32) */
+/* Steps (Roadmap 7.0 · 2.3): one row per lane; canvas of FIXED width (32 steps) */
+.ps-grid{grid-template-columns:12px 288px auto auto auto auto auto;gap:2px 8px;}   /* 288: the Player needed the room (9 px per step with 32) */
 .ps-row{display:contents;}
 .ps-canvas{width:288px;height:32px;display:block;cursor:crosshair;touch-action:none;}
 .ps-grid select{font-size:9px;line-height:1.2;padding:2px 3px;}
@@ -480,11 +480,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .lfoShape:hover{border-color:var(--accent2);}
 .noshape{color:var(--dim);border-style:dashed;}
 .lfo-foot,.mx-foot,.dly-foot,.arp-foot{gap:14px;margin-top:8px;align-items:center;}
-.dly-foot{margin-top:2px;}   /* el Delay también vive en Secuenciación, cuya banda es más baja: cabe justo */
+.dly-foot{margin-top:2px;}   /* the Delay also lives in Sequencing, whose band is lower: it just fits */
 .lfo-foot .seg.tog{gap:2px;}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}
 
-.panel h2{display:flex;align-items:center;}   /* LED · título · «?» · etiqueta «sala» */
+.panel h2{display:flex;align-items:center;}   /* LED · title · «?» · «room» tag */
 
 #adsrCanvas{display:block;width:250px;height:52px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);margin-bottom:6px;}
 #seqCanvas,#wsCanvas{display:block;width:100%;flex:1;min-height:0;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
@@ -493,14 +493,14 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seqcanvas{flex:none;width:340px;align-items:stretch;}
 .seq-sel{gap:6px;flex:none;}
 #seqPatSel{flex:1;min-width:0;width:auto;}
-#seqNotesSel{flex:none;width:116px;}   /* notas por grado (5.2) */
+#seqNotesSel{flex:none;width:116px;}   /* notes by degree (5.2) */
 #mxRows{display:flex;flex-direction:column;gap:4px;}
 
-/* Salida: la pantalla del instrumento (ui/display.js) + osciloscopio y espectro del máster (ui/scope.js) */
+/* Output: the instrument's display (ui/display.js) + the master's oscilloscope and spectrum (ui/scope.js) */
 #salida{min-width:420px;}
-/* Dos líneas, como el LCD de un sinte: arriba el parámetro y, a su derecha, qué significa la opción
-   (o por qué no hace nada: .off); abajo, en grande, el valor. Lo que no cabe encoge la letra y, si
-   ni así, se desplaza ida y vuelta (.scroll; ui/display.js calcula --dx y --t). */
+/* Two lines, like a synth's LCD: on top the parameter and, to its right, what the option means
+   (or why it does nothing: .off); below, large, the value. What doesn't fit shrinks the font and, if
+   it still doesn't, scrolls back and forth (.scroll; ui/display.js computes --dx and --t). */
 .readout{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px;row-gap:3px;padding:5px 12px;min-height:46px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
 .readout .who{max-width:220px;font-size:10px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .readout .side{min-width:0;font-size:10px;color:var(--dim);text-align:right;white-space:nowrap;overflow:hidden;}
@@ -513,9 +513,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 @keyframes lcdScroll{0%,12%{transform:translateX(0);}88%,100%{transform:translateX(var(--dx,0));}}
 .vizrow{display:flex;gap:8px;margin-top:8px;flex:1;min-height:0;}
 .vizrow canvas{flex:1;min-width:0;height:100%;display:block;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
-/* Medidor de salida (ui/meter.js): dos barras de pico (−48..0 dBFS; las zonas, fijas en el fondo:
-   −12 dBFS al 75 %, −1 al 97,9 %) que una tapa semitransparente esconde desde arriba, la raya
-   de retención y la reducción del limitador (violeta, desde arriba). Solo transform: sin layout */
+/* Output meter (ui/meter.js): two peak bars (−48..0 dBFS; the zones, fixed in the background:
+   −12 dBFS at 75 %, −1 at 97.9 %) that a semi-transparent cover hides from the top, the
+   hold line and the limiter's reduction (violet, from the top). Transform only: no layout */
 .meter{flex:none;width:60px;display:flex;flex-direction:column;gap:4px;}
 .mt-bars{flex:1;min-height:0;display:flex;gap:3px;padding:4px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
 .mt-ch,.mt-gr{position:relative;overflow:hidden;border-radius:2px;}
@@ -529,12 +529,12 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #mtLed{padding:2px 4px;border:1px solid var(--edge);border-radius:4px;background:none;color:var(--dim);font:inherit;cursor:pointer;}
 #mtLed.on{color:var(--hot);border-color:var(--hot);box-shadow:0 0 6px color-mix(in srgb,var(--hot) 50%,transparent);}
 
-/* Teclado: parte del instrumento, se escala con él */
+/* Keyboard: part of the instrument, scales with it */
 #kbWrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
 #keyboard{flex:1;min-height:0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
   border-radius:8px;padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6);}
-#kbKeys{position:relative;height:100%;display:flex;touch-action:none;}   /* un dedo en las teclas toca, no desplaza ni hace zoom */
-#kbKeys::before{ /* fieltro rojo tras las teclas */
+#kbKeys{position:relative;height:100%;display:flex;touch-action:none;}   /* a finger on the keys plays, it doesn't scroll or zoom */
+#kbKeys::before{ /* red felt behind the keys */
   content:'';position:absolute;left:0;right:0;top:0;height:4px;z-index:4;pointer-events:none;
   background:linear-gradient(180deg,var(--felt),color-mix(in srgb,var(--felt) 60%,black));}
 .wkey{position:relative;flex:1;margin:0 1px;cursor:pointer;
@@ -565,13 +565,13 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .bkey.on .klab{color:var(--ink-on-accent2);background:rgba(255,255,255,.3);border-color:color-mix(in srgb,var(--ink-on-accent2) 35%,transparent);}
 .kname{pointer-events:none;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--dim);}
 .wkey.on .kname{color:var(--ink-on-accent);}
-/* Bajo el teclado: la octava con ratón (− / + y el rango visible); lo demás vive en el tooltip */
+/* Under the keyboard: the octave by mouse (− / + and the visible range); the rest lives in the tooltip */
 #kbBar{flex:none;display:flex;align-items:center;gap:8px;}
 #kbBar .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
 #kbBar .num{min-width:52px;}
 
 /* MIDI learn */
-#midiBar[hidden]{display:none;}  /* el display:flex de abajo ganaría al atributo hidden */
+#midiBar[hidden]{display:none;}  /* the display:flex below would win over the hidden attribute */
 #midiBar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:60;max-width:96vw;
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;font-size:11px;
   background:var(--panel-face);border:1px solid var(--accent2);
@@ -612,13 +612,13 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .st-row.fail .st-mark,.st-row.fail .st-name{color:var(--hot);}
 .st-err{color:var(--hot);font-size:10px;padding:1px 0 3px 14px;}
 
-/* Editor de ondas (tabla «usuario») */
+/* Wave Editor («user» table) */
 #weCanvas{width:100%;flex:1;min-height:0;min-width:150px;background:var(--screen);border:1px solid var(--edge);
   border-radius:8px;margin-top:8px;cursor:crosshair;touch-action:none;display:block;}
 
-/* Ayuda por módulo: el texto vive oculto (.help) y sale en el tooltip del «?» */
+/* Per-module help: the text lives hidden (.help) and shows in the «?» tooltip */
 .panel .help{display:none;}
-/* Interruptor en la cabecera de un módulo (Sync del Osc A): antes del «?», que se pega a él */
+/* Switch in a module's header (Osc A Sync): before the «?», which sticks to it */
 .h2tog{margin-left:auto;padding:1px 6px;border:1px solid var(--edge);border-radius:4px;background:none;color:var(--dim);
   font-family:inherit;font-size:9px;font-weight:600;line-height:1.3;letter-spacing:.5px;text-transform:var(--lab-case);cursor:pointer;}
 .h2tog:hover{color:var(--ink);border-color:var(--edge-hi);}
@@ -633,47 +633,47 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
 #helpTip b{color:var(--ink);}
 
-/* Iconos de forma de onda (SVG inline con currentColor: inmunes al tema) */
+/* Waveform icons (inline SVG with currentColor: immune to the theme) */
 .seg.waves button svg{display:block;margin:0 auto;width:17px;height:12px;
   stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 
-/* Apagado (ui/deps.js): lo que NO hace nada con la configuración actual —
-   una sección entera o un control suelto. Atenuado EN SU SITIO pero tocable
-   (preparar un ajuste antes de encender lo que lo activa, como en el
-   hardware); el motivo va en data-off (tooltip y pantalla Salida). Una sección
-   apagada atenúa todo menos su título; lo que está dentro de algo ya apagado
-   no se atenúa dos veces. */
+/* Off (ui/deps.js): what does NOTHING with the current settings —
+   a whole section or a single control. Dimmed IN PLACE but touchable
+   (to prepare a setting before switching on what activates it, as on
+   hardware); the reason goes in data-off (tooltip and Output display). A switched-off
+   section dims everything but its title; what is inside something already off
+   isn't dimmed twice. */
 .dep-off:not(.panel){opacity:.35;filter:saturate(.35);}
 .panel.dep-off > :not(h2){opacity:.35;filter:saturate(.35);}
 .panel.dep-off h2{opacity:.6;}
 .dep-off .dep-off,.panel.dep-off .dep-off{opacity:1;filter:none;}
 
-/* LEDs de actividad (ui/activity.js): la sección está HACIENDO algo.
-   En el h2 de cada sección; versión mini en las filas del banco de LFOs. */
+/* Activity LEDs (ui/activity.js): the section is DOING something.
+   In each section's h2; mini version in the rows of the LFO bank. */
 .led{width:7px;height:7px;border-radius:50%;background:var(--knob);border:1px solid var(--line);
   box-shadow:inset 0 1px 1px rgba(0,0,0,.6);display:inline-block;margin-right:7px;flex:none;
   transition:background .15s,box-shadow .15s;}
 .led.on{background:var(--accent);box-shadow:0 0 6px var(--accent),inset 0 1px 1px rgba(255,255,255,.25);}
 .panel.osc .led.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2),inset 0 1px 1px rgba(255,255,255,.25);}
 .lfo-row .rn .led{width:5px;height:5px;margin-right:5px;}
-/* Knobs de "cantidad" (act en PARAMS) en su valor inerte: indicador apagado, sin halo */
+/* "Amount" knobs (act in PARAMS) at their inert value: indicator off, no halo */
 .knob.off,.panel.osc .knob.off{--knob-ind:var(--edge-hi);--knob-glow:transparent;}
 
-/* Matriz de modulación: filas [fuente ▾] → [destino ▾] × knob de cantidad */
+/* Modulation matrix: rows [source ▾] → [destination ▾] × amount knob */
 .mx-row{display:grid;grid-template-columns:1fr 12px 1fr 76px;align-items:center;gap:6px;}
 .mx-row select{min-width:0;padding:4px 6px;font-size:11px;}
 .mx-arrow{color:var(--dim);font-size:11px;text-align:center;}
 
-/* Pestañas de pantalla (ui/screens.js): cada una enseña SU panel fijo */
-#screenTabs{margin-left:4px;border-radius:var(--r-btn);}   /* las pestañas sí son píldora: tienen aire */
+/* Screen tabs (ui/screens.js): each one shows ITS fixed panel */
+#screenTabs{margin-left:4px;border-radius:var(--r-btn);}   /* the tabs are pills: they have air */
 #screenTabs button{flex:none;padding:6px 14px;font-size:11px;letter-spacing:var(--title-space);text-transform:var(--title-case);}
 
-/* Pantalla Presets: la biblioteca por secciones, en columnas (ui/libraryScreen.js) */
-#library{overflow-y:auto;}   /* la biblioteca es lo único que hace scroll (vertical): las columnas se equilibran a lo alto */
+/* Presets screen: the Library by sections, in columns (ui/libraryScreen.js) */
+#library{overflow-y:auto;}   /* the Library is the only thing that scrolls (vertically): the columns balance in height */
 #library .lib-bar{position:sticky;top:-8px;z-index:2;background:var(--panel-face);padding:6px 0;margin:-6px 0 4px;}
 #presetList{columns:220px;column-gap:16px;flex:none;}
 .pl-sec{break-inside:avoid;margin-bottom:12px;}
-.pl-sec.big{break-inside:auto;}   /* una sección de 70 ítems no debe ser una columna kilométrica */
+.pl-sec.big{break-inside:auto;}   /* a 70-item section must not be a mile-long column */
 .pl-head{font-size:10px;color:var(--accent);text-transform:var(--title-case);letter-spacing:1px;margin:0 0 4px;
   border-bottom:1px solid var(--edge);padding-bottom:3px;}
 .pl-item{display:flex;align-items:center;gap:6px;width:100%;background:none;border:1px solid transparent;color:var(--ink);
@@ -705,32 +705,32 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .pl-item:hover{border-color:var(--accent);color:var(--accent);}
 .pl-item.cur{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:var(--accent);color:var(--accent);}
 
-/* rueda de modulación bajo el teclado (Roadmap 5.0 · bloque 4): fuente «Rueda (CC1)» de la matriz */
+/* mod wheel under the keyboard (Roadmap 5.0 · block 4): the matrix's «Wheel (CC1)» source */
 #kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
 #kbBar .wheel input[type=range]{width:140px;}
 #kbBar .kb-grp{display:flex;align-items:center;gap:8px;margin-left:18px;}
 #kbBar .kb-grp select{padding:2px 6px;font-size:11px;}
 #kbTouch button{padding:3px 8px;font-size:10px;}
 
-/* VENTANA DE ENTRADA (ui/splash.js): una ventana modal centrada sobre el
-   instrumento, que se ve detrás apagado (oscurecido y desaturado). Arriba, la
-   pantallita del efecto a píxel doble (pixelated); debajo, ENTRAR y el pie.
-   Se escala con el instrumento (zoom en línea desde splash.js). Colores de la
-   marca, no del tema: tokens --sp-* aquí debajo (y las paletas del lienzo). */
+/* WELCOME WINDOW (ui/splash.js): a modal window centered over the
+   instrument, which shows behind it dimmed (darkened and desaturated). On top, the
+   small effect screen at double pixels (pixelated); below, ENTER and the footer.
+   It scales with the instrument (inline zoom from splash.js). Brand colors,
+   not theme colors: --sp-* tokens just below (and the canvas palettes). */
 :root{
   --sp-dim:rgba(4,7,9,.6); --sp-card-top:#0f1b1d; --sp-card-bot:#091113; --sp-edge:rgba(63,214,190,.3); --sp-edge2:rgba(255,255,255,.06);
   --sp-shadow:rgba(0,0,0,.7); --sp-halo:rgba(63,198,242,.12); --sp-ink:#cdeee6; --sp-soft:#7aa39a; --sp-meta:#8fd9c8; --sp-white:#fff;
   --sp-green:#39d4a3; --sp-cyan:#3fc6f2; --sp-violet:#a78bfa; --sp-glow:rgba(63,198,242,.4);
   --sp-btn-top:rgba(6,24,26,.96); --sp-btn-bot:rgba(2,10,12,.98); --sp-btn-top-on:rgba(12,52,56,.96); --sp-btn-bot-on:rgba(4,22,26,.98);
   --sp-btn-ink:#d6fff6; --sp-btn-glow:rgba(63,214,242,.75); --sp-sweep:rgba(255,255,255,.2);
-  /* paletas del lienzo (splash.js las interpola a 256 colores): plasma cíclico y cobre del nombre */
+  /* canvas palettes (splash.js interpolates them to 256 colors): cyclic plasma and the name's copper */
   --sp-plasma:#02090a,#041d1c,#08383a,#0d5752,#127a6c,#18a08a,#127a6c,#0d4f57,#132a4a,#08202a;
   --sp-copper:#0e3b52,#3fc6f2,#e8fbff,#3fc6f2,#2a6f9e,#7d63d8,#d9ccff,#a78bfa,#3b2a78,#0e3b52;}
 #splash{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:var(--sp-dim);
   backdrop-filter:saturate(.45) brightness(.82);transition:opacity .4s ease;}
 #splash.out{opacity:0;pointer-events:none;}
-#splash[hidden]{display:none;}   /* cerrada: el display:grid de arriba taparía el [hidden] del navegador */
-#aboutBtn,#verBadge{cursor:pointer;}   /* el título de la cabecera abre «Acerca de» */
+#splash[hidden]{display:none;}   /* closed: the display:grid above would override the browser's [hidden] */
+#aboutBtn,#verBadge{cursor:pointer;}   /* the header title opens «About» */
 .sp-card{width:336px;overflow:hidden;border:1px solid var(--sp-edge);border-radius:10px;
   background:linear-gradient(180deg,var(--sp-card-top),var(--sp-card-bot));
   box-shadow:inset 0 0 0 1px var(--sp-edge2),0 24px 60px var(--sp-shadow),0 0 48px var(--sp-halo);
@@ -759,8 +759,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   font:500 10px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.04em;color:var(--sp-soft);}
 .sp-foot b{color:var(--sp-ink);font-weight:600;}
 .sp-foot a{display:inline-flex;align-items:center;gap:5px;color:var(--sp-meta);text-decoration:none;}
-.sp-gh{display:block;width:12px;height:12px;flex:none;margin-top:-1px;}   /* 12 px junto a texto de 11: medio píxel arriba para centrar */
-.sp-links{display:flex;align-items:center;gap:6px;}   /* centrado por cajas: el icono no empuja la línea de texto */
+.sp-gh{display:block;width:12px;height:12px;flex:none;margin-top:-1px;}   /* 12 px next to 11 px text: half a pixel up to center it */
+.sp-links{display:flex;align-items:center;gap:6px;}   /* centered by boxes: the icon doesn't push the text line */
 .sp-foot a:hover{color:var(--sp-white);text-decoration:underline;}
 @keyframes spIn{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:none;}}
 @keyframes spFlow{to{background-position:300% 0;}}

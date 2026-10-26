@@ -1,9 +1,9 @@
-/* SubSDJ · editor de ondas: dibuja a mano alzada los frames A/B de la tabla
-   «usuario» (aparece en el selector de tabla de Osciladores; Morph = A→B).
-   Se guarda la RECETA (los puntos, localStorage) y wavetable.js la convierte
-   en espectro + mips band-limited. «Suavizar» atenúa armónicos altos EN EL
-   ESPECTRO y resintetiza: suaviza el timbre, no solo el trazo. El frame que
-   no se edita se pinta como fantasma para dibujar el morph con intención. */
+/* SubSDJ · Wave Editor: draws freehand the A/B frames of the «user»
+   table (it appears in the Oscillators' table selector; Morph = A→B).
+   The RECIPE is stored (the points, localStorage) and wavetable.js turns it
+   into a spectrum + band-limited mips. «Smooth» attenuates high harmonics IN THE
+   SPECTRUM and resynthesizes: it smooths the timbre, not just the line. The frame
+   not being edited is painted as a ghost so the morph can be drawn with intent. */
 import { part } from '../engine/parts.js';
 import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
@@ -11,7 +11,7 @@ import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
 import { token, tint } from './theme.js';
 import { fitCanvas } from './frame.js';
 
-const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff por pulsación de «Suavizar»
+const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff per press of «Smooth»
 
 export function initWaveEditor() {
   const cv = document.getElementById('weCanvas');
@@ -21,7 +21,7 @@ export function initWaveEditor() {
   let cur = 0, dragging = false, last = null;
 
   function draw() {
-    const { w, h } = fitCanvas(cv, g, 300, 96);   // px de diseño; backing store a dpr × zoom
+    const { w, h } = fitCanvas(cv, g, 300, 96);   // design px; backing store at dpr × zoom
     g.clearRect(0, 0, w, h);
     g.strokeStyle = tint('--dim', .25); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     const path = (pts, color, width) => {
@@ -32,20 +32,20 @@ export function initWaveEditor() {
       }
       g.stroke(); g.lineWidth = 1;
     };
-    path(frames[1 - cur], tint('--dim', .35), 1);        // el otro frame, de fantasma
+    path(frames[1 - cur], tint('--dim', .35), 1);        // the other frame, as a ghost
     path(frames[cur], token(cur ? '--accent2' : '--accent'), 2);
   }
 
   function commit() {
     saveUserFrames(frames);
-    try { getWtSet('user'); } catch (e) {}   // precalienta: la próxima nota ya lo lee
+    try { getWtSet('user'); } catch (e) {}   // prewarms: the next note already reads it
   }
   function paint(e) {
     const r = cv.getBoundingClientRect();
     const i = Math.max(0, Math.min(WE_P - 1, Math.round((e.clientX - r.left) / r.width * (WE_P - 1))));
     const v = Math.max(-1, Math.min(1, 1 - 2 * (e.clientY - r.top) / r.height));
     const pts = frames[cur];
-    if (last && Math.abs(i - last.i) > 1) {     // interpola el tramo saltado por el arrastre rápido
+    if (last && Math.abs(i - last.i) > 1) {     // interpolates the stretch skipped by a fast drag
       const d = i > last.i ? 1 : -1;
       for (let k = last.i + d; k !== i; k += d) pts[k] = last.v + (v - last.v) * (k - last.i) / (i - last.i);
     }
@@ -58,7 +58,7 @@ export function initWaveEditor() {
   cv.addEventListener('pointerup', end);
   cv.addEventListener('pointercancel', end);
 
-  // frame A/B (estado del editor, no del synth: fuera de CONTROLS a propósito)
+  // frame A/B (editor state, not synth state: outside CONTROLS on purpose)
   const seg = document.getElementById('weFrameSel');
   seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
@@ -75,19 +75,19 @@ export function initWaveEditor() {
     for (let n = 1; n <= WE_P >> 1; n++) { sp.sin[n - 1] *= SUAVE(n); sp.cos[n - 1] *= SUAVE(n); }
     const pts = puntosDeEspectro(sp);
     let peak = 0; for (const v of pts) peak = Math.max(peak, Math.abs(v));
-    const k = peak > 0.05 ? Math.min(1, 0.95 / peak) : 1;    // recupera nivel sin amplificar residuos
+    const k = peak > 0.05 ? Math.min(1, 0.95 / peak) : 1;    // restores level without amplifying residue
     for (let i = 0; i < WE_P; i++) frames[cur][i] = pts[i] * k;
     commit(); draw();
   });
 
-  // Control VIRTUAL wtUser (sin DOM): mete la onda dibujada DENTRO del preset.
-  // get: solo aporta la receta si el preset usa la tabla 'user' (los demás
-  // presets no cargan con ~2.5 KB de puntos). set: '' = "no traigo onda,
-  // respeta la dibujada" (es lo que aplica el Reset previo a cada carga).
+  // VIRTUAL control wtUser (no DOM): puts the drawn wave INSIDE the preset.
+  // get: only provides the recipe if the preset uses the 'user' table (the other
+  // presets don't carry ~2.5 KB of points). set: '' = "I bring no wave,
+  // keep the drawn one" (that is what the Reset before each load applies).
   CONTROLS.wtUser = {
     get: () => part().S.wtSet === 'user' ? encodeUserFrames(frames) : '',
     set: v => {
-      part().S.wtUser = v;                       // constancia en S (el motor no tiene case: dato de receta)
+      part().S.wtUser = v;                       // recorded in S (the engine has no case for it: recipe data)
       if (!v) return;
       const fr = decodeUserFrames(v);
       if (!fr) return;

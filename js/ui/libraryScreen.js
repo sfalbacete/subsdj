@@ -1,17 +1,17 @@
-/* SubSDJ · pantalla Presets (13b): la biblioteca entera a la vista y en la
-   mano. Secciones en columnas (crear, renombrar, reordenar ‹ ›, borrar) con
-   ítems (preset o escena) que se cargan con un clic, se marcan ★, se
-   renombran en línea, se arrastran a otra sección o a otra posición y se
-   borran. Búsqueda sin acentos y filtro «solo ★». Aquí solo se PINTA: todo
-   pasa por engine/library.js, que avisa con library-changed. Cargar un
-   preset va por el mismo camino que el selector rápido; una escena, por el
-   de ⇧ Escena del módulo Arreglo (enciende las Partes si hace falta). */
+/* SubSDJ · Presets screen (13b): the whole Library in view and at
+   hand. Sections in columns (create, rename, reorder ‹ ›, delete) with
+   items (preset or scene) that load with a click, get marked ★, are
+   renamed inline, dragged to another section or position and
+   deleted. Accent-insensitive search and a «★ only» filter. Here we only PAINT: everything
+   goes through engine/library.js, which announces with library-changed. Loading a
+   preset takes the same path as the quick picker; a scene, the one of
+   ⇧ Scene in the Arrangement module (it turns Parts on if needed). */
 import { library, normaliza } from '../engine/library.js';
 import { loadPresetId, currentPresetId } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
 
 const $ = id => document.getElementById(id);
-let list, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: la escena que suena (solo una)
+let list, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: the scene that is playing (only one)
 const msg = t => { if (msgEl) msgEl.textContent = t; };
 
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -21,8 +21,8 @@ function btn(cls, text, title, onClick) {
   return b;
 }
 
-// Edición en línea: el span se vuelve input; Enter o blur guardan, Escape cancela.
-// keyboard.js ignora los <input type=text>, así que el piano no roba las letras.
+// Inline editing: the span becomes an input; Enter or blur save, Escape cancels.
+// keyboard.js ignores <input type=text>, so the piano doesn't steal the letters.
 function editInline(span, valor, onCommit) {
   const inp = document.createElement('input'); inp.type = 'text'; inp.value = valor; inp.maxLength = 48; inp.className = 'pl-edit';
   let done = false;
@@ -43,7 +43,7 @@ function row(it, cur) {
   star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites» in the quick picker';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
   r.appendChild(star);
-  if (it.type === 'scene') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
+  if (it.type === 'scene') {   // ▶ loads and starts the conductor; ⏹ stops it (Parts stay on)
     const on = playingId === it.id && isPlaying();
     const p = mk('span', 'pl-play' + (on ? ' on' : ''), on ? '⏹' : '▶');
     p.title = on ? 'Stop the scene (Parts stay on)' : 'Load the scene and start it playing (one at a time)';
@@ -67,7 +67,7 @@ function row(it, cur) {
 async function togglePlay(it) {
   if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Scene stopped: ' + it.name + '.'); return; }
   try { await loadScene(it.data); } catch (err) { msg('Invalid scene: ' + (err.message || err)); return; }
-  playingId = it.id;            // después de cargar: scene-loaded acaba de limpiarlo
+  playingId = it.id;            // after loading: scene-loaded has just cleared it
   setPlaying(true); msg('Playing: ' + it.name + '.');
 }
 async function cargar(it) {
@@ -88,8 +88,8 @@ function render() {
     let items = todos;
     if (q) items = items.filter(it => normaliza(it.name).includes(q));
     if (soloFav) items = items.filter(it => it.fav);
-    if ((q || soloFav) && !items.length) continue;   // filtrando: solo secciones con resultados
-    const sec = mk('div', 'pl-sec' + (items.length > 30 ? ' big' : '')); sec.dataset.sec = s.id;   // grande: se parte entre columnas
+    if ((q || soloFav) && !items.length) continue;   // filtering: only sections with results
+    const sec = mk('div', 'pl-sec' + (items.length > 30 ? ' big' : '')); sec.dataset.sec = s.id;   // big: split across columns
     const head = mk('div', 'pl-head');
     const name = mk('span', 'pl-name', s.name); head.appendChild(name);
     head.appendChild(mk('span', 'pl-n', String(todos.length)));
@@ -105,7 +105,7 @@ function render() {
     name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v)));
     sec.appendChild(head);
     for (const it of items) sec.appendChild(row(it, cur));
-    // soltar aquí: antes del ítem sobre el que se suelta, o al final de la sección
+    // drop here: before the item it is dropped on, or at the end of the section
     sec.addEventListener('dragover', e => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; sec.classList.add('over'); } });
     sec.addEventListener('dragleave', e => { if (!sec.contains(e.relatedTarget)) sec.classList.remove('over'); });
     sec.addEventListener('drop', e => {
@@ -127,7 +127,7 @@ export function initLibraryScreen() {
   $('libSearch').addEventListener('input', e => { filtro = e.target.value; render(); });
   $('libFavOnly').addEventListener('change', e => { soloFav = e.target.checked; render(); });
   $('libNewSec').addEventListener('click', () => {
-    const id = library.crearSeccion('New section');   // library-changed ya repintó: a ponerle nombre
+    const id = library.crearSeccion('New section');   // library-changed already repainted: now to name it
     const name = list.querySelector('.pl-sec[data-sec="' + id + '"] .pl-name');
     if (name) editInline(name, 'New section', v => library.renombrarSeccion(id, v));
   });
@@ -137,10 +137,10 @@ export function initLibraryScreen() {
         + (r.errores.length ? ' Could not read: ' + r.errores.join(', ') + '.' : ''));
   });
   document.addEventListener('library-changed', render);
-  document.addEventListener('preset-loaded', mark);   // selector rápido, ‹ ›, program change
-  document.addEventListener('preset-marked', mark);   // cambiar de parte o guardar: el actual cambia sin cargar
-  document.addEventListener('play-changed', render);   // ▶/⏹ de las escenas al día (también desde ▶ Tocar)
-  document.addEventListener('scene-changed', render);  // Pánico o Partes apagadas paran el director
-  document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // otra escena (⇧ Escena, ↺ Última)
+  document.addEventListener('preset-loaded', mark);   // quick picker, ‹ ›, program change
+  document.addEventListener('preset-marked', mark);   // changing part or saving: the current one changes without loading
+  document.addEventListener('play-changed', render);   // scenes' ▶/⏹ kept up to date (also from ▶ Play)
+  document.addEventListener('scene-changed', render);  // Panic or Parts switched off stop the conductor
+  document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // another scene (⇧ Scene, ↺ Last)
   render();
 }

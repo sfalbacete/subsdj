@@ -1,14 +1,14 @@
 /* =====================================================================
-   SubSDJ · AudioEngine — grafo de UN instrumento: LFOs, gestión de voces,
-   inserciones. Cadena:
-     voicesBus(auto-gain) -> amp(+LFO trémolo) -> distorsión -> flanger
-       -> chorus|ensemble -> nivel -> [seco + envío delay + envío reverb]
-       -> Sala (engine/Sala.js: delay ping-pong, reverb, limitador, máster)
-   Modo de siempre: el motor crea su propia Sala. Modo Partes (parts.js):
-   varios motores comparten UNA Sala (modelo send/return).
-   El filtro es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
-   son globales al motor pero se conectan a los params de cada voz al crearse
-   (o, con lfoPhase 'voice', cada voz crea sus copias en su propia fase: nodes.mkVoiceLFO).
+   SubSDJ · AudioEngine — the graph of ONE instrument: LFOs, voice management,
+   inserts. Chain:
+     voicesBus(auto-gain) -> amp(+tremolo LFO) -> distortion -> flanger
+       -> chorus|ensemble -> level -> [dry + delay send + reverb send]
+       -> Sala (engine/Sala.js, the Room: ping-pong delay, reverb, limiter, master)
+   Usual mode: the engine creates its own Room. Parts mode (parts.js):
+   several engines share ONE Room (send/return model).
+   The filter is PER VOICE (in Voice.js). The cutoff/reso/freq/pwm LFOs
+   are global to the engine but are connected to each voice's params when it is created
+   (or, with lfoPhase 'voice', each voice creates its copies at its own phase: nodes.mkVoiceLFO).
    ===================================================================== */
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
@@ -23,53 +23,54 @@ import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, s
 import { LFO_KEYS, lfoHz, lfoBeats, STR_KEYS } from './params.js';
 import { Sala, SALA_KEYS } from './Sala.js';
 
-const MAX_POLY = 10;    // voces pulsadas a la vez; al pasar, se roba la más antigua
-const MAX_TAILS = 16;   // colas de release vivas; por encima, fundido de la más vieja (TAIL_FADE)
-// Fundido de la cola que sobra. Era 10 ms («entre 12 colas es inaudible»): con
-// releases de 20-30 s (Roadmap 5.0) la cola más vieja aún suena a medio nivel
-// cuando le toca irse, y un corte de 10 ms se oye como un clic de pad. 350 ms
-// entre 16 colas y la reverb no se distingue de la propia caída.
+const MAX_POLY = 10;    // voices held at once; beyond that, the oldest is stolen
+const MAX_TAILS = 16;   // live release tails; above that, the oldest one fades out (TAIL_FADE)
+// Fade of the surplus tail. It was 10 ms («among 12 tails it's inaudible»): with
+// 20-30 s releases (Roadmap 5.0) the oldest tail still sounds at half level
+// when its turn to go comes, and a 10 ms cut is heard as a pad click. 350 ms
+// among 16 tails and the reverb can't be told apart from the natural decay.
 const TAIL_FADE = 0.35;
-// Mono con Disparo «cada nota»: la voz que suena se funde mientras sube el ataque de
-// la nueva (relevo en el mismo instante, max(MONO_XF, ataque)). Es lo que hace un
-// ADSR analógico al redisparar desde su nivel actual, sin el hueco de volver a 0.
+// Mono with trigger «Retrig»: the sounding voice fades out while the attack of the
+// new one rises (handover at the same instant, max(MONO_XF, attack)). It's what an
+// analog ADSR does when retriggered from its current level, without the dip back to 0.
 const MONO_XF = 0.005;
-// Presupuesto de CPU de audio (solo en directo). Todos los motores de un MISMO
-// contexto — las 4 partes de una escena — se renderizan en el mismo hilo de
-// audio, así que el tope es COMÚN: se lleva por contexto (budgetOf), no por
-// motor. Cada voz pesa lo que cuesta lo que lleva encendido (Voice.cost, en
-// «voces simples»: dos sierras con el filtro quieto = 1). Al pasarse, se libera
-// de lo que menos se oye a lo que más: (1) la cola de release más vieja de
-// CUALQUIER parte, fundida en TAIL_FADE; (2) la voz pulsada más vieja de la
-// parte que pide la nota — nunca la nota sostenida de otro instrumento.
-// VOICE_BUDGET: 30 voces simples ≈ 47 % de un núcleo en el PC de referencia,
-// más los efectos y la sala (4-15 %): el hilo queda por debajo de ~60 %, con
-// margen para los picos (crear voces a ráfagas). Offline (selftest, SFZ) no
-// hay plazos y no hay tope.
+// Audio CPU budget (live only). All the engines of the SAME context — the
+// 4 parts of a scene — render on the same audio thread, so the limit is
+// SHARED: it is kept per context (budgetOf), not per engine. Each voice weighs
+// what the things it has switched on cost (Voice.cost, in «simple voices»: two
+// saws with a static filter = 1). When over, it frees from what is heard least
+// to what is heard most: (1) the oldest release tail of ANY part, faded out in
+// TAIL_FADE; (2) the oldest held voice of the part asking for the note — never
+// a sustained note of another instrument.
+// VOICE_BUDGET: 30 simple voices ≈ 47 % of a core on the reference PC, plus
+// the effects and the Room (4-15 %): the thread stays below ~60 %, with
+// headroom for peaks (voices created in bursts). Offline (selftest, SFZ) there
+// are no deadlines and no limit.
 export const VOICE_BUDGET = 30;
-// Coste fijo de un motor sin notas, en las mismas «voces simples» (medido: 2,5 %
-// de un núcleo con su sala y sin efectos; cada efecto, lo que suma encendido).
+// Fixed cost of an engine with no notes, in the same «simple voices» (measured: 2.5 %
+// of a core with its Room and no effects; each effect, what it adds when on).
 const ENGINE_COST = { base: 1, dist: 0.17, fl: 0.14, ch: 0.22, ens: 0.37 };
 const budgets = new WeakMap();
 const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
-// Fuentes de ejecución (rueda, aftertouch, expresión): suavizado de los saltos de 1/127 del MIDI
+// Performance sources (wheel, aftertouch, expression): smoothing of MIDI's 1/127 jumps
 const PERF_TAU = 0.02;
-// Acoplamiento en alterna de la salida de cada parte (pulir, 2026-10-25): un paso alto de un polo
-// a AC_HZ, como el condensador de salida de un sinte analógico. Un pulso con ancho distinto del
-// 50 % tiene media ≠ 0 (el «Lead cuadrado» llevaba un 57 % de su nivel en continua): restaba
-// margen por un lado, saturaba asimétrico en la cinta y el limitador, y se acumulaba en el bucle
-// del delay. Va al FINAL de la parte (tras distorsión, flanger y chorus: recoge lo que añada
-// cualquiera), antes de los envíos. A 20 Hz quita 0,25 dB; por encima, nada que se oiga. El
-// pulso, además, sale centrado del oscilador (pulse-processor): su PWM ya no mueve la continua.
+// AC coupling of each part's output (polish, 2026-10-25): a one-pole high-pass
+// at AC_HZ, like the output capacitor of an analog synth. A pulse with a width other than
+// 50 % has a mean ≠ 0 (the «Square Lead» carried 57 % of its level as DC): it ate
+// headroom on one side, saturated asymmetrically in the tape and the limiter, and built up in
+// the delay loop. It sits at the END of the part (after distortion, flanger and chorus: it catches
+// whatever any of them adds), before the sends. At 20 Hz it takes off 0.25 dB; above, nothing
+// audible. The pulse, besides, comes out centred from the oscillator (pulse-processor): its PWM
+// no longer moves the DC.
 const AC_HZ = 5;
-const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matriz ← parámetro del preset
+const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // matrix source ← preset parameter
 
-// Carga de los worklets en un contexto, UNA vez por contexto (lo usan init() y
-// parts.createScene, que construye la Sala compartida antes de ningún motor).
-// El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
-// de worklet (si no, el navegador puede casar módulos nuevos con un processor
-// viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=16';  // v16: ondas 'wavetable' y 'string' (antes 'tabla' y 'cuerda'); v15: el pulso sale centrado (sin la continua de su ancho); v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+// Loading of the worklets into a context, ONCE per context (used by init() and
+// parts.createScene, which builds the shared Room before any engine).
+// The ?v=N breaks the browser's heuristic cache: BUMP IT when worklet code
+// changes (otherwise the browser may pair new modules with an old processor
+// and the new parameters arrive undefined -> crash when creating voices).
+const WK_V = '?v=16';  // v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -83,152 +84,152 @@ export class AudioEngine {
     this.ctx = null;
     this.ready = false;
     this.S = makeDefaultState();
-    this.voices = new Map();      // id -> Voice (voces PULSADAS)
-    this.tails = new Set();       // voces sueltas sonando su release
+    this.voices = new Map();      // id -> Voice (HELD voices)
+    this.tails = new Set();       // released voices playing their release
     this.voiceCount = 0;
-    this.lastFreq = null;         // para glide
-    this.heldStack = [];          // notas pulsadas en modo mono (cima = sonando)
-    this.monoVoice = null;        // voz única en modo mono
-    this.arp = new Arp(this);     // arpegiador (activo cuando S.arpMode != 'off')
-    this.seq = new Seq(this);     // secuenciador de pasos (activo cuando S.seqOn == 'on')
-    this.wseq = new WaveSeq(this);// secuencia de tabla (activa cuando S.wsOn == 'on')
-    this.steps = new Steps(this); // Pasos: 4 carriles para la matriz (Roadmap 7.0 · 2.3)
-    this.perfVal = { wheel: 0, at: 0, expr: 0 };   // fuentes de ejecución (0..1); los nodos nacen en init()
+    this.lastFreq = null;         // for glide
+    this.heldStack = [];          // notes held in mono mode (top = sounding)
+    this.monoVoice = null;        // single voice in mono mode
+    this.arp = new Arp(this);     // arpeggiator (active when S.arpMode != 'off')
+    this.seq = new Seq(this);     // step sequencer (active when S.seqOn == 'on')
+    this.wseq = new WaveSeq(this);// wave sequence (active when S.wsOn == 'on')
+    this.steps = new Steps(this); // Steps: 4 lanes for the matrix (Roadmap 7.0 · 2.3)
+    this.perfVal = { wheel: 0, at: 0, expr: 0 };   // performance sources (0..1); the nodes are born in init()
   }
 
-  // ctx opcional: el self-test pasa un OfflineAudioContext; por defecto crea el real.
-  // sala opcional: la Sala COMPARTIDA (modo Partes); sin ella el motor crea la suya.
+  // optional ctx: the self-test passes an OfflineAudioContext; by default it creates the real one.
+  // optional sala: the SHARED Room (Parts mode); without it the engine creates its own.
   async init(providedCtx = null, { sala = null } = {}) {
     if (this.ctx) return;
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
-    // Render offline (selftest, SFZ): el reloj de audio corre más rápido que el
-    // de pared, así que los temporizadores de las colas no valen (y matarían
-    // voces a destiempo, de forma NO determinista). Sin tope de colas offline.
+    // Offline render (selftest, SFZ): the audio clock runs faster than the
+    // wall clock, so the tail timers are useless (and would kill voices at
+    // the wrong time, NON-deterministically). No tail limit offline.
     this.offline = typeof ctx.startRendering === 'function';
-    this.budget = budgetOf(ctx); this.budget.add(this);   // presupuesto de CPU común a los motores de este contexto
+    this.budget = budgetOf(ctx); this.budget.add(this);   // CPU budget shared by the engines of this context
     this.noiseBuffer = makeNoise(ctx);
-    this.wanderBuffer = makeWander(ctx);   // deriva lenta compartida (Vocal · Vida)
+    this.wanderBuffer = makeWander(ctx);   // shared slow drift (Vocal · Life)
 
-    await loadWorklets(ctx);               // pulse, recorder y plate (una vez por contexto)
+    await loadWorklets(ctx);               // pulse, recorder and plate (once per context)
 
     const S = this.S;
 
     this.voicesBus = ctx.createGain(); this.voicesBus.gain.value = 1;
     this.amp = ctx.createGain(); this.amp.gain.value = S.amplitude;
 
-    // EFECTOS DE INSERCIÓN BAJO DEMANDA. De cada efecto existe siempre solo el
-    // camino SECO (una ganancia); el wet — el WaveShaper ×2 de la distorsión, las
-    // líneas de retardo moduladas del flanger, el chorus y el ensemble, y sus 9
-    // LFO — nace la primera vez que su cantidad sube de 0 (_ensureDist, _ensureFl,
-    // _ensureCh, _ensureEns) y se queda. A 0 la salida es la misma (sumaba 0),
-    // pero un motor sin notas costaba ~4 % de un núcleo con todo a 0 — y en
-    // Partes hay cinco motores (las 4 partes y el único, callado debajo).
-    // Distorsión (dry/wet: a 0 es TRANSPARENTE). Un WaveShaper recorta a ±1 cualquier
-    // pico >1 que le entre, así que tenerlo siempre en serie saturaba con politonía.
-    // Sólo se mezcla la parte "wet" según el drive; a 0 pasa todo seco.
+    // INSERT EFFECTS ON DEMAND. Of each effect only the DRY path always exists
+    // (a gain); the wet — the ×2 WaveShaper of the distortion, the modulated
+    // delay lines of the flanger, the chorus and the ensemble, and their 9
+    // LFOs — is born the first time its amount rises above 0 (_ensureDist, _ensureFl,
+    // _ensureCh, _ensureEns) and stays. At 0 the output is the same (it added 0),
+    // but an engine with no notes cost ~4 % of a core with everything at 0 — and in
+    // Parts there are five engines (the 4 parts and the single one, silent underneath).
+    // Distortion (dry/wet: at 0 it is TRANSPARENT). A WaveShaper clips to ±1 any
+    // peak >1 that enters it, so keeping it always in series saturated with polyphony.
+    // Only the "wet" part is mixed in according to the drive; at 0 everything passes dry.
     this.distDry = ctx.createGain(); this.distDry.gain.value = 1 - S.dist;
     this.distOut = ctx.createGain();
     this.flDry = ctx.createGain(); this.flOut = ctx.createGain();     // flanger
-    // Chorus estéreo (dos líneas cortas moduladas a distinta velocidad) y
-    // ensemble (triple chorus estilo Solina): ver _ensureCh / _ensureEns
+    // Stereo chorus (two short lines modulated at different speeds) and
+    // ensemble (Solina-style triple chorus): see _ensureCh / _ensureEns
     this.chDry = ctx.createGain(); this.chOut = ctx.createGain();
     this.ensSlow = []; this.ensFast = [];
 
-    // --- Salida del motor: nivel → seco + dos ENVÍOS (delay, reverb) → Sala ---
-    // La Sala (engine/Sala.js) es el espacio: delay ping-pong de cinta, reverb,
-    // limitador, máster y analizador. Modo de siempre: este motor crea la suya
-    // (y `master` es su máster, como siempre). Modo Partes (engine/parts.js):
-    // recibe la Sala COMPARTIDA; `master` pasa a ser el fader de la parte y
-    // los knobs de la sala (tiempo, damp, size, bpm…) la editan para todas.
+    // --- Engine output: level → dry + two SENDS (delay, reverb) → Room ---
+    // The Room (engine/Sala.js) is the space: tape ping-pong delay, reverb,
+    // limiter, master and analyser. Usual mode: this engine creates its own
+    // (and `master` is its master, as always). Parts mode (engine/parts.js):
+    // it receives the SHARED Room; `master` becomes the part's fader and
+    // the Room knobs (time, damp, size, bpm…) edit it for all of them.
     this.ownsSala = !sala;
     this.sala = sala || new Sala(ctx, S, { fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
     this.sala.engines.push(this);
     this.level = ctx.createGain(); this.level.gain.value = this.ownsSala ? 1 : S.master;
-    this.muteG = ctx.createGain();                                            // mute de la parte (mezclador)
-    this.partPan = ctx.createStereoPanner();                                  // pan de la parte (mezclador)
-    this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // envío al delay
-    this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // envío a la reverb
+    this.muteG = ctx.createGain();                                            // part mute (Part Mixer)
+    this.partPan = ctx.createStereoPanner();                                  // part pan (Part Mixer)
+    this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // delay send
+    this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // reverb send
 
-    // Conexiones globales (los wets se enganchan al crearse)
-    this.acCoup = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * AC_HZ / ctx.sampleRate)]);   // sin continua (ver AC_HZ)
+    // Global connections (the wets get hooked when they are created)
+    this.acCoup = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * AC_HZ / ctx.sampleRate)]);   // no DC (see AC_HZ)
     this.voicesBus.connect(this.amp);
     this.amp.connect(this.distDry); this.distDry.connect(this.distOut);
     this.distOut.connect(this.flDry); this.flDry.connect(this.flOut);
     this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
-    // Salida: chOut -> nivel -> mute -> [pan -> seco de la Sala] + [envíos]
-    this.chOut.connect(this.acCoup); this.acCoup.connect(this.level); this.level.connect(this.muteG);   // sin continua, venga de donde venga (ver AC_HZ)
+    // Output: chOut -> level -> mute -> [pan -> Room dry] + [sends]
+    this.chOut.connect(this.acCoup); this.acCoup.connect(this.level); this.level.connect(this.muteG);   // no DC, wherever it comes from (see AC_HZ)
     this.muteG.connect(this.partPan); this.partPan.connect(this.sala.dry);
     this.muteG.connect(this.sendDly); this.sendDly.connect(this.sala.dlyIn);
     this.muteG.connect(this.sendRev); this.sendRev.connect(this.sala.revIn);
 
     // LFOs
     this.ampLFO = mkLFO(ctx, S.ampLfoSpd, S.ampLfoLvl); this.ampLFO.depth.connect(this.amp.gain);
-    this.cutLFO = mkLFO(ctx, S.cutLfoSpd, S.cutLfoLvl);   // depth se conecta por voz
+    this.cutLFO = mkLFO(ctx, S.cutLfoSpd, S.cutLfoLvl);   // depth is connected per voice
     this.resLFO = mkLFO(ctx, S.resLfoSpd, S.resLfoLvl);
     this.freqLFO = mkLFO(ctx, S.freqLfoSpd, S.freqLfoLvl);
     this.pwmLFO = mkLFO(ctx, S.pwmLfoSpd, S.pwmLfoLvl);
-    this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth se conecta por voz
-    if (S.dist > 0) this._ensureDist();                  // efectos que el estado ya trae encendidos
+    this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth is connected per voice
+    if (S.dist > 0) this._ensureDist();                  // effects the state already brings switched on
     if (S.flAmt > 0) this._ensureFl();
     if (S.chAmt > 0) { if (S.chMode === 'ensemble') this._ensureEns(); else this._ensureCh(); }
-    // formas de onda de los LFOs (el estado puede traerlas de un preset); sin/tri/saw/sqr
-    // son el oscilador nativo, S&H y deriva una fuente alternativa (nodes.js)
+    // LFO waveforms (the state may bring them from a preset); sin/tri/saw/sqr
+    // are the native oscillator, S&H and drift an alternative source (nodes.js)
     setLfoShape(ctx, this.ampLFO, S.ampLfoShape);   setLfoShape(ctx, this.freqLFO, S.freqLfoShape);
     setLfoShape(ctx, this.pwmLFO, S.pwmLfoShape);   setLfoShape(ctx, this.cutLFO, S.cutLfoShape);
     setLfoShape(ctx, this.resLFO, S.resLfoShape);
-    // LFO a tempo (Roadmap 7.0 · 2.2): el reloj común avisa al cambiar el BPM o el
-    // origen, y los LFO sincronizados (globales y propios de cada voz) vuelven a su rejilla
+    // Tempo LFO (Roadmap 7.0 · 2.2): the shared clock notifies when the BPM or the
+    // origin changes, and the synced LFOs (global ones and each voice's own) go back to their grid
     const clock = clockOf(ctx);
     clock.setBpm(this.bpm, ctx.currentTime);
-    clock.swing = (this.sala && this.sala.S.swing) || S.swing || 0.5;   // swing: de la sala, como el BPM
+    clock.swing = (this.sala && this.sala.S.swing) || S.swing || 0.5;   // swing: from the Room, like the BPM
     this._unlisten = clock.listen(() => this._lfoClock());
     this._lfoClock();
 
     this.pitchOffset = ctx.createConstantSource(); this.pitchOffset.offset.value = S.freqCents; this.pitchOffset.start();
-    // Macro de apertura (arreglo de la escena): cents que se SUMAN al detune
-    // de los filtros de todas las voces (exponencial, sin cruzar 0 Hz — la
-    // misma ruta que el destino Cutoff de la matriz). A 0 no hace nada — y no se
-    // conecta a las voces hasta que el arreglo la mueve (_macroOn): conectada,
-    // aunque valga 0, el filtro de cada voz recalcularía coeficientes por muestra.
+    // Opening macro (the scene's arrangement): cents that are ADDED to the detune
+    // of the filters of all the voices (exponential, never crossing 0 Hz — the
+    // same route as the matrix's Cutoff target). At 0 it does nothing — and it isn't
+    // connected to the voices until the arrangement moves it (_macroOn): connected,
+    // even at 0, each voice's filter would recompute coefficients per sample.
     this.macroCut = ctx.createConstantSource(); this.macroCut.offset.value = 0; this.macroCut.start();
     this._macroOn = false;
-    // Fuentes de EJECUCIÓN (Roadmap 5.0 · bloque 4): rueda (CC1), aftertouch y
-    // expresión (CC11) como ConstantSource 0..1 por motor; la matriz las ofrece
-    // como fuentes 'wheel' / 'at' / 'expr' (Voice._mxSrcNode). Llegan por MIDI
-    // (ui/midi.js) o por la rueda en pantalla (ui/keyboard.js); en modo Partes
-    // van a todas las partes (parts.setPerf), como el bend.
+    // PERFORMANCE sources (Roadmap 5.0 · block 4): wheel (CC1), aftertouch and
+    // expression (CC11) as a 0..1 ConstantSource per engine; the matrix offers them
+    // as sources 'wheel' / 'at' / 'expr' (Voice._mxSrcNode). They arrive via MIDI
+    // (ui/midi.js) or via the on-screen wheel (ui/keyboard.js); in Parts mode
+    // they go to all the parts (parts.setPerf), like the bend.
     this.perf = {};
     for (const k in this.perfVal) { const c = ctx.createConstantSource(); c.offset.value = this.perfVal[k]; c.start(); this.perf[k] = c; }
-    // Macros (Roadmap 7.0 · 2.5): mismo camino que las de ejecución, pero su valor es
-    // del preset (S.macro1/2), no un gesto: fuentes 'mac1' / 'mac2'
+    // Macros (Roadmap 7.0 · 2.5): same path as the performance ones, but their value
+    // belongs to the preset (S.macro1/2), not to a gesture: sources 'mac1' / 'mac2'
     for (const [k, p] of MACROS) { const c = ctx.createConstantSource(); c.offset.value = S[p] || 0; c.start(); this.perf[k] = c; }
 
-    // hub de modulación que se pasa a cada voz
-    this.modStats = { worklets: 0 };     // contador de osciladores worklet vivos (HUD)
+    // modulation hub passed to each voice
+    this.modStats = { worklets: 0 };     // counter of live worklet oscillators (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
       pitchOffset: this.pitchOffset, macroCut: this.macroCut, macroOn: () => this._macroOn, perf: this.perf,
-      lfoHz: k => this._lfoHz(k),        // velocidad efectiva del LFO k (a tempo: la división al BPM)
-      stepSrc: (i, t) => this.steps.source(i, t),   // Pasos i (continuo): la fuente del motor
-      stepVal: (i, t) => this.steps.valueAt(i, t),  // Pasos i · nota: el valor del paso en t
+      lfoHz: k => this._lfoHz(k),        // effective speed of LFO k (in tempo: the division at the BPM)
+      stepSrc: (i, t) => this.steps.source(i, t),   // Steps i (continuous): the engine's source
+      stepVal: (i, t) => this.steps.valueAt(i, t),  // Steps i · note: the step's value at t
       freqLFOGain: this.freqLFO.depth, pwmLFOGain: this.pwmLFO.depth,
       cutLFOGain: this.cutLFO.depth, resLFOGain: this.resLFO.depth,
       panLFOGain: this.panLFO.depth,
-      // matriz de modulación: los LFO entran CRUDOS (su salida `out`, ±1, sea
-      // oscilador o S&H/deriva) — el knob Level de cada LFO gobierna su ruta
-      // dedicada, no la matriz
+      // modulation matrix: the LFOs come in RAW (their `out` output, ±1, whether
+      // oscillator or S&H/drift) — each LFO's Level knob governs its dedicated
+      // route, not the matrix
       mxLfo: { lfoAmp: this.ampLFO.out, lfoFreq: this.freqLFO.out, lfoPwm: this.pwmLFO.out,
                lfoCut: this.cutLFO.out, lfoRes: this.resLFO.out },
       stats: this.modStats,
     };
-    // Look-ahead de las notas en directo (lo lee Voice): el reloj que ve el hilo
-    // principal va por detrás del hilo de audio hasta un periodo de callback del
-    // dispositivo (baseLatency: 128 muestras en headless, 10-20 ms en una tarjeta
-    // WASAPI) y los eventos tardan otro tanto en llegar. Con 5 ms fijos, en algunas
-    // tarjetas la apertura del VCA, el blip de pitch y las ráfagas del flam caían
-    // «en el pasado» y se aplicaban de golpe: el bombo golpeaba solo a veces (en
-    // headless y offline el retraso es constante y no se nota). Offline: 5 ms (golden).
+    // Look-ahead of live notes (read by Voice): the clock the main thread sees
+    // lags behind the audio thread by up to one device callback period
+    // (baseLatency: 128 samples headless, 10-20 ms on a WASAPI card) and
+    // events take about as long again to arrive. With a fixed 5 ms, on some
+    // cards the VCA opening, the pitch blip and the flam bursts landed
+    // «in the past» and were applied all at once: the kick only hit sometimes (in
+    // headless and offline the delay is constant and it doesn't show). Offline: 5 ms (golden).
     this.mod.lookahead = this.offline ? 0.005 : Math.max(0.005, 0.005 + 2 * (ctx.baseLatency || 0.01));
     if (!this.offline) console.info('SubSDJ · note look-ahead', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
 
@@ -236,10 +237,10 @@ export class AudioEngine {
   }
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
-  // El BPM bueno es el de la SALA: en Partes es compartida y solo la parte elegida
-  // recibe el knob (su S.bpm); las demás tendrían el de antes.
+  // The right BPM is the ROOM's: in Parts it is shared and only the selected part
+  // receives the knob (its S.bpm); the others would have the old one.
   get bpm() { return (this.sala && this.sala.S.bpm) || this.S.bpm || 120; }
-  _lfoHz(k) { return lfoHz(this.S, k, clockOf(this.ctx).bpm); }   // con sincro, la división al BPM del reloj (= el de la sala)
+  _lfoHz(k) { return lfoHz(this.S, k, clockOf(this.ctx).bpm); }   // with sync, the division at the clock's BPM (= the Room's)
   _lfoClock() {
     if (!this.ctx) return;
     const clock = clockOf(this.ctx);
@@ -252,12 +253,12 @@ export class AudioEngine {
     }
   }
 
-  // ---------- voces ----------
-  // when (opcional): instante de audio de la tecla — los jugadores; el Arp/Seq la meten en ese paso de la rejilla
+  // ---------- voices ----------
+  // when (optional): audio time of the key — the players; the Arp/Seq put it into that grid step
   noteOn(id, freq, vel = 1, when = null) {
     if (!this.ready) return;
-    if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel, when);      // la tecla es la raíz de la frase
-    if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel, when);   // el arp secuencia las notas
+    if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel, when);      // the key is the root of the phrase
+    if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel, when);   // the arp sequences the notes
     this._directOn(id, freq, vel, when);
   }
   noteOff(id) {
@@ -265,35 +266,35 @@ export class AudioEngine {
     if (this.S.arpMode !== 'off') return this.arp.unhold(id);
     this._directOff(id);
   }
-  // Camino directo (lo usa también el arpegiador, con inicio programado `when`)
-  // acc: 1 si la nota lleva acento del secuenciador (fuente «Acento» de la matriz)
+  // Direct path (also used by the arpeggiator, with a scheduled start `when`)
+  // acc: 1 if the note carries a sequencer accent (matrix source «Accent»)
   _directOn(id, freq, vel = 1, when = null, acc = 0) {
     if (this.S.mode === 'mono') return this._monoOn(id, freq, vel, when, acc);
-    this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !this.voices.size && !this.tails.size);   // Pasos: ¿empieza a tocar?
+    this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !this.voices.size && !this.tails.size);   // Steps: is it starting to play?
     const existing = this.voices.get(id);
     if (existing) { if (existing._timer) clearTimeout(existing._timer); this._dispose(existing); this.voices.delete(id); this.voiceCount = Math.max(0, this.voiceCount - 1); }
-    if (this.voiceCount >= MAX_POLY) {                     // robo de voz: la más antigua
-      const oldest = this.voices.keys().next().value;      // Map conserva orden de inserción
+    if (this.voiceCount >= MAX_POLY) {                     // voice stealing: the oldest one
+      const oldest = this.voices.keys().next().value;      // Map keeps insertion order
       if (oldest !== undefined) this._releaseVoice(oldest, 0.02);
     }
     const cost = Voice.cost(this.S);
-    this._makeRoom(cost);                                  // presupuesto de CPU común (ver VOICE_BUDGET)
+    this._makeRoom(cost);                                  // shared CPU budget (see VOICE_BUDGET)
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
-    if (this._bend) v.ensurePitch();     // bend activo: engancha el pitch global a la voz nueva
-    this.wseq.attach(v);                 // secuencia de tabla: cada voz arranca su frase en su noteOn
+    if (this._bend) v.ensurePitch();     // bend active: hooks the global pitch to the new voice
+    this.wseq.attach(v);                 // wave sequence: each voice starts its phrase at its noteOn
     this.voices.set(id, v);
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
   }
-  // `when` opcional: note-off programado en el reloj de audio (jugadores)
+  // optional `when`: note-off scheduled on the audio clock (players)
   _directOff(id, when = null) {
     if (this.S.mode === 'mono') return this._monoOff(id, when);
     this._releaseVoice(id, this.S.r, when);
   }
-  // Ligadura y slide del secuenciador (Roadmap 7.0 · 5.1): la nota `id` que suena cambia
-  // de altura en t SIN ataque nuevo — en `time` s, o de golpe con 0. Poli: su voz;
-  // Mono: la voz única (y la nota de la pila pasa a esa altura).
+  // Sequencer tie and slide (Roadmap 7.0 · 5.1): the sounding note `id` changes
+  // pitch at t WITHOUT a new attack — over `time` s, or at once with 0. Poly: its voice;
+  // Mono: the single voice (and the note in the stack moves to that pitch).
   _directGlide(id, freq, t, time = 0) {
     if (this.S.mode === 'mono') {
       const n = this.heldStack.find(h => h.id === id); if (n) n.freq = freq;
@@ -302,20 +303,20 @@ export class AudioEngine {
     this.lastFreq = freq;
   }
   allNotesOff() {
-    this.arp.tie = this.seq.tie = this.seq.link = null;   // la nota ligada que esperaba su off cae con las demás (corte rápido abajo)
+    this.arp.tie = this.seq.tie = this.seq.link = null;   // the tied note that was waiting for its off goes down with the rest (fast cut below)
     this.arp.held = []; this.arp._maybeStop();
     this.seq.held = []; this.seq.latched = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }
 
-  // ---- modo mono (prioridad de última nota) ----
-  // Una nota que llega SIN otra pulsada redispara siempre. Si llega con otra aún
-  // pulsada, decide Disparo (monoTrig): 'legato' desliza la voz que suena sin
-  // reiniciar nada; 'retrig' la releva por una voz nueva (envolventes, pitch env
-  // y operadores FM4 desde el principio). «Pulsada» va en tiempo MUSICAL: arp, Seq
-  // y jugadores mandan on y off programados y en orden, así que el solape lo
-  // decide el gate, no cuánto se adelanta el planificador.
+  // ---- mono mode (last-note priority) ----
+  // A note that arrives with NO other held always retriggers. If it arrives with another
+  // still held, the trigger setting (monoTrig) decides: 'legato' glides the sounding voice
+  // without restarting anything; 'retrig' hands over to a new voice (envelopes, pitch env
+  // and FM4 operators from the start). «Held» is in MUSICAL time: arp, Seq
+  // and players send scheduled on and off in order, so the overlap is
+  // decided by the gate, not by how far ahead the scheduler runs.
   _monoOn(id, freq, vel, when = null, acc = 0) {
     const had = this.heldStack.length > 0;
     this.steps.noteOn(when !== null ? when : this.ctx.currentTime, !had && !this.tails.size && !this.monoVoice);
@@ -323,7 +324,7 @@ export class AudioEngine {
     this.heldStack.push({ id, freq, vel });
     const old = had && this.monoVoice && !this.monoVoice.disposed ? this.monoVoice : null;
     if (old && this.S.monoTrig !== 'retrig') {
-      old.glideTo(freq, this.S.glide, when);   // legato: desliza sin reiniciar envolvente
+      old.glideTo(freq, this.S.glide, when);   // legato: glides without restarting the envelope
       this.lastFreq = freq;
       return;
     }
@@ -334,21 +335,21 @@ export class AudioEngine {
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
     if (this._bend) v.ensurePitch();
-    this.wseq.attach(v);               // en legato NO se recrea la voz: la frase sigue (como el Seq)
+    this.wseq.attach(v);               // in legato the voice is NOT recreated: the phrase carries on (like the Seq)
     this.monoVoice = v; this.voices.set('mono', v);
     this.lastFreq = freq;
     this.voiceCount++; this._updateBusGain();
-    // relevo (retrig): la vieja empieza a fundirse justo cuando arranca la nueva
-    // (release(at) suma su lag: v.t0 − old.lag cae exactamente en v.t0)
+    // handover (retrig): the old one starts fading out right when the new one starts
+    // (release(at) adds its lag: v.t0 − old.lag lands exactly on v.t0)
     if (old) this._scheduleTail(old, Math.max(MONO_XF, this.S.a), v.t0 - old.lag);
   }
   _monoOff(id, when = null) {
     const i = this.heldStack.findIndex(n => n.id === id);
-    if (i < 0) return;   // id ajeno (note-off de otra parte): ni re-desliza ni suelta la voz de otro
+    if (i < 0) return;   // foreign id (note-off from another part): neither re-glides nor releases someone else's voice
     const wasTop = i === this.heldStack.length - 1;
     this.heldStack.splice(i, 1);
     if (this.heldStack.length) {
-      // se suelta la que sonaba: vuelve a la de debajo deslizando (soltar otra no cambia nada)
+      // the sounding one is released: it goes back to the one below, gliding (releasing another changes nothing)
       const top = this.heldStack[this.heldStack.length - 1];
       if (wasTop && this.monoVoice && !this.monoVoice.disposed) { this.monoVoice.glideTo(top.freq, this.S.glide, when); this.lastFreq = top.freq; }
     } else {
@@ -371,22 +372,22 @@ export class AudioEngine {
   _releaseVoice(id, rel, when = null) {
     const v = this.voices.get(id); if (!v) return;
     this.voices.delete(id);
-    this.voiceCount = Math.max(0, this.voiceCount - 1);   // deja de contar como "pulsada" al soltar
+    this.voiceCount = Math.max(0, this.voiceCount - 1);   // stops counting as "held" on release
     this._updateBusGain();
     this._scheduleTail(v, rel, when);
   }
-  // La voz soltada pasa a ser una "cola": suena su release y se libera al acabar.
-  // MAX_TAILS acota el coste de acumular colas largas tocando rápido.
+  // The released voice becomes a "tail": it plays its release and is freed when done.
+  // MAX_TAILS bounds the cost of piling up long tails when playing fast.
   _scheduleTail(v, rel, when = null) {
     this.tails.add(v);
-    v._relAt = when !== null ? when : this.ctx.currentTime;   // edad de la cola: el presupuesto funde primero la más vieja
+    v._relAt = when !== null ? when : this.ctx.currentTime;   // age of the tail: the budget fades out the oldest first
     const end = v.release(rel, when);
-    if (this.offline) return;                     // offline: la cola vive hasta el final del render
+    if (this.offline) return;                     // offline: the tail lives until the end of the render
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
     v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); this._maybeIdle(); }, ms);
     if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
   }
-  _fadeKill(v) {            // fundido TAIL_FADE y liberar (ver arriba)
+  _fadeKill(v) {            // TAIL_FADE fade-out and free (see above)
     if (!v) return;
     v._going = true;
     this.tails.delete(v);
@@ -395,9 +396,9 @@ export class AudioEngine {
     v.fadeOut(TAIL_FADE);
     v._timer = setTimeout(() => { this._dispose(v); this._maybeIdle(); }, TAIL_FADE * 1000 + 60);
   }
-  // Todo callado (ni voces ni colas): los Pasos sueltan el reloj (reinicio «al tocar»)
+  // All silent (no voices, no tails): the Steps let go of the clock (reset «on play»)
   _maybeIdle() { if (!this.voices.size && !this.tails.size) this.steps.idle(); }
-  // ---------- efectos de inserción bajo demanda (ver init) ----------
+  // ---------- insert effects on demand (see init) ----------
   _ensureDist() {
     if (this.shaper) return;
     const ctx = this.ctx, S = this.S;
@@ -418,8 +419,8 @@ export class AudioEngine {
     this.flDelay.connect(this.flFb); this.flFb.connect(this.flDelay);
     this.flLFO = mkLFO(ctx, S.flSpd, 0.002); this.flLFO.depth.connect(this.flDelay.delayTime);
   }
-  // Chorus estéreo: dos líneas cortas moduladas por LFOs a distinta
-  // velocidad (descorrela L/R), sin feedback.
+  // Stereo chorus: two short lines modulated by LFOs at different
+  // speeds (decorrelates L/R), no feedback.
   _ensureCh() {
     if (this.chWet) return;
     const ctx = this.ctx, S = this.S;
@@ -435,17 +436,17 @@ export class AudioEngine {
     this.chLFO1 = mkLFO(ctx, S.chSpd, 0.006); this.chLFO1.depth.connect(this.chD1.delayTime);
     this.chLFO2 = mkLFO(ctx, S.chSpd * 1.17, 0.008); this.chLFO2.depth.connect(this.chD2.delayTime);
   }
-  // Ensemble "máquina de cuerdas" (triple chorus estilo Solina): 3 líneas de
-  // ~5 ms, cada una modulada por la SUMA de un LFO lento (chSpd) y otro
-  // rápido (x10), con las fases repartidas a 120° entre líneas. Línea 1 -> L,
-  // línea 3 -> R, línea 2 al centro. Comparte chAmt/chSpd con el chorus;
-  // chMode decide cuál de los dos wets suena (el otro queda a 0).
+  // "String machine" ensemble (Solina-style triple chorus): 3 lines of
+  // ~5 ms, each modulated by the SUM of a slow LFO (chSpd) and a fast
+  // one (x10), with the phases spread 120° apart between lines. Line 1 -> L,
+  // line 3 -> R, line 2 in the center. Shares chAmt/chSpd with the chorus;
+  // chMode decides which of the two wets sounds (the other stays at 0).
   _ensureEns() {
     if (this.ensWet) return;
     const ctx = this.ctx, S = this.S;
     this.ensSend = ctx.createGain(); this.ensSend.channelCount = 1; this.ensSend.channelCountMode = 'explicit';
     this.ensL = ctx.createGain(); this.ensR = ctx.createGain();
-    this.ensL.gain.value = this.ensR.gain.value = 0.6;   // 2 líneas por canal ~ nivel del chorus
+    this.ensL.gain.value = this.ensR.gain.value = 0.6;   // 2 lines per channel ~ chorus level
     this.ensCtr = ctx.createGain(); this.ensCtr.gain.value = 0.71;
     this.ensMerge = ctx.createChannelMerger(2);
     this.ensWet = ctx.createGain(); this.ensWet.gain.value = S.chMode === 'ensemble' ? S.chAmt : 0;
@@ -465,18 +466,18 @@ export class AudioEngine {
     this.ensL.connect(this.ensMerge, 0, 0); this.ensR.connect(this.ensMerge, 0, 1);
     this.ensMerge.connect(this.ensWet); this.ensWet.connect(this.chOut);
   }
-  // Coste fijo del motor (sin notas) en «voces simples», medido: lo cuenta el
-  // presupuesto común junto con las voces (en Partes hay cinco motores).
+  // Fixed cost of the engine (no notes) in «simple voices», measured: the shared
+  // budget counts it along with the voices (in Parts there are five engines).
   engineCost() {
     if (!this.ready) return 0;
     return ENGINE_COST.base + (this.shaper ? ENGINE_COST.dist : 0) + (this.flDelay ? ENGINE_COST.fl : 0)
       + (this.chWet ? ENGINE_COST.ch : 0) + (this.ensWet ? ENGINE_COST.ens : 0);
   }
-  // Presupuesto de CPU (VOICE_BUDGET): hace sitio para una voz de coste `cost`
-  // sumando lo que suenan TODOS los motores de este contexto. Primero funde la
-  // cola más vieja de cualquiera de ellos; si no quedan colas, roba la voz
-  // pulsada más vieja de ESTE motor (la parte que pide la nota). Lo que ya se
-  // está yendo (_going) no cuenta: libera CPU en cuanto termina su fundido.
+  // CPU budget (VOICE_BUDGET): makes room for a voice of cost `cost`
+  // adding up what ALL the engines of this context are playing. First it fades out the
+  // oldest tail of any of them; if there are no tails left, it steals the oldest
+  // held voice of THIS engine (the part asking for the note). What is already
+  // on its way out (_going) doesn't count: it frees CPU as soon as its fade ends.
   _makeRoom(cost) {
     if (this.offline) return;
     const live = v => v && !v.disposed && !v._going;
@@ -486,62 +487,62 @@ export class AudioEngine {
       for (const v of e.voices.values()) if (live(v)) used += v.cost || 1;
       for (const v of e.tails) if (live(v)) used += v.cost || 1;
     }
-    while (used + cost > VOICE_BUDGET + 1e-9) {          // (margen: que el redondeo de la suma no funda una cola de más)
+    while (used + cost > VOICE_BUDGET + 1e-9) {          // (margin: so that rounding in the sum doesn't fade out one tail too many)
       let old = null, owner = null;
       for (const e of this.budget) for (const v of e.tails) if (live(v) && (!old || v._relAt < old._relAt)) { old = v; owner = e; }
       if (old) { used -= old.cost || 1; owner._fadeKill(old); continue; }
       const id = [...this.voices.keys()].find(k => live(this.voices.get(k)));
-      if (id === undefined) break;                          // nada más que soltar: la voz entra igual
+      if (id === undefined) break;                          // nothing else to release: the voice goes in anyway
       const v = this.voices.get(id);
       used -= v.cost || 1; this._releaseVoice(id, 0.02); v._going = true;
     }
   }
-  _dispose(v) {             // libera nodos tras la cola de release (NO toca el contador)
+  _dispose(v) {             // frees nodes after the release tail (does NOT touch the counter)
     if (v.disposed) return;
     v.dispose();
   }
   _updateBusGain() {
     if (!this.ready) return;
-    // Sólo cuenta voces PULSADAS (no las colas de release). Sin reducción hasta 4 voces;
-    // por encima, compensación suave y lenta para no "bombear" pads y acordes sostenidos.
+    // Only HELD voices count (not the release tails). No reduction up to 4 voices;
+    // above that, a soft and slow compensation so as not to "pump" pads and sustained chords.
     const n = this.voiceCount;
     const scale = n <= 4 ? 1 : 1 / Math.sqrt(n / 4);
     this.voicesBus.gain.setTargetAtTime(scale, this.ctx.currentTime, 0.15);
   }
   _forVoices(fn) { this.voices.forEach(fn); }
 
-  // ---------- API de parámetros ----------
-  setOsc(which, key, value) { this.S[which][key] = value; }   // aplica en la siguiente nota
+  // ---------- parameter API ----------
+  setOsc(which, key, value) { this.S[which][key] = value; }   // applies on the next note
 
   set(name, value) {
     this.S[name] = value;
     if (!this.ready) return;
-    if (name === 'bpm') clockOf(this.ctx).setBpm(value, this.ctx.currentTime);   // reloj común: el Arp/Seq siguen el tempo nuevo desde el pulso de ahora
-    if (name === 'swing') clockOf(this.ctx).swing = value;                       // reloj común: columpia todo lo que va a tempo
-    // Matriz de modulación (claves planas mx{1..6}{src,dst,amt}): amt reajusta
-    // la ganancia del slot en vivo; src/dst recablean el slot en las voces vivas.
-    // Las voces NUEVAS leen S.mx* al construirse, como el resto del estado.
+    if (name === 'bpm') clockOf(this.ctx).setBpm(value, this.ctx.currentTime);   // shared clock: the Arp/Seq follow the new tempo from the current beat
+    if (name === 'swing') clockOf(this.ctx).swing = value;                       // shared clock: swings everything that runs in tempo
+    // Modulation matrix (flat keys mx{1..6}{src,dst,amt}): amt readjusts
+    // the slot's gain live; src/dst rewire the slot in the live voices.
+    // NEW voices read S.mx* when they are built, like the rest of the state.
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
     if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
-    if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: params del worklet por nombre
-    if (STR_KEYS.includes(name)) { this._forVoices(v => v.setStr(name, value)); return; }   // Cuerda: ídem (la Posición solo cuenta en la púa)
-    // Claves de la SALA (bpm, tiempo/damp/wow del eco, size/damp/pre de la
-    // reverb): las aplica la Sala, que en modo Partes es compartida — y
-    // propaga el valor al S de todas las partes (un solo reloj).
+    if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: worklet params by name
+    if (STR_KEYS.includes(name)) { this._forVoices(v => v.setStr(name, value)); return; }   // String: same (Position only counts at the pluck)
+    // ROOM keys (bpm, echo time/damp/wow, reverb size/damp/pre): applied by
+    // the Room, which in Parts mode is shared — and it propagates the value to
+    // the S of all the parts (a single clock).
     if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
-    // LFOs por voz (lfoPhase 'voice'): Level/Speed/forma del LFO k también a las
-    // copias de cada voz viva; el LFO global del motor sigue cambiando en el switch.
+    // Per-voice LFOs (lfoPhase 'voice'): Level/Speed/shape of LFO k also go to the
+    // copies of each live voice; the engine's global LFO keeps changing in the switch.
     const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape|Sync)$/.exec(name);
     if (lf) {
-      const what = lf[2] === 'Sync' ? 'spd' : lf[2].toLowerCase(), val = what === 'spd' ? this._lfoHz(lf[1]) : value;   // Speed y sincro: la velocidad efectiva
+      const what = lf[2] === 'Sync' ? 'spd' : lf[2].toLowerCase(), val = what === 'spd' ? this._lfoHz(lf[1]) : value;   // Speed and sync: the effective speed
       this._forVoices(v => v.setLfo(lf[1], what, val));
     }
     const ls = /^(pwm|cut|res|amp|freq|pan)LfoSync$/.exec(name);
     if (ls) { const lfo = this[ls[1] + 'LFO']; if (lfo) setLfoSync(this.ctx, lfo, lfoBeats(this.S, ls[1]), clockOf(this.ctx), this._lfoHz(ls[1])); return; }
     const now = this.ctx.currentTime, smooth = (p, val) => p.setTargetAtTime(val, now, 0.02);
     switch (name) {
-      case 'mxDriftSpd': this._forVoices(v => v.setMxDriftSpd(value)); break;   // deriva por voz (fuente 'drift' de la matriz)
-      // lfoPhase: estructura de la voz (LFO globales o propios): aplica por nota, como filterSlope
+      case 'mxDriftSpd': this._forVoices(v => v.setMxDriftSpd(value)); break;   // per-voice drift (matrix source 'drift')
+      // lfoPhase: structure of the voice (global or own LFOs): applies per note, like filterSlope
       case 'levelA': this._forVoices(v => v.setLevel('A', value)); break;
       case 'levelB': this._forVoices(v => v.setLevel('B', value)); break;
       case 'ring':  this._forVoices(v => v.setRing(value)); break;
@@ -549,19 +550,19 @@ export class AudioEngine {
       case 'noiseColor': this._forVoices(v => v.setNoiseColor(value)); break;
       case 'spread': this._forVoices(v => v.setSpread(value)); break;
       case 'drift':  this._forVoices(v => v.setDrift(value)); break;
-      case 'uniVoices':                                    // el seg da string: coerción en setUnison
+      case 'uniVoices':                                    // the segmented control gives a string: coercion in setUnison
       case 'uniDetune': this._forVoices(v => v.setUnison(this.S.uniVoices, this.S.uniDetune)); break;
       case 'fmRatio':
       case 'fmIndex':
       case 'fmFb':    this._forVoices(v => v.setFM(this.S.fmRatio, this.S.fmIndex, this.S.fmFb)); break;
       case 'wtPos': this._forVoices(v => v.setWtPos(value)); break;
-      case 'wtSet': try { getWtSet(value); } catch (e) {} break;   // precalienta el set (aplica en la siguiente nota)
+      case 'wtSet': try { getWtSet(value); } catch (e) {} break;   // prewarms the set (applies on the next note)
       case 'cutoff':this._forVoices(v => v.setCutoff(value)); break;
       case 'reso':  this._forVoices(v => v.setReso(value)); break;
       case 'morph': this._forVoices(v => v.setMorph(value)); break;
       case 'filterEnvAmt': this._forVoices(v => v.setFilterEnvAmt(value)); break;
       case 'filterDrive': this._forVoices(v => v.setFilterDrive(value)); break;
-      case 'driveChar': this._forVoices(v => v.setDriveChar(value)); break;   // suave (tanh) | plegado
+      case 'driveChar': this._forVoices(v => v.setDriveChar(value)); break;   // soft (tanh) | fold
       case 'driveAsym': this._forVoices(v => v.setDriveAsym(value)); break;
       case 'keytrack': this._forVoices(v => v.setKeytrack(value, this.S.cutoff)); break;
       case 'pulseWidth':   this._forVoices(v => v.setPulseWidth(value)); break;
@@ -571,29 +572,29 @@ export class AudioEngine {
       case 'vocQ':     this._forVoices(v => v.setVocQ(value)); break;
       case 'vocLife':  this._forVoices(v => v.setVocVida(value)); break;
       case 'vocBright':this._forVoices(v => v.setVocBrillo(value)); break;
-      // vocAtk es un evento de arranque de nota: se lee al crear cada voz
-      case 'resAmt':    this._forVoices(v => v.setResAmt(value)); break;     // resonador modal (engine/reson.js)
+      // vocAtk is a note-start event: it is read when each voice is created
+      case 'resAmt':    this._forVoices(v => v.setResAmt(value)); break;     // modal resonator (engine/reson.js)
       case 'resMat':    this._forVoices(v => v.setResMat(value)); break;
       case 'resDecay':  this._forVoices(v => v.setResDecay(value)); break;
       case 'resBright': this._forVoices(v => v.setResBrillo(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
-      case 'ampLfoSpd': if (!this.ampLFO.sync) setLfoRate(this.ampLFO, value, now); break;   // a tempo manda la división
-      // pitch/vibrato/PWM se conectan a los worklets bajo demanda (ver Voice.ensure*)
+      case 'ampLfoSpd': if (!this.ampLFO.sync) setLfoRate(this.ampLFO, value, now); break;   // in tempo the division rules
+      // pitch/vibrato/PWM are connected to the worklets on demand (see Voice.ensure*)
       case 'freqCents': smooth(this.pitchOffset.offset, value + (this._bend || 0)); if (value) this._forVoices(v => v.ensurePitch()); break;
       case 'freqLfoLvl': smooth(this.freqLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureVib()); break;
       case 'freqLfoSpd': if (!this.freqLFO.sync) setLfoRate(this.freqLFO, value, now); break;
       case 'pwmLfoLvl': smooth(this.pwmLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePwm()); break;
       case 'pwmLfoSpd': if (!this.pwmLFO.sync) setLfoRate(this.pwmLFO, value, now); break;
-      case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureCutLfo()); break;   // conectar al filtro solo al usarlo (Voice)
+      case 'cutLfoLvl': smooth(this.cutLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureCutLfo()); break;   // connect to the filter only when used (Voice)
       case 'cutLfoSpd': if (!this.cutLFO.sync) setLfoRate(this.cutLFO, value, now); break;
       case 'resLfoLvl': smooth(this.resLFO.depth.gain, value); if (value) this._forVoices(v => v.ensureResLfo()); break;
       case 'resLfoSpd': if (!this.resLFO.sync) setLfoRate(this.resLFO, value, now); break;
       case 'panLfoLvl': smooth(this.panLFO.depth.gain, value); if (value) this._forVoices(v => v.ensurePan()); break;
       case 'panLfoSpd': if (!this.panLFO.sync) setLfoRate(this.panLFO, value, now); break;
 
-      // formas de onda de los LFOs (nativas: cambio instantáneo; S&H/deriva: fuente alternativa)
+      // LFO waveforms (native: instant change; S&H/drift: alternative source)
       case 'ampLfoShape':  setLfoShape(this.ctx, this.ampLFO, value); break;
       case 'freqLfoShape': setLfoShape(this.ctx, this.freqLFO, value); break;
       case 'pwmLfoShape':  setLfoShape(this.ctx, this.pwmLFO, value); break;
@@ -602,9 +603,9 @@ export class AudioEngine {
 
       case 'dist':
         if (value > 0) this._ensureDist();
-        smooth(this.distDry.gain, 1 - value);   // crossfade: a 0 = todo seco (limpio, sin recorte)
+        smooth(this.distDry.gain, 1 - value);   // crossfade: at 0 = all dry (clean, no clipping)
         if (this.shaper) {
-          smooth(this.distPre.gain, 1 + value * 6);   // el drive vive aquí (curva fija)
+          smooth(this.distPre.gain, 1 + value * 6);   // the drive lives here (fixed curve)
           smooth(this.distPost.gain, 1 / (1 + value));
           smooth(this.distWet.gain, value);
         }
@@ -622,42 +623,42 @@ export class AudioEngine {
         this.ensSlow.forEach(l => smooth(l.osc.frequency, value));
         this.ensFast.forEach(l => smooth(l.osc.frequency, Math.min(12, value * 10)));
         break;
-      case 'chMode':          // crossfade suave entre los dos wets (sin clicks)
+      case 'chMode':          // smooth crossfade between the two wets (no clicks)
         if (this.S.chAmt > 0) { if (value === 'ensemble') this._ensureEns(); else this._ensureCh(); }
         if (this.chWet) smooth(this.chWet.gain, value === 'chorus' ? this.S.chAmt : 0);
         if (this.ensWet) smooth(this.ensWet.gain, value === 'ensemble' ? this.S.chAmt : 0);
         break;
-      // Envíos a la Sala. En modo único la realimentación del eco sigue al
-      // Amount y los ecos entran en la reverb según el Mix — como siempre; en
-      // modo Partes eso lo gobierna la columna Sala del mezclador.
+      // Sends to the Room. In single mode the echo feedback follows the
+      // Amount and the echoes enter the reverb according to the Mix — as always; in
+      // Parts mode that is governed by the Room column of the Part Mixer.
       case 'dlyAmt': smooth(this.sendDly.gain, value); break;
-      case 'dlyFb': if (this.ownsSala) this.sala.setFeedback(value); break;   // en Partes manda la Realim. de la sala (mezclador)
+      case 'dlyFb': if (this.ownsSala) this.sala.setFeedback(value); break;   // in Parts the Room's Fdbk rules (Part Mixer)
       case 'width': this._forVoices(v => v.setWidth(value)); break;
       case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsSala) this.sala.setDlyToRev(value); break;
-      case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Partes: fader de la parte
-      case 'mode': this.allNotesOff(); break;   // cambio poli<->mono: corta todo para no dejar notas colgadas
-      case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate los lee el planificador en vivo
-      case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // un bend ya movido se reescala
-      case 'syncA': this._forVoices(v => v.setSync(value === 'on')); break;      // sync duro: también a las notas que suenan
+      case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Parts: the part's fader
+      case 'mode': this.allNotesOff(); break;   // poly<->mono switch: cuts everything so no notes are left hanging
+      case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate are read live by the scheduler
+      case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // a bend already moved gets rescaled
+      case 'syncA': this._forVoices(v => v.setSync(value === 'on')); break;      // hard sync: also to the sounding notes
       case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;
-      case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate en vivo
+      case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate live
       case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
-      // a, d, s, r, glide, lfoFade, filterSlope, filterType: se leen al crear cada voz (sin nodo en vivo)
+      // a, d, s, r, glide, lfoFade, filterSlope, filterType: read when each voice is created (no live node)
     }
   }
 
-  // Rueda / aftertouch / expresión (0..1): fuentes de ejecución de la matriz. Fuera
-  // de CONTROLS/presets (son gestos, como el bend). Antes de init() solo se anota.
+  // Wheel / aftertouch / expression (0..1): performance sources of the matrix. Outside
+  // CONTROLS/presets (they are gestures, like the bend). Before init() it is only noted down.
   setPerf(id, v) {
     if (!(id in this.perfVal)) return;
     v = Math.max(0, Math.min(1, +v || 0)); this.perfVal[id] = v;
     if (this.ready) this.perf[id].offset.setTargetAtTime(v, this.ctx.currentTime, PERF_TAU);
   }
 
-  // Pitch bend MIDI, normalizado (−1..1). Va por fuera de CONTROLS/presets: se
-  // SUMA al slider de cents en el mismo ConstantSource compartido (pitchOffset),
-  // escalado por el rango del PRESET (bendRange, semitonos): en Partes, cada
-  // parte con el suyo (el bajo a ±12 y el pad a ±2 con la misma rueda).
+  // MIDI pitch bend, normalized (−1..1). It goes outside CONTROLS/presets: it is
+  // ADDED to the cents slider in the same shared ConstantSource (pitchOffset),
+  // scaled by the PRESET's range (bendRange, semitones): in Parts, each
+  // part with its own (the bass at ±12 and the pad at ±2 with the same wheel).
   setBend(norm) {
     this._bendNorm = Math.max(-1, Math.min(1, +norm || 0));
     const cents = this._bend = this._bendNorm * (+this.S.bendRange || 2) * 100;
@@ -666,25 +667,25 @@ export class AudioEngine {
     if (cents) this._forVoices(v => v.ensurePitch());
   }
 
-  // ---------- modo Partes: mute / pan / macro / desmontaje ----------
+  // ---------- Parts mode: mute / pan / macro / teardown ----------
   setMute(on) { if (this.ready) this.muteG.gain.setTargetAtTime(on ? 0 : 1, this.ctx.currentTime, 0.02); }
   setMacro(cents, tau = 0.3) { if (!this.ready) return; if (cents) this._macroConnect(); this.macroCut.offset.setTargetAtTime(cents, this.ctx.currentTime, tau); }
-  // La macro se engancha a los filtros la primera vez que vale algo (en directo
-  // al moverla el arreglo; offline al automatizarla) — voces vivas y colas incluidas.
+  // The macro is hooked to the filters the first time it has a value (live
+  // when the arrangement moves it; offline when it is automated) — live voices and tails included.
   _macroConnect() {
     if (this._macroOn) return;
     this._macroOn = true;
     this._forVoices(v => v.ensureMacro()); this.tails.forEach(v => v.ensureMacro());
   }
-  automateMacro(cents, t, ramp) {     // offline: valor (o rampa hasta) `cents` en t
+  automateMacro(cents, t, ramp) {     // offline: value (or ramp up to) `cents` at t
     if (!this.ready) return;
     this._macroConnect();
     if (ramp) this.macroCut.offset.linearRampToValueAtTime(cents, t); else this.macroCut.offset.setValueAtTime(cents, t);
   }
   setPan(v)   { if (this.ready) this.partPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v)), this.ctx.currentTime, 0.02); }
-  // Desmonta el motor (al apagar la escena): suelta voces y colas, para los
-  // planificadores y los osciladores de LFO — un OscillatorNode arrancado
-  // sigue consumiendo aunque nadie lo escuche — y se desengancha de la Sala.
+  // Tears down the engine (when the scene is switched off): releases voices and tails, stops the
+  // schedulers and the LFO oscillators — a started OscillatorNode
+  // keeps consuming even if nobody listens to it — and unhooks from the Room.
   dispose() {
     if (!this.ready) return;
     this.allNotesOff();
@@ -692,9 +693,9 @@ export class AudioEngine {
     this.tails.clear();
     clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
     const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
-                  this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast].filter(Boolean);   // los de los efectos, si llegaron a nacer
+                  this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast].filter(Boolean);   // the effects' ones, if they were ever born
     for (const l of lfos) { try { l.osc.stop(); l.osc.disconnect(); } catch (e) {} if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} } if (l.keep) { try { l.keep.disconnect(); } catch (e) {} } }
-    if (this._unlisten) this._unlisten();                     // el reloj común deja de avisar a este motor
+    if (this._unlisten) this._unlisten();                     // the shared clock stops notifying this engine
     this.steps._stop(); clockOf(this.ctx).leave(this.steps); this.steps.src.forEach(c => { if (c) { try { c.stop(); c.disconnect(); } catch (e) {} } });
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}

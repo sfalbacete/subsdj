@@ -1,23 +1,23 @@
 /* =====================================================================
-   SubSDJ · shift-processor (AudioWorklet) — desplazador de tono GRANULAR para
-   el shimmer de la Sala (Roadmap 5.0 · bloque 3).
-   La idea (Eno/Lanois 1983, Eventide H3000): dentro de la realimentación de
-   la reverb, lo que vuelve a entrar sube una octava en cada vuelta → la cola
-   se convierte en un coro que asciende. Aquí vive solo el desplazador; el
-   bucle (HP → LP → esto → ganancia → entrada de la reverb) está en Sala.js.
-   Cómo: una línea de retardo y DOS cabezas de lectura cuyo retardo baja en
-   rampa (dientes de sierra) de W a 0. Leer «acercándose» a la escritura es
-   leer más deprisa: el tono sube por el factor r = 2^(st/12). Al llegar a 0
-   la cabeza salta de vuelta a W; para que el salto no se oiga, cada cabeza
-   lleva una ventana seno (0 en el salto, 1 en medio) y las dos van a media
-   vuelta: sen² + cos² = 1, potencia constante. El periodo de la rampa es
-   W/(r−1): a +12 st con W = 100 ms salen 10 granos por segundo (el leve
-   «trémolo» de 10 Hz de todo shimmer clásico; dentro de la reverb se
-   disuelve). Hacia abajo (st < 0) la rampa sube de 0 a W: lee más despacio.
-   Estéreo: las mismas cabezas para L y R (la imagen no se mueve).
+   SubSDJ · shift-processor (AudioWorklet) — GRANULAR pitch shifter for
+   the Room's shimmer (Roadmap 5.0 · block 3).
+   The idea (Eno/Lanois 1983, Eventide H3000): inside the reverb's feedback,
+   whatever re-enters goes up an octave on every pass → the tail
+   turns into a rising choir. Only the shifter lives here; the
+   loop (HP → LP → this → gain → reverb input) is in Sala.js.
+   How: a delay line and TWO read heads whose delay ramps down
+   (sawtooth) from W to 0. Reading while «approaching» the write head means
+   reading faster: the pitch rises by the factor r = 2^(st/12). On reaching 0
+   the head jumps back to W; so the jump is not heard, each head
+   carries a sine window (0 at the jump, 1 in the middle) and the two run half a
+   cycle apart: sin² + cos² = 1, constant power. The ramp period is
+   W/(r−1): at +12 st with W = 100 ms that gives 10 grains per second (the slight
+   10 Hz «tremolo» of every classic shimmer; inside the reverb it
+   dissolves). Downward (st < 0) the ramp rises from 0 to W: it reads more slowly.
+   Stereo: the same heads for L and R (the image does not move).
    ===================================================================== */
-const WINDOW = 0.1;      // s: longitud del grano (más largo = menos trémolo, más borroso)
-const BUF_SECS = 0.5;    // s: línea de retardo (sobra: una cabeza nunca pasa de WINDOW)
+const WINDOW = 0.1;      // s: grain length (longer = less tremolo, more blur)
+const BUF_SECS = 0.5;    // s: delay line (more than enough: a head never goes past WINDOW)
 
 class ShiftProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -27,12 +27,12 @@ class ShiftProcessor extends AudioWorkletProcessor {
     super();
     this.n = Math.ceil(sampleRate * BUF_SECS);
     this.buf = [new Float32Array(this.n), new Float32Array(this.n)];
-    this.w = 0;            // índice de escritura
-    this.p = 0;            // fase de la rampa (0..1)
+    this.w = 0;            // write index
+    this.p = 0;            // ramp phase (0..1)
     this.stopped = false;
     this.port.onmessage = e => { if (e.data === 'stop') this.stopped = true; };
   }
-  read(c, d) {             // muestra de hace d muestras (fraccional, interpolación lineal)
+  read(c, d) {             // the sample from d samples ago (fractional, linear interpolation)
     let pos = this.w - d; if (pos < 0) pos += this.n;
     const i0 = Math.floor(pos), f = pos - i0, i1 = i0 + 1 >= this.n ? 0 : i0 + 1;
     return this.buf[c][i0] * (1 - f) + this.buf[c][i1] * f;
@@ -41,12 +41,12 @@ class ShiftProcessor extends AudioWorkletProcessor {
     const inp = inputs[0], out = outputs[0];
     if (!out || !out.length) return !this.stopped;
     const N = out[0].length, ch = Math.min(2, out.length);
-    const r = Math.pow(2, params.semitones[0] / 12), W = WINDOW * sampleRate, dp = (r - 1) / W;   // avance de fase por muestra
+    const r = Math.pow(2, params.semitones[0] / 12), W = WINDOW * sampleRate, dp = (r - 1) / W;   // phase advance per sample
     for (let i = 0; i < N; i++) {
       for (let c = 0; c < ch; c++) { const src = inp && (inp[c] || inp[0]); this.buf[c][this.w] = src ? src[i] : 0; }
-      const f1 = this.p, f2 = f1 + 0.5 >= 1 ? f1 - 0.5 : f1 + 0.5;          // las dos cabezas, a media vuelta
-      const d1 = W * (1 - f1), d2 = W * (1 - f2);                            // retardo en muestras: de W a 0
-      const g1 = Math.sin(Math.PI * f1), g2 = Math.sin(Math.PI * f2);        // ventanas seno: 0 en el salto
+      const f1 = this.p, f2 = f1 + 0.5 >= 1 ? f1 - 0.5 : f1 + 0.5;          // the two heads, half a cycle apart
+      const d1 = W * (1 - f1), d2 = W * (1 - f2);                            // delay in samples: from W to 0
+      const g1 = Math.sin(Math.PI * f1), g2 = Math.sin(Math.PI * f2);        // sine windows: 0 at the jump
       for (let c = 0; c < ch; c++) out[c][i] = g1 * this.read(c, d1) + g2 * this.read(c, d2);
       if (++this.w === this.n) this.w = 0;
       this.p += dp; if (this.p >= 1) this.p -= 1; else if (this.p < 0) this.p += 1;

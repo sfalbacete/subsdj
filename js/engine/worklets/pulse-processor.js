@@ -1,49 +1,49 @@
 /* =====================================================================
    SubSDJ · pulse-processor (AudioWorklet)
-   Oscilador band-limited (PolyBLEP). Tipos (processorOptions.type):
-     sawtooth | square | sine | triangle | supersaw | tabla | fm4 | cuerda
-   FM4: síntesis FM de 4 operadores a la DX7/TX81Z. Un ALGORITMO es solo un
-   grafo dirigido de quién modula a quién (FM4_ALGS): las hojas modulan, las
-   raíces (portadoras) suenan. Cada operador tiene ratio (múltiplo de la
-   nota), nivel y DECAY propio (nivel·e^(−t/decay); plano si decay ≥ FM4_DEC_FLAT):
-   un modulador que decae = ataque brillante que se apaga, lo que hace
-   pluck, campana, e-piano y bombo. El operador 4 lleva la realimentación
-   (fmFb, como en el 2-op). Modulación de fase en ciclos: nivel 1 ⇒
-   FM4_MOD ciclos ≈ 7,5 rad de índice. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4.
-   TABLA (wavetable): processorOptions.wt = { lens, frames } (mips generados
-   en el hilo principal, engine/wavetable.js). Lookup con interpolación
-   cúbica (Hermite) + morph lineal entre frames adyacentes (param wtPos);
-   el nivel (mip) se elige por frecuencia: la tabla leída no tiene parciales
-   sobre Nyquist (el equivalente tabulado del PolyBLEP). Ignora pulseWidth,
-   spread y FM; unison/octavas/drift funcionan igual que en el resto.
-   MULTI-OCTAVA: processorOptions.octaves (1..4) apila las octavas DENTRO
-   del processor (antes: un AudioWorkletNode por octava). La suma sale sin
-   normalizar; el bus de la voz aplica 1/octavas, como siempre.
-   Params (todos k-rate: un valor por bloque de 128; el pow del detune se
-   paga 1 vez por bloque, no por muestra — a 20 Hz de vibrato el escalón de
-   2.9 ms es inaudible): frequency (Hz, glide), detune (cents, vibrato),
-   drift (cents, deriva aleatoria lenta independiente por oscilador),
-   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex/fmFb (FM 2-op en
-   seno; fmFb = realimentación del modulador),
-   uniVoices/uniDetune (UNISON generalizado: 1..7 copias detunadas para
-   cualquier onda salvo supersaw, que ya es unison; nivel 1/sqrt(N); la
-   copia 0 conserva la fase configurada -> con N=1 es bit-idéntico al
-   oscilador simple; las demás copias arrancan con fase aleatoria).
-   AZAR (fases de las copias y del supersaw, deriva): processorOptions.seed
-   (la manda la voz; offline sale de un generador con semilla: renders
-   repetibles). Sin seed, Math.random.
-   CUERDA (Roadmap 7.0 · 3.3): Karplus-Strong extendido — una cuerda pulsada
-   simulada con un bucle de retardo de un periodo. Ver _string. Params
-   strBright / strDecay / strPos / strStiff; la velocity llega en
-   processorOptions.vel (fija por nota: la fuerza de la pulsación).
-   SYNC DURO (Roadmap 7.0 · 3.2): con syncRatio > 0 este oscilador (el A) es
-   ESCLAVO del B: vuelve a empezar su ciclo con cada ciclo del B. Ver _synced.
-   slave = cents que mueven SOLO al esclavo (la matriz «Pitch A»): el barrido
-   del sync cambia el timbre y no arrastra al maestro.
-   Salida mono. Se autodestruye al recibir el mensaje "stop".
+   Band-limited oscillator (PolyBLEP). Types (processorOptions.type):
+     sawtooth | square | sine | triangle | supersaw | wavetable | fm4 | string
+   FM4: 4-operator FM synthesis à la DX7/TX81Z. An ALGORITHM is just a
+   directed graph of who modulates whom (FM4_ALGS): the leaves modulate, the
+   roots (carriers) sound. Each operator has its own ratio (multiple of the
+   note), level and DECAY (level·e^(−t/decay); flat if decay ≥ FM4_DEC_FLAT):
+   a modulator that decays = a bright attack that fades, which is what makes
+   pluck, bell, e-piano and kick. Operator 4 carries the feedback
+   (fmFb, as in the 2-op). Phase modulation in cycles: level 1 ⇒
+   FM4_MOD cycles ≈ 7.5 rad of index. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4.
+   WAVETABLE: processorOptions.wt = { lens, frames } (mips generated
+   on the main thread, engine/wavetable.js). Lookup with cubic (Hermite)
+   interpolation + linear morph between adjacent frames (param wtPos);
+   the level (mip) is chosen by frequency: the table read has no partials
+   above Nyquist (the tabulated equivalent of PolyBLEP). Ignores pulseWidth,
+   spread and FM; unison/octaves/drift work the same as in the rest.
+   MULTI-OCTAVE: processorOptions.octaves (1..4) stacks the octaves INSIDE
+   the processor (before: one AudioWorkletNode per octave). The sum comes out
+   unnormalized; the voice bus applies 1/octaves, as always.
+   Params (all k-rate: one value per 128-sample block; the detune pow is
+   paid once per block, not per sample — at 20 Hz of vibrato the 2.9 ms
+   step is inaudible): frequency (Hz, glide), detune (cents, vibrato),
+   drift (cents, slow random drift independent per oscillator),
+   pulseWidth (PWM), spread (supersaw), fmRatio/fmIndex/fmFb (2-op FM on
+   sine; fmFb = modulator feedback),
+   uniVoices/uniDetune (generalized UNISON: 1..7 detuned copies for
+   any wave except supersaw, which already is a unison; level 1/sqrt(N);
+   copy 0 keeps the configured phase -> with N=1 it is bit-identical to the
+   simple oscillator; the other copies start at a random phase).
+   RANDOMNESS (phases of the copies and of the supersaw, drift): processorOptions.seed
+   (sent by the voice; offline it comes from a seeded generator: repeatable
+   renders). Without seed, Math.random.
+   STRING (Roadmap 7.0 · 3.3): extended Karplus-Strong — a plucked string
+   simulated with a delay loop one period long. See _string. Params
+   strBright / strDecay / strPos / strStiff; the velocity arrives in
+   processorOptions.vel (fixed per note: the force of the pluck).
+   HARD SYNC (Roadmap 7.0 · 3.2): with syncRatio > 0 this oscillator (A) is
+   the SLAVE of B: it restarts its cycle on every cycle of B. See _synced.
+   slave = cents that move ONLY the slave (the matrix «Pitch A»): the sync
+   sweep changes the timbre and does not drag the master along.
+   Mono output. Self-destructs on receiving the "stop" message.
    ===================================================================== */
 
-// PRNG con semilla (mulberry32, el de engine/Harmony.js: los worklets no importan módulos del motor)
+// Seeded PRNG (mulberry32, the one in engine/Harmony.js: worklets do not import engine modules)
 function mulberry32(a) {
   return () => {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -59,7 +59,7 @@ function polyBlep(t, dt) {
   return 0;
 }
 function fract(x) { return x - Math.floor(x); }
-// Lectura Hermite de la tabla (la del bucle de 'wavetable', como función: la usa el sync)
+// Hermite read of the table (the one in the 'wavetable' loop, as a function: sync uses it)
 function wtHermite(dA, dB, ff, len, p) {
   const xx = p * len, i1 = xx | 0, w = xx - i1;
   const i0 = i1 === 0 ? len - 1 : i1 - 1, i2 = i1 + 1 === len ? 0 : i1 + 1, i3 = i2 + 1 === len ? 0 : i2 + 1;
@@ -68,42 +68,42 @@ function wtHermite(dA, dB, ff, len, p) {
   const c1 = 0.5 * (y2 - y0), c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3, c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
   return ((c3 * w + c2) * w + c1) * w + y1;
 }
-const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'wavetable']);   // supersaw, FM4 y cuerda: sin sync
+const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'wavetable']);   // supersaw, FM4 and string: no sync
 
-// CUERDA (Karplus-Strong extendido, Jaffe y Smith 1983). Constantes:
-const STR_LEN = 4096;          // muestras de la línea (potencia de 2): hasta ~12 Hz a 48 kHz
-const STR_BRIGHT = [0.03, 0.9]; // Brillo 0..1 → lo que dura el 8º armónico respecto a la fundamental (log): 3 % apagado, 90 % metálico
-const STR_HREF = 8;             // el armónico de referencia del Brillo
-const STR_VEL_OCT = [0.5, 6];   // velocity 0..1 → corte de la púa (dos polos), en octavas sobre la nota: flojo, oscuro; fuerte, casi todo el ruido
-const STR_DECAY_TRACK = 0.5;   // el Decay es el de Do4; una octava más arriba dura ×0,71 (las cuerdas agudas se apagan antes)
-const STR_DISP = 19;           // Rigidez 0..1 → retardo en continua de cada paso todo de la dispersión, de 1 a 19 muestras (log: el
-                               // estiramiento crece muy deprisa al final; así 0,5 ya es un piano y 1 una campana)
-const STR_EXC_RMS = 0.5;       // la púa se normaliza a este nivel: el color lo pone la velocity, el volumen el VCA
+// STRING (extended Karplus-Strong, Jaffe and Smith 1983). Constants:
+const STR_LEN = 4096;          // samples in the line (power of 2): down to ~12 Hz at 48 kHz
+const STR_BRIGHT = [0.03, 0.9]; // Bright 0..1 → how long the 8th harmonic lasts relative to the fundamental (log): 3 % muted, 90 % metallic
+const STR_HREF = 8;             // the reference harmonic for Bright
+const STR_VEL_OCT = [0.5, 6];   // velocity 0..1 → cutoff of the pick (two poles), in octaves above the note: soft, dark; hard, almost all the noise
+const STR_DECAY_TRACK = 0.5;   // Decay is C4's; an octave higher lasts ×0.71 (high strings die out sooner)
+const STR_DISP = 19;           // Stiffness 0..1 → DC delay of each dispersion allpass, from 1 to 19 samples (log: the
+                               // stretching grows very fast at the end; this way 0.5 is already a piano and 1 a bell)
+const STR_EXC_RMS = 0.5;       // the pick is normalized to this level: velocity sets the color, the VCA the volume
 
-// Offsets de detune del Super Saw (curva del JP-8000, según el análisis de Adam Szabo).
+// Super Saw detune offsets (JP-8000 curve, per Adam Szabo's analysis).
 const SS_DETUNE = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01952356, 0.06288439, 0.11002313];
 
-// Realimentación del modulador FM (fmFb 0..1 → β radianes): y = sin(θ + β·ȳ),
-// con ȳ = media de las DOS salidas anteriores (el truco de Yamaha: sin
-// promediar, a β alta la muestra alterna de signo y el bucle silba a Nyquist).
-// β ≈ 1.5 ya da una sierra razonable; hacia 3 el bucle se vuelve caótico =
-// ruido metálico (los hats FM del TX81Z, sin generador de ruido).
+// FM modulator feedback (fmFb 0..1 → β radians): y = sin(θ + β·ȳ),
+// with ȳ = mean of the TWO previous outputs (Yamaha's trick: without
+// averaging, at high β the sample alternates sign and the loop whistles at Nyquist).
+// β ≈ 1.5 already gives a reasonable saw; towards 3 the loop goes chaotic =
+// metallic noise (the TX81Z's FM hats, with no noise generator).
 const FM_FB_MAX = 3;
 
-// FM4: algoritmos = para cada operador (0..3), sus MODULADORES (índices mayores:
-// se calculan de 3 a 0) y qué operadores son PORTADORAS (suman a la salida).
+// FM4: algorithms = for each operator (0..3), its MODULATORS (higher indices:
+// computed from 3 down to 0) and which operators are CARRIERS (summed to the output).
 const FM4_ALGS = [
-  { mods: [[1], [2], [3], []], car: [0] },            // 0 pila 4→3→2→1 (brass; feedback en 4)
-  { mods: [[1], [], [3], []], car: [0, 2] },          // 1 dos pares 2→1 · 4→3 (e-piano)
-  { mods: [[1, 2, 3], [], [], []], car: [0] },        // 2 tres moduladores en paralelo → 1 (campana densa)
-  { mods: [[1, 2], [], [3], []], car: [0] },          // 3 Y: 2 y 3 → 1, 4 → 3
-  { mods: [[3], [3], [3], []], car: [0, 1, 2] },      // 4 un modulador para tres portadoras (órgano, coro)
-  { mods: [[1], [2], [], []], car: [0, 3] },          // 5 pila de tres + portadora 4 sola (cama de seno)
-  { mods: [[1], [], [], []], car: [0, 2, 3] },        // 6 par 2→1 + dos portadoras puras
-  { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 aditivo: las cuatro suenan (feedback en 4 = sierra)
+  { mods: [[1], [2], [3], []], car: [0] },            // 0 stack 4→3→2→1 (brass; feedback on 4)
+  { mods: [[1], [], [3], []], car: [0, 2] },          // 1 two pairs 2→1 · 4→3 (e-piano)
+  { mods: [[1, 2, 3], [], [], []], car: [0] },        // 2 three modulators in parallel → 1 (dense bell)
+  { mods: [[1, 2], [], [3], []], car: [0] },          // 3 Y: 2 and 3 → 1, 4 → 3
+  { mods: [[3], [3], [3], []], car: [0, 1, 2] },      // 4 one modulator for three carriers (organ, choir)
+  { mods: [[1], [2], [], []], car: [0, 3] },          // 5 stack of three + carrier 4 alone (sine bed)
+  { mods: [[1], [], [], []], car: [0, 2, 3] },        // 6 pair 2→1 + two pure carriers
+  { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 additive: all four sound (feedback on 4 = saw)
 ];
-const FM4_MOD = 1.2;          // ciclos de fase por unidad de nivel del modulador (≈ 7,5 rad de índice a nivel 1)
-const FM4_DEC_FLAT = 3.99;    // decay ≥ esto = sin envolvente (nivel constante)
+const FM4_MOD = 1.2;          // phase cycles per unit of modulator level (≈ 7.5 rad of index at level 1)
+const FM4_DEC_FLAT = 3.99;    // decay ≥ this = no envelope (constant level)
 
 class PulseProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -120,12 +120,12 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'uniDetune', defaultValue: 0,   minValue: 0,     maxValue: 50,    automationRate: 'k-rate' },
       { name: 'wtPos',     defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },
       { name: 'fm4Alg',    defaultValue: 0,   minValue: 0,     maxValue: 7,     automationRate: 'k-rate' },
-      { name: 'syncRatio', defaultValue: 0,   minValue: 0,     maxValue: 64,    automationRate: 'k-rate' },   // 0 = libre; si no, f(B)/f(A sin slave)
-      { name: 'slave',     defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'k-rate' },   // cents solo del esclavo (Pitch A)
-      { name: 'strBright', defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // cuerda: brillo del bucle
-      { name: 'strDecay',  defaultValue: 3,   minValue: 0.05,  maxValue: 30,    automationRate: 'k-rate' },   // cuerda: T60 de la fundamental en Do4 (s)
-      { name: 'strPos',    defaultValue: 0.12,minValue: 0.02,  maxValue: 0.5,   automationRate: 'k-rate' },   // cuerda: punto de pulsación (0,5 = el centro)
-      { name: 'strStiff',  defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // cuerda: rigidez (armónicos estirados)
+      { name: 'syncRatio', defaultValue: 0,   minValue: 0,     maxValue: 64,    automationRate: 'k-rate' },   // 0 = free; otherwise f(B)/f(A without slave)
+      { name: 'slave',     defaultValue: 0,   minValue: -4800, maxValue: 4800,  automationRate: 'k-rate' },   // cents of the slave only (Pitch A)
+      { name: 'strBright', defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // string: loop brightness
+      { name: 'strDecay',  defaultValue: 3,   minValue: 0.05,  maxValue: 30,    automationRate: 'k-rate' },   // string: T60 of the fundamental at C4 (s)
+      { name: 'strPos',    defaultValue: 0.12,minValue: 0.02,  maxValue: 0.5,   automationRate: 'k-rate' },   // string: pluck point (0.5 = the center)
+      { name: 'strStiff',  defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // string: stiffness (stretched harmonics)
       ...[1, 2, 3, 4].flatMap(n => [
         { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 12,  automationRate: 'k-rate' },
         { name: 'fm4L' + n, defaultValue: 0.5, minValue: 0,     maxValue: 1,   automationRate: 'k-rate' },
@@ -142,22 +142,22 @@ class PulseProcessor extends AudioWorkletProcessor {
     const ph = (typeof o.phase === 'number') ? (o.phase % 1 + 1) % 1 : 0;
     const rnd = this.rnd = (typeof o.seed === 'number') ? mulberry32(o.seed) : Math.random;
     if (this.type === 'supersaw') {
-      // 7 fases aleatorias e independientes POR OCTAVA (evita el "peine" de fases alineadas)
+      // 7 random, independent phases PER OCTAVE (avoids the "comb" of aligned phases)
       this.phases = new Float32Array(this.octaves * 7);
       for (let i = 0; i < this.phases.length; i++) this.phases[i] = rnd();
     } else {
-      // 7 slots por octava para el unison generalizado (idx = oct*7 + copia):
-      // la copia 0 lleva la fase configurada (con uniVoices=1 todo es como antes),
-      // el resto aleatoria. modPhases = moduladores FM: la copia 0 arranca en la
-      // fase de la portadora (key sync, como el FM4 y el DX7). Antes, al azar: con
-      // ratios enteros la fase relativa reparte la energía entre armónicos y cada
-      // nota salía con otro timbre («DX bass», seis Do4 seguidos: 7,7 dB de diferencia).
+      // 7 slots per octave for the generalized unison (idx = oct*7 + copy):
+      // copy 0 carries the configured phase (with uniVoices=1 everything is as before),
+      // the rest a random one. modPhases = FM modulators: copy 0 starts at the
+      // carrier's phase (key sync, like FM4 and the DX7). Before, at random: with
+      // integer ratios the relative phase spreads the energy among harmonics and each
+      // note came out with a different timbre («DX Bass», six C4s in a row: 7.7 dB apart).
       this.phases = new Float32Array(this.octaves * 7);
       this.modPhases = new Float32Array(this.octaves * 7);
-      this.fb1 = new Float32Array(this.octaves * 7);   // últimas dos salidas del modulador (feedback)
+      this.fb1 = new Float32Array(this.octaves * 7);   // last two outputs of the modulator (feedback)
       this.fb2 = new Float32Array(this.octaves * 7);
-      this.fm4Ph = new Float32Array(this.octaves * 7 * 4);   // FM4: 4 fases por copia (la copia 0 arranca en la fase configurada)
-      this.fm4Fb = new Float32Array(this.octaves * 7 * 2);   // FM4: memoria de realimentación del op 4
+      this.fm4Ph = new Float32Array(this.octaves * 7 * 4);   // FM4: 4 phases per copy (copy 0 starts at the configured phase)
+      this.fm4Fb = new Float32Array(this.octaves * 7 * 2);   // FM4: feedback memory of op 4
       for (let i = 0; i < this.octaves * 7; i++) for (let op = 0; op < 4; op++) this.fm4Ph[i * 4 + op] = (i % 7 === 0) ? ph : rnd();
       this.fm4Out = new Float32Array(4);
       for (let i = 0; i < this.phases.length; i++) {
@@ -165,25 +165,25 @@ class PulseProcessor extends AudioWorkletProcessor {
         this.modPhases[i] = (i % 7 === 0) ? ph : rnd();
       }
     }
-    this.gph = (typeof o.gphase === 'number') ? (o.gphase % 1 + 1) % 1 : 0;   // fase fantasma del maestro (sync): arranca donde el B
-    this.pend = null;   // sync: residuo PolyBLEP pendiente para la muestra siguiente, por copia
-    this.vel = typeof o.vel === 'number' ? o.vel : 1;   // cuerda: fuerza de la pulsación
-    this.str = null;    // cuerda: el estado de cada cuerda (una por copia), creado en el primer bloque
+    this.gph = (typeof o.gphase === 'number') ? (o.gphase % 1 + 1) % 1 : 0;   // master's ghost phase (sync): starts where B does
+    this.pend = null;   // sync: pending PolyBLEP residual for the next sample, per copy
+    this.vel = typeof o.vel === 'number' ? o.vel : 1;   // string: force of the pluck
+    this.str = null;    // string: the state of each string (one per copy), created in the first block
     this.stopped = false;
-    this.t = 0;         // segundos desde que nació el nodo (reserva: si la Voice no manda t0)
-    // t0: instante (reloj de audio) en que ARRANCA la nota — el VCA abre ahí. Las
-    // envolventes por operador del FM4 se miden desde t0, no desde que nace el
-    // nodo: entre crear el worklet y que suene pasan el look-ahead (5 ms), el
-    // nacimiento del processor y el jitter del hilo principal (en directo, de 5 a
-    // 30 ms y variable; con notas programadas por el arp o los jugadores, hasta
-    // 120 ms). Con el reloj propio, un modulador de 30 ms (el «clic» de un bombo)
-    // ya se había gastado cuando abría el VCA — unas veces sí y otras no.
-    // Y si el processor nace DESPUÉS de t0 (en directo el nodo tarda 6-12 ms en
-    // producir), el sonido empieza al nacer: la envolvente cuenta desde ese
-    // primer bloque (tBirth), no desde un t0 que ya pasó — el clic llega entero.
+    this.t = 0;         // seconds since the node was born (fallback: if the Voice does not send t0)
+    // t0: instant (audio clock) at which the note STARTS — the VCA opens there. The
+    // FM4 per-operator envelopes are measured from t0, not from the node's
+    // birth: between creating the worklet and it sounding come the look-ahead (5 ms), the
+    // processor's birth and the main thread's jitter (live, from 5 to
+    // 30 ms and variable; with notes scheduled by the arp or the players, up to
+    // 120 ms). With its own clock, a 30 ms modulator (a kick's «click»)
+    // had already been spent by the time the VCA opened — sometimes, and sometimes not.
+    // And if the processor is born AFTER t0 (live, the node takes 6-12 ms to
+    // produce), the sound starts at birth: the envelope counts from that
+    // first block (tBirth), not from a t0 already gone — the click arrives whole.
     this.t0 = (typeof o.t0 === 'number') ? o.t0 : null;
     this.tBirth = null;
-    this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
+    this.driftZ = 0;    // state of the drift random walk (independent per oscillator)
     this.wt = (this.type === 'wavetable' && o.wt && o.wt.frames) ? o.wt : null;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
@@ -191,19 +191,19 @@ class PulseProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, params) {
     const out = outputs[0];
     if (!out || out.length === 0) return !this.stopped;
-    const ch = out[0], N = ch.length;             // el buffer llega a cero: acumulamos con +=
+    const ch = out[0], N = ch.length;             // the buffer arrives zeroed: we accumulate with +=
     const sr = sampleRate, TWO_PI = Math.PI * 2;
-    // Puerta de arranque: hasta t0 (el arranque de la nota, que la Voice cuantiza a
-    // frontera de bloque) el oscilador CALLA y sus fases no avanzan, así la nota
-    // empieza exactamente en la fase configurada, igual en cada golpe. Antes corría
-    // libre desde que nacía el nodo y la fase en t0 era azar: con ataque 0
-    // (percusión) el escalón del VCA pillaba la onda en cualquier punto y el golpe
-    // cambiaba de una nota a otra. El bloque que EMPIEZA en t0 ya se procesa.
+    // Start gate: until t0 (the note start, which the Voice quantizes to a
+    // block boundary) the oscillator is SILENT and its phases do not advance, so the note
+    // starts exactly at the configured phase, the same on every hit. Before, it ran
+    // free from the node's birth and the phase at t0 was random: with attack 0
+    // (percussion) the VCA step caught the wave at any point and the hit
+    // changed from one note to the next. The block that STARTS at t0 is already processed.
     if (this.t0 !== null && currentTime + N / sr <= this.t0 + 1e-6) return !this.stopped;
     const type = this.type, oct = this.octaves, nyq = sr * 0.45;
-    // Drift analógico: paseo aleatorio con retorno al centro (OU discreto, un paso
-    // por bloque). Con a=0.998 la constante de tiempo es ~500 bloques (~1.3 s) y la
-    // desviación típica de z es ~1, así que el knob (cents) ES la excursión típica.
+    // Analog drift: random walk with return to center (discrete OU, one step
+    // per block). With a=0.998 the time constant is ~500 blocks (~1.3 s) and the
+    // standard deviation of z is ~1, so the knob (cents) IS the typical excursion.
     let driftCt = 0;
     const dAmt = params.drift[0];
     if (dAmt > 0) {
@@ -212,12 +212,12 @@ class PulseProcessor extends AudioWorkletProcessor {
       driftCt = z * dAmt;
     }
     const f0 = params.frequency[0] * Math.pow(2, (params.detune[0] + driftCt) / 1200);
-    // Tono propio del esclavo (Pitch A): a 0, exactamente f0 (los presets de siempre, bit a bit)
+    // The slave's own pitch (Pitch A): at 0, exactly f0 (the usual presets, bit for bit)
     const slave = params.slave ? params.slave[0] : 0, fs = slave ? f0 * Math.pow(2, slave / 1200) : f0;
     const syncR = params.syncRatio ? params.syncRatio[0] : 0;
 
-    // Unison generalizado (no aplica al supersaw, que ya es unison de 7 sierras).
-    // Copias repartidas linealmente en ±uniDetune cents; nivel 1/sqrt(N).
+    // Generalized unison (does not apply to supersaw, which already is a unison of 7 saws).
+    // Copies spread linearly over ±uniDetune cents; level 1/sqrt(N).
     let uv = params.uniVoices[0] | 0; if (uv < 1) uv = 1; else if (uv > 7) uv = 7;
     const uniCt = params.uniDetune[0], lvl = 1 / Math.sqrt(uv);
     const uniMul = j => (uv < 2 || uniCt <= 0) ? 1
@@ -231,21 +231,21 @@ class PulseProcessor extends AudioWorkletProcessor {
       const spread = params.spread[0], phases = this.phases;
       for (let k = 0; k < oct; k++) {
         const base = fs * (1 << k);
-        if (base >= nyq) continue;                // octava sobre Nyquist: silencio, no alias
+        if (base >= nyq) continue;                // octave above Nyquist: silence, not alias
         for (let j = 0; j < 7; j++) {
-          const f = base * (1 + SS_DETUNE[j] * spread * 0.25);   // hasta ~±47 cents en los extremos
+          const f = base * (1 + SS_DETUNE[j] * spread * 0.25);   // up to ~±47 cents at the extremes
           const dt = f / sr, idx = k * 7 + j;
           let p = phases[idx];
           for (let i = 0; i < N; i++) {
-            ch[i] += (2 * p - 1 - polyBlep(p, dt)) * 0.38;       // ~1/sqrt(7): nivel de una sierra
+            ch[i] += (2 * p - 1 - polyBlep(p, dt)) * 0.38;       // ~1/sqrt(7): the level of one saw
             p += dt; if (p >= 1) p -= 1;
           }
           phases[idx] = p;
         }
       }
     } else if (type === 'sine') {
-      // FM = phase modulation (2-op estilo DX): modulador seno a freq*ratio. Limpio en seno.
-      // Con unison, cada copia lleva su propio par portadora/modulador.
+      // FM = phase modulation (DX-style 2-op): sine modulator at freq*ratio. Clean on sine.
+      // With unison, each copy carries its own carrier/modulator pair.
       const ratio = params.fmRatio[0], index = params.fmIndex[0];
       const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX;
       for (let k = 0; k < oct; k++) {
@@ -256,7 +256,7 @@ class PulseProcessor extends AudioWorkletProcessor {
           const dt = f / sr, mdt = (f * ratio) / sr, idx = k * 7 + j;
           let p = this.phases[idx], mp = this.modPhases[idx];
           if (index > 0 && beta > 0) {
-            // modulador realimentado: su propia salida (promediada) entra en su fase
+            // fed-back modulator: its own (averaged) output enters its phase
             let y1 = this.fb1[idx], y2 = this.fb2[idx];
             for (let i = 0; i < N; i++) {
               const m = Math.sin(TWO_PI * mp + beta * (y1 + y2) * 0.5);
@@ -277,24 +277,24 @@ class PulseProcessor extends AudioWorkletProcessor {
               ch[i] += Math.sin(TWO_PI * p) * lvl;
               p += dt; if (p >= 1) p -= 1;
             }
-            mp = fract(mp + mdt * N);             // mantiene la fase del modulador coherente
+            mp = fract(mp + mdt * N);             // keeps the modulator's phase coherent
           }
           this.phases[idx] = p; this.modPhases[idx] = mp;
         }
       }
     } else if (type === 'wavetable') {
       const wt = this.wt;
-      if (!wt) return !this.stopped;                // sin tablas: silencio (payload ausente)
+      if (!wt) return !this.stopped;                // no tables: silence (missing payload)
       const F = wt.frames.length, h0 = wt.h0 || 512, LMAX = wt.frames[0].length - 1;
-      // posición de morph -> par de frames adyacentes + peso
+      // morph position -> pair of adjacent frames + weight
       let pos = params.wtPos[0]; if (pos < 0) pos = 0; else if (pos > 1) pos = 1;
       const x = pos * (F - 1), fA = F > 1 ? Math.min(F - 2, x | 0) : 0, ff = F > 1 ? x - fA : 0;
       const fB = fA + 1 < F ? fA + 1 : fA;
-      // Compensación de sonoridad del morph: la mezcla lineal de frames poco
-      // correlados pierde energía a mitad de camino (y dos ondas en contrafase
-      // se CANCELAN). rms² de la mezcla = fórmula cerrada con la energía por
-      // frame y la correlación de vecinos (precalculadas). Tope ×2: un nulo
-      // real no se amplifica hasta el ruido. En los extremos la ganancia es 1.
+      // Morph loudness compensation: the linear mix of poorly correlated
+      // frames loses energy halfway (and two waves in antiphase
+      // CANCEL). rms² of the mix = closed formula with the energy per
+      // frame and the neighbor correlation (precomputed). Cap ×2: a real
+      // null is not amplified up into noise. At the extremes the gain is 1.
       let gMix = 1;
       if (fB !== fA && wt.energia && wt.corr) {
         const Ea = wt.energia[fA], Eb = wt.energia[fB], c = wt.corr[fA];
@@ -307,18 +307,18 @@ class PulseProcessor extends AudioWorkletProcessor {
         if (base >= nyq) continue;
         for (let j = 0; j < uv; j++) {
           const f = base * uniMul(j);
-          // nivel (mip): el mayor nº de armónicos que cabe bajo Nyquist a esta
-          // frecuencia. Los caps van en h0 >> L => L = los "doblados" que sobran.
+          // level (mip): the largest number of harmonics that fits below Nyquist at this
+          // frequency. The caps go as h0 >> L => L = the surplus "halvings".
           const allowed = nyq / f;
           let L = 0; while ((h0 >> L) > allowed && L < LMAX) L++;
           const dA = wt.frames[fA][L], dB = wt.frames[fB][L], len = dA.length;
           const dt = f / sr, idx = k * 7 + j, amp = lvl * gMix;
           let p = this.phases[idx];
           for (let i = 0; i < N; i++) {
-            // Hermite de 4 puntos (Catmull-Rom) sobre la MEZCLA de los dos frames
-            // (el morph es lineal: mezclar antes de interpolar da lo mismo y la
-            // cúbica se calcula una vez). Con la lineal y tablas 4×, el error caía ENTRE armónicos:
-            // suelo inarmónico de −43 dB en Do4; con Hermite y tablas 8×, −76.
+            // 4-point Hermite (Catmull-Rom) on the MIX of the two frames
+            // (the morph is linear: mixing before interpolating gives the same result and the
+            // cubic is computed once). With linear interpolation and 4× tables, the error fell BETWEEN harmonics:
+            // an inharmonic floor of −43 dB at C4; with Hermite and 8× tables, −76.
             const xx = p * len, i1 = xx | 0, w = xx - i1;
             const i0 = i1 === 0 ? len - 1 : i1 - 1, i2 = i1 + 1 === len ? 0 : i1 + 1, i3 = i2 + 1 === len ? 0 : i2 + 1;
             const a0 = dA[i0], a1 = dA[i1], a2 = dA[i2], a3 = dA[i3];
@@ -333,10 +333,10 @@ class PulseProcessor extends AudioWorkletProcessor {
     } else if (type === 'fm4') {
       const alg = FM4_ALGS[Math.max(0, Math.min(FM4_ALGS.length - 1, params.fm4Alg[0] | 0))];
       const R = [params.fm4R1[0], params.fm4R2[0], params.fm4R3[0], params.fm4R4[0]];
-      const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX / TWO_PI;   // realimentación del op 4, en ciclos
-      // envolvente por operador, k-rate (un valor por bloque de 2,9 ms: el
-      // escalón es inaudible; con decay ≥ FM4_DEC_FLAT el nivel es constante)
-      if (this.tBirth === null) this.tBirth = currentTime;   // primer bloque procesado (currentTime: reloj del AudioWorkletGlobalScope)
+      const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX / TWO_PI;   // op 4 feedback, in cycles
+      // per-operator envelope, k-rate (one value per 2.9 ms block: the
+      // step is inaudible; with decay ≥ FM4_DEC_FLAT the level is constant)
+      if (this.tBirth === null) this.tBirth = currentTime;   // first processed block (currentTime: the AudioWorkletGlobalScope clock)
       const env = this.fm4Out, t = this.t0 !== null ? Math.max(0, currentTime - Math.max(this.t0, this.tBirth)) : this.t;
       const Lv = [params.fm4L1[0], params.fm4L2[0], params.fm4L3[0], params.fm4L4[0]];
       const D = [params.fm4D1[0], params.fm4D2[0], params.fm4D3[0], params.fm4D4[0]];
@@ -349,7 +349,7 @@ class PulseProcessor extends AudioWorkletProcessor {
           const f = base * uniMul(j), idx = k * 7 + j, o = idx * 4, fo = idx * 2;
           const dt0 = f * R[0] / sr, dt1 = f * R[1] / sr, dt2 = f * R[2] / sr, dt3 = f * R[3] / sr;
           for (let i = 0; i < N; i++) {
-            // de 3 a 0: los moduladores siempre tienen índice mayor que lo que modulan
+            // from 3 down to 0: modulators always have a higher index than what they modulate
             for (let op = 3; op >= 0; op--) {
               let m = 0; const ms = alg.mods[op]; for (let q = 0; q < ms.length; q++) m += out[ms[q]];
               let phase = ph[o + op] + m * FM4_MOD;
@@ -375,7 +375,7 @@ class PulseProcessor extends AudioWorkletProcessor {
           const dt = base * uniMul(j) / sr, idx = k * 7 + j;
           let p = this.phases[idx];
           for (let i = 0; i < N; i++) {
-            ch[i] += (4 * Math.abs(p - 0.5) - 1) * lvl;   // armónicos impares suaves (1/n²)
+            ch[i] += (4 * Math.abs(p - 0.5) - 1) * lvl;   // soft odd harmonics (1/n²)
             p += dt; if (p >= 1) p -= 1;
           }
           this.phases[idx] = p;
@@ -384,8 +384,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     } else if (type === 'square') {
       let duty = params.pulseWidth[0];
       if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
-      // centrado: un pulso de ancho d tiene media 2d − 1 (el de 20 %, −0,6): se resta, así el
-      // PWM no mueve la continua de la salida (a 50 %, exactamente 0: la cuadrada de siempre)
+      // centered: a pulse of width d has mean 2d − 1 (the 20 % one, −0.6): it is subtracted, so
+      // PWM does not move the output's DC (at 50 %, exactly 0: the usual square)
       const dcOff = 2 * duty - 1;
       for (let k = 0; k < oct; k++) {
         const base = fs * (1 << k);
@@ -424,27 +424,27 @@ class PulseProcessor extends AudioWorkletProcessor {
     return !this.stopped;
   }
 
-  // SYNC DURO. El esclavo no OYE al maestro: lleva una fase FANTASMA a la frecuencia
-  // del B (fm = la del A sin Pitch A × syncRatio, que trae las octavas y los detunes de
-  // los dos; vibrato, pitch env, glide y bend mueven a los dos igual y se cancelan) y,
-  // cuando esa fase da la vuelta, reinicia la suya a 0. Cada reinicio es un ESCALÓN de
-  // altura H = w(0) − w(fase a la que se cortó), y un escalón digital a pelo genera
-  // aliasing (ruido metálico que no sigue la nota). Se corrige con el residuo PolyBLEP
-  // del escalón, el de las aristas de la sierra pero con su altura real: si cae a τ
-  // muestras de la muestra n, n recibe H/2·(1−τ)² y n+1 −H/2·τ² (por eso se guarda un
-  // residuo pendiente por copia). Las aristas NATURALES (el diente de la sierra, los
-  // flancos de la cuadrada) van por el mismo camino: sin reinicios, esto es el PolyBLEP
-  // de siempre. Un solo maestro para todas las copias: octavas apiladas y unison se
-  // reinician juntas, como en un sync analógico. La deriva del maestro es la del A (el
-  // B real tiene la suya: el sync sigue a la nota, no a la deriva del B).
-  // El reinicio también rompe la PENDIENTE (en el triángulo, el seno y la tabla, lo
-  // único que cambia de golpe cuando el valor casualmente coincide): un cambio de
-  // pendiente ΔS (por muestra) se corrige con el PolyBLAMP, la integral del residuo
-  // anterior: ΔS·(1−τ)³/6 a la muestra de antes y ΔS·τ³/6 a la de después. Sin él,
-  // el triángulo con sync quedaba ~20 dB más sucio que sin sync.
+  // HARD SYNC. The slave does not HEAR the master: it keeps a GHOST phase at B's
+  // frequency (fm = A's without Pitch A × syncRatio, which carries the octaves and detunes of
+  // both; vibrato, pitch env, glide and bend move both equally and cancel out) and,
+  // when that phase wraps around, resets its own to 0. Each reset is a STEP of
+  // height H = w(0) − w(phase at which it was cut), and a bare digital step generates
+  // aliasing (metallic noise that does not follow the note). It is corrected with the PolyBLEP
+  // residual of the step, the one used for the saw's edges but with its real height: if it falls τ
+  // samples past sample n, n gets H/2·(1−τ)² and n+1 −H/2·τ² (that is why a
+  // pending residual is kept per copy). The NATURAL edges (the saw's tooth, the
+  // square's flanks) take the same path: with no resets, this is the usual
+  // PolyBLEP. A single master for all copies: stacked octaves and unison
+  // reset together, as in analog sync. The master's drift is A's (the
+  // real B has its own: the sync follows the note, not B's drift).
+  // The reset also breaks the SLOPE (in the triangle, the sine and the table, the
+  // only thing that jumps when the value happens to match): a slope change
+  // ΔS (per sample) is corrected with PolyBLAMP, the integral of the previous
+  // residual: ΔS·(1−τ)³/6 to the sample before and ΔS·τ³/6 to the one after. Without it,
+  // the synced triangle was ~20 dB dirtier than without sync.
   _synced(ch, N, params, fs, fm, uv, lvl, uniMul) {
     const sr = sampleRate, nyq = sr * 0.45, type = this.type, oct = this.octaves;
-    // 1) dónde da la vuelta el maestro en este bloque: rst[i] = τ si es entre la muestra i y la i+1, −1 si no
+    // 1) where the master wraps around in this block: rst[i] = τ if between sample i and i+1, −1 if not
     const rst = this.rst && this.rst.length >= N ? this.rst : (this.rst = new Float32Array(N));
     const dtm = Math.min(0.999, fm / sr);
     let g = this.gph;
@@ -453,13 +453,13 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
     this.gph = g;
     if (!this.pend) this.pend = new Float32Array(oct * 7);
-    // 2) la onda: valor ingenuo w(p) y aristas naturales [fase, altura]
+    // 2) the wave: naive value w(p) and natural edges [phase, height]
     let duty = params.pulseWidth[0]; if (duty < 0.01) duty = 0.01; else if (duty > 0.99) duty = 0.99;
-    // y su pendiente por unidad de fase, s(p)
+    // and its slope per unit of phase, s(p)
     let w = null, s = null, edges = [], amp = lvl, wt = null;
     if (type === 'sawtooth') { w = p => 2 * p - 1; s = () => 2; edges = [[1, -2]]; }
     else if (type === 'square') { w = p => (p < duty ? 1 : -1); s = () => 0; edges = [[duty, -2], [1, 2]]; }
-    else if (type === 'triangle') { w = p => 4 * Math.abs(p - 0.5) - 1; s = p => (p < 0.5 ? -4 : 4); }   // sus picos, sin corregir: como arriba
+    else if (type === 'triangle') { w = p => 4 * Math.abs(p - 0.5) - 1; s = p => (p < 0.5 ? -4 : 4); }   // its peaks, uncorrected: as above
     else if (type === 'sine') { w = p => Math.sin(2 * Math.PI * p); s = p => 2 * Math.PI * Math.cos(2 * Math.PI * p); }
     else if (type === 'wavetable') { wt = this._wtMorph(params); if (!wt) return; amp = lvl * wt.gMix; }
     for (let k = 0; k < oct; k++) {
@@ -468,12 +468,12 @@ class PulseProcessor extends AudioWorkletProcessor {
       for (let j = 0; j < uv; j++) {
         const f = base * uniMul(j), dt = f / sr, idx = k * 7 + j;
         let wv = w, sv = s;
-        if (wt) {                                    // tabla: el mip de esta frecuencia
+        if (wt) {                                    // table: the mip for this frequency
           const allowed = nyq / f, LMAX = this.wt.frames[0].length - 1, h0 = this.wt.h0 || 512;
           let L = 0; while ((h0 >> L) > allowed && L < LMAX) L++;
           const dA = this.wt.frames[wt.fA][L], dB = this.wt.frames[wt.fB][L], len = dA.length, ff = wt.ff;
           wv = p => wtHermite(dA, dB, ff, len, p);
-          const e = 0.25 / len;                    // pendiente: diferencia centrada a un cuarto de muestra de tabla
+          const e = 0.25 / len;                    // slope: centered difference at a quarter of a table sample
           sv = p => (wtHermite(dA, dB, ff, len, fract(p + e)) - wtHermite(dA, dB, ff, len, fract(p - e + 1))) / (2 * e);
         }
         const w0 = wv(0), s0 = sv(0);
@@ -481,22 +481,22 @@ class PulseProcessor extends AudioWorkletProcessor {
         for (let i = 0; i < N; i++) {
           let y = wv(p) + pend; pend = 0;
           const tau = rst[i];
-          const pe = tau >= 0 ? p + tau * dt : p + dt;   // hasta dónde llega la fase: el reinicio o el final del intervalo
+          const pe = tau >= 0 ? p + tau * dt : p + dt;   // how far the phase gets: the reset or the end of the interval
           for (let e = 0; e < edges.length; e++) {
             const ph = edges[e][0];
             let te = -1;
             if (p < ph && ph <= pe) te = (ph - p) / dt;
-            else if (ph < 1 && ph <= pe - 1) te = (1 + ph - p) / dt;   // flanco tras la vuelta natural (ciclo de trabajo mínimo)
+            else if (ph < 1 && ph <= pe - 1) te = (1 + ph - p) / dt;   // edge after the natural wrap (minimum duty cycle)
             if (te >= 0) { const h = edges[e][1] * 0.5; y += h * (1 - te) * (1 - te); pend -= h * te * te; }
           }
           if (tau >= 0) {
             const pr = pe >= 1 ? pe - 1 : pe;
-            const h = (w0 - wv(pr)) * 0.5;                   // el escalón del reinicio (PolyBLEP)
+            const h = (w0 - wv(pr)) * 0.5;                   // the reset step (PolyBLEP)
             y += h * (1 - tau) * (1 - tau); pend -= h * tau * tau;
-            const dS = (s0 - sv(pr)) * dt, u = 1 - tau;      // y su cambio de pendiente (PolyBLAMP)
+            const dS = (s0 - sv(pr)) * dt, u = 1 - tau;      // and its slope change (PolyBLAMP)
             y += dS * u * u * u / 6; pend += dS * tau * tau * tau / 6;
             p = (1 - tau) * dt;
-            for (let e = 0; e < edges.length; e++) {   // un flanco ya en el tramo tras el reinicio (cuadrada muy estrecha)
+            for (let e = 0; e < edges.length; e++) {   // an edge already in the stretch after the reset (very narrow square)
               const ph = edges[e][0];
               if (ph <= p) { const te = tau + ph / dt, h = edges[e][1] * 0.5; y += h * (1 - te) * (1 - te); pend -= h * te * te; }
             }
@@ -508,32 +508,32 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
   }
 
-  // CUERDA (Karplus-Strong extendido). Una cuerda por copia: una línea de retardo
-  // por la que circula la onda; cada vuelta dura exactamente un periodo de la nota,
-  // así que lo que circula se repite y suena a esa nota. Al nacer se le inyecta una
-  // ráfaga de ruido de un periodo (la púa) y, en cada vuelta, pasa por:
-  //   · un paso todo FRACCIONARIO: la línea solo mide muestras enteras y en los
-  //     agudos el redondeo desafina (a 2 kHz, ~70 cents); el paso todo pone la
-  //     fracción. Su coeficiente se calcula para que su retardo de fase EN LA NOTA
-  //     sea el que falta (no la aproximación de Thiran, que vale cerca de 0 Hz).
-  //   · un paso bajo de un polo (BRILLO): cada vuelta quita algo de agudos, así que
-  //     los armónicos altos se apagan antes que la fundamental — lo que hace una
-  //     cuerda de verdad sin programarlo. El Brillo no es un corte: es CUÁNTO DURA el
-  //     8º armónico respecto a la fundamental (r), y el polo se calcula por nota para
-  //     conseguirlo — así Decay alarga la nota sin cambiar su color, y el color es el
-  //     mismo en toda la tesitura. (Un polo no apaga más de ~1/8 por vuelta en el 8º:
-  //     si se pide más, se queda en eso.)
-  //   · cuatro paso todo de DISPERSIÓN (RIGIDEZ): retrasan más los graves que los
-  //     agudos, y los armónicos altos quedan algo más agudos que n·f0: la cuerda
-  //     tensa y gruesa del piano; al extremo, campana.
-  //   · la ganancia del bucle (DECAY): fija cuánto tarda la fundamental en caer
-  //     60 dB, descontada la pérdida del paso bajo en la nota.
-  // La afinación: el retardo total de la vuelta EN LA NOTA (línea + fraccionario +
-  // retardo de fase del paso bajo + el de la dispersión) es exactamente sr/f.
-  // La púa: ruido con semilla, oscurecido por la velocity (un polo), con el peine de
-  // la POSICIÓN (pulsar a una fracción β de la cuerda anula los armónicos múltiplos
-  // de 1/β: en el centro, los pares — redondo, hueco —; cerca del puente quedan
-  // casi todos — fino, metálico), sin continua y normalizada en nivel.
+  // STRING (extended Karplus-Strong). One string per copy: a delay line
+  // through which the wave circulates; each round trip lasts exactly one period of the note,
+  // so what circulates repeats itself and sounds at that note. At birth a one-period
+  // noise burst (the pick) is injected and, on every round trip, it goes through:
+  //   · a FRACTIONAL allpass: the line only measures whole samples and in the
+  //     highs the rounding detunes (at 2 kHz, ~70 cents); the allpass supplies the
+  //     fraction. Its coefficient is computed so that its phase delay AT THE NOTE
+  //     is exactly what is missing (not Thiran's approximation, which holds near 0 Hz).
+  //   · a one-pole lowpass (BRIGHT): each round trip removes some highs, so
+  //     the upper harmonics die out before the fundamental — what a real
+  //     string does without being programmed to. Bright is not a cutoff: it is HOW LONG the
+  //     8th harmonic LASTS relative to the fundamental (r), and the pole is computed per note to
+  //     achieve it — so Decay lengthens the note without changing its color, and the color is the
+  //     same across the whole range. (One pole cannot remove more than ~1/8 per round trip at the 8th:
+  //     if more is asked for, it stays there.)
+  //   · four DISPERSION allpasses (STIFFNESS): they delay the lows more than the
+  //     highs, and the upper harmonics end up somewhat sharper than n·f0: the piano's
+  //     taut, thick string; at the extreme, a bell.
+  //   · the loop gain (DECAY): sets how long the fundamental takes to fall
+  //     60 dB, discounting the lowpass loss at the note.
+  // The tuning: the total round-trip delay AT THE NOTE (line + fractional +
+  // lowpass phase delay + the dispersion's) is exactly sr/f.
+  // The pick: seeded noise, darkened by the velocity (one pole), with the comb of
+  // the POSITION (plucking at a fraction β of the string cancels the harmonics that are multiples
+  // of 1/β: at the center, the even ones — round, hollow —; near the bridge almost all
+  // remain — thin, metallic), DC-free and level-normalized.
   _string(ch, N, params, fs, uv, lvl, uniMul) {
     const sr = sampleRate, M = STR_LEN - 1, TWO_PI = Math.PI * 2;
     const bright = params.strBright[0], decay = params.strDecay[0], pos = params.strPos[0], stiff = params.strStiff[0];
@@ -544,16 +544,16 @@ class PulseProcessor extends AudioWorkletProcessor {
         let f = fs * (1 << k) * uniMul(j);
         if (!(f > 0)) continue;
         let P = sr / f;
-        if (P < 6) continue;                             // por encima de ~8 kHz no cabe una cuerda: silencio, no alias
+        if (P < 6) continue;                             // above ~8 kHz a string does not fit: silence, not alias
         if (P > STR_LEN - 8) { P = STR_LEN - 8; f = sr / P; }
         let st = this.str[idx];
         if (!st) st = this.str[idx] = { buf: new Float32Array(STR_LEN), w: 0, exc: null, ei: 0, apX: 0, apY: 0, lp: 0, dx: new Float64Array(4), dy: new Float64Array(4) };
         if (!st.exc) st.exc = this._pluck(P, f, pos);
         const w0 = TWO_PI * f / sr, sw = Math.sin(w0), cw = Math.cos(w0);
-        // paso bajo del bucle: el polo b que deja al armónico de referencia r veces lo que dura la
-        // fundamental. Por vuelta, ese armónico debe perder (60/(T60·f))·(1/r − 1) dB más que ella:
-        // R = |H(h·ω)| / |H(ω)|; con |H|² = a² / (1 − 2b·cos ω + b²) sale una cuadrática en b
-        // (raíces b y 1/b): (1 − R²)·b² − 2(cos ω − R²·cos hω)·b + (1 − R²) = 0
+        // loop lowpass: the pole b that makes the reference harmonic last r times as long as the
+        // fundamental. Per round trip, that harmonic must lose (60/(T60·f))·(1/r − 1) dB more than it:
+        // R = |H(h·ω)| / |H(ω)|; with |H|² = a² / (1 − 2b·cos ω + b²) a quadratic in b comes out
+        // (roots b and 1/b): (1 − R²)·b² − 2(cos ω − R²·cos hω)·b + (1 − R²) = 0
         const T60 = decay * Math.pow(261.63 / f, STR_DECAY_TRACK);
         const r = STR_BRIGHT[0] * Math.pow(STR_BRIGHT[1] / STR_BRIGHT[0], bright);
         const h = Math.min(STR_HREF, Math.floor(0.45 * sr / f));
@@ -565,17 +565,17 @@ class PulseProcessor extends AudioWorkletProcessor {
         }
         const a = 1 - b1;
         const lpMag = a / Math.hypot(1 - b1 * cw, b1 * sw), lpDel = Math.atan2(b1 * sw, 1 - b1 * cw) / w0;
-        // dispersión: el coeficiente se limita para que su retardo quepa en la vuelta (notas agudas)
-        const dd = Math.pow(STR_DISP, stiff);           // retardo en continua de cada paso todo; coeficiente c = (1 − d)/(1 + d)
+        // dispersion: the coefficient is limited so that its delay fits in the round trip (high notes)
+        const dd = Math.pow(STR_DISP, stiff);           // DC delay of each allpass; coefficient c = (1 − d)/(1 + d)
         let c = (1 - dd) / (1 + dd);
         const cMin = (1 - P / 8) / (1 + P / 8); if (c < cMin) c = cMin;
         const disp = c < -1e-4;
         const dispDel = disp ? 4 * (w0 - 2 * Math.atan(c * sw / (1 + c * cw))) / w0 : 0;
-        // línea entera + paso todo fraccionario (su retardo en [0,5, 1,5): coeficiente estable)
+        // integer line + fractional allpass (its delay in [0.5, 1.5): stable coefficient)
         const rest = P - lpDel - dispDel;
         const Ni = Math.max(1, Math.floor(rest - 0.5)), D = rest - Ni;
         const t = Math.tan(w0 * (1 - D) / 2), eta = t / (sw - t * cw);
-        // ganancia por vuelta: −60 dB en el T60 de esta altura, descontado el paso bajo; < 1 siempre (estable)
+        // gain per round trip: −60 dB at this pitch's T60, discounting the lowpass; always < 1 (stable)
         const g = Math.min(0.9995, Math.pow(10, -3 / (T60 * f)) / lpMag);
         const buf = st.buf, exc = st.exc, dx = st.dx, dy = st.dy;
         let w = st.w, ei = st.ei, apX = st.apX, apY = st.apY, lp = st.lp;
@@ -593,8 +593,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       }
     }
   }
-  // La púa: un periodo de ruido, oscurecido por la velocity (dos polos), con el peine
-  // de la posición de pulsación, sin continua y a nivel fijo.
+  // The pick: one period of noise, darkened by the velocity (two poles), with the comb
+  // of the pluck position, DC-free and at a fixed level.
   _pluck(P, f, pos) {
     const L = Math.max(2, Math.round(P)), raw = new Float32Array(L), e = new Float32Array(L);
     const fc = Math.min(sampleRate * 0.45, f * Math.pow(2, STR_VEL_OCT[0] + (STR_VEL_OCT[1] - STR_VEL_OCT[0]) * this.vel));
@@ -611,8 +611,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     return e;
   }
 
-  // Morph de la tabla: par de frames adyacentes, peso y compensación de sonoridad
-  // (la del bucle de 'wavetable', aquí para el sync). null sin tablas.
+  // Table morph: pair of adjacent frames, weight and loudness compensation
+  // (the one in the 'wavetable' loop, here for sync). null without tables.
   _wtMorph(params) {
     const wt = this.wt; if (!wt) return null;
     const F = wt.frames.length;

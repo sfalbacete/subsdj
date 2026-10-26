@@ -1,58 +1,58 @@
 /* =====================================================================
-   SubSDJ · Jugador — los «dedos virtuales» de una parte. Decide QUÉ notas
-   tocar y CUÁNDO; el motor no se entera: solo recibe noteOn/noteOff con
-   tiempo de audio (mismo camino que el arpegiador). Todo pasa por la
-   armonía del director (escala + acorde vigente) y por el arreglo (¿toca
-   esta parte en este compás? ¿con cuánta energía?).
-   Modos:
-     pulso    ritmo euclídeo E(k, n): k golpes repartidos lo más uniformemente
-              posible en n pasos por compás — la misma matemática que dibuja
-              una recta en píxeles (Bresenham). E(3,8) es el tresillo, E(5,8)
-              la clave cubana… (Toussaint: casi todos los ritmos del mundo).
-              Toca la fundamental del acorde en su octava (bombo, hat, perc).
-              RESPIRA (Roadmap 7.0 · 5.4): k sube compás a compás hasta k +
-              respira y vuelve, en un coseno de cicloP compases (como el
-              Vaivén del Arreglo): el ritmo se llena y se vacía solo.
-     acorde   mantiene las notas del acorde vigente (3 o 4); con el Arp de la
-              parte encendido, las arpegia; sin él, es un pad de acordes.
-     melodia  paseo aleatorio por grados de la escala con GRAVEDAD hacia las
-              notas del acorde en tiempos fuertes, probabilidad de silencio y
-              duraciones (corchea, negra, blanca) según la densidad.
-     raiz     mantiene la fundamental (± la quinta): dron. Re-dispara cada N
-              compases o al cambiar de acorde. Con el Seq de la parte
-              encendido, la nota mantenida es la RAÍZ que transpone su frase.
-   Arreglo por parte: «Entra» = umbral de energía a partir del cual toca;
-   «Deriva» = un parámetro del preset que pasea despacio (las manos del que
-   improvisa): relativo al valor que tenía al activarla, con 3 senos de
-   periodos primos y fases de la semilla (no consume el azar de las notas).
-   Los note-off van programados en el reloj de audio (Voice.release(rel, at))
-   — así el selftest puede renderlo todo offline y determinista. Si la parte
-   tiene Arp/Seq activos, las notas entran por noteOn con su instante (ellos
-   secuencian, en la rejilla del reloj común) y el note-off, por temporizador.
+   SubSDJ · Player — the «virtual fingers» of a part. It decides WHICH notes
+   to play and WHEN; the engine is none the wiser: it only receives noteOn/noteOff with
+   audio time (same path as the arpeggiator). Everything goes through the
+   conductor's harmony (scale + current chord) and through the arrangement (does
+   this part play in this bar? with how much energy?).
+   Modes:
+     pulse    Euclidean rhythm E(k, n): k hits spread as evenly as
+              possible over n steps per bar — the same math that draws
+              a line in pixels (Bresenham). E(3,8) is the tresillo, E(5,8)
+              the Cuban clave… (Toussaint: almost all the world's rhythms).
+              Plays the chord's root in its octave (kick, hat, perc).
+              BREATHE (Roadmap 7.0 · 5.4): k rises bar by bar up to k +
+              breathe and back, along a cosine of breatheCycle bars (like the
+              Arrangement's Sway): the rhythm fills up and empties on its own.
+     chord    holds the notes of the current chord (3 or 4); with the part's Arp
+              on, it arpeggiates them; without it, it is a chord pad.
+     melody   random walk over scale degrees with GRAVITY towards the
+              chord notes on strong beats, a probability of rest and
+              durations (eighth, quarter, half) according to the density.
+     root     holds the root (± the fifth): a drone. Retriggers every N
+              bars or on a chord change. With the part's Seq
+              on, the held note is the ROOT that transposes its phrase.
+   Per-part arrangement: «Enters» = the energy threshold from which it plays;
+   «Drift» = a preset parameter that wanders slowly (the hands of someone
+   improvising): relative to the value it had when it was turned on, with 3 sines of
+   prime periods and phases from the seed (it does not consume the notes' randomness).
+   Note-offs are scheduled on the audio clock (Voice.release(rel, at))
+   — so the selftest can render it all offline and deterministically. If the part
+   has Arp/Seq active, the notes go in through noteOn with their instant (those
+   sequence, on the common clock's grid) and the note-off, through a timer.
    ===================================================================== */
 import { mulberry32 } from './Harmony.js';
 import { PARAMS } from './params.js';
 
 export const PLAYER_MODES = ['off', 'pulse', 'chord', 'melody', 'root'];
-export const MODE_OCT = { pulse: 2, chord: 4, melody: 5, root: 2 };   // octava por defecto al elegir el modo
-// levelB: el B entra y sale sobre el A (sustituye a 'mix' desde el mezclador; Conductor.fromJSON traduce las escenas)
+export const MODE_OCT = { pulse: 2, chord: 4, melody: 5, root: 2 };   // default octave when choosing the mode
+// levelB: B comes in and out over A (replaces 'mix' since the mixer; Conductor.fromJSON translates the scenes)
 export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
 export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
-  k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, accent: 0.3,     // pulso
-  breathe: 0, breatheCycle: 4,                                    // pulso que respira: golpes de más en la cima de un ciclo de N compases
-  notes: 3,                                                 // acorde
-  density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melodía
-  fifth: 0, every: 2,                                       // raíz
-  threshold: 0, drift: 'off', driftAmt: 0.3,                 // arreglo de la parte
+  k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, accent: 0.3,     // pulse
+  breathe: 0, breatheCycle: 4,                                    // breathing pulse: extra hits at the top of an N-bar cycle
+  notes: 3,                                                 // chord
+  density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melody
+  fifth: 0, every: 2,                                       // root
+  threshold: 0, drift: 'off', driftAmt: 0.3,                 // the part's arrangement
 };
-const BAR = 4;            // beats por compás (4/4)
-const GRID_MEL = 0.5;     // rejilla de la melodía: corcheas (en beats)
+const BAR = 4;            // beats per bar (4/4)
+const GRID_MEL = 0.5;     // melody grid: eighths (in beats)
 const clamp01 = x => x < 0 ? 0 : (x > 1 ? 1 : x);
 
-// Ritmo euclídeo E(k, n) rotado `rot` pasos: golpe en el paso i cuando el
-// acumulador i·k (mod n) acaba de dar la vuelta — la recta de pendiente k/n
-// dibujada en píxeles (Bresenham). El paso 0 siempre lleva golpe: E(3,8) = x..x..x.
+// Euclidean rhythm E(k, n) rotated `rot` steps: a hit on step i when the
+// accumulator i·k (mod n) has just wrapped around — the line of slope k/n
+// drawn in pixels (Bresenham). Step 0 always gets a hit: E(3,8) = x..x..x.
 export function euclid(k, n, rot = 0) {
   n = Math.max(1, n | 0); k = Math.max(0, Math.min(n, k | 0));
   const p = new Array(n);
@@ -65,13 +65,13 @@ export class Player {
   constructor(conductor, part, index) {
     this.c = conductor; this.part = part; this.i = index;
     this.cfg = { ...PLAYER_DEF };
-    this.log = null;            // [] para registrar los eventos (selftest)
+    this.log = null;            // [] to log the events (selftest)
     this.derivaKey = 'off'; this.derivaBase = undefined;
-    this.pending = new Map();   // id → {when}: tecla ya dada al Arp/Seq de la parte que aún no ha empezado (o sin note-off)
+    this.pending = new Map();   // id → {when}: a key already given to the part's Arp/Seq that has not started yet (or has no note-off)
     this.reset();
   }
   reset() {
-    if (this.held && this.held.length) this.releaseHeld(this.c.ctx.currentTime);   // cambiar la semilla en marcha no deja notas huérfanas
+    if (this.held && this.held.length) this.releaseHeld(this.c.ctx.currentTime);   // changing the seed on the fly leaves no orphan notes
     if (this.pending) this.clearPending();
     this.nextBeat = 0; this.held = []; this.seq = 0; this.busy = 0; this.melIdx = -1; this.lastKey = null;
     this.rng = mulberry32((this.c.seed * 7919 + this.i * 104729 + 13) | 0);
@@ -85,7 +85,7 @@ export class Player {
     if (MODE_OCT[mode] !== undefined) this.cfg.oct = MODE_OCT[mode];
     this.busy = 0; this.melIdx = -1; this.lastKey = null;
   }
-  // Deriva: al cambiar de parámetro se devuelve el anterior a su valor base
+  // Drift: when the parameter changes, the previous one is put back at its base value
   setDeriva(key) {
     if (this.derivaKey !== 'off' && this.derivaBase !== undefined) this.part.engine.set(this.derivaKey, this.derivaBase);
     this.cfg.drift = key; this.derivaKey = key;
@@ -93,16 +93,16 @@ export class Player {
   }
   stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
   releaseHeld(when) { for (const id of this.held) this._off(id, when); this.held = []; }
-  // Retira del Arp/Seq de la parte las teclas dadas que aún no tienen note-off
-  // (las que todavía no han empezado y las sostenidas): si no, tras parar (o
-  // cambiar de modo) se quedarían en él — el «sonido residente».
+  // Withdraws from the part's Arp/Seq the keys given to it that have no note-off yet
+  // (those not yet started and the held ones): otherwise, after stopping (or
+  // changing mode) they would stay in it — the «resident sound».
   clearPending() { const e = this.part.engine; for (const id of this.pending.keys()) e.noteOff(id); this.pending.clear(); }
 
   _id() { return 'p' + this.i + '_' + (this.seq++); }
-  // ¿Sigue viva en el motor la nota con este id? (voz poli, pila mono, o retenida
-  // por el Arp/Seq de la parte). Si alguien cortó las notas sostenidas — cargar
-  // un preset, Reset, cambiar poli↔mono, encender el Seq — el jugador lo nota y
-  // las repone en el siguiente compás en vez de esperar al cambio de acorde.
+  // Is the note with this id still alive in the engine? (poly voice, mono stack, or held
+  // by the part's Arp/Seq). If something cut the held notes — loading
+  // a preset, Reset, switching poly↔mono, turning on the Seq — the player notices and
+  // puts them back in the next bar instead of waiting for the chord change.
   _alive(id) { const e = this.part.engine; return e.voices.has(id) || e.heldStack.some(n => n.id === id) || e.arp.held.some(h => h.id === id) || e.seq.held.some(h => h.id === id); }
   _checkHeld() { if (this.held.length && !this.held.some(id => this._alive(id))) { this.held = []; this.lastKey = null; } }
   _routed() { const S = this.part.engine.S; return S.seqOn === 'on' || S.arpMode !== 'off'; }
@@ -120,24 +120,24 @@ export class Player {
     if (this._routed()) {
       const p = this.pending.get(id);
       this.pending.delete(id);
-      if (p && when <= p.when + 1e-6) { e.noteOff(id); return; }   // aún no había empezado: no empieza (se retira del Arp/Seq ya)
+      if (p && when <= p.when + 1e-6) { e.noteOff(id); return; }   // had not started yet: it does not start (withdrawn from the Arp/Seq right away)
       const ms = (when - e.ctx.currentTime) * 1000;
-      if (ms < 1) e.noteOff(id); else setTimeout(() => e.noteOff(id), ms);   // «ya» es síncrono: stop() limpia el latch del Seq justo después
+      if (ms < 1) e.noteOff(id); else setTimeout(() => e.noteOff(id), ms);   // «now» is synchronous: stop() clears the Seq's latch right after
     } else e._directOff(id, when);
   }
-  base() { return 12 * (this.cfg.oct + 1); }   // MIDI del Do de la octava elegida (oct 4 → 60)
+  base() { return 12 * (this.cfg.oct + 1); }   // MIDI of the C of the chosen octave (oct 4 → 60)
   _arr(b) { return this.c.arrangeFor(this, b); }   // {E, active, velMul, probMul, dens}
 
-  // Planifica todo lo que caiga antes de `untilBeat` (en beats del director)
+  // Schedules everything that falls before `untilBeat` (in conductor beats)
   schedule(untilBeat) {
     const fn = this['_' + this.cfg.mode];
     if (!fn) return;
-    const nowB = this.c.beatAt(this.c.ctx.currentTime);   // por si se quedó atrás (pestaña oculta)
+    const nowB = this.c.beatAt(this.c.ctx.currentTime);   // in case it fell behind (hidden tab)
     let guard = 0;
     while (this.nextBeat < untilBeat && guard++ < 4096) fn.call(this, nowB);
   }
 
-  // Golpes del pulso en el compás «bar»: k, o k + lo que respira en su ciclo
+  // Pulse hits in bar «bar»: k, or k + what it breathes in its cycle
   kAt(bar) {
     const c = this.cfg, r = Math.max(0, Math.round(c.breathe || 0));
     if (!r) return c.k;
@@ -149,7 +149,7 @@ export class Player {
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / step) * step;
     const b = this.nextBeat, idx = Math.round(b / step) % c.n, a = this._arr(b);
     if (a.active && euclid(this.kAt(Math.floor(b / BAR + 1e-9)), c.n, c.rot)[idx] && this.rng() < c.prob * a.probMul) {
-      const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // swing del reloj (si la rejilla es binaria)
+      const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // the clock's swing (if the grid is binary)
       const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.accent) * (0.92 + 0.16 * this.rng()));
       const id = this._id();
       this._on(id, this.base() + this.c.chordAtBeat(b).rootPc, vel, t);
@@ -165,10 +165,10 @@ export class Player {
     if (!a.active) { if (this.held.length) this.releaseHeld(this.c.timeAt(b)); this.lastKey = null; this.nextBeat = b + BAR; return; }
     this._checkHeld();
     const ch = this.c.chordAtBeat(b), pcs = ch.tones.slice(0, c.notes), key = pcs.join(',');
-    if (key !== this.lastKey) {                     // solo al cambiar de acorde (un pad se mantiene)
+    if (key !== this.lastKey) {                     // only on a chord change (a pad is held)
       const t = this.c.timeAt(b);
       this.releaseHeld(t);
-      let prev = this.base() + ch.rootPc - 1;       // voz cerrada: cada nota, la siguiente por encima
+      let prev = this.base() + ch.rootPc - 1;       // close voicing: each note, the next one above
       for (const pc of pcs) {
         let m = prev + 1; while (m % 12 !== pc) m++; prev = m;
         const id = this._id(); this._on(id, m, Math.min(1, c.vel * a.velMul), t); this.held.push(id);
@@ -189,7 +189,7 @@ export class Player {
       const t = this.c.timeAt(b);
       this.releaseHeld(t);
       const root = this.base() + ch.rootPc;
-      // la quinta, DENTRO de la escala: sobre algunos grados de hirajoshi o blues no hay quinta justa
+      // the fifth, WITHIN the scale: on some degrees of hirajoshi or blues there is no perfect fifth
       const notes = c.fifth ? [root, this.c.harmony.quantize(root + 7)] : [root];
       for (const m of notes) { const id = this._id(); this._on(id, m, Math.min(1, c.vel * a.velMul), t); this.held.push(id); }
       this.lastKey = ch.rootPc;
@@ -201,20 +201,20 @@ export class Player {
     const c = this.cfg, step = GRID_MEL;
     if (this.nextBeat < nowB - 1) { this.nextBeat = Math.ceil(nowB / step) * step; this.busy = 0; }
     const b = this.nextBeat;
-    if (this.busy > 1e-9) { this.busy -= step; this.nextBeat = b + step; return; }   // la nota (o el silencio) sigue sonando
+    if (this.busy > 1e-9) { this.busy -= step; this.nextBeat = b + step; return; }   // the note (or the rest) is still sounding
     const a = this._arr(b);
     if (!a.active) { this.nextBeat = b + step; return; }
     const h = this.c.harmony, ch = this.c.chordAtBeat(b);
     const lo = this.base(), hi = lo + 12 * Math.max(1, c.range);
     const pool = h.notesIn(lo, hi, h.scaleSet());
     if (!pool.length) { this.nextBeat = b + step; return; }
-    // duración en corcheas: 1, 2 o 4 — con más densidad (y más energía), más cortas
+    // duration in eighths: 1, 2 or 4 — with more density (and more energy), shorter
     const dens = clamp01(c.density + a.dens), sil = clamp01(c.rest - a.dens * 0.6);
     const w = [dens + 0.05, 0.5, 1.05 - dens], tot = w[0] + w[1] + w[2];
     let x = this.rng() * tot; const len = x < w[0] ? 1 : (x < w[0] + w[1] ? 2 : 4);
-    if (this.rng() < sil) { this.busy = (len - 1) * step; this.nextBeat = b + step; return; }   // silencio de esa duración
-    // altura: arranca en una nota del acorde; en tiempo fuerte, gravedad hacia
-    // la nota del acorde más cercana; si no, paso (±1, ±2), quedarse o salto
+    if (this.rng() < sil) { this.busy = (len - 1) * step; this.nextBeat = b + step; return; }   // a rest of that duration
+    // pitch: starts on a chord note; on a strong beat, gravity towards
+    // the nearest chord note; otherwise, a step (±1, ±2), staying put, or a leap
     const chordSet = new Set(ch.tones), strong = Math.abs(b % 2) < 1e-6;
     let idx = this.melIdx;
     if (idx < 0) {
@@ -228,12 +228,12 @@ export class Player {
       const r = this.rng(), dir = this.rng() < 0.5 ? -1 : 1;
       const d = r < 0.15 ? 0 : r < 0.6 ? 1 : r < 0.85 ? 2 : 3 + Math.floor(this.rng() * 3);
       idx += dir * d;
-      if (idx < 0) idx = -idx;                                        // rebota en los bordes del registro
+      if (idx < 0) idx = -idx;                                        // bounces off the edges of the register
       if (idx >= pool.length) idx = 2 * (pool.length - 1) - idx;
       idx = Math.max(0, Math.min(pool.length - 1, idx));
     }
     this.melIdx = idx;
-    const t = this.c.swungTime(b, step), bar1 = Math.abs(b % BAR) < 1e-6;   // corcheas con el swing del reloj
+    const t = this.c.swungTime(b, step), bar1 = Math.abs(b % BAR) < 1e-6;   // eighths with the clock's swing
     const vel = Math.min(1, c.vel * a.velMul * (bar1 ? 1 : 0.85) * (0.9 + 0.2 * this.rng()));
     const id = this._id();
     this._on(id, pool[idx], vel, t);
@@ -242,8 +242,8 @@ export class Player {
     this.nextBeat = b + step;
   }
 
-  // Deriva lenta del parámetro elegido (la llama el director cada ~100 ms, en vivo).
-  // Paseo suave ≈ ±1: 3 senos de periodos primos (en beats) con fases de la semilla.
+  // Slow drift of the chosen parameter (the conductor calls it every ~100 ms, live).
+  // Smooth walk ≈ ±1: 3 sines of prime periods (in beats) with phases from the seed.
   drift(beat) {
     const c = this.cfg, key = c.drift;
     if (!key || key === 'off' || !(c.driftAmt > 0)) return;
@@ -251,8 +251,8 @@ export class Player {
     if (this.derivaKey !== key || this.derivaBase === undefined) { this.derivaKey = key; this.derivaBase = this.part.engine.S[key]; }
     const ph = this.derivaPhase;
     const w = (Math.sin(beat / 23 + ph[0]) + 0.6 * Math.sin(beat / 37 + ph[1]) + 0.4 * Math.sin(beat / 59 + ph[2])) / 2;
-    let v = p.log ? this.derivaBase * Math.pow(2, c.driftAmt * w * 1.5)             // cutoff: en octavas
-                  : this.derivaBase + c.driftAmt * w * 0.5 * (p.max - p.min);       // lineal: ± mitad del rango
+    let v = p.log ? this.derivaBase * Math.pow(2, c.driftAmt * w * 1.5)             // cutoff: in octaves
+                  : this.derivaBase + c.driftAmt * w * 0.5 * (p.max - p.min);       // linear: ± half the range
     v = Math.max(p.min, Math.min(p.max, v));
     this.part.engine.set(key, v);
     if (this.c.onDrift) this.c.onDrift(this.i, key, v);

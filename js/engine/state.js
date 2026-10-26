@@ -1,19 +1,19 @@
 /* =====================================================================
-   SubSDJ · estado del sintetizador en runtime (espacio-motor).
-   Se DERIVA de la tabla única PARAMS (params.js): aquí no hay defaults
-   propios, así no pueden divergir motor y UI.
+   SubSDJ · the synthesizer's runtime state (engine space).
+   It is DERIVED from the single PARAMS table (params.js): there are no
+   defaults of its own here, so engine and UI cannot diverge.
    ===================================================================== */
 import { PARAMS, PRESET_BASE } from './params.js';
 import { migratePreset } from './legacy.js';
 
-// Mezclador (1.2.0): antes la voz sumaba (1−ring)·[(1−mix)·A + mix·B] + ring·A×B;
-// ahora levelA·A + levelB·B + ring·A×B. Un preset SIN levelA/levelB es de antes
-// (o hereda los niveles de la base): con Mix o con Ring se traduce EXACTO
-// — mismos coeficientes, mismo sonido —; sin ninguno de los dos, la base ya
-// lleva los niveles del Mix 0,4 de entonces. Las bibliotecas guardan COPIAS de
-// los presets, así que esta traducción es para siempre, no de una vez.
-const LEGACY_MIX = 0.4;                                     // el Mix de la base de antes
-const r6 = x => Math.round(x * 1e6) / 1e6;                  // 0,7·0,5 → 0,35, no 0,35000000000000003
+// Mixer (1.2.0): the voice used to sum (1−ring)·[(1−mix)·A + mix·B] + ring·A×B;
+// now levelA·A + levelB·B + ring·A×B. A preset WITHOUT levelA/levelB predates it
+// (or inherits the base's levels): with Mix or with Ring it is translated EXACTLY
+// — same coefficients, same sound —; with neither, the base already
+// carries the levels of the Mix 0.4 of back then. Libraries store COPIES of
+// the presets, so this translation is forever, not a one-off.
+const LEGACY_MIX = 0.4;                                     // the old base's Mix
+const r6 = x => Math.round(x * 1e6) / 1e6;                  // 0.7·0.5 → 0.35, not 0.35000000000000003
 export function migrateMix(p) {
   if (!p || 'levelA' in p || 'levelB' in p || !('mix' in p || p.ring > 0)) return p;
   const { mix = LEGACY_MIX, ...q } = p, ring = p.ring || 0;
@@ -22,16 +22,16 @@ export function migrateMix(p) {
   return q;
 }
 
-// Delay (Roadmap 7.0 · 4.1): la realimentación era 0,85·Amount (tope 0,8) y ahora tiene su
-// knob (dlyFb). Un preset SIN dlyFb es de antes: la recibe calculada así — el mismo eco, exacto.
+// Delay (Roadmap 7.0 · 4.1): the feedback was 0.85·Amount (capped at 0.8) and now has its own
+// knob (dlyFb). A preset WITHOUT dlyFb predates it: it gets it computed this way — the same echo, exactly.
 export function migrateFb(p) {
   if (!p || 'dlyFb' in p) return p;
   return { ...p, dlyFb: r6(Math.min(0.8, ('dlyAmt' in p ? p.dlyAmt : PARAMS.dlyAmt.def) * 0.85)) };
 }
 
-// Un preset es una DIFERENCIA sobre PRESET_BASE (params.js), no sobre los
-// defaults neutros: así los de siempre suenan igual. {} = Reset (sin base).
-// Lo guardado hasta la 1.3.0 llega en castellano: legacy.migratePreset lo pasa al inglés.
+// A preset is a DIFFERENCE over PRESET_BASE (params.js), not over the
+// neutral defaults: that way the old ones sound the same. {} = Reset (no base).
+// What was saved up to 1.3.0 arrives in Spanish: legacy.migratePreset turns it into English.
 export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFb(migrateMix(migratePreset(p))) } : {});
 
 export function makeDefaultState() {
@@ -44,9 +44,9 @@ export function makeDefaultState() {
   return S;
 }
 
-// Preset (claves de PARAMS, espacio-motor) -> estado S, SIN pasar por la UI
-// (las partes nacen con su preset). Claves desconocidas: se ignoran, como
-// en loadState. Va sobre la base de los presets. Devuelve el mismo S.
+// Preset (PARAMS keys, engine space) -> state S, WITHOUT going through the UI
+// (parts are born with their preset). Unknown keys are ignored, as
+// in loadState. Goes on top of the preset base. Returns the same S.
 export function applyPreset(S, preset) {
   preset = withPresetBase(preset);
   for (const name in preset) {
@@ -57,8 +57,8 @@ export function applyPreset(S, preset) {
   }
   return S;
 }
-// Estado S -> objeto con las claves de PARAMS (lo que enseñan los controles):
-// la inversa de applyPreset; al cambiar de parte el rack la vuelca (syncControls).
+// State S -> object with the PARAMS keys (what the controls show):
+// the inverse of applyPreset; when switching parts, the rack loads it into its controls (syncControls).
 export function toControls(S) {
   const o = {};
   for (const name in PARAMS) {

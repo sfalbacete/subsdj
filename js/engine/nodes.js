@@ -1,16 +1,16 @@
 /* =====================================================================
-   SubSDJ · nodos auxiliares del grafo: buffers de ruido y deriva, IR de la
-   reverb, curva de distorsión y LFOs (los usan AudioEngine.js y Sala.js).
+   SubSDJ · auxiliary nodes of the graph: noise and drift buffers, reverb
+   IR, distortion curve and LFOs (used by AudioEngine.js and Sala.js).
    ===================================================================== */
 import { mulberry32 } from './Harmony.js';
-// --- Azar por contexto (Roadmap 7.0 · 7.1) ---
-// En directo, Math.random: cada nota distinta, como siempre. En un render
-// OFFLINE (selftest, SFZ, huellas), un mulberry32 con semilla, uno por
-// contexto: el mismo guion da las mismas muestras. Todo el azar del motor sale
-// de aquí: el ruido, el IR de la reverb, la Vida y el Golpe del Vocal, el S&H
-// por nota, el Arp aleatorio y — por la semilla que recibe cada oscilador — las
-// fases libres y la deriva del worklet. seedRender(ctx, s) ANTES de crear el
-// motor elige otra tirada (variaciones de un mismo sonido: round robin).
+// --- Per-context randomness (Roadmap 7.0 · 7.1) ---
+// Live, Math.random: every note different, as always. In an OFFLINE render
+// (selftest, SFZ, fingerprints), a seeded mulberry32, one per context: the same
+// script gives the same samples. All the engine's randomness comes from here:
+// the noise, the reverb IR, the Vocal's Life and Bite, the per-note S&H, the
+// random Arp and — through the seed each oscillator receives — the free phases
+// and the drift of the worklet. seedRender(ctx, s) BEFORE creating the engine
+// picks another roll (variations of the same sound: round robin).
 export const RENDER_SEED = 0x5eed7;
 const rngCache = new WeakMap();
 export function seedRender(ctx, seed) { rngCache.set(ctx, mulberry32(seed | 0)); }
@@ -25,10 +25,10 @@ export function makeNoise(ctx) {
   for (let i = 0; i < len; i++) d[i] = rnd() * 2 - 1;
   return b;
 }
-// Deriva LENTA normalizada a ±1 para la 'Vida' del módulo Vocal: suma de 4
-// senos sub-Hz con ciclos ENTEROS en el buffer (loop sin costura — un paseo
-// aleatorio a secas daría un salto de formante en cada vuelta) y fases al
-// azar. Compartido: cada voz lo lee desde un offset aleatorio (descorrelado).
+// SLOW drift normalized to ±1 for the 'Life' of the Vocal module: sum of 4
+// sub-Hz sines with WHOLE cycles in the buffer (seamless loop — a plain random
+// walk would give a formant jump on every lap) and random phases. Shared:
+// each voice reads it from a random offset (decorrelated).
 export function makeWander(ctx) {
   const secs = 8, len = ctx.sampleRate * secs, b = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = b.getChannelData(0), rnd = ctxRandom(ctx);
@@ -42,11 +42,11 @@ export function makeWander(ctx) {
   if (pk > 1e-9) for (let i = 0; i < len; i++) d[i] /= pk;
   return b;
 }
-// Respuesta al impulso sintética para la reverb (ruido con decaimiento, estéreo
-// descorrelacionado). damp (0..1) = decaimiento dependiente de frecuencia: un
-// one-pole lowpass cuyo cutoff se CIERRA exponencialmente a lo largo de la cola
-// (14 kHz -> hasta 200 Hz a tope), como en una sala real. La energía se
-// renormaliza a la del IR sin filtrar: el knob oscurece, no baja el wet.
+// Synthetic impulse response for the reverb (decaying noise, decorrelated
+// stereo). damp (0..1) = frequency-dependent decay: a one-pole lowpass whose
+// cutoff CLOSES exponentially along the tail (14 kHz -> down to 200 Hz at max),
+// as in a real room. The energy is renormalized to that of the unfiltered IR:
+// the knob darkens, it doesn't lower the wet.
 export function makeIR(ctx, seconds, decay, damp = 0) {
   const rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate * seconds));
   const buf = ctx.createBuffer(2, len, rate);
@@ -66,31 +66,31 @@ export function makeIR(ctx, seconds, decay, damp = 0) {
       expEnergy += env * env; actEnergy += d[i] * d[i];
     }
     if (damp > 0 && actEnergy > 1e-12) {
-      const g = Math.sqrt(expEnergy / 3 / actEnergy);   // E[x²] del ruido U(-1,1)·env = env²/3
+      const g = Math.sqrt(expEnergy / 3 / actEnergy);   // E[x²] of the U(-1,1)·env noise = env²/3
       for (let i = 0; i < len; i++) d[i] *= g;
     }
   }
   return buf;
 }
-// Curva de saturación FIJA (tanh). Antes se regeneraba con cada gesto del knob
-// Drive: un Float32Array(1024) por evento y el swap de curva podía hacer click.
-// Ahora el drive vive en la ganancia de entrada (distPre) y la normalización (distPost).
+// FIXED saturation curve (tanh). It used to be regenerated on every gesture of the
+// Drive knob: one Float32Array(1024) per event, and swapping the curve could click.
+// Now the drive lives in the input gain (distPre) and the normalization (distPost).
 export function makeDistCurve() {
   const n = 1024, c = new Float32Array(n), k = 4;
   for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
   return c;
 }
-// --- Formas de LFO que un OscillatorNode no tiene: S&H y deriva ('sh', 'drift') ---
-// Son BUFFERS en loop leídos por un AudioBufferSourceNode; la velocidad del knob
-// es su playbackRate. Unidad de tiempo del buffer: 0,1 s a 8 kHz (señal de
-// control: sobra), así que rate = hz / 10 → un escalón (S&H) o ~un vaivén
-// (deriva) por periodo del LFO. S&H: 128 escalones aleatorios (a 2 Hz el patrón
-// tarda 64 s en repetirse). Deriva: suma de 5 senos con CICLOS ENTEROS en el
-// loop (24, 40, 56, 88, 104 ciclos sobre 64 unidades = 0,375…1,625 × f), fases
-// al azar, amplitud 1/f, normalizada a ±1: continua y sin costura al dar la
-// vuelta (un paseo aleatorio a secas saltaría). Semilla fija (mulberry32):
-// renders reproducibles. Un juego de buffers por contexto, compartido por todos
-// los LFO; cada uno arranca en un offset distinto (descorrelados).
+// --- LFO shapes an OscillatorNode doesn't have: S&H and drift ('sh', 'drift') ---
+// They are looped BUFFERS read by an AudioBufferSourceNode; the knob's speed is
+// their playbackRate. Time unit of the buffer: 0.1 s at 8 kHz (a control signal:
+// plenty), so rate = hz / 10 → one step (S&H) or ~one swing (drift) per LFO
+// period. S&H: 128 random steps (at 2 Hz the pattern takes 64 s to repeat).
+// Drift: sum of 5 sines with WHOLE CYCLES in the loop (24, 40, 56, 88, 104 cycles
+// over 64 units = 0.375…1.625 × f), random phases, 1/f amplitude, normalized to
+// ±1: continuous and seamless when it wraps around (a plain random walk would
+// jump). Fixed seed (mulberry32): reproducible renders. One set of buffers per
+// context, shared by all the LFOs; each one starts at a different offset
+// (decorrelated).
 export const LFO_ALT = ['sh', 'drift'];
 const LFO_SR = 8000, LFO_UNIT = 0.1, SH_STEPS = 128, DRIFT_UNITS = 64;
 const lfoBufCache = new WeakMap();
@@ -105,10 +105,10 @@ export function lfoBuffers(ctx) {
   let pk = 0;
   for (let i = 0; i < dLen; i++) { let v = 0; for (const c of comps) v += c.a * Math.sin(c.w * i + c.ph); dd[i] = v; if (Math.abs(v) > pk) pk = Math.abs(v); }
   for (let i = 0; i < dLen; i++) dd[i] /= pk;
-  // Formas nativas como buffers de UN periodo (1 s a LFO_SR → rate = hz) para los
-  // LFO POR VOZ: un buffer en loop admite fase inicial (offset de arranque), un
-  // OscillatorNode no. Mismas fases que el oscilador nativo (sin/tri/saw/sqr
-  // arrancan en 0, 0, 0, +1), así «por voz» con fase 0 suena como el global.
+  // Native shapes as buffers of ONE period (1 s at LFO_SR → rate = hz) for the
+  // PER-VOICE LFOs: a looped buffer accepts a start phase (start offset), an
+  // OscillatorNode doesn't. Same phases as the native oscillator (sin/tri/saw/sqr
+  // start at 0, 0, 0, +1), so «per voice» with phase 0 sounds like the global one.
   const per = LFO_SR, mk = f => { const buf = ctx.createBuffer(1, per, LFO_SR), d = buf.getChannelData(0); for (let i = 0; i < per; i++) d[i] = f(i / per); return buf; };
   b = { sh, drift, rnd, unit: LFO_UNIT, seq: 0,
         sine: mk(x => Math.sin(2 * Math.PI * x)),
@@ -118,32 +118,32 @@ export function lfoBuffers(ctx) {
   lfoBufCache.set(ctx, b);
   return b;
 }
-// --- LFO POR VOZ (Roadmap 5.0 · bloque 2: fase por voz y deriva por voz) ---
-// Por qué: los LFO del motor son UNO por motor, así que un acorde respira en
-// bloque. Con lfoPhase 'voice' cada voz lleva sus propias copias (cut/res/freq/
-// pwm/pan) arrancadas en una FASE distinta; y la fuente «Deriva (voz)» de la
-// matriz es un paseo lento propio de cada voz. La fase de cada voz sale de la
-// secuencia de Weyl k·φ mod 1 (φ = razón áurea): determinista (renders y SFZ
-// reproducibles; el selftest puede medirla) y máximamente repartida (dos notas
-// seguidas nunca caen cerca; voz 0 = fase 0 = el sonido de siempre).
-// Las seis formas son buffers en loop (sin/tri/saw/sqr: rate = hz; S&H/deriva:
-// rate = hz·unit, como el LFO alternativo global). El contador vive por
-// contexto (lfoBuffers): las partes de una escena comparten la secuencia.
+// --- PER-VOICE LFO (Roadmap 5.0 · block 2: per-voice phase and per-voice drift) ---
+// Why: the engine's LFOs are ONE per engine, so a chord breathes as a block.
+// With lfoPhase 'voice' each voice carries its own copies (cut/res/freq/pwm/pan)
+// started at a different PHASE; and the matrix source «Drift (voice)» is a slow
+// walk of each voice's own. Each voice's phase comes from the Weyl sequence
+// k·φ mod 1 (φ = golden ratio): deterministic (reproducible renders and SFZ; the
+// selftest can measure it) and maximally spread (two consecutive notes never
+// land close together; voice 0 = phase 0 = the usual sound).
+// The six shapes are looped buffers (sin/tri/saw/sqr: rate = hz; S&H/drift:
+// rate = hz·unit, like the global alternative LFO). The counter lives per
+// context (lfoBuffers): the parts of a scene share the sequence.
 export const LFO_WEYL = 0.6180339887498949;
 export function nextVoicePhase(ctx) { const b = lfoBuffers(ctx); return (b.seq++ * LFO_WEYL) % 1; }
 const voiceRate = (b, shape, hz) => LFO_ALT.includes(shape) ? hz * b.unit : hz;
-// once («una vez», Roadmap 7.0 · 2.2): el buffer suena SIN loop — un ciclo desde
-// la fase de arranque y se calla en su final (sin/tri/saw acaban en 0); S&H y
-// deriva no tienen final y siguen en loop.
+// once («once», Roadmap 7.0 · 2.2): the buffer plays WITHOUT loop — one cycle from
+// the start phase, then it goes silent at its end (sin/tri/saw end at 0); S&H and
+// drift have no end and keep looping.
 export function mkVoiceLFO(ctx, shape, hz, depth, t0, phase, once = false) {
   const out = ctx.createGain(), gain = ctx.createGain(); gain.gain.value = depth; out.connect(gain);
   const lfo = { out, depth: gain, src: null, shape: null, hz, t0, phase, born: false, once };
   setVoiceLfoShape(ctx, lfo, shape);
   return lfo;
 }
-// Fase en curso = la de nacimiento + lo recorrido desde el último ancla: cambiar
-// de forma o de velocidad a mitad de nota no reinicia el ciclo. SIN envolver: en
-// «una vez», 1 o más = el ciclo ya terminó.
+// Current phase = the birth one + what has elapsed since the last anchor: changing
+// shape or speed mid-note doesn't restart the cycle. NOT wrapped: in «once», 1 or
+// more = the cycle is already over.
 const phaseNow = (lfo, now) => lfo.phase + lfo.hz * Math.max(0, now - lfo.t0);
 const onceOf = (lfo, shape) => lfo.once && !LFO_ALT.includes(shape);
 export function setVoiceLfoShape(ctx, lfo, shape) {
@@ -153,7 +153,7 @@ export function setVoiceLfoShape(ctx, lfo, shape) {
   if (lfo.src) { try { lfo.src.stop(); lfo.src.disconnect(); } catch (e) {} lfo.src = null; }
   lfo.shape = shape; lfo.born = true;
   const once = onceOf(lfo, shape);
-  if (once && lfo.phase >= 1) return;                  // «una vez» y ya recorrió su ciclo: se queda en su final
+  if (once && lfo.phase >= 1) return;                  // «once» and it already ran its cycle: it stays at its end
   const src = ctx.createBufferSource();
   src.buffer = b[shape] || b.sine; src.loop = !once;
   src.playbackRate.value = voiceRate(b, shape, lfo.hz);
@@ -164,7 +164,7 @@ export function setVoiceLfoShape(ctx, lfo, shape) {
 export function setVoiceLfoRate(ctx, lfo, hz, t) {
   const now = ctx.currentTime;
   lfo.phase = phaseNow(lfo, now); if (!onceOf(lfo, lfo.shape)) lfo.phase %= 1;
-  lfo.t0 = Math.max(now, lfo.t0); lfo.hz = hz;   // ancla la fase antes de cambiar la velocidad
+  lfo.t0 = Math.max(now, lfo.t0); lfo.hz = hz;   // anchors the phase before changing the speed
   if (lfo.src) lfo.src.playbackRate.setTargetAtTime(voiceRate(lfoBuffers(ctx), lfo.shape, hz), t, 0.02);
 }
 export function stopVoiceLFO(lfo) {
@@ -172,43 +172,43 @@ export function stopVoiceLFO(lfo) {
   if (lfo.src) { try { lfo.src.stop(); } catch (e) {} try { lfo.src.disconnect(); } catch (e) {} }
   try { lfo.out.disconnect(); } catch (e) {} try { lfo.depth.disconnect(); } catch (e) {}
 }
-// LFO: oscilador nativo (sin/tri/saw/sqr) o un BUFFER en loop — S&H y deriva
-// siempre; cualquier forma A TEMPO (Roadmap 7.0 · 2.2), porque un buffer admite
-// fase de arranque y un OscillatorNode no. Todo vertido en `out` (±1, crudo):
-// quien consume el LFO (depth, la matriz) cuelga de `out` y no se entera de qué
-// fuente hay detrás. El oscilador pasa por una puerta (gate): el cambio de fuente
-// se programa LFO_SWITCH por delante y cae en una muestra exacta, sin hueco.
+// LFO: native oscillator (sin/tri/saw/sqr) or a looped BUFFER — always for S&H and
+// drift; for any shape IN TEMPO (Roadmap 7.0 · 2.2), because a buffer accepts a
+// start phase and an OscillatorNode doesn't. Everything poured into `out` (±1, raw):
+// whoever consumes the LFO (depth, the matrix) hangs off `out` and never learns
+// which source is behind it. The oscillator goes through a gate: the source switch
+// is scheduled LFO_SWITCH ahead and lands on an exact sample, with no gap.
 const LFO_SWITCH = 0.02;
 export function mkLFO(ctx, freq, depth) {
   const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
   const gate = ctx.createGain(), out = ctx.createGain();
   const gain = ctx.createGain(); gain.gain.value = depth;
   osc.connect(gate); gate.connect(out); out.connect(gain); osc.start();
-  // Siempre enganchado a la salida (ganancia 0): Chrome NO procesa lo que no llega al
-  // destino, y un oscilador sin procesar no avanza su fase — el LFO «global» se quedaba
-  // congelado entre notas y arrancaba donde se paró al engancharlo una voz (medido
-  // 2026-10-20: dos notas a 0 y a 0,37 s se movían igual). Así corre libre de verdad
-  // y, a tempo, sigue en la rejilla aunque no suene nada.
+  // Always hooked to the output (gain 0): Chrome does NOT process what doesn't reach the
+  // destination, and an unprocessed oscillator doesn't advance its phase — the «global» LFO
+  // stayed frozen between notes and started where it had stopped when a voice hooked it
+  // (measured 2026-10-20: two notes at 0 and at 0.37 s moved the same). This way it truly
+  // runs free and, in tempo, stays on the grid even when nothing is playing.
   const keep = ctx.createGain(); keep.gain.value = 0; out.connect(keep); keep.connect(ctx.destination);
   return { osc, gate, out, depth: gain, keep, alt: null, shape: 'sine', hz: freq, sync: 0, clock: null, born: ctx.currentTime };
 }
-// Rehace la fuente: con sincro, el buffer arranca en la fase que le toca en el
-// reloj común (fase 0 en el pulso 0 del origen: el ciclo cae en la rejilla).
+// Rebuilds the source: with sync, the buffer starts at the phase it is due in the
+// shared clock (phase 0 at beat 0 of the origin: the cycle lands on the grid).
 function relinkLfo(ctx, lfo) {
   const isAlt = LFO_ALT.includes(lfo.shape), useBuf = isAlt || lfo.sync > 0;
-  const t0 = ctx.currentTime <= lfo.born ? ctx.currentTime : ctx.currentTime + LFO_SWITCH;   // recién nacido (el arranque del motor): no hay nada sonando que relevar
+  const t0 = ctx.currentTime <= lfo.born ? ctx.currentTime : ctx.currentTime + LFO_SWITCH;   // newborn (engine start-up): nothing is playing that needs handing over
   if (lfo.alt) { const o = lfo.alt; try { o.stop(t0); } catch (e) {} o.onended = () => { try { o.disconnect(); } catch (e) {} }; lfo.alt = null; }
   if (!useBuf) { lfo.osc.type = lfo.shape; lfo.gate.gain.setValueAtTime(1, t0); return; }
   const b = lfoBuffers(ctx), src = ctx.createBufferSource();
   src.buffer = isAlt ? (lfo.shape === 'sh' ? b.sh : b.drift) : (b[lfo.shape] || b.sine); src.loop = true;
   src.playbackRate.value = isAlt ? lfo.hz * b.unit : lfo.hz;
   const d = src.buffer.duration;
-  let off = b.rnd() * d;                                    // libre: cualquier punto (S&H / deriva descorrelados)
+  let off = b.rnd() * d;                                    // free: any point (S&H / drift decorrelated)
   if (lfo.sync > 0) { const cyc = lfo.clock.beatAt(t0) / lfo.sync; off = isAlt ? cyc * b.unit : cyc * d; off = ((off % d) + d) % d; }
   src.connect(lfo.out); src.start(t0, off);
   lfo.alt = src; lfo.gate.gain.setValueAtTime(0, t0);
 }
-export function setLfoRate(lfo, hz, t) {          // knob Speed: al oscilador y, si la hay, a la fuente por buffer
+export function setLfoRate(lfo, hz, t) {          // Speed knob: to the oscillator and, if there is one, to the buffer source
   lfo.hz = hz;
   lfo.osc.frequency.setTargetAtTime(hz, t, 0.02);
   if (lfo.alt) lfo.alt.playbackRate.setTargetAtTime(LFO_ALT.includes(lfo.shape) ? hz * lfoBuffers(lfo.alt.context).unit : hz, t, 0.02);
@@ -217,16 +217,16 @@ export function setLfoShape(ctx, lfo, shape) {
   if (lfo.shape === shape) return;
   lfo.shape = shape; relinkLfo(ctx, lfo);
 }
-// A tempo: beats = pulsos por ciclo (0 = libre), hz = la velocidad que toca. Se
-// llama también cuando el reloj cambia (BPM u origen) para volver a la rejilla.
+// In tempo: beats = beats per cycle (0 = free), hz = the speed that applies. Also
+// called when the clock changes (BPM or origin) to get back onto the grid.
 export function setLfoSync(ctx, lfo, beats, clock, hz) {
   const was = lfo.sync;
   lfo.sync = beats || 0; lfo.clock = clock; lfo.hz = hz;
   lfo.osc.frequency.setValueAtTime(hz, ctx.currentTime);
   if (lfo.sync || was) relinkLfo(ctx, lfo);
 }
-// LFO seno con fase inicial (los OscillatorNode no la tienen): un PeriodicWave
-// con sin(wt+phi) = sin(phi)·cos(wt) + cos(phi)·sin(wt). Para el ensemble a 3 fases.
+// Sine LFO with a start phase (OscillatorNodes don't have one): a PeriodicWave
+// with sin(wt+phi) = sin(phi)·cos(wt) + cos(phi)·sin(wt). For the 3-phase ensemble.
 export function mkPhasedLFO(ctx, freq, depth, phaseDeg) {
   const ph = phaseDeg * Math.PI / 180;
   const osc = ctx.createOscillator();

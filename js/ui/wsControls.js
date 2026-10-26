@@ -1,9 +1,9 @@
-/* SubSDJ · panel de la secuencia de tabla (wave sequencing): segs + editor de
-   pasos en canvas (edita el param string wsPat) + stepper de longitud.
-   La frase son FRAMES de la tabla (0..7); '.' = mantener el frame anterior
-   (así se hacen pasos largos: ritmo desigual). Clon adaptado del editor del
-   secuenciador; el marcador sigue a la voz más reciente (cada voz lleva su
-   propia fase — en un acorde el marcador es solo orientativo). */
+/* SubSDJ · Wave Sequence panel (wave sequencing): segs + canvas step
+   editor (edits the string param wsPat) + length stepper.
+   The phrase is FRAMES of the table (0..7); '.' = hold the previous frame
+   (that is how long steps are made: uneven rhythm). Adapted clone of the
+   sequencer's editor; the marker follows the most recent voice (each voice has its
+   own phase — in a chord the marker is only a rough guide). */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget } from './registry.js';
@@ -19,7 +19,7 @@ export function bindWsControls() {
   bindSeg('wsDivSel', 'wsdiv', 'wsDiv', 'wsDiv');
   bindSeg('wsModeSel', 'wsmode', 'wsMode', 'wsMode');
 
-  // wsPat: el editor canvas es su único widget. Sin `el`: fuera de MIDI learn.
+  // wsPat: the canvas editor is its only widget. No `el`: outside MIDI learn.
   CONTROLS.wsPat = {
     get: () => part().S.wsPat,
     set: v => applyTarget('wsPat', String(v ?? PARAMS.wsPat.def)),
@@ -31,14 +31,14 @@ export function bindWsControls() {
   initWsLen();
 }
 
-// Editor de pasos: columnas = tokens; arrastre vertical = frame (0..7),
-// toque corto = alterna frame <-> mantener ('.'). Los 'mantener' se pintan
-// como guion tenue a la altura HEREDADA (se resuelve andando el patrón).
+// Step editor: columns = tokens; vertical drag = frame (0..7),
+// short tap = toggles frame <-> hold ('.'). The 'holds' are painted
+// as a faint dash at the INHERITED height (resolved by walking the pattern).
 function initWsEditor(canvas) {
   if (!canvas) return;
   const g = canvas.getContext('2d');
   const PAD = 8;
-  let W = 220, H = 96;                              // tamaño en px de diseño (fitCanvas: backing store a dpr × zoom)
+  let W = 220, H = 96;                              // size in design px (fitCanvas: backing store at dpr × zoom)
   const fit = () => { ({ w: W, h: H } = fitCanvas(canvas, g, 220, 96)); };
   const yOf = fr => (H - PAD) - (fr / WS_TOP) * (H - 2 * PAD);
 
@@ -50,7 +50,7 @@ function initWsEditor(canvas) {
     g.lineWidth = 1;
     g.strokeStyle = tint('--dim', .18);
     g.strokeRect(PAD, PAD, w - 2 * PAD, h - 2 * PAD);
-    for (let f = 1; f < WS_TOP; f++) {                 // rejilla: una línea por frame
+    for (let f = 1; f < WS_TOP; f++) {                 // grid: one line per frame
       const y = yOf(f);
       g.strokeStyle = tint('--dim', .10);
       g.beginPath(); g.moveTo(PAD, y); g.lineTo(w - PAD, y); g.stroke();
@@ -58,11 +58,11 @@ function initWsEditor(canvas) {
     if (!steps.length) return;
     const cw = (w - 2 * PAD) / steps.length;
     g.font = '8px system-ui';
-    let held = Math.round(part().S.wtPos * WS_TOP);    // '.' inicial hereda del knob Morph
+    let held = Math.round(part().S.wtPos * WS_TOP);    // a leading '.' inherits from the Morph knob
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
       if (i) { g.strokeStyle = tint('--dim', .10); g.beginPath(); g.moveTo(x0, PAD); g.lineTo(x0, h - PAD); g.stroke(); }
-      if (i === play) {                                // marcador: columna que suena ahora
+      if (i === play) {                                // marker: the column sounding now
         g.fillStyle = tint('--accent2', .12);
         g.fillRect(x0 + 1, PAD + 1, cw - 2, h - 2 * PAD - 2);
         g.fillStyle = token('--accent2');
@@ -74,12 +74,12 @@ function initWsEditor(canvas) {
         held = st;
         const y = yOf(st), y0 = yOf(0);
         g.fillStyle = tint('--accent2', .22);
-        g.fillRect(xa, Math.min(y, y0), xb - xa, Math.max(2, Math.abs(y - y0)));  // tallo hasta el frame 0
+        g.fillRect(xa, Math.min(y, y0), xb - xa, Math.max(2, Math.abs(y - y0)));  // stem down to frame 0
         g.fillStyle = token('--accent2');
-        g.fillRect(xa, y - 1.5, xb - xa, 3);                                      // remate: frame del paso
+        g.fillRect(xa, y - 1.5, xb - xa, 3);                                      // cap: the step's frame
       } else {
         g.fillStyle = tint('--dim', .4);
-        g.fillRect(xa, yOf(held) - 1, xb - xa, 2);                                // mantener: guion a la altura heredada
+        g.fillRect(xa, yOf(held) - 1, xb - xa, 2);                                // hold: dash at the inherited height
       }
     });
   }
@@ -105,13 +105,13 @@ function initWsEditor(canvas) {
     const pxPerFr = (H - 2 * PAD) / WS_TOP;
     const fr = Math.max(0, Math.min(WS_TOP, Math.round(drag.startFr + dy / pxPerFr)));
     const toks = tokensOf();
-    if (toks[drag.step] === String(fr)) return;        // solo al cambiar de frame
-    toks[drag.step] = String(fr);                      // arrastrar un 'mantener' lo convierte en paso
+    if (toks[drag.step] === String(fr)) return;        // only when the frame changes
+    toks[drag.step] = String(fr);                      // dragging a 'hold' turns it into a step
     CONTROLS.wsPat.set(toks.join(' '));
   });
   const end = e => {
     if (!drag) return;
-    if (!drag.moved) {                                 // toque corto: alterna frame <-> mantener
+    if (!drag.moved) {                                 // short tap: toggles frame <-> hold
       const toks = tokensOf();
       toks[drag.step] = drag.wasHold ? String(drag.startFr) : '.';
       CONTROLS.wsPat.set(toks.join(' '));
@@ -125,8 +125,8 @@ function initWsEditor(canvas) {
   document.addEventListener('param-change', e => {
     if (e.detail.target === 'wsPat' || e.detail.target === 'wtPos') draw();
   });
-  window.addEventListener('resize', draw);             // screens.js dispara resize al cambiar de pestaña
-  let lastPlay = -1;                                   // marcador: redibuja solo al cambiar de paso
+  window.addEventListener('resize', draw);             // screens.js fires resize on tab change
+  let lastPlay = -1;                                   // marker: redraws only when the step changes
   setInterval(() => {
     const p = part().ready ? part().wseq.playingStep() : -1;
     if (p !== lastPlay) { lastPlay = p; draw(); }
@@ -134,7 +134,7 @@ function initWsEditor(canvas) {
   draw();
 }
 
-// Stepper de longitud: reescribe el string (+ añade 'mantener', − quita el último)
+// Length stepper: rewrites the string (+ adds a 'hold', − removes the last one)
 function initWsLen() {
   const num = document.getElementById('wsLenNum');
   const sync = () => { if (num) num.textContent = tokensOf().length; };

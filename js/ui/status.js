@@ -1,12 +1,12 @@
-/* SubSDJ · estado en la cabecera: dos símbolos (audio y MIDI) sin texto. El
-   estado se cuenta con el color (una clase) y se explica en el tooltip:
-     ''    apagado / sin aparato (tinta apagada)
-     wait  esperando un gesto del usuario (late despacio)
-     on    activo / conectado (acento, con halo)
-     err   error (rojo)
-   Lo llaman main.js (audio listo / error), keyboard.js (primera nota) y
-   midi.js (aparatos conectados). Los iconos viven en index.html (SVG con
-   currentColor) y las clases en style.css (#status .st). */
+/* SubSDJ · status in the header: two symbols (audio and MIDI) without text. The
+   state is told by color (a class) and explained in the tooltip:
+     ''    off / no device (dimmed ink)
+     wait  waiting for a user gesture (pulses slowly)
+     on    active / connected (accent, with halo)
+     err   error (red)
+   Called by main.js (audio ready / error), keyboard.js (first note) and
+   midi.js (devices connected). The icons live in index.html (SVG with
+   currentColor) and the classes in style.css (#status .st). */
 const STATES = ['wait', 'on', 'err'];
 
 export function setStatus(id, state, title) {

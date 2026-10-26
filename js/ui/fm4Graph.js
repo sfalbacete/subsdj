@@ -1,35 +1,35 @@
-/* SubSDJ · grafo del algoritmo FM4, a la Yamaha. El diagrama de cajas del DX7
-   es el idioma común de la FM: las PORTADORAS (lo que suena) en la fila de
-   abajo, sobre la línea de salida; cada MODULADOR encima del operador al que
-   modula, unido por su cable; el feedback, un lazo sobre el op 4. Se lee de un
-   vistazo y enseña qué es un algoritmo: solo un grafo de quién modula a quién.
-   Va bajo el selector giratorio (en lugar de la leyenda «4→3→2→1»); el lazo se
-   enciende cuando el Feedback del módulo FM es > 0.
-   La tabla es la del worklet (FM4_ALGS en worklets/pulse-processor.js),
-   COPIADA: un worklet no se puede importar desde la página. El selftest
-   comprueba que las dos no se separan.
-   Colocación: fila = altura sobre la salida (portadora 0; un modulador, una
-   más que el más alto de sus destinos); columna = la media de las de sus
-   destinos, y los que caen en el mismo sitio se abren en abanico. */
+/* SubSDJ · FM4 algorithm graph, Yamaha style. The DX7 box diagram
+   is the common language of FM: the CARRIERS (what sounds) in the bottom
+   row, above the output line; each MODULATOR above the operator it
+   modulates, joined by its wire; the feedback, a loop over op 4. It reads at a
+   glance and shows what an algorithm is: just a graph of who modulates whom.
+   It sits under the rotary selector (instead of the «4→3→2→1» caption); the loop
+   lights up when the FM module's Feedback is > 0.
+   The table is the worklet's (FM4_ALGS in worklets/pulse-processor.js),
+   COPIED: a worklet cannot be imported from the page. The selftest
+   checks that the two don't drift apart.
+   Placement: row = height above the output (carrier 0; a modulator, one
+   more than the highest of its targets); column = the mean of its
+   targets' columns, and those landing on the same spot fan out. */
 import { CONTROLS } from './registry.js';
 
-// para cada operador (0..3), sus MODULADORES; y qué operadores son PORTADORAS
+// for each operator (0..3), its MODULATORS; and which operators are CARRIERS
 export const FM4_ALGS = [
-  { mods: [[1], [2], [3], []], car: [0] },            // 0 pila 4→3→2→1 (brass; feedback en 4)
-  { mods: [[1], [], [3], []], car: [0, 2] },          // 1 dos pares 2→1 · 4→3 (e-piano)
-  { mods: [[1, 2, 3], [], [], []], car: [0] },        // 2 tres moduladores en paralelo → 1 (campana densa)
-  { mods: [[1, 2], [], [3], []], car: [0] },          // 3 Y: 2 y 3 → 1, 4 → 3
-  { mods: [[3], [3], [3], []], car: [0, 1, 2] },      // 4 un modulador para tres portadoras (órgano, coro)
-  { mods: [[1], [2], [], []], car: [0, 3] },          // 5 pila de tres + portadora 4 sola (cama de seno)
-  { mods: [[1], [], [], []], car: [0, 2, 3] },        // 6 par 2→1 + dos portadoras puras
-  { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 aditivo: las cuatro suenan (feedback en 4 = sierra)
+  { mods: [[1], [2], [3], []], car: [0] },            // 0 stack 4→3→2→1 (brass; feedback on 4)
+  { mods: [[1], [], [3], []], car: [0, 2] },          // 1 two pairs 2→1 · 4→3 (e-piano)
+  { mods: [[1, 2, 3], [], [], []], car: [0] },        // 2 three parallel modulators → 1 (dense bell)
+  { mods: [[1, 2], [], [3], []], car: [0] },          // 3 Y: 2 and 3 → 1, 4 → 3
+  { mods: [[3], [3], [3], []], car: [0, 1, 2] },      // 4 one modulator for three carriers (organ, choir)
+  { mods: [[1], [2], [], []], car: [0, 3] },          // 5 stack of three + carrier 4 alone (sine bed)
+  { mods: [[1], [], [], []], car: [0, 2, 3] },        // 6 pair 2→1 + two pure carriers
+  { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 additive: all four sound (feedback on 4 = saw)
 ];
 
-const W = 100, H = 80;                 // lienzo fijo: la escala no cambia entre algoritmos
-const COL = 22, ROW = 18, BW = 16, BH = 12;   // paso de rejilla y caja de operador
-const FB_OP = 3;                       // el Feedback realimenta el op 4
+const W = 100, H = 80;                 // fixed canvas: the scale doesn't change between algorithms
+const COL = 22, ROW = 18, BW = 16, BH = 12;   // grid pitch and operator box
+const FB_OP = 3;                       // the Feedback feeds back op 4
 
-// {col, row} de cada operador (columnas desde 0)
+// {col, row} of each operator (columns from 0)
 export function layout(alg) {
   const targets = op => alg.mods.flatMap((m, t) => (m.includes(op) ? [t] : []));
   const row = [];
@@ -39,7 +39,7 @@ export function layout(alg) {
   alg.car.forEach((op, i) => { col[op] = i; });
   for (let r = 1; r <= Math.max(...row); r++) {
     const ops = [0, 1, 2, 3].filter(op => row[op] === r);
-    const want = new Map();            // columna deseada → operadores que la quieren
+    const want = new Map();            // desired column → operators that want it
     for (const op of ops) {
       const ts = targets(op), c = ts.reduce((s, t) => s + col[t], 0) / ts.length;
       want.set(c, [...(want.get(c) || []), op]);
@@ -53,22 +53,22 @@ export function layout(alg) {
 export function svgFor(algIdx, fbOn = false) {
   const alg = FM4_ALGS[algIdx] || FM4_ALGS[0], pos = layout(alg);
   const cols = Math.max(...pos.map(p => p.col)), rows = Math.max(...pos.map(p => p.row));
-  const x0 = (W - (cols * COL + BW)) / 2 - 2;          // −2: sitio para el lazo a la derecha
-  const y0 = 5 + ((H - 15) - (rows * ROW + BH)) / 2;   // arriba el lazo, abajo la línea de salida
+  const x0 = (W - (cols * COL + BW)) / 2 - 2;          // −2: room for the loop on the right
+  const y0 = 5 + ((H - 15) - (rows * ROW + BH)) / 2;   // the loop on top, the output line at the bottom
   const x = op => x0 + pos[op].col * COL, y = op => y0 + (rows - pos[op].row) * ROW;
   const cx = op => x(op) + BW / 2;
   const out = [];
-  // cables: de la base del modulador a la cabeza de su destino, en codo si no está debajo
+  // wires: from the modulator's base to the head of its target, elbowed if it isn't right below
   alg.mods.forEach((ms, t) => ms.forEach(m => {
     const yA = y(m) + BH, yB = y(t), mid = (yA + yB) / 2;
     out.push(`<path class="w" d="M${cx(m)} ${yA} V${mid} H${cx(t)} V${yB}"/>`);
   }));
-  // salida: las portadoras bajan a una línea común
+  // output: the carriers drop down to a common line
   const yL = y0 + rows * ROW + BH + 5, xs = alg.car.map(cx);
   alg.car.forEach(op => out.push(`<path class="o" d="M${cx(op)} ${y(op) + BH} V${yL}"/>`));
   const xm = (Math.min(...xs) + Math.max(...xs)) / 2;
   out.push(`<path class="o" d="M${Math.min(...xs)} ${yL} H${Math.max(...xs)} M${xm} ${yL} V${yL + 4}"/>`);
-  // lazo de feedback del op 4: de su costado a su propia entrada
+  // op 4 feedback loop: from its side to its own input
   const fx = x(FB_OP), fy = y(FB_OP);
   out.push(`<path class="fb${fbOn ? ' on' : ''}" d="M${fx + BW} ${fy + BH / 2} H${fx + BW + 4} V${fy - 4} H${fx + BW / 2} V${fy}"/>`);
   for (let op = 0; op < 4; op++) {
@@ -87,7 +87,7 @@ export function initFm4Graph() {
     const b = seg.querySelector('button[data-alg="' + alg + '"]');
     box.title = b ? b.title : '';
   };
-  // param-change llega venga de donde venga: clic, knob, preset, MIDI, cambio de parte
+  // param-change arrives wherever it comes from: click, knob, preset, MIDI, part change
   document.addEventListener('param-change', e => {
     const { target, value } = e.detail;
     if (target === 'fm4Alg') { alg = +value || 0; paint(); }

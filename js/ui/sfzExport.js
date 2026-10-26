@@ -1,25 +1,25 @@
 /* =====================================================================
-   SubSDJ · exportador SFZ (botón 🎹 SFZ en la barra de presets).
-   Congela el preset ACTUAL como instrumento multisample reutilizable en
-   cualquier sampler (Sforzando, Renoise, TAL-Sampler…): renderiza una
-   rejilla de notas en OfflineAudioContext —el mismo camino real que el
-   self-test—, recorta el silencio de los extremos, normaliza en global
-   y descarga un ZIP (entradas sin comprimir) con <preset>.sfz +
-   samples/*.wav (16-bit estéreo).
-   Decisiones:
-   - Reverb y delay NO se hornean (sus ecos/colas quedan pegados a cada
-     nota en un sampler; se añaden en el DAW). El resto de la cadena
-     (drive, filtro, unison, chorus/ensemble, width…) es timbre y va.
-   - Capas de velocidad MEDIDAS (velocityLayers): la nota de referencia a
-     velocity suave y a tope; si el BRILLO cambia, la velocity cambia el
-     timbre (env de filtro, matriz → filtro o FM, operadores FM4… lo que
-     sea, sin lista que mantener) y van 2 o 3 capas; si solo cambia el
-     volumen, basta 1. Cada capa se iguala al NIVEL medido de la dura (no
-     ×1/vel: la velocity puede mover más que el VCA) y el volumen continuo
-     lo pone el sampler (amp_veltrack=100 por defecto en SFZ).
-   - Sin loop points (v1): samples largos (hold + release completo) y
-     ampeg_release = release del preset para que soltar la nota en el
-     sampler suene como en el synth.
+   SubSDJ · SFZ exporter (🎹 SFZ button in the preset bar).
+   Freezes the CURRENT preset as a multisample instrument reusable in
+   any sampler (Sforzando, Renoise, TAL-Sampler…): renders a
+   grid of notes in OfflineAudioContext —the same real path as the
+   self-test—, trims the silence at both ends, normalizes globally
+   and downloads a ZIP (uncompressed entries) with <preset>.sfz +
+   samples/*.wav (16-bit stereo).
+   Decisions:
+   - Reverb and delay are NOT baked in (their echoes/tails would stay glued to each
+     note in a sampler; they are added in the DAW). The rest of the chain
+     (drive, filter, unison, chorus/ensemble, width…) is timbre and goes in.
+   - MEASURED velocity layers (velocityLayers): the reference note at
+     soft and full velocity; if the BRIGHTNESS changes, velocity changes the
+     timbre (filter env, matrix → filter or FM, FM4 operators… whatever
+     it is, no list to maintain) and there are 2 or 3 layers; if only the
+     volume changes, 1 is enough. Each layer is matched to the measured LEVEL of the hard one (not
+     ×1/vel: velocity can move more than the VCA) and the continuous volume
+     is set by the sampler (amp_veltrack=100 by default in SFZ).
+   - No loop points (v1): long samples (hold + full release) and
+     ampeg_release = the preset's release so that releasing the note in the
+     sampler sounds like in the synth.
    ===================================================================== */
 import { AudioEngine } from '../engine/AudioEngine.js';
 import { part } from '../engine/parts.js';
@@ -29,10 +29,10 @@ import { currentPreset } from './presetBank.js';
 const SR = 44100;
 const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
 
-// Rejilla por defecto: C1..C7 cada 4 st (el sampler interpola ±2 st como mucho)
+// Default grid: C1..C7 every 4 st (the sampler interpolates ±2 st at most)
 export const SFZ_GRID = { lo: 24, hi: 96, step: 4, hold: 3.0, maxDur: 8 };
 
-// --- render offline de UNA nota (la receta del self-test) ---
+// --- offline render of ONE note (the self-test recipe) ---
 async function renderNote(state, midi, vel, hold, maxDur) {
   const dur = Math.min(maxDur, hold + (state.r || 0.3) + 0.4);
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * dur), SR);
@@ -44,26 +44,26 @@ async function renderNote(state, midi, vel, hold, maxDur) {
   return ctx.startRendering();
 }
 
-// ¿Cambia el TIMBRE con la velocity? La nota de referencia a VEL_SOFT y a 1,
-// cada una como ESPECTRO por bandas de tercio de octava (FFT promediada; en dB
-// respecto a su total: el nivel no cuenta). Timbre = la banda que más se mueve,
-// entre las que suenan (BAND_FLOOR): si pasa de VEL_DB → 2 capas; de VEL_DB3 → 3.
-// El azar del preset (fases libres, ruido, S&H por nota, deriva) no confunde la
-// medida: los renders offline llevan semilla (Roadmap 7.0 · 7.1), así que las dos
-// notas comparten la misma tirada y solo difieren en la velocity. (Antes, un
-// segundo render a velocity 1 medía ese azar y la velocity tenía que superarlo.)
-// Cada capa se iguala al NIVEL de la dura (RMS medido).
-// Medido en los 117 de fábrica (2026-10-20, ya con semilla): 2 capas o más en 45, 21 de ellos con 3
-// (antes de 0.2, 30, por la env de filtro), con la velocity por la matriz, FM4 y la distorsión
-// (una nota floja satura menos) bien vistas. Con el azar fuera de la medida aparecen los que
-// lo tapaba: «Pluck lotería (S&H)» pasa de 1 capa a 3 (su env de filtro sigue a la velocity:
-// 15 dB en la banda que más se mueve; antes el S&H por nota lo escondía).
+// Does the TIMBRE change with velocity? The reference note at VEL_SOFT and at 1,
+// each as a third-octave band SPECTRUM (averaged FFT; in dB
+// relative to its total: the level doesn't count). Timbre = the band that moves most,
+// among those that sound (BAND_FLOOR): above VEL_DB → 2 layers; above VEL_DB3 → 3.
+// The preset's randomness (free phases, noise, per-note S&H, drift) doesn't confuse the
+// measurement: offline renders are seeded (Roadmap 7.0 · 7.1), so the two
+// notes share the same roll and differ only in velocity. (Before, a
+// second render at velocity 1 measured that randomness and velocity had to exceed it.)
+// Each layer is matched to the LEVEL of the hard one (measured RMS).
+// Measured on the 117 factory presets (2026-10-20, already seeded): 2 layers or more in 45, 21 of them with 3
+// (before 0.2, 30, from the filter env), with velocity via the matrix, FM4 and distortion
+// (a soft note saturates less) correctly detected. With randomness out of the measurement, the ones
+// it was masking show up: «Lottery Pluck (S&H)» goes from 1 layer to 3 (its filter env follows velocity:
+// 15 dB in the band that moves most; before, the per-note S&H hid it).
 const VEL_REF = 60, VEL_SOFT = 0.3;
-const VEL_DB = 2;     // una banda que se mueve 2 dB: otro timbre, no solo más flojo (un falso «sí» solo engorda el zip)
-const VEL_DB3 = 10;   // 10 dB: una capa intermedia evita el salto entre las dos
-const BAND_FLOOR = -30; // solo las bandas que SUENAN (a menos de 30 dB del total): las más débiles no se oyen y su medida es ruido
+const VEL_DB = 2;     // a band moving 2 dB: a different timbre, not just quieter (a false «yes» only bloats the zip)
+const VEL_DB3 = 10;   // 10 dB: an intermediate layer avoids the jump between the two
+const BAND_FLOOR = -30; // only the bands that SOUND (within 30 dB of the total): weaker ones aren't heard and their measurement is noise
 const FFT_N = 4096;
-function fft(re, im) {                               // radix-2 en sitio
+function fft(re, im) {                               // in-place radix-2
   const n = re.length;
   for (let i = 1, j = 0; i < n; i++) {
     let b = n >> 1; for (; j & b; b >>= 1) j ^= b; j ^= b;
@@ -81,7 +81,7 @@ function fft(re, im) {                               // radix-2 en sitio
     }
   }
 }
-// Bandas de tercio de octava de 100 Hz a 16 kHz, en dB respecto al total (Welch: Hann, 50 %)
+// Third-octave bands from 100 Hz to 16 kHz, in dB relative to the total (Welch: Hann, 50 %)
 function thirdOctaves(d, n) {
   const pow = new Float64Array(FFT_N / 2), re = new Float64Array(FFT_N), im = new Float64Array(FFT_N);
   for (let s = 0; s + FFT_N <= n; s += FFT_N / 2) {
@@ -117,14 +117,14 @@ export async function velocityLayers(S, hold) {
   return { layers, timbre: dev };
 }
 
-// Recorta el silencio (< −70 dBFS) de los extremos y funde los últimos 15 ms
-// a cero (sin click al acabar el sample en el sampler).
+// Trims the silence (< −70 dBFS) at both ends and fades the last 15 ms
+// to zero (no click when the sample ends in the sampler).
 function trimBuffer(buf) {
   const L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
   const thr = 3.2e-4, n = L.length;
   let a = 0; while (a < n && Math.abs(L[a]) < thr && Math.abs(R[a]) < thr) a++;
   let b = n - 1; while (b > a && Math.abs(L[b]) < thr && Math.abs(R[b]) < thr) b--;
-  if (a >= b) { a = 0; b = n - 1; }                    // todo bajo el umbral: se deja tal cual
+  if (a >= b) { a = 0; b = n - 1; }                    // all below the threshold: left as is
   a = Math.max(0, a - Math.floor(SR * 0.002));
   b = Math.min(n, b + 1 + Math.floor(SR * 0.05));
   const l = L.slice(a, b), r = R.slice(a, b), m = l.length;
@@ -136,29 +136,29 @@ function trimBuffer(buf) {
 const slugify = s => (String(s).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)) || 'preset';
 
-// Renderiza el kit completo: samples WAV (Uint8Array) + texto .sfz.
-// opts sobreescribe SFZ_GRID (el self-test usa una rejilla mínima).
+// Renders the whole kit: WAV samples (Uint8Array) + .sfz text.
+// opts overrides SFZ_GRID (the self-test uses a minimal grid).
 export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
   const o = { ...SFZ_GRID, ...opts };
   const S = structuredClone(state);
-  S.arpMode = 'off';                       // el scheduler del arp es wall-clock: silenciaría el render
-  S.mode = 'poly';                         // notas sueltas; mono/glide no aplica a un render aislado
-  S.reverbMix = 0; S.dlyAmt = 0;           // espacio fuera del horneado (se añade en el DAW)
-  const hold = Math.max(o.hold, (S.a || 0) + 1.2);     // que el ataque quepa entero
+  S.arpMode = 'off';                       // the arp scheduler is wall-clock: it would silence the render
+  S.mode = 'poly';                         // single notes; mono/glide doesn't apply to an isolated render
+  S.reverbMix = 0; S.dlyAmt = 0;           // space left out of the bake (added in the DAW)
+  const hold = Math.max(o.hold, (S.a || 0) + 1.2);     // so the whole attack fits
   const { layers, timbre } = await velocityLayers(S, Math.min(hold, 1.5));
   const keys = [];
   for (let m = o.lo; m <= o.hi; m += o.step) keys.push(m);
   if (keys[keys.length - 1] !== o.hi) keys.push(o.hi);
 
-  // 1) renders (secuencial: cada nota es un OfflineAudioContext propio)
+  // 1) renders (sequential: each note is its own OfflineAudioContext)
   const rendered = [];
   const total = layers.length * keys.length;
   for (let li = 0; li < layers.length; li++) {
     for (const midi of keys) {
       const buf = await renderNote(structuredClone(S), midi, layers[li].vel, hold, o.maxDur);
       const { l, r } = trimBuffer(buf);
-      if (layers[li].gain !== 1) {         // capas al nivel de la dura (medido);
-        const g = layers[li].gain;         // el volumen por velocity lo pone amp_veltrack
+      if (layers[li].gain !== 1) {         // layers at the hard one's level (measured);
+        const g = layers[li].gain;         // the volume per velocity is set by amp_veltrack
         for (let i = 0; i < l.length; i++) { l[i] *= g; r[i] *= g; }
       }
       rendered.push({ midi, li, l, r });
@@ -166,8 +166,8 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
     }
   }
 
-  // 2) normalización GLOBAL a −1 dBFS: una sola ganancia para todo el kit
-  //    (conserva el balance entre notas y capas, solo ajusta el techo)
+  // 2) GLOBAL normalization to −1 dBFS: a single gain for the whole kit
+  //    (keeps the balance between notes and layers, only adjusts the ceiling)
   let peak = 0;
   rendered.forEach(s => {
     for (let i = 0; i < s.l.length; i++) {
@@ -180,7 +180,7 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
     rendered.forEach(s => { for (let i = 0; i < s.l.length; i++) { s.l[i] *= g; s.r[i] *= g; } });
   }
 
-  // 3) WAVs + texto .sfz
+  // 3) WAVs + .sfz text
   const slug = slugify(name);
   const samples = [];
   for (const s of rendered) {
@@ -205,7 +205,7 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
   layers.forEach((layer, li) => {
     lines.push('', '<group>', 'lovel=' + layer.lovel, 'hivel=' + layer.hivel);
     keys.forEach((k, i) => {
-      // bordes de teclado a mitad de camino entre keycenters vecinos (sin huecos)
+      // key boundaries halfway between neighboring keycenters (no gaps)
       const lokey = i === 0 ? 0 : Math.floor((keys[i - 1] + k) / 2) + 1;
       const hikey = i === keys.length - 1 ? 127 : Math.floor((k + keys[i + 1]) / 2);
       const fname = samples.find(s => s.midi === k && s.layer === li).fname;
@@ -215,8 +215,8 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
   return { slug, sfz: lines.join('\n') + '\n', samples, layers: layers.length, timbre, keys };
 }
 
-// --- ZIP con entradas almacenadas (método STORE: el WAV apenas comprime
-// y así el escritor cabe en 40 líneas sin dependencias) ---
+// --- ZIP with stored entries (STORE method: WAV barely compresses
+// and this way the writer fits in 40 lines with no dependencies) ---
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -241,13 +241,13 @@ export function makeZip(entries) {           // entries: [{name, data:Uint8Array
   let offset = 0, cdSize = 0;
   for (const e of entries) {
     const name = enc.encode(e.name), crc = crc32(e.data), sz = e.data.length;
-    const lh = new DataView(new ArrayBuffer(30));          // cabecera local (campos no puestos = 0)
+    const lh = new DataView(new ArrayBuffer(30));          // local header (fields not set = 0)
     lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true);
     lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true);
     lh.setUint32(14, crc, true); lh.setUint32(18, sz, true); lh.setUint32(22, sz, true);
     lh.setUint16(26, name.length, true);
     parts.push(lh.buffer, name, e.data);
-    const ch = new DataView(new ArrayBuffer(46));          // entrada del directorio central
+    const ch = new DataView(new ArrayBuffer(46));          // central directory entry
     ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
     ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true);
     ch.setUint32(16, crc, true); ch.setUint32(20, sz, true); ch.setUint32(24, sz, true);
@@ -257,7 +257,7 @@ export function makeZip(entries) {           // entries: [{name, data:Uint8Array
     cdSize += 46 + name.length;
     offset += 30 + name.length + sz;
   }
-  const eocd = new DataView(new ArrayBuffer(22));          // fin del directorio central
+  const eocd = new DataView(new ArrayBuffer(22));          // end of central directory
   eocd.setUint32(0, 0x06054b50, true);
   eocd.setUint16(8, entries.length, true); eocd.setUint16(10, entries.length, true);
   eocd.setUint32(12, cdSize, true); eocd.setUint32(16, offset, true);
@@ -284,7 +284,7 @@ export function initSfzExport() {
     btn.disabled = true;
     const name = currentPreset()?.name || 'preset';
     try {
-      // exporta lo que SUENA ahora: el preset cargado + los retoques de knobs
+      // exports what is SOUNDING now: the loaded preset + the knob tweaks
       const kit = await exportPresetSFZ(name, structuredClone(part().S),
         (i, n) => say('SFZ: render ' + i + '/' + n + '…'));
       say('SFZ exported: ' + kit.samples.length + ' samples · load it in Sforzando/Renoise.');

@@ -1,8 +1,8 @@
 /* =====================================================================
-   SubSDJ · grabador a WAV.
-   Un worklet permanente cuelga del analyser (la misma señal que va a los
-   altavoces) y acumula bloques mientras graba; al parar se codifica un
-   WAV 16-bit estéreo y se descarga.
+   SubSDJ · WAV recorder.
+   A permanent worklet hangs off the analyser (the same signal that goes to the
+   speakers) and accumulates blocks while recording; on stop a 16-bit stereo
+   WAV is encoded and downloaded.
    ===================================================================== */
 import { part } from '../engine/parts.js';
 
@@ -10,7 +10,7 @@ let node = null, chunksL = null, chunksR = null, recording = false, t0 = 0, time
 
 export function encodeWav(cl, cr, sampleRate) {
   let n = 0; cl.forEach(c => { n += c.length; });
-  const buf = new ArrayBuffer(44 + n * 4);                   // 16-bit × 2 canales
+  const buf = new ArrayBuffer(44 + n * 4);                   // 16-bit × 2 channels
   const dv = new DataView(buf);
   const wstr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
   wstr(0, 'RIFF'); dv.setUint32(4, 36 + n * 4, true); wstr(8, 'WAVE');
@@ -42,7 +42,7 @@ function startRec(btn) {
     node = new AudioWorkletNode(part().ctx, 'recorder-processor',
       { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
     part().getAnalyser().connect(node);
-    node.connect(part().ctx.destination);     // salida (silencio): garantiza que el grafo lo procese
+    node.connect(part().ctx.destination);     // output (silence): guarantees the graph processes it
     node.port.onmessage = (e) => { if (recording) { chunksL.push(e.data.L); chunksR.push(e.data.R); } };
   }
   chunksL = []; chunksR = [];

@@ -1,14 +1,14 @@
 /* =====================================================================
-   SubSDJ · UI de Partes: botón «Partes» y selector 1-4 en la cabecera +
-   módulo «Mezclador». Encender la escena crea 4 motores sobre el mismo
-   contexto con una Sala compartida (engine/parts.js); el rack pasa a
-   editar la parte elegida (syncControls vuelca su estado sin cortarle las
-   notas). El mezclador enseña las 4 partes: Nivel (= el Master del preset
-   de la parte), Pan, envíos Delay/Reverb (= Amount del delay y Mix de la
-   reverb del preset), M (silenciar); y la columna Sala: máster de la
-   escena, realimentación del eco y eco→reverb. Capa: el teclado toca todas.
-   Los módulos Delay, Reverb y Cinta llevan la etiqueta «sala» en escena:
-   salvo Amount/Mix (envíos), sus knobs son de la sala compartida.
+   SubSDJ · Parts UI: «Parts» button and 1-4 selector in the header +
+   «Part Mixer» module. Switching the scene on creates 4 engines on the same
+   context with a shared Room (engine/parts.js); the rack then
+   edits the chosen part (syncControls dumps its state without cutting its
+   notes). The Part Mixer shows the 4 parts: Level (= the Master of the part's
+   preset), Pan, Delay/Reverb sends (= the preset's delay Amount and reverb
+   Mix), M (mute); and the Room column: the scene's
+   master, echo feedback and echo→reverb. Layer: the keys play all parts.
+   The Delay, Reverb and Tape modules carry the «room» tag in a scene:
+   except for Amount/Mix (sends), their knobs belong to the shared Room.
    ===================================================================== */
 import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer } from '../engine/parts.js';
 import { CONTROLS, syncControls } from './registry.js';
@@ -22,8 +22,8 @@ const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
 const $ = id => document.getElementById(id);
 let strips = [], silent = false, salaPanels = [];
 
-// Se resuelven UNA vez al arrancar (antes de colgar etiquetas del h2: luego su
-// texto ya no casaría con el título).
+// Resolved ONCE at startup (before hanging tags on the h2: afterwards its
+// text would no longer match the title).
 const panelByTitle = t => [...document.querySelectorAll('.panel h2')]
   .find(h => h.textContent.replace(/[\s?]/g, '') === t)?.closest('.panel');
 
@@ -32,27 +32,27 @@ const panFmt = v => v < -0.02 ? 'L' + Math.round(-v * 100) : v > 0.02 ? 'R' + Ma
 
 function buildStrips() {
   const host = $('mixStrips'), sc = getScene();
-  host.innerHTML = ''; strips = []; silent = true;   // los knobs disparan onChange al nacer: no reescribir el motor
+  host.innerHTML = ''; strips = []; silent = true;   // knobs fire onChange when created: don't rewrite the engine
   sc.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
     div.innerHTML = `<div class="shead"><button class="pname" title="Edit this part in the rack"></button>` +
-      `<button class="mute" title="Mute the part">M</button></div>` +   // la M junto al nombre: una fila menos (panel fijo)
+      `<button class="mute" title="Mute the part">M</button></div>` +   // the M next to the name: one row less (fixed panel)
       `<div class="row tight">${knobHtml('Level')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
     host.appendChild(div);
     const [kLevel, kPan, kDly, kRev] = div.querySelectorAll('.knob');
     const S = p.engine.S;
-    // Nivel / envíos SON parámetros del preset de la parte: se escriben en su
-    // motor y, si es la parte que edita el rack, también en su knob del rack.
+    // Level / sends ARE parameters of the part's preset: they are written to its
+    // engine and, if it is the part the rack is editing, also to its rack knob.
     const bindSend = (el, key, cfg) => attachKnob(el, { ...cfg, def: S[key] }, v => {
       if (silent) return;
       p.engine.set(key, v);
-      document.dispatchEvent(new Event('deps-refresh'));   // un envío de otra parte enciende o apaga la sala (ui/deps.js)
+      document.dispatchEvent(new Event('deps-refresh'));   // a send from another part switches the Room on or off (ui/deps.js)
       if (p.engine === part() && CONTROLS[key] && CONTROLS[key].get() !== v) CONTROLS[key].set(v);
     });
     const st = {
       div,
-      level: bindSend(kLevel, 'master', { ...PARAMS.master }),   // mismo recorrido que el knob del rack (hasta +12 dB)
+      level: bindSend(kLevel, 'master', { ...PARAMS.master }),   // same travel as the rack knob (up to +12 dB)
       dly:   bindSend(kDly, 'dlyAmt', { min: 0, max: 0.9, act: true }),
       rev:   bindSend(kRev, 'reverbMix', { min: 0, max: 0.6, act: true }),
       pan:   attachKnob(kPan, { min: -1, max: 1, def: p.pan, fmt: panFmt }, v => { if (!silent) setPartPan(i, v); }),
@@ -65,7 +65,7 @@ function buildStrips() {
       e.currentTarget.classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
     });
   });
-  // Columna Sala: máster de la escena, realimentación del eco, eco → reverb
+  // Room column: scene master, echo feedback, echo → reverb
   const sala = document.createElement('div');
   sala.className = 'strip sala';
   sala.innerHTML = `<div class="pname static">Room</div>` +
@@ -74,7 +74,7 @@ function buildStrips() {
   host.appendChild(sala);
   const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
   attachKnob(kM, { ...PARAMS.master, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
-  attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });   // por encima de 1, el eco se desboca (Sala)
+  attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });   // above 1, the echo runs away (Sala)
   attachKnob(kToRev, { min: 0, max: 1, def: sc.salaCfg.dlyToRev, act: true }, v => { sc.salaCfg.dlyToRev = v; sc.sala.setDlyToRev(v); });
   $('layerChk').addEventListener('change', e => setLayer(e.target.checked));
   silent = false;
@@ -90,10 +90,10 @@ function refreshNames() {
   document.querySelectorAll('#partSel button').forEach(b => b.classList.toggle('active', +b.dataset.p === sc.sel));
 }
 
-// La tira de la parte que edita el rack refleja sus knobs Master / Amount / Mix
+// The strip of the part the rack is editing mirrors its Master / Amount / Mix knobs
 function refreshCurrent() {
   const sc = getScene(); if (!sc) return;
-  const st = strips[sc.sel]; if (!st) return;   // en plena reconstrucción de tiras aún no existe
+  const st = strips[sc.sel]; if (!st) return;   // in the middle of rebuilding the strips it doesn't exist yet
   const S = part().S;
   silent = true;
   try { st.level.set(S.master); st.dly.set(S.dlyAmt); st.rev.set(S.reverbMix); }
@@ -103,18 +103,18 @@ function refreshCurrent() {
 function choose(i) {
   const sc = getScene(); if (!sc || i === sc.sel) return;
   selectPart(i);
-  syncControls(part().S);                     // el rack enseña la parte (sin cortarle las notas)
+  syncControls(part().S);                     // the rack shows the part (without cutting its notes)
   const p = sc.parts[i];
   if (p.presetVal) markPreset(p.presetVal);
-  if (!currentPreset() && p.presetName) markPresetByName(p.presetName);   // escenas de antes de la biblioteca ('f:Nombre'): por nombre
+  if (!currentPreset() && p.presetName) markPresetByName(p.presetName);   // scenes from before the Library ('f:Name'): by name
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Part ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
   refreshNames();
-  document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte
+  document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // the Player module follows the part
 }
 
-// Con las Partes apagadas, sus módulos siguen EN SU SITIO, atenuados (panel
-// fijo: nada aparece ni desaparece moviendo a los demás); el mezclador vacío
-// explica cómo encenderlas (CSS).
+// With Parts off, their modules stay IN PLACE, dimmed (fixed
+// panel: nothing appears or disappears pushing the others around); the empty Part Mixer
+// explains how to switch them on (CSS).
 function setUI(on) {
   $('partsBtn').classList.toggle('on', on);
   $('partSel').hidden = !on;
@@ -140,7 +140,7 @@ async function toggle(btn) {
   btn.disabled = true;
   try { await enableScene(); } finally { btn.disabled = false; }
   buildStrips(); setUI(true); syncControls(part().S);
-  const cur = currentPreset(), p0 = getScene().parts[0];      // la parte 1 hereda el sonido (y su nombre de preset)
+  const cur = currentPreset(), p0 = getScene().parts[0];      // part 1 inherits the sound (and its preset name)
   if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; refreshNames(); }
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts: part 1 takes over the current sound';
 }
@@ -149,12 +149,12 @@ export function initPartsControls() {
   const btn = $('partsBtn'); if (!btn) return;
   salaPanels = SALA_PANELS.map(panelByTitle).filter(Boolean);
   btn.addEventListener('click', () => toggle(btn));
-  // Pánico: el director para y cancela lo pendiente, y todas las partes sueltan todo
+  // Panic: the conductor stops and cancels what is pending, and all parts release everything
   const pb = $('panicBtn');
   if (pb) pb.addEventListener('click', () => { const sc = getScene(); if (sc) sc.conductor.panic(); panic(); document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on: sceneOn() } })); });
   document.querySelectorAll('#partSel button').forEach(b => b.addEventListener('click', () => { part().resume(); choose(+b.dataset.p); }));
   document.addEventListener('param-change', e => { if (sceneOn() && SEND_KEYS.has(e.detail.target)) refreshCurrent(); });
-  // escena cargada desde JSON (playerControls): tiras, rack y módulos de la escena al día
+  // scene loaded from JSON (playerControls): strips, rack and scene modules brought up to date
   document.addEventListener('scene-loaded', () => { if (!sceneOn()) return; buildStrips(); setUI(true); syncControls(part().S); });
   document.addEventListener('preset-loaded', e => {
     const sc = getScene(); if (!sc) return;
