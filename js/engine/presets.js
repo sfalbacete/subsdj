@@ -23,7 +23,7 @@
    ===================================================================== */
 import { PARAMS, posToVal } from './params.js';
 
-export const BANK_REV = 3;   // 3: the sync recognises every historical version of the old factory (2 took older copies for edited ones)
+export const BANK_REV = 4;   // 3: the sync recognises every historical version of the old factory (2 took older copies for edited ones); 4: it also clears the demo copies out of «★ Mine»
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [

@@ -26,7 +26,7 @@
    the library-changed event).
    ===================================================================== */
 import { FACTORY, META, BANK, BANK_REV, migrateV1, loadUser } from './presets.js';
-import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP } from './legacy.js';
+import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP, DEMO_FP } from './legacy.js';
 
 export const LIB_KEY = 'subsdj.library.v2';
 const LIB_KEY_V1 = 'subsdj.biblioteca.v1';   // the one up to 1.3.0: read once and translated
@@ -187,7 +187,10 @@ export class Library {
   }
   syncBank() {
     const secName = it => { const s = this.section(it.section); return s ? s.name : null; };
-    const gone = new Set(this.data.items.filter(it => this._legacyCopy(it, secName(it))).map(it => it.id));
+    // …and the A/B demo pairs that the pre-library import flattened into «★ Mine» as the user's own
+    const demoCopy = it => it.origin === 'user' && it.type === 'preset' && !it.fav && secName(it) === SEC_MINE &&
+      it.seed === 'user:' + it.name && DEMO_FP.has(fnv(canon(it.data)));
+    const gone = new Set(this.data.items.filter(it => this._legacyCopy(it, secName(it)) || demoCopy(it)).map(it => it.id));
     this.data.items = this.data.items.filter(it => !gone.has(it.id));
     // empty bank sections (old categories, the retired repo bank, the scenes) go; a user's empty section stays
     const bankSecs = new Set([...Object.values(LEGACY_FP).flatMap(v => v.s), ...BANK.map(c => c.cat), SEC_SCENES]);

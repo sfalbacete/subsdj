@@ -27,7 +27,7 @@ import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, BANK, META, BANK_REV, rootOf, factoryPreset, migrateV1 } from './engine/presets.js';
 import { validateBank, coverage } from './engine/bankCheck.js';
-import { LEGACY_FP } from './engine/legacy.js';
+import { LEGACY_FP, migratePreset } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
@@ -1108,6 +1108,9 @@ export async function runSelfTest() {
       // a library seeded earlier holds OLDER content (Restore factory never updated a copy): any version counts
       if (!(LEGACY_FP['factory:Warm Pad'].f.length > 1)) problems.push('LEGACY_FP has a single version of Warm Pad (the history is missing)');
       const dawn = { format: 'subsdj-scene-v2', name: 'Dawn', parts: [] };   // a scene seeded the 1.5.0 way: its fingerprint stored with it
+      // a demo pair flattened into «★ Mine» before the library (origin user): its untouched copy goes, a tweaked one stays
+      const demos = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
+      const demoName = Object.keys(demos.presets)[0], demoData = migratePreset(migrateV1(demos.presets[demoName]));
       const lib = { format: 'subsdj-library-v2', next: 20, files: true,
         sections: [{ id: 's1', name: 'Pads' }, { id: 's2', name: 'Bass' }, { id: 's3', name: 'Presets 2.0' }, { id: 's4', name: '★ Mine' }, { id: 's5', name: 'Scenes' }, { id: 's6', name: 'My empty one' }, { id: 's7', name: 'Keys' }],
         items: [
@@ -1118,6 +1121,8 @@ export async function runSelfTest() {
           { id: 'p5', type: 'preset', name: 'Pluck Bass', section: 's2', fav: false, origin: 'factory', seed: 'factory:Pluck Bass', data: { ...oldPluck, dist: 0.9 } },   // edited → stays
           { id: 'p6', type: 'preset', name: 'Rhodes', section: 's7', fav: true, origin: 'factory', seed: 'factory:Rhodes', data: { ...META['Rhodes'].data } },   // ★ and identical to a new preset → stays, the new one is not duplicated
           { id: 'p7', type: 'preset', name: 'Mine', section: 's4', fav: false, origin: 'user', seed: null, data: { cutoff: 500 } },                           // user → stays
+          { id: 'p9', type: 'preset', name: demoName, section: 's4', fav: false, origin: 'user', seed: 'user:' + demoName, data: { ...demoData } },           // demo copy → goes
+          { id: 'p10', type: 'preset', name: demoName + ' mine', section: 's4', fav: false, origin: 'user', seed: 'user:' + demoName + ' mine', data: { ...demoData } },   // renamed → stays
           { id: 'e8', type: 'scene', name: 'Dawn', section: 's5', fav: false, origin: 'scene', seed: 'scene:1:Dawn', seedFp: fp(dawn), seedSec: 'Scenes', data: dawn } ] };   // untouched repo scene → goes
       store.setItem('subsdj.library.sync', JSON.stringify(lib));
       const L = new Library({ key: 'subsdj.library.sync', storage: store });
@@ -1132,6 +1137,8 @@ export async function runSelfTest() {
       if (!it('p5') || it('p5').data.dist !== 0.9) problems.push('edited copy lost');
       if (!it('p6') || count('Rhodes') !== 1) problems.push('★ copy identical to the new preset: kept ' + !!it('p6') + ', ×' + count('Rhodes'));
       if (!it('p7')) problems.push('user preset lost');
+      if (it('p9')) problems.push('demo copy in ★ Mine kept');
+      if (!it('p10')) problems.push('renamed demo copy lost');
       if (it('e8')) problems.push('untouched repo scene kept');
       if (L.sectionByName('Presets 2.0')) problems.push('empty «Presets 2.0» section kept');
       if (!L.sectionByName('My empty one')) problems.push('the user\'s empty section went');
