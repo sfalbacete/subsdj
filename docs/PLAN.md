@@ -146,7 +146,7 @@ Open (they do not block anything):
   (`e.code`: `KeyZ`, `Digit2`, `Comma`…): Shift no longer matters and the tracker layout stays in
   place on AZERTY or Dvorak; (3) each mouse or finger note stored by `pointerId`; `pointercancel` and
   `lostpointercapture` release it; `touch-action: none` on the keys.
-- *Verification:* check «keyboard without hanging notes»: `keydown Digit2` + `keyup` with `key '"'` →
+- *Verification:* check «keyboard without stuck notes»: `keydown Digit2` + `keyup` with `key '"'` →
   zero voices; Ctrl+`KeyZ` → no voice; `pointercancel` releases.
 - *Cost:* low.
 
@@ -935,8 +935,7 @@ pill buttons, lowercase typography). Steps:
    selftest (no literal outside `:root`/`[data-theme]`, except black/white with alpha). 121/121.
 2. ✔ **Knob with published state** *(2026-09-28)*: knobs.js writes `--pos` 0..1 on the `.knob`; the
    CSS rotates the carrier `.ind` (line `::before`, dot `::after`) and paints the arc (`.knob::after`,
-   conic-gradient + mask); tokens `--knob-line/-dot/-arc` at 0px switch each piece off. Check «knob
-   publishes --pos». 122/122.
+   conic-gradient + mask); tokens `--knob-line/-dot/-arc` at 0px switch each piece off. Check «skin: knob and slider publish --pos». 122/122.
 3. ✔ **Theme selector** *(2026-09-28)*: a `<select>` in the header filled from the stylesheets (a
    theme = a `:root[data-theme="id"]` block with `--theme-name`; the base `:root` is the default
    theme); `data-theme` on html, localStorage, `?theme=` (shot.mjs: `THEME=id`), `theme-changed`

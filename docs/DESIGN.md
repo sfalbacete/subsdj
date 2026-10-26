@@ -697,7 +697,7 @@ no hurry, one phase at a time, each thing taken to where we want to take it.
    The halo is a `drop-shadow` of the carrier: what isn't drawn has no
    halo. Tokens `--knob-line`, `--knob-dot`, `--knob-arc` (with `-top`, `-gap`,
    `-track`): at 0px they switch each piece off, so a theme chooses line, dot, arc
-   or a mix without touching JS. Check «knob publishes --pos» in the selftest (min/max
+   or a mix without touching JS. Check «skin: knob and slider publish --pos» in the selftest (min/max
    → 0/1 and −135°/135° measured in the transform matrix, def of a log knob
    = valToPos, act at 0 → .off and indicator at `--edge-hi`), 122/122. The Design
    screen only changes in the lines (pivot now at the exact center). Along the
@@ -999,7 +999,7 @@ they are PLAYERS) and duplicating the rack per part.
   block boundary** (128 samples) in the Voice, because the gate works by
   blocks. Result in the real-time test: the twelve hits come out
   IDENTICAL (brightness ×241.8 that of the body and −11.3 dB in all of them, with the main
-  thread blocked or not). Check «deterministic start»: with attack 0 the
+  thread blocked or not). Check «deterministic onset»: with attack 0 the
   first quarter of a millisecond is already at level (×1.7 relative to 5 ms later)
   and two notes scheduled at 200 and 300 ms give the same samples aligned by
   start (tolerance ±1 sample: the step is rounded to a sample). Oscillator A's
@@ -1868,7 +1868,7 @@ Alt or Meta the key is a shortcut (AltGr too: it is Ctrl+Alt on Windows). And ea
 note knows WHO holds it (`'k:KeyZ'`, `'p:<pointerId>'`, `'midi'`): it sounds with the
 first one and goes quiet with the last, so the mouse doesn't cut the one the QWERTY holds
 nor one finger another's; `pointercancel` and `lostpointercapture` release;
-`touch-action: none` on the keys. Check «keyboard without hanging notes» (real
+`touch-action: none` on the keys. Check «keyboard without stuck notes» (real
 events: Shift between press and release, Ctrl+Z, cancelled touch, two fingers).
 
 **0.2 · SFZ with the real velocity layers.** The exporter made 2 layers only
@@ -1994,8 +1994,7 @@ regenerating curves, and −f(b) is computed by interpolating the curve like the
 1st-order DC blocker at 5 Hz (IIRFilterNode) on the saturated path (−0.1
 dB at 40 Hz; the soft one without bias doesn't change audibly). Fold oversampled
 4x (it adds 0.13 «simple voices» to the cost, measured; the Asym, nothing). The character
-changes live (the curve jumps: a click, like changing wave). Check «drive with
-character» with f0 = SR/336 and a window of 60 periods (each harmonic in its bin, the
+changes live (the curve jumps: a click, like changing wave). Check «character drive» with f0 = SR/336 and a window of 60 periods (each harmonic in its bin, the
 mean = the real DC): asymmetric H2 −13 dB and DC −∞; exact silence
 with all the bias in both characters; brightness of the fold sweeping the Drive through the
 matrix (velocity → Drive) 1.00 … 2.98 → 2.82 … 5.32 → 4.75, the soft one always
@@ -2016,7 +2015,7 @@ ct): exact; but the modes' WEIGHTS (gains ∝ r^−e normalized) follow those
 of the knob, so «knob 0 + matrix +1» doesn't sound the same as «knob 1» (13 %
 difference): it retunes, it doesn't change material entirely. Decay does NOT come in: the biquad's Q
 is linear and the knob goes in log, and the noise comes into the bank with a gain ∝ √Q that
-would have to be moved at the same time. Check «matrix · new destinations» (levels at 0 go silent,
+would have to be moved at the same time. Check «matrix · new targets» (levels at 0 go silent,
 noise and ring appear, Pitch A raises A by an octave and leaves B) and, in the
 resonator one, the free tail with Material through the matrix sings at 2.756·f0 (94 dB over
 2·f0). Pairs DRV 1-8 (asymmetry, fold, LFO to the Drive, symmetry) and VEC 1-2 (vector
