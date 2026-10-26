@@ -1,87 +1,87 @@
 # SubSDJ
 
-Sintetizador para el navegador hecho con la **Web Audio API**, sin dependencias
-ni paso de build. Empezó como recreación del viejo SubSDJ, un soft-synth
-sustractivo que hice en VB.Net, y ha crecido hasta incluir FM, tablas de
-ondas, formantes, resonadores, cuerda pulsada, modulación a tempo y por pasos, efectos,
-partes y música generativa.
+A synthesizer for the browser built with the **Web Audio API**, with no
+dependencies and no build step. It started as a recreation of the old SubSDJ, a
+subtractive soft-synth I wrote in VB.Net, and has grown to include FM,
+wavetables, formants, resonators, a plucked string, modulation in tempo and by
+steps, effects, parts and generative music.
 
-*A browser synthesizer built on the Web Audio API, with no dependencies and no
-build step. The interface and the docs are in Spanish.*
+**▶ Try it: <https://sfalbacete.github.io/subsdj/>**
 
-**▶ Pruébalo: <https://sfalbacete.github.io/subsdj/>**
+![SubSDJ, Design screen](docs/img/subsdj.png)
 
-![SubSDJ, pantalla Diseño](docs/img/subsdj.png)
+## How to play it
 
-## Cómo se toca
+- **Computer keyboard**, tracker style: bottom row `Z S X D C V G B H N J M`,
+  top row `Q 2 W 3 E R 5 T 6 Y 7 U`; change octave with `Page Up` / `Page Down`
+  (Z goes from C0 to C7, so the top row reaches C9; by default, Q is middle C).
+  It goes by key position, so the piano stays in place on AZERTY or Dvorak
+  too. With the mouse on the on-screen keyboard, how high on the key you click
+  is the strength (velocity), and dragging with the button held plays the keys
+  you pass over.
+- **MIDI keyboard**: connects by itself once you accept the browser's
+  permission (velocity, pitch bend, sustain and Program Change). Under the
+  keyboard, **Touch** sets the velocity curve (soft, linear or hard) and
+  **Bend** the preset's pitch bend range. **MIDI map** binds any hardware
+  control to any control on screen.
+- The audio starts with the first click or the first key: browsers don't let a
+  page make sound before that.
+- `Escape` or **Panic** cut every note.
+- Three screens: **Design** (the sound), **Sequencing** (arpeggiator,
+  sequencer, the looping envelope, Steps, parts and scenes) and **Presets** (the
+  library).
+- The **preset picker** in the header searches (ignoring accents and case) and
+  filters by category; a click or `↑` `↓` loads to audition, `Enter` picks and
+  closes, and **Browse all** opens the Presets screen.
+- `Ctrl+Z` / `Ctrl+Y` undo and redo. The ● next to the preset name tells you
+  something has changed, and **Compare** toggles between the saved preset and
+  your edit.
+- Every module has its **?** with the explanation. A dimmed control does
+  nothing with the current settings, and its tooltip says why.
 
-- **Teclado del ordenador**, al estilo tracker: fila baja `Z S X D C V G B H N J M`,
-  fila alta `Q 2 W 3 E R 5 T 6 Y 7 U`; la octava, con `RePág` / `AvPág` (la Z
-  va de C0 a C7, así que la fila alta llega a C9; de entrada, la Q es el Do
-  central). Va por la posición de las teclas, así que el piano queda en su
-  sitio también en AZERTY o Dvorak. Con el ratón sobre el teclado en pantalla,
-  la altura a la que pulsas la tecla es la fuerza (velocity), y arrastrando
-  con el botón pulsado va tocando las teclas que pisa.
-- **Teclado MIDI**: se conecta solo al aceptar el permiso del navegador
-  (velocity, pitch bend, sustain y Program Change). Bajo el teclado, **Tacto**
-  ajusta la curva de velocity (suave, lineal o dura) y **Bend** el rango del
-  pitch bend del preset. **MIDI map** liga
-  cualquier mando físico a cualquier control.
-- El audio arranca con el primer clic o la primera tecla: los navegadores no
-  dejan sonar una página antes.
-- `Escape` o **Pánico** cortan todas las notas.
-- Tres pantallas: **Diseño** (el sonido), **Secuenciación** (arpegiador,
-  secuenciador, la envolvente en bucle, los Pasos, partes y escenas) y
-  **Presets** (la biblioteca).
-- El **selector de presets** de la cabecera busca (sin importar acentos ni
-  mayúsculas) y filtra por categoría; un clic o `↑` `↓` cargan para probar,
-  `Intro` elige y cierra, y **Navegar todos** abre la pantalla Presets.
-- `Ctrl+Z` / `Ctrl+Y` deshacen y rehacen. El ● junto al nombre del preset
-  avisa de que has cambiado algo, y **Comparar** alterna entre lo guardado y
-  tu edición.
-- Cada módulo tiene su **?** con la explicación. Un control atenuado no hace
-  nada con la configuración actual, y su tooltip dice por qué.
+## Your presets
 
-## Tus presets
+They are saved **in your browser** (localStorage), not on any server: in another
+browser or on another computer they won't be there. To take them with you or
+share them: **File ▾ → Export library**, and on the other side **Import…** (it
+merges with whatever is there, it never replaces it). Libraries, presets and
+scenes saved with 1.3.0 or earlier load as they are.
 
-Se guardan **en tu navegador** (localStorage), no en ningún servidor: en otro
-navegador o en otro ordenador no estarán. Para llevártelos o compartirlos:
-**Archivo ▾ → Exportar biblioteca**, y en el otro lado **Importar…** (se
-funde con lo que haya, nunca lo sustituye).
+## Browsers
 
-## Navegadores
+Developed and tested in **Chrome**; Edge uses the same engine. Firefox and
+Safari haven't been tested, and Safari has no Web MIDI. If something sounds odd
+after an update, reload with **Ctrl+F5**: the browser may have mixed files from
+the previous version.
 
-Desarrollado y probado en **Chrome**; Edge usa el mismo motor. Firefox y
-Safari no se han probado, y Safari no tiene Web MIDI. Si tras una
-actualización algo suena raro, recarga con **Ctrl+F5**: el navegador puede
-haber mezclado ficheros de la versión anterior.
+## Running it locally
 
-## Ejecutarlo en local
-
-Los módulos ES y los AudioWorklet no funcionan abriendo `index.html` con
-doble clic: hace falta servirlo por HTTP. Con Node:
+ES modules and AudioWorklets don't work by opening `index.html` with a double
+click: it has to be served over HTTP. With Node:
 
 ```
 node tools/serve.mjs
 ```
 
-→ <http://127.0.0.1:8000/>. El selftest, en <http://127.0.0.1:8000/?selftest=1>,
-o sin ventana con `node tools/run-selftest.mjs` (Node ≥ 22 y Chrome), que lo pasa en
-dos tandas (`?selftest=1&tanda=checks` y `&tanda=fabrica`): todo seguido en una
-sola página puede colgar el navegador por la cantidad de renders.
+→ <http://127.0.0.1:8000/>. The selftest is at <http://127.0.0.1:8000/?selftest=1>,
+or headless with `node tools/run-selftest.mjs` (Node ≥ 22 and Chrome), which runs
+it in two batches (`?selftest=1&tanda=checks` and `&tanda=fabrica`): all in a
+single page can hang the browser with so many renders.
 
-## Documentación
+## Documentation
 
-- [docs/DISENO.md](docs/DISENO.md): cómo funciona cada módulo y por qué, con
-  las medidas que lo validan. Es el diario de desarrollo.
-- [docs/PLAN.md](docs/PLAN.md): planes y pendientes.
-- [CHANGELOG.md](CHANGELOG.md): los cambios de cada versión.
+- [CHANGELOG.md](CHANGELOG.md): what changed in each version.
+- [docs/DISENO.md](docs/DISENO.md): how each module works and why, with the
+  measurements that validate it. It is the development notebook, in Spanish.
+- [docs/PLAN.md](docs/PLAN.md): plans and to-dos (in Spanish).
+- [docs/GLOSARIO.md](docs/GLOSARIO.md): the Spanish → English glossary used for
+  the translation.
 
-## Agradecimientos
+## Thanks
 
-A [@tacowars](https://github.com/tacowars), que lo probó a fondo: varias
-mejoras de la 1.1.0 y la 1.2.0 salen de sus ideas y comentarios.
+To [@tacowars](https://github.com/tacowars), who put it through its paces:
+several improvements in 1.1.0 and 1.2.0 come from their ideas and comments.
 
-## Licencia
+## License
 
 [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).

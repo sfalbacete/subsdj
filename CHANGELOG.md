@@ -1,291 +1,298 @@
-# Cambios
+# Changelog
 
-Una entrada por versión publicada, la más reciente arriba; lo ya hecho que aún
-no se ha publicado va en «Sin publicar». Numeración X.Y.Z:
-**Z** = arreglos, **Y** = funciones nuevas, **X** = algo guardado deja de
-cargar o de sonar igual (presets, escenas, bibliotecas, mapas MIDI). El porqué
-de cada módulo está en [docs/DISENO.md](docs/DISENO.md).
+One entry per published version, newest first; work that is done but not yet
+published goes under «Unreleased». Numbering X.Y.Z: **Z** = fixes, **Y** = new
+features, **X** = something saved stops loading or sounding the same (presets,
+scenes, libraries, MIDI maps). The why behind each module is in
+[docs/DISENO.md](docs/DISENO.md) (in Spanish: it is the development notebook).
 
-## Sin publicar
+## Unreleased
 
-- **Editor de ondas**: con la ventana estrecha (el instrumento a escala menor que 1),
-  su barra partía el último botón a una segunda fila; ahora va siempre en una.
+- **SubSDJ is now in English**: the whole interface (labels, tooltips, the «?»
+  help, messages), the factory presets and their categories, the sequencer
+  phrases, the repo scenes, the A/B demos and the docs. Notes are named with
+  letters (C D E…). Before, everything was in Spanish.
+- **What gets saved is in English too**: presets, scenes, the library and MIDI
+  maps now store their keys and values in English. Everything saved with
+  1.3.0 or earlier — your library in the browser, exported files, scenes, MIDI
+  maps — is translated when it loads and sounds exactly the same; your old
+  library stays untouched in the browser as a copy. Files exported from now on
+  don't open in 1.3.0.
+- **The A/B demos leave the main library**: they are test pairs, not
+  instruments. They can still be loaded with File ▾ → Import
+  (`subsdj-demos.json`).
+- **Wave Editor**: with a narrow window (the instrument scaled below 1), its
+  toolbar wrapped its last button onto a second row; now it always fits on one.
 
 ## [1.3.0] — 2026-10-25
 
-Más expresión y sonidos nuevos, y una pasada de pulido. Dos fuentes nuevas (la
-cuerda pulsada y el sync duro), un secuenciador que articula como un 303,
-swing, un delay que se desboca, macros y respuesta al tacto; un selector para
-encontrar presets en un momento; y la fábrica entera auditada: sin continua,
-sin clics y sin apretar el limitador en su uso.
+More expression and new sounds, and a polishing pass. Two new sources (the
+plucked string and hard sync), a sequencer that articulates like a 303, swing,
+a delay that runs away, macros and touch response; a picker to find presets in
+a moment; and the whole factory bank audited: no DC, no clicks and no limiter
+pumping in normal use.
 
-**Suenan distinto** (a propósito, como debieron sonar siempre):
-- **Sonido más limpio**: auditados los 124 presets de fábrica en su uso normal
-  (ninguno aprieta el limitador ni hace clic). Los que llevaban corriente
-  continua — todos los de pulso estrecho o PWM, hasta el 61 % de su nivel — ya
-  no la llevan: el pulso sale centrado y cada parte va acoplada en alterna, como
-  la salida de un sinte analógico. Más margen, y ecos y saturación de cinta
-  simétricos.
-- **Glide** (portamento del Mono en legato): empezaba a deslizar desde el
-  principio de la nota; ahora resbala al llegar la siguiente.
-- **Escenas**: «amanecer-dórico», «coro-robótico» y «techno-hipnótico» sonaban
-  ~10 dB más flojas que el resto; ahora llegan al mismo pico (−4 dBFS) sin tocar
-  el limitador.
+**Sound different** (on purpose, the way they always should have):
+- **Cleaner sound**: all 124 factory presets audited in their normal use (none
+  pushes the limiter or clicks). The ones carrying DC offset — every narrow
+  pulse or PWM preset, up to 61 % of their level — no longer do: the pulse
+  comes out centered and every part is AC-coupled, like the output of an
+  analog synth. More headroom, and symmetric echoes and tape saturation.
+- **Glide** (Mono portamento in legato): it started sliding from the beginning
+  of the note; now it slides when the next note arrives.
+- **Scenes**: «Dorian Dawn», «Robot Choir» and «Hypnotic Techno» sounded
+  ~10 dB quieter than the rest; now they reach the same peak (−4 dBFS) without
+  touching the limiter.
 
-- **Cuerda**: una fuente nueva, la onda «Cuerda» (en los dos osciladores), que
-  simula una cuerda pulsada (Karplus-Strong): cada nota es una púa, y la cuerda
-  se apaga sola, con los agudos yéndose antes que la fundamental. Módulo Cuerda
-  con Brillo, Decay, Posición (cerca del puente, metálica; en el centro,
-  redonda) y Rigidez (de cuerda de guitarra a piano y a campana). La velocity
-  es la fuerza de la púa. Categoría de fábrica Cuerdas (nailon, doce cuerdas,
-  arpa, koto, bajo, piano y campana de cuerda) y pares de demos CUERDA 1-6.
-  El Editor de ondas estrecha para hacerle sitio.
-- **Sync duro** en el Osc A (botón «sync» en su cabecera): el A vuelve a empezar
-  su ciclo con cada ciclo del B. La nota la pone el B (que puede estar a nivel
-  0) y el tono del A pasa a ser timbre: barriéndolo con la matriz («Pitch A»
-  desde la envolvente, un LFO, Pasos, la rueda o una macro) sale el chillido
-  clásico de los leads de sync. «Pitch A» ya no mueve al maestro. Pares de
-  demos SYNC 1-4.
-- **Articulaciones en el secuenciador**, como en un 303: **acento** (Mayús + clic
-  en un paso: más fuerte, y la fuente «Acento (Seq)» de la matriz para que el
-  preset decida qué hace — abrir el filtro, más drive…), **ligadura** y **slide**
-  (Alt + clic: la nota sigue sin volver a atacar, o resbala hasta la siguiente) y
-  **repeticiones** (Ctrl + clic: el paso se dispara 2, 3 o 4 veces). Cuatro
-  frases nuevas que las usan y pares de demos ART 1-2.
-- **Delay que se desboca**: la realimentación tiene su propio knob (**realim.**,
-  hasta 110 %), separada del Amount, que pasa a ser solo cuánto entra en el eco.
-  Por encima de 100 % el eco crece hasta que la saturación de cinta del bucle lo
-  sujeta y se queda sonando solo — mueve Time y el tono resbala, como en el dub.
-  **satur.** ensucia cada repetición. Los presets de antes suenan igual (reciben
-  la realimentación que tenían). Pares de demos DUB 1-4.
-- **Swing** global (al pie del Arpegiador; se guarda como el BPM): la segunda
-  corchea o semicorchea de cada par llega tarde, de recto (50 %) a puntillo
-  (75 %), en el arpegiador, el secuenciador, los Pasos y los jugadores a la vez.
-- **Pulso que respira**: el Pulso del Jugador gana Respira y Ciclo — los golpes
-  suben y bajan solos compás a compás, y el ritmo se llena y se vacía.
-- **Notas por grado** en el secuenciador (selector junto a las frases): los
-  números pueden ser grados de una escala en vez de semitonos — la misma frase
-  suena en mayor, dórica o pentatónica sin reescribirla —, o seguir la armonía
-  de la escena en modo Partes. Tres frases nuevas «por grados» y pares de demos
-  GRD 1-2.
-- **Macros**: dos knobs, macro 1 y macro 2, al pie de la Matriz, que se guardan
-  en el preset y son fuentes de la matriz. Con la misma macro en varios slots,
-  un solo mando abre el filtro, sube el drive y la resonancia a la vez, cada
-  destino con su cantidad; con MIDI map, desde un mando físico. Par de demos
-  MAC 1-2.
-- **Respuesta al tacto**, en la barra del teclado: **Tacto** (suave · lineal ·
-  dura), la curva de velocity de tu teclado MIDI y del ratón, que se recuerda
-  en el navegador; y **Bend**, el rango del pitch bend (±1 a ±24 semitonos),
-  que se guarda en el preset (antes, ±2 fijos). En Partes, cada parte con su
-  rango.
-- **Medidor de salida** en el módulo Salida, junto al espectro: picos L y R de
-  lo que sale (amarillo desde −12 dBFS, rojo desde −1, el techo del
-  limitador), la reducción del limitador y el LED **lim**, que se queda
-  encendido si el limitador ha trabajado (clic para apagarlo). Los datos los
-  manda el propio limitador cada 50 ms.
-- **Selector de presets** nuevo en la cabecera, en lugar del desplegable: un
-  buscador (sin importar acentos ni mayúsculas), las categorías a la izquierda
-  con cuántos presets coinciden en cada una (Todos, ★ Favoritos y cada sección)
-  y la lista a la derecha. Un clic o `↑` `↓` cargan el preset para probarlo sin
-  cerrar; `Intro` o doble clic eligen y cierran; la ★ marca favoritos; y
-  **Navegar todos** lleva a la pantalla Presets con la misma búsqueda.
-- **Ventana de entrada**: al abrir, una ventana sobre el instrumento (que se ve
-  detrás, apagado) con una pantallita de demoscene — plasma con interferencia y
-  el nombre en barras de cobre —, la versión y su fecha, y el botón **ENTRAR**
-  (o Intro), que además arranca el audio. Se vuelve a abrir como «Acerca de»
-  pulsando el título de la cabecera o desde Archivo ▾.
-- **Teclado del ordenador**: su octava va aparte de la del teclado en pantalla.
-  Antes eran la misma, y como el teclado en pantalla enseña seis octavas y para
-  en C9, la fila alta se quedaba en E5. Ahora la Z va de C0 a C7 (la fila alta
-  llega a C9) y el teclado en pantalla se desplaza para enseñarla. De entrada,
-  la Z es C3 y la Q el Do central (antes, la Z era C2).
-- **Teclado en pantalla**: con el botón del ratón pulsado, pasar por las teclas
-  las va tocando (glissando); antes solo sonaba la primera. Las teclas negras,
-  centradas entre sus dos blancas (antes imitaban el desplazamiento de un piano
-  acústico).
+New:
+- **String**: a new source, the «String» wave (on both oscillators), which
+  models a plucked string (Karplus-Strong): every note is a pluck, and the
+  string dies away on its own, the treble going before the fundamental. String
+  module with Bright, Decay, Position (near the bridge, metallic; in the middle,
+  round) and Stiffness (from guitar string to piano and bell). Velocity is the
+  strength of the pluck. Factory category Plucked Strings (nylon, twelve-string,
+  harp, koto, bass, string piano and string bell) and A/B demo pairs STRING 1-6.
+  The Wave Editor got narrower to make room.
+- **Hard sync** on Osc A («sync» button in its header): A restarts its cycle
+  with every cycle of B. B sets the note (it can sit at level 0) and A's pitch
+  becomes timbre: sweep it from the matrix («Pitch A» from the envelope, an
+  LFO, Steps, the wheel or a macro) for the classic scream of sync leads.
+  «Pitch A» no longer moves the master. Demo pairs SYNC 1-4.
+- **Sequencer articulations**, as on a 303: **accent** (Shift + click on a step:
+  louder, and the «Accent (Seq)» matrix source so the preset decides what it
+  does — open the filter, more drive…), **tie** and **slide** (Alt + click: the
+  note carries on without a new attack, or glides to the next) and **repeats**
+  (Ctrl + click: the step fires 2, 3 or 4 times). Four new phrases that use
+  them and demo pairs ART 1-2.
+- **Runaway delay**: feedback has its own knob (**fdbk**, up to 110 %),
+  separate from Amount, which is now only how much goes into the echo. Above
+  100 % the echo grows until the tape saturation in the loop holds it and it
+  keeps ringing on its own — move Time and the pitch slides, as in dub.
+  **sat** dirties every repeat. Older presets sound the same (they get the
+  feedback they had). Demo pairs DUB 1-4.
+- **Swing**, global (at the foot of the Arpeggiator; saved like the BPM): the
+  second eighth or sixteenth of each pair arrives late, from straight (50 %) to
+  dotted (75 %), in the arpeggiator, the sequencer, the Steps and the players
+  all at once.
+- **Breathing pulse**: the Player's Pulse gains Breathe and Cycle — the hits
+  rise and fall on their own bar by bar, and the rhythm fills up and empties.
+- **Notes by degree** in the sequencer (selector next to the phrases): the
+  numbers can be degrees of a scale instead of semitones — the same phrase plays
+  in major, dorian or pentatonic without rewriting it —, or follow the scene's
+  harmony in Parts mode. Three new «by degree» phrases and demo pairs DEG 1-2.
+- **Macros**: two knobs, macro 1 and macro 2, at the foot of the Matrix, saved
+  with the preset and usable as matrix sources. With the same macro on several
+  slots, a single control opens the filter, raises the drive and the resonance
+  at once, each destination by its own amount; with MIDI map, from a hardware
+  knob. Demo pair MAC 1-2.
+- **Touch response**, in the keyboard bar: **Touch** (soft · linear · hard),
+  the velocity curve of your MIDI keyboard and the mouse, remembered in the
+  browser; and **Bend**, the pitch bend range (±1 to ±24 semitones), saved
+  with the preset (before, a fixed ±2). In Parts mode, each part has its own.
+- **Output meter** in the Output module, next to the spectrum: L and R peaks
+  of what comes out (yellow from −12 dBFS, red from −1, the limiter ceiling),
+  the limiter's gain reduction and the **lim** LED, which stays lit once the
+  limiter has worked (click to clear it). The data comes from the limiter itself
+  every 50 ms.
+- **Welcome window**: on opening, a window over the instrument (visible behind
+  it, switched off) with a small demoscene screen — interfering plasma and the
+  name in copper bars —, the version and its date, and the **ENTER** button (or
+  Enter), which also starts the audio. It opens again as «About» by clicking
+  the title in the header or from File ▾.
+- **New preset picker** in the header, replacing the drop-down: a search box
+  (ignoring accents and case), the categories on the left with how many
+  presets match in each (All, ★ Favorites and every section) and the list on
+  the right. A click or `↑` `↓` loads a preset to audition it without closing;
+  `Enter` or a double click picks and closes; ★ marks favorites; and **Browse
+  all** opens the Presets screen with the same search.
+- **Computer keyboard**: its octave is now separate from the on-screen
+  keyboard's. They used to be the same, and since the on-screen keyboard shows
+  six octaves and stops at C9, the top row got stuck at E5. Now Z goes from C0
+  to C7 (the top row reaches C9) and the on-screen keyboard scrolls to show it.
+  By default, Z is C3 and Q is middle C (before, Z was C2).
+- **On-screen keyboard**: dragging across the keys with the mouse button held
+  plays them (glissando); before, only the first one sounded. The black keys
+  are centered between their two white keys (before, they imitated the offset
+  of an acoustic piano).
 
-Arreglos:
-- **Time del delay**: moverlo de golpe (un mando MIDI, cambiar de división o de
-  BPM) daba un raspazo; ahora barre como una cinta. Auditados los demás knobs:
-  ninguno da clic al moverlo de golpe con una nota sonando.
-- **Partes**: con las Partes encendidas, el Jugador se metía en el panel Arreglo
-  en todos sus modos, y el Mezclador cortaba la M de cada parte y la casilla «Capa».
-  El arreglo de la parte (Entra · Deriva · Cantidad) pasa al panel Arreglo, como
-  una fila de la parte que edita el rack; la M, junto al nombre de cada tira.
-- **Eventos de nota**: robo de voz, Pánico y repetir una tecla durante su
-  release, auditados: sin clics.
-- Banco de demos: pares MAC, SYNC, CUERDA, DUB, ART, SWG y GRD para oír cada
-  cosa; checks nuevos en el selftest (216).
+Fixes:
+- **Delay Time**: moving it abruptly (a MIDI knob, changing division or BPM)
+  gave a scrape; now it sweeps like tape. The other knobs were audited: none
+  clicks when moved abruptly with a note playing.
+- **Parts**: with Parts on, the Player spilled into the Arrangement panel in
+  all its modes, and the Part Mixer cut off each part's M and the «Layer» box.
+  The part's arrangement (enters · Drift · amount) moves to the Arrangement
+  panel, as a row for the part the rack is editing; the M sits next to each
+  strip's name.
+- **Note events**: voice stealing, Panic and repeating a key during its release,
+  audited: no clicks.
+- Demo bank: pairs MAC, SYNC, STRING, DUB, ART, SWG and DEG to hear each change;
+  new checks in the selftest (216).
 
 ## [1.2.0] — 2026-10-24
 
-Más instrumento: movimiento a tempo (reloj común, LFO a tempo, Pasos, una
-envolvente en bucle), un drive con más caracteres, un mezclador a la Minimoog y
-un taller para diseñar sin miedo (deshacer, comparar). Varias cosas salen de
-la revisión que hizo @tacowars.
+More instrument: movement in tempo (a common clock, tempo-synced LFOs, Steps, a
+looping envelope), a drive with more characters, a Minimoog-style mixer and a
+workshop to design without fear (undo, compare). Several things come from the
+review @tacowars did.
 
-**Suenan distinto** (a propósito, como debieron sonar siempre):
-- **FM de dos operadores (onda Seno con Index)**: la fase del modulador se
-  sorteaba en cada nota y cada nota salía con otro timbre — en «DX bass», seis
-  Do4 seguidos variaban casi 8 dB. Ahora arranca alineado con la portadora,
-  como el FM4 y como un DX7: todas las notas iguales. «Bajo FM» queda algo más
-  oscuro en el registro agudo.
-- **LFO globales**: sin nada sonando se quedaban parados y la nota siguiente
-  los retomaba donde se habían quedado; ahora corren siempre, así que la fase
-  con la que arranca una nota depende de cuándo la tocas, como en un sinte de
-  hardware. Si quieres que cada nota empiece igual, usa la fase «reinicio»
-  (nueva, abajo).
-- **Tabla de ondas más limpia**: menos ruido entre armónicos (sobre todo en el
-  registro medio) y un poco más de brillo arriba.
+**Sound different** (on purpose, the way they always should have):
+- **2-operator FM (Sine wave with Index)**: the modulator's phase was
+  randomized on every note, so every note came out with a different timbre —
+  on «DX Bass», six C4s in a row varied by almost 8 dB. Now it starts aligned
+  with the carrier, like FM4 and like a DX7: every note the same. «FM Bass» is
+  a little darker in the upper register.
+- **Global LFOs**: with nothing playing they stopped, and the next note picked
+  them up where they had stopped; now they always run, so the phase a note
+  starts with depends on when you play it, as on a hardware synth. If you want
+  every note to start the same, use the «retrig» phase (new, below).
+- **Cleaner wavetable**: less noise between harmonics (especially in the middle
+  register) and a little more brightness up top.
 
-Nuevo:
-- **Mezclador a la Minimoog**: Osc A, Osc B, Ring y Ruido con su nivel cada
-  uno. Subir uno no baja los otros: suman, y con Drive saturan más (el truco de
-  subir el mezclador del Minimoog). Los presets de antes se traducen solos y
-  suenan igual.
-- **Drive con carácter** (módulo Filtro): *suave* (el de siempre) o *plegado*
-  — al subir el Drive la onda se dobla sobre sí misma y los armónicos aparecen,
-  suben y vuelven a bajar (la síntesis de la Costa Oeste) —, y **Asimetría**,
-  que añade armónicos pares (el cuerpo de una válvula); en el plegado, a tope,
-  suena la octava.
-- **Más destinos en la matriz**: los niveles del mezclador (un LFO que baja A
-  mientras sube B funde una onda en otra: síntesis vectorial), el Drive, el tono
-  solo del oscilador A y el Material del resonador.
-- **Reloj común**: arpegiador, secuenciador y los músicos de las Partes en la
-  misma rejilla. Dos arpegios de dos partes caen juntos, y una parte con
-  arpegiador que toca un músico arranca en su pulso, no donde cae.
-- **LFO a tempo**: cada LFO puede ir sincronizado al BPM (de 4 compases a
-  1/32, con puntillos y tresillos), con su ciclo en la rejilla. Y la fase tiene
-  dos modos más: **reinicio** (cada nota arranca sus LFO desde el principio) y
-  **una vez** (recorren un ciclo y se quedan: un LFO que hace de envolvente).
-- **Env mod** (pantalla Secuenciación): una envolvente libre para la matriz,
-  aparte de la del filtro, en modo *normal*, *bucle* (ataque y caída repetidos
-  mientras dura la nota: ritmos de timbre atados a cada nota) o *disparo* (la
-  curva entera aunque la nota dure un instante).
-- **Pasos** (pantalla Secuenciación): cuatro carriles que se dibujan con el
-  ratón, cada uno con su longitud (hasta 32), división, suavizado, rotación y
-  deriva. Son fuentes de la matriz: continuas («Pasos 1») o fijas por nota
-  («Pasos 1 · nota», cada nota de un arpegio con su color). Con longitudes
-  distintas (16 · 12 · 5) tardan 15 compases en volver a coincidir — el panel
-  lo dice —; un carril sobre Amplitud es un *trance gate*.
-- **Deshacer y rehacer** (Ctrl+Z, Ctrl+Y, ↶ ↷ en la cabecera): por gestos, con
-  lo que deshace en el título; no corta las notas que suenan.
-- **Comparar con el guardado**: ● junto al preset cuando lo que suena ya no es
-  lo guardado (y se apaga si lo devuelves); «Comparar» alterna entre el guardado
-  y tu edición.
-- **Velocity con el ratón**: en el teclado de pantalla, la altura a la que
-  pulsas la tecla es la fuerza.
-- **Exportar SFZ**: las capas de velocity se deciden midiendo el sonido, así
-  que los presets cuya velocity cambia el timbre por la matriz, por los
-  operadores FM4 o por la distorsión exportan su tacto (45 de 117 de fábrica,
-  antes 30). Exportar dos veces da exactamente lo mismo.
+New:
+- **Minimoog-style mixer**: Osc A, Osc B, Ring and Noise, each with its own
+  level. Raising one doesn't lower the others: they add up, and with Drive they
+  saturate harder (the trick of opening up the Minimoog's mixer). Older presets
+  are translated automatically and sound the same.
+- **Drive with character** (Filter module): *soft* (the usual one) or *fold* —
+  as Drive goes up the wave folds over itself and harmonics appear, rise and
+  fall again (West Coast synthesis) —, and **Asym**, which adds even harmonics
+  (the body of a tube); on fold, at full, you hear the octave.
+- **More matrix destinations**: the mixer levels (an LFO that lowers A while
+  raising B blends one wave into the other: vector synthesis), the Drive, the
+  pitch of oscillator A alone and the resonator's Material.
+- **Common clock**: arpeggiator, sequencer and the Parts' players on the same
+  grid. Two arpeggios in two parts land together, and a part with an
+  arpeggiator played by a player starts on its beat, not wherever it falls.
+- **LFO in tempo**: each LFO can be synced to the BPM (from 4 bars to 1/32,
+  with dotted and triplet values), with its cycle on the grid. And the phase
+  has two more modes: **retrig** (each note starts its LFOs from the beginning)
+  and **once** (they run one cycle and stay: an LFO acting as an envelope).
+- **Mod Env** (Sequencing screen): a free envelope for the matrix, separate from
+  the filter's, in *normal*, *loop* (attack and decay repeated for as long as
+  the note lasts: timbre rhythms tied to each note) or *trigger* mode (the
+  whole curve even if the note lasts an instant).
+- **Steps** (Sequencing screen): four lanes you draw with the mouse, each with
+  its own length (up to 32), division, smoothing, rotation and drift. They are
+  matrix sources: continuous («Steps 1») or fixed per note («Steps 1 · note»,
+  each note of an arpeggio with its own color). With different lengths
+  (16 · 12 · 5) they take 15 bars to line up again — the panel tells you —; a
+  lane on Amplitude is a *trance gate*.
+- **Undo and redo** (Ctrl+Z, Ctrl+Y, ↶ ↷ in the header): by gesture, with what
+  it undoes in the tooltip; it doesn't cut the notes that are playing.
+- **Compare with the saved preset**: ● next to the preset when what you hear is
+  no longer what was saved (it goes out if you put it back); «Compare» toggles
+  between the saved preset and your edit.
+- **Velocity with the mouse**: on the on-screen keyboard, how high on the key
+  you click is the strength.
+- **Export SFZ**: the velocity layers are decided by measuring the sound, so
+  presets whose velocity changes the timbre through the matrix, the FM4
+  operators or the distortion export their touch (45 of 117 factory presets,
+  30 before). Exporting twice gives exactly the same result.
 
-Arreglos:
-- **Teclado del ordenador**: Ctrl+Z ya no toca un Do, Shift entre pulsar y
-  soltar ya no deja la nota colgada, y las teclas van por posición (el piano
-  queda en su sitio en AZERTY o Dvorak). Un toque cancelado en pantalla
-  táctil ya no cuelga la nota.
-- **Partes**: cambiar el BPM solo llegaba a la parte que estabas editando; el
-  arpegiador, el secuenciador y la secuencia de tabla de las demás seguían al
-  tempo viejo.
-- Banco de demos: pares MEZ, DRV, VEC, LFOT, FASE, ENVM y PASOS para oír cada
-  cosa; checks nuevos en el selftest (194).
+Fixes:
+- **Computer keyboard**: Ctrl+Z no longer plays a C, Shift between pressing and
+  releasing no longer leaves a note hanging, and the keys go by position (the
+  piano stays in place on AZERTY or Dvorak). A cancelled touch on a touch screen
+  no longer hangs the note.
+- **Parts**: changing the BPM only reached the part you were editing; the
+  arpeggiator, sequencer and wave sequence of the others kept the old tempo.
+- Demo bank: pairs MIX, DRV, VEC, LFOT, PHASE, ENVM and STEPS to hear each
+  change; new checks in the selftest (194).
 
 ## [1.1.0] — 2026-10-14
 
-Ideas de @tacowars que lo probó, arreglos que salieron al hacerlas y solución a los
-acordes «sucios».
+Ideas from @tacowars, who tried it out, fixes that came up while doing them, and
+a cure for «dirty» chords.
 
-- **Acordes limpios: margen en el máster.** Un acorde de pad entraba en el
-  limitador de salida 4-8 dB por encima de su techo: recortaba todo el
-  sostenido y su ganancia subía y bajaba con el batido de los osciladores
-  desafinados (el acorde «sucio, con altibajos»). Ahora hay un margen fijo de
-  −9 dB antes del limitador, calibrado con los 103 presets de fábrica: 9 de
-  cada 10 aguantan un acorde abierto de cuatro notas sin tocarlo.
-- **Sonoridad igualada en los presets de fábrica.** El margen es para acordes;
-  un bajo o un lead, que tocan de una en una, se quedaban bajitos. Cada preset
-  trae ahora un Master medido para sonar a la misma sonoridad (unos −14 LUFS) en su
-  uso previsto — una nota para bajos, leads, percusión y efectos; un acorde de
-  tres para lo demás — sin que ese uso llegue al limitador. Los que tienen un
-  golpe inicial muy por encima del cuerpo (plucks, percusión) quedan tan
-  fuertes como permite sonar limpios. La percusión sube en bloque: el
-  equilibrio del kit no cambia. Tus presets guardados conservan su Master.
-- **Master hasta +12 dB y delante del limitador**: bajarlo deja margen
-  (limpio) y subirlo aprieta el limitador (más fuerte y comprimido). Se lee en
-  dB. Antes iba detrás, llegaba solo a 1 y bajarlo no le quitaba trabajo.
-- **Disparo en Mono** (módulo Voz): qué pasa cuando una nota llega con otra
-  aún pulsada. *Legato* desliza la voz sin redisparar (trinos, el glide del
-  303); *Cada nota* redispara siempre: envolventes, pitch env y operadores
-  FM4 arrancan de nuevo, y la nota vieja se funde mientras sube el ataque de
-  la nueva. Notas separadas redisparan en los dos.
-- **Arpegiador y secuenciador en Mono redisparan cada paso**. Antes, a tempos
-  rápidos (1/16) los pasos se ligaban sin querer y solo sonaba el ataque del
-  primero: el note-off del paso iba por temporizador y llegaba después del
-  note-on siguiente, que se programa con antelación. Ahora los note-off van
-  programados en el reloj de audio y en orden, así que liga solo con
-  Gate 1 (y Disparo en Legato).
-- **Velocity por operador en FM4** (columna «vel»): el nivel de cada operador
-  escala con la fuerza de la nota, como la *key velocity sensitivity* del
-  DX7. En un modulador eso es el índice: tocar fuerte abre armónicos, no solo
-  sube el volumen. El preset «FM4 · E-piano pares» ya la usa (a velocity 1
-  suena como antes). Hace falta un teclado MIDI.
-- **Grafo del algoritmo FM4 a la Yamaha** bajo su selector: portadoras abajo
-  sobre la línea de salida, moduladores encima, lazo de feedback en el op 4
-  (se enciende con el Feedback).
-- **Arreglo — notas programadas (arp, secuenciador, músicos de las Partes)**:
-  si la envolvente ya estaba en el sostenido, el note-off programado hacía caer
-  la ganancia en recta desde el final del decay, de golpe al programarlo. Las
-  notas largas de los músicos se apagaban solas antes de tiempo; ahora
-  mantienen el sostenido hasta su note-off, así que **las escenas suenan algo
-  distinto** (como debieron sonar siempre).
-- **Arreglo — gate más corto que el look-ahead**: el note-off se adelantaba
-  al arranque real de la nota y algunos golpes cortos de los músicos (Pulso
-  con gate bajo) salían mudos. Ahora el note-off se traslada lo mismo que el
-  arranque.
-- **Pantalla Salida en dos líneas**: arriba el parámetro y lo que significa la
-  opción elegida (o por qué no hace nada); abajo, en grande, un valor corto
-  («3 · 2·3·4→1» en vez del tooltip entero). Lo que no cabe encoge la letra y,
-  si ni así, se desplaza despacio como el LCD de un sinte. Antes un valor
-  largo se comía la caja entera, nombre del parámetro incluido.
-- La piel por defecto se llama ahora **Carbón** (antes «Cinescapes»; la
-  elección guardada se conserva).
-- Banco de demos: pares «Disparo» y «FMV»; tres checks nuevos en el selftest.
+- **Clean chords: headroom on the master.** A pad chord hit the output limiter
+  4-8 dB above its ceiling: it clipped the whole sustain and its gain pumped with
+  the beating of the detuned oscillators (the «dirty, wobbly» chord). Now there
+  is a fixed −9 dB of headroom before the limiter, calibrated with the 103
+  factory presets: 9 out of 10 hold an open four-note chord without touching it.
+- **Matched loudness in the factory presets.** The headroom is for chords; a
+  bass or a lead, played one note at a time, ended up quiet. Every preset now
+  comes with a Master measured to sound at the same loudness (about −14 LUFS) in
+  its intended use — one note for basses, leads, percussion and effects; a
+  three-note chord for the rest — without that use reaching the limiter. Those
+  with an initial hit far above their body (plucks, percussion) are as loud as
+  they can be while staying clean. Percussion goes up as a block: the balance
+  of the kit doesn't change. Your saved presets keep their Master.
+- **Master up to +12 dB and before the limiter**: lowering it leaves headroom
+  (clean) and raising it pushes the limiter (louder and compressed). It reads in
+  dB. Before, it came after, only reached 1 and lowering it didn't relieve the
+  limiter.
+- **Trigger in Mono** (Voice module): what happens when a note arrives while
+  another is still held. *Legato* slides the voice without retriggering
+  (trills, the 303 glide); *Retrig* always retriggers: envelopes, pitch env and
+  FM4 operators start again, and the old note fades while the new one's attack
+  rises. Separate notes retrigger in both.
+- **Arpeggiator and sequencer in Mono retrigger every step**. Before, at fast
+  tempos (1/16) the steps tied by accident and only the first one's attack
+  sounded: the step's note-off went by timer and arrived after the next note-on,
+  which is scheduled ahead. Now note-offs are scheduled on the audio clock and in
+  order, so it only ties with Gate 1 (and Trigger on Legato).
+- **Per-operator velocity in FM4** («vel» column): each operator's level scales
+  with how hard the note is played, like the DX7's *key velocity sensitivity*.
+  On a modulator that is the index: playing harder opens harmonics, not just
+  volume. The preset «FM4 · Paired E-Piano» already uses it (at velocity 1 it
+  sounds as before). You need a MIDI keyboard.
+- **Yamaha-style FM4 algorithm graph** under its selector: carriers at the
+  bottom on the output line, modulators above, a feedback loop on op 4 (it lights
+  up with Feedback).
+- **Arrangement — scheduled notes (arp, sequencer, Parts players)**: if the
+  envelope was already in its sustain, the scheduled note-off made the gain fall
+  in a straight line from the end of the decay, abruptly when it was scheduled.
+  The players' long notes died away too early; now they hold their sustain until
+  their note-off, so **scenes sound a little different** (the way they always
+  should have).
+- **Arrangement — gate shorter than the look-ahead**: the note-off came before
+  the note actually started and some short hits from the players (Pulse with a
+  low gate) came out silent. Now the note-off is shifted by the same amount as
+  the start.
+- **Output display on two lines**: on top, the parameter and what the chosen
+  option means (or why it does nothing); below, in large type, a short value
+  («3 · 2·3·4→1» instead of the whole tooltip). Whatever doesn't fit shrinks its
+  type and, if even that fails, scrolls slowly like a synth LCD. Before, a long
+  value took over the whole box, parameter name included.
+- The default skin is now called **Carbon** (before, «Cinescapes»; the saved
+  choice is kept).
+- Demo bank: «Trig» and «FMV» pairs; three new checks in the selftest.
 
 ## [1.0.1] — 2026-10-12
 
-- **Tarjeta al compartir el enlace**: Facebook, LinkedIn, WhatsApp o X
-  enseñan título, descripción y una imagen del panel (etiquetas Open Graph).
-  Antes la tarjeta salía vacía. Check «tarjeta para redes» en el selftest.
+- **Link preview card**: Facebook, LinkedIn, WhatsApp or X show a title, a
+  description and a picture of the panel (Open Graph tags). Before, the card was
+  empty. «Link card» check in the selftest.
 
 ## [1.0.0] — 2026-10-12
 
-Primera versión publicada. Lo que trae:
+First published version. What it brings:
 
-- **Fuente**: dos osciladores con octava propia, mezcla, ruido de colores,
-  unison con deriva analógica, FM de 2 operadores con realimentación, FM de 4
-  operadores (8 algoritmos), tabla de ondas con editor a mano y secuencia de
-  tabla al estilo Wavestation, y un módulo Vocal de formantes con fuente glotal.
-- **Voz**: resonador modal (cuerda ↔ barra), filtro LP/HP/BP/notch con
-  pendiente, keytrack y drive, envolventes ADSR con curva lineal ↔ RC y golpes
-  (flam) para percusión, mono con glide o polifónico.
-- **Modulación**: banco de LFOs (seno, triángulo, sierra, cuadrada, S&H y
-  deriva) con fade de entrada y fase global o por voz, matriz de modulación de
-  6 ranuras y fuentes de ejecución (rueda, aftertouch, expresión).
-- **Efectos**: distorsión, flanger, chorus/ensemble, delay de cinta, reverb de
-  sala (convolución) o de placa (Dattorro) con shimmer y freeze, cinta en el
-  máster (saturación, wow y flutter), espacio estéreo y limitador.
-- **Música**: arpegiador, secuenciador de pasos con banco de frases, cuatro
-  partes con mezclador y sala compartida, armonía, músicos generativos, arreglo
-  y escenas.
-- **Biblioteca** de presets y escenas con secciones, favoritos, búsqueda,
-  importar y exportar; presets de fábrica por categorías (incluida percusión
-  808/909) y un banco de demos A/B que hace oír cada mejora.
-- **Interfaz**: panel fijo que se escala entero a la ventana, pantallas de
-  Diseño, Secuenciación y Presets, temas, osciloscopio y espectro, y los
-  controles que no hacen nada con la configuración actual se atenúan
-  explicando por qué.
-- **MIDI**: velocity, pitch bend, sustain, Program Change y MIDI learn por
-  aparato.
-- **Exportar**: grabación a WAV y el preset como instrumento SFZ.
-- **Selftest** en el navegador (`?selftest=1`) que renderiza cada preset y
-  mide cada módulo: 173 comprobaciones.
+- **Source**: two oscillators with their own octave, mix, colored noise, unison
+  with analog drift, 2-operator FM with feedback, 4-operator FM (8 algorithms),
+  a wavetable with a freehand editor and Wavestation-style wave sequencing, and
+  a Vocal formant module with a glottal source.
+- **Voice**: modal resonator (string ↔ bar), LP/HP/BP/notch filter with slope,
+  keytrack and drive, ADSR envelopes with a linear ↔ RC curve and hits (flam)
+  for percussion, mono with glide or polyphonic.
+- **Modulation**: an LFO bank (sine, triangle, saw, square, S&H and drift) with
+  fade-in and global or per-voice phase, a 6-slot modulation matrix and
+  performance sources (wheel, aftertouch, expression).
+- **Effects**: distortion, flanger, chorus/ensemble, tape delay, hall
+  (convolution) or plate (Dattorro) reverb with shimmer and freeze, tape on the
+  master (saturation, wow and flutter), stereo width and a limiter.
+- **Music**: arpeggiator, step sequencer with a bank of phrases, four parts with
+  a mixer and a shared room, harmony, generative players, arrangement and
+  scenes.
+- **Library** of presets and scenes with sections, favorites, search, import and
+  export; factory presets by category (808/909 percussion included) and an A/B
+  demo bank that lets you hear every improvement.
+- **Interface**: a fixed panel that scales as a whole to the window, Design,
+  Sequencing and Presets screens, themes, oscilloscope and spectrum, and the
+  controls that do nothing with the current settings dim and explain why.
+- **MIDI**: velocity, pitch bend, sustain, Program Change and MIDI learn per
+  device.
+- **Export**: recording to WAV and the preset as an SFZ instrument.
+- **Selftest** in the browser (`?selftest=1`) that renders every preset and
+  measures every module: 173 checks.

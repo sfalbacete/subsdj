@@ -18,7 +18,7 @@ más expresividad o más riqueza de sonidos; si duplica lo que ya hay, no entra.
    asentar».*
 3. **Publicar la 1.3.0.** ✔ (2026-10-25)
 4. **Exportación:** 6.1 (SFZ con bucles y variaciones) y 6.2 (WAV).
-5. **Inglés** (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —
+5. **Inglés** ✔ (rama ingles, 2026-10-26; DISENO, «Inglés (1.4.0)») (decidido el 2026-10-25): la interfaz entera traducida al inglés, una vez y SOLO al inglés —
    no multi-idioma: los soft-synths y las serigrafías de los teclados van en inglés como idioma neutro,
    y otros idiomas (alemán) alargan las palabras en un panel fijo—. Antes del banco nuevo, para que
    los presets nuevos nazcan ya en inglés (todos los de hoy se van a caer).

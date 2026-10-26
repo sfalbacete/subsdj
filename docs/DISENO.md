@@ -2444,3 +2444,50 @@ Mezclador la M sube a la fila del nombre. Dos checks: «pantallas» mira además
 salga (los que tienen scroll, como la Biblioteca, no cuentan) y uno nuevo enciende las Partes y
 recorre los modos del Jugador. Sobre el código de antes, falla con el Jugador en acorde, melodía,
 raíz y pulso, y con el Mezclador.
+
+## Inglés (1.4.0)
+
+Decidido el 2026-10-25: SubSDJ va SOLO en inglés (el idioma neutro de los soft-synths y de las
+serigrafías; sin multi-idioma: otros idiomas alargan las palabras en un panel fijo). Y el
+2026-10-26, Sergio: lo de dentro también — las claves y valores de los JSON — y, aunque
+hablemos en castellano, todo lo que entre en el synth, en inglés.
+
+**Glosario primero** (docs/GLOSARIO.md, aprobado por Sergio): cada término fijado una vez —
+módulos, controles, fuentes y destinos de la matriz, notas y escalas, categorías, los 160
+presets, frases, escenas y los identificadores internos —, con la convención de los paneles
+de los sintes (Cutoff, Resonance, Glide…) y abreviaturas de aparato si no cabe (Fdbk, Sat, Amt).
+
+**Lo guardado sigue cargando** (engine/legacy.js). Los presets, escenas, bibliotecas y mapas
+MIDI guardaban claves y valores en castellano; desde la 1.4.0 todo se escribe en inglés y lo
+de antes se traduce AL CARGARLO: `migratePreset` (tres claves de parámetro — vocVida,
+vocBrillo, resBrillo — y los valores de texto: 'tabla' → 'wavetable', 'placa' → 'plate',
+'1 c' → '1 bar'…) en withPresetBase, como migrateMix y migrateFb; `migrateScene`
+(subsdj-escena-v1 → subsdj-scene-v2: claves del director, de los jugadores y del arreglo,
+modos, escala, y los nombres de los presets de fábrica a los que se refiere) en
+applySceneJSON; `migrateLibrary` (subsdj-biblioteca-v1 → subsdj-library-v2) al leer la
+biblioteca de su clave antigua de localStorage — que se conserva intacta — y al importar un
+fichero de antes; y midimap.RENAMED para los mapas. En la biblioteca, un preset de fábrica que
+el usuario no renombró (su nombre es el de su semilla) pasa al nombre inglés y su semilla con
+él, así que «Restore factory» no lo duplica; lo renombrado conserva su nombre. Check
+«compatibilidad 1.3.0»: un preset con valores viejos = su versión inglesa sobre la base; una
+escena v1 aplicada = la misma escena escrita en v2 (JSON idéntico); una biblioteca v1 en su
+clave antigua (secciones, semillas, favorito, datos de usuario, demos fuera, traer la fábrica
+sin duplicar); un mapa MIDI con vocVida.
+
+**Cómo se tradujo sin romper nada.** Por fases, cada una con el selftest verde: (1) lo de
+dentro, con sustituciones de literales por fichero y, para las claves del director, solo en
+la parte de CÓDIGO de cada línea (un patrón ingenuo convertía «pulso que respira:» de un
+comentario en «breathe:»); los bancos JSON del repo se tradujeron conservando su formato
+escrito a mano, comprobando que cada preset traducido = migratePreset del original (con las
+claves ordenadas: un renombre cambia el orden); (2) la interfaz: index.html por tramos con
+sustituciones exactas que tienen que aparecer exactamente N veces (si no, no se escribe nada),
+y los textos del JavaScript; los títulos de módulo son también CLAVES (reglas «sec:» de
+deps.js, LEDs de activity.js, SALA_PANELS), así que cambian a la vez; (3) las demos (prefijos
+en inglés: STRING, TAPE, PHASE, MIX, DEG…) y README y CHANGELOG enteros.
+
+**Las demos A/B salen del banco principal**: son pares de prueba, no instrumentos. Ya no se
+siembran (FICHEROS_REPO) y la migración quita las sembradas; se cargan con File ▾ → Import.
+Sin ellas, la biblioteca cabe entera en la pantalla Presets.
+
+**Se queda en castellano** (de momento: pendiente de confirmar con Sergio): el código y sus
+comentarios, este diario, PLAN.md, el glosario y el selftest.
