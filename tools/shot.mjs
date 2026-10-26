@@ -1,6 +1,6 @@
 // SubSDJ · headless PNG capture of a module or of a whole screen (CDP, no dependencies).
 // Usage:  node tools/shot.mjs "<h2 text>"               out.png [width] ["<pre JS>"]   → crop of the module (×2)
-//         node tools/shot.mjs "pantalla:secuenciacion" out.png [width] ["<pre JS>"]   → the whole page on that tab
+//         node tools/shot.mjs "screen:sequencing" out.png [width] ["<pre JS>"]   → the whole page on that tab
 // The pre JS is evaluated (with await if it returns a promise) before capturing: e.g. switching
 // Parts on or loading a preset. Serves on 8002 so as not to clash with the runner or with 8000.
 // Environment variable THEME=id → capture with that theme (?theme=, which isn't remembered). SPLASH=1 → with the welcome window.
@@ -11,7 +11,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), P
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const [target, out, widthArg, pre] = process.argv.slice(2); const W = +widthArg || 1500;
 const THEME = process.env.THEME || '', H = +process.env.H || 1000;
-if (!target || !out) { console.error('usage: node tools/shot.mjs "<h2 | pantalla:NAME>" out.png [width] ["<pre JS>"]'); process.exit(2); }
+if (!target || !out) { console.error('usage: node tools/shot.mjs "<h2 | screen:NAME>" out.png [width] ["<pre JS>"]'); process.exit(2); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
@@ -41,7 +41,7 @@ for (let i = 0; i < 50; i++) { await sleep(200); if (await ev('document.readySta
 await sleep(800);
 const preSrc = pre && pre.startsWith('@') ? fs.readFileSync(pre.slice(1), 'utf8') : pre;   // "@file.js": long probes
 if (preSrc) { console.log('pre:', JSON.stringify(await ev(preSrc))); await sleep(600); }
-const screen = target.startsWith('pantalla:') ? target.slice(9) : null;
+const screen = target.startsWith('screen:') ? target.slice(7) : null;
 let clip = null;
 if (screen) {
   await ev('(() => { const b = document.querySelector(\'#screenTabs button[data-screen="' + screen + '"]\'); if (b) b.click(); return !!b; })()');

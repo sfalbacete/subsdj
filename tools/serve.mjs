@@ -2,7 +2,7 @@
 // Usage:  node tools/serve.mjs [port]      (default 8000)  →  http://127.0.0.1:8000/
 // Why: `python -m http.server` sends no Cache-Control and the browser applies HEURISTIC caching to
 // ES modules (fresh for 10 % of the time elapsed since Last-Modified): after editing the engine
-// you could keep hearing the Sala.js from an hour ago even after reloading. It happened with block 7 (tape):
+// you could keep hearing the Room.js from an hour ago even after reloading. It happened with block 7 (tape):
 // three versions of the wow and the ear kept hearing the first one. With no-store every reload fetches the
 // files from disk. Same server as the one used by tools/run-selftest.mjs (8001) and tools/shot.mjs (8002).
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';

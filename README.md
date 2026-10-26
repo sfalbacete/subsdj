@@ -65,16 +65,16 @@ node tools/serve.mjs
 
 → <http://127.0.0.1:8000/>. The selftest is at <http://127.0.0.1:8000/?selftest=1>,
 or headless with `node tools/run-selftest.mjs` (Node ≥ 22 and Chrome), which runs
-it in two batches (`?selftest=1&tanda=checks` and `&tanda=fabrica`): all in a
+it in two batches (`?selftest=1&batch=checks` and `&batch=factory`): all in a
 single page can hang the browser with so many renders.
 
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md): what changed in each version.
-- [docs/DISENO.md](docs/DISENO.md): how each module works and why, with the
-  measurements that validate it. It is the development notebook, in Spanish.
-- [docs/PLAN.md](docs/PLAN.md): plans and to-dos (in Spanish).
-- [docs/GLOSARIO.md](docs/GLOSARIO.md): the Spanish → English glossary used for
+- [docs/DESIGN.md](docs/DESIGN.md): how each module works and why, with the
+  measurements that validate it. It is the development notebook.
+- [docs/PLAN.md](docs/PLAN.md): plans and to-dos.
+- [docs/GLOSSARY.md](docs/GLOSSARY.md): the Spanish → English glossary used for
   the translation.
 
 ## Thanks

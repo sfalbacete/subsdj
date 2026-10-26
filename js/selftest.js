@@ -17,7 +17,7 @@
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
 import { Voice } from './engine/Voice.js';
-import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Sala.js';
+import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Room.js';
 const HR = Math.pow(10, HEADROOM_DB / 20);   // fixed master headroom (1.1.0): the ABSOLUTE level thresholds include it
 import { Arp } from './engine/Arp.js';
 import { Clock, clockOf } from './engine/Clock.js';
@@ -182,16 +182,16 @@ export async function runSelfTest() {
   const results = [];
   let ok = 0;
   const push = r => { results.push(r); if (r.ok) ok++; addRow(body, r); };
-  // BATCHES (?tanda=checks | ?tanda=fabrica). Hundreds of OfflineAudioContexts in ONE page
+  // BATCHES (?batch=checks | ?batch=factory). Hundreds of OfflineAudioContexts in ONE page
   // hang it with no error — neither the timers nor the debugger respond: it got stuck at
   // render ~330, on any preset — because each one drags along its worklet thread and
   // it is not released in time (not even calling gc() every 5 renders). Each batch stays under
   // the limit and the runner (tools/run-selftest.mjs) runs each one in a fresh browser. Without
-  // ?tanda everything runs in a row on the same page, as before: it may not reach the end.
-  const TANDA = new URLSearchParams(location.search).get('tanda');
-  const enTanda = t => !TANDA || TANDA === t;
+  // ?batch everything runs in a row on the same page, as before: it may not reach the end.
+  const BATCH = new URLSearchParams(location.search).get('batch');
+  const inBatch = t => !BATCH || BATCH === t;
 
-  if (enTanda('checks')) {   // ---------- «checks» batch: everything but the factory bank ----------
+  if (inBatch('checks')) {   // ---------- «checks» batch: everything but the factory bank ----------
   // static check: migration of v1 user presets (cutoff 0..1) -> v2 (Hz)
   {
     body.appendChild(el('st-cat', 'Static'));
@@ -535,14 +535,14 @@ export async function runSelfTest() {
     const title = p => ([...(p.querySelector('h2')?.childNodes || [])].filter(n => n.nodeType === 3).map(n => n.textContent).join('') || p.id || '?').trim();
     const before = currentScreen(), wasOn = isOn(), bad = new Map(), probs = [];
     try {
-      showScreen('secuenciacion');
+      showScreen('sequencing');
       if (!wasOn) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
       if (!isOn()) probs.push('the Parts do not turn on');
       else {
         const btns = [...document.querySelectorAll('#playerMode button')], mode0 = btns.find(b => b.classList.contains('active'));
         for (const b of btns) {
           b.click();
-          for (const p of document.querySelectorAll('.screen[data-screen-body="secuenciacion"] .panel, .screen[data-screen-body="secuenciacion"] .band'))
+          for (const p of document.querySelectorAll('.screen[data-screen-body="sequencing"] .panel, .screen[data-screen-body="sequencing"] .band'))
             if (p.offsetParent && over(p)) {
               const k = (p.classList.contains('band') ? 'band ' + (p.id || '?') : title(p)) + ' (' + p.scrollWidth + '×' + p.scrollHeight + ' in ' + p.clientWidth + '×' + p.clientHeight + ')';
               bad.set(k, [...(bad.get(k) || []), b.dataset.pm]);
@@ -687,7 +687,7 @@ export async function runSelfTest() {
     // disappears (a button's whole title used to swallow the box). A seg shows
     // its SHORT value and what it means goes on the line above.
     const probs = [], keep = snapshot(), scr = currentScreen();
-    showScreen('diseno');
+    showScreen('design');
     const v = document.getElementById('dispVal'), who = document.getElementById('dispWho'), side = document.getElementById('dispWhy');
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: 'Performance Pad (wheel, aftertouch, pedal) — a name that does not fit even when shrunk' } }));
@@ -2470,12 +2470,12 @@ export async function runSelfTest() {
       const J3 = sceneToJSON(sc);
       if (strip(J3) !== strip(J1)) probs.push('scene JSON: the round trip is not exact');
       if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) probs.push('import does not restore the part state');
-      // (4) the repo scenes (escenas/*.json): they load, their presets are
+      // (4) the repo scenes (scenes/*.json): they load, their presets are
       // applied, they sound with no NaN or clipping and everything emitted is in their scale
-      const ESCENAS = ['ambient-nocturno', 'amanecer-dorico', 'techno-hipnotico', 'coro-robotico'];
+      const ESCENAS = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir'];
       const picos = [];
       for (const nombre of ESCENAS) {
-        const j = await (await fetch('escenas/' + nombre + '.json', { cache: 'no-store' })).json();
+        const j = await (await fetch('scenes/' + nombre + '.json', { cache: 'no-store' })).json();
         const ctxD = new OfflineAudioContext(2, Math.ceil(SR * 4), SR);
         const scD = await createScene(ctxD, []);
         applySceneJSON(scD, j);
@@ -3398,7 +3398,7 @@ export async function runSelfTest() {
         if (!near(velFromY(0), 0.2) || !near(velFromY(1), 1)) probs.push(t + ': the mouse loses the floor or the ceiling');
         const act = [...document.querySelectorAll('#kbTouch button.active')].map(b => b.dataset.touch);
         if (act.join() !== t) probs.push(t + ': buttons marked ' + (act.join() || 'none'));
-        let saved = null; try { saved = localStorage.getItem('subsdj.tacto.v1'); } catch (_) {}
+        let saved = null; try { saved = localStorage.getItem('subsdj.touch.v2'); } catch (_) {}
         if (saved !== t) probs.push(t + ': not remembered (' + saved + ')');
       }
       part().allNotesOff();
@@ -4276,7 +4276,7 @@ export async function runSelfTest() {
 
   }   // ---------- end of the «checks» batch ----------
 
-  if (enTanda('fabrica')) {   // ---------- «fabrica» batch: the whole bank, the stress test and the pair probe ----------
+  if (inBatch('factory')) {   // ---------- «fabrica» batch: the whole bank, the stress test and the pair probe ----------
   // the {} state is equivalent to the Reset button; then, the whole factory bank
   const jobs = [['Base', 'Reset ({})', {}]];
   for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);

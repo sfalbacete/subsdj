@@ -1,6 +1,6 @@
 /* =====================================================================
    SubSDJ · auxiliary nodes of the graph: noise and drift buffers, reverb
-   IR, distortion curve and LFOs (used by AudioEngine.js and Sala.js).
+   IR, distortion curve and LFOs (used by AudioEngine.js and Room.js).
    ===================================================================== */
 import { mulberry32 } from './Harmony.js';
 // --- Per-context randomness (Roadmap 7.0 · 7.1) ---

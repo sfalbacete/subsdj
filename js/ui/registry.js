@@ -7,13 +7,13 @@
    applyTarget routes to the current PART (engine/parts.js: the single engine if
    the scene is off) and emits 'param-change' (listened to by the ADSR
    graph, the activity LEDs and the Part Mixer).
-   Parts mode: the ROOM keys (Sala.js · SALA_KEYS) do not belong to the
+   Parts mode: the ROOM keys (Room.js · SALA_KEYS) do not belong to the
    preset — neither Reset nor loading a preset touch them — and syncControls() dumps
    the state of the chosen part into the controls WITHOUT re-applying it to the engine
    (it is already like that; re-applying would cut its notes: 'mode'/'seqOn' do allNotesOff).
    ===================================================================== */
 import { part, sceneOn } from '../engine/parts.js';
-import { SALA_KEYS } from '../engine/Sala.js';
+import { SALA_KEYS } from '../engine/Room.js';
 import { toControls, withPresetBase } from '../engine/state.js';
 import { PARAMS } from '../engine/params.js';
 

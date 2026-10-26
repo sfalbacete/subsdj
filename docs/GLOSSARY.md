@@ -18,10 +18,10 @@ are decisions that had an alternative; the rest is the usual synth convention.
 5. **Preset names in Title Case** ⚑ («Warm Pad»), as in the banks of English-language synths. The
    parentheses in names (what the preset shows off) stay in lowercase.
 6. **What stays in Spanish**: only the conversation with the assistant. Everything else goes into
-   English (decided by Sergio on 2026-10-26): the interface, the code and its comments, DISENO.md,
+   English (decided by Sergio on 2026-10-26): the interface, the code and its comments, DESIGN.md,
    PLAN.md, the selftest, README, CHANGELOG and the commit messages. This glossary is written in
    English too; its Spanish column stays, because that is what a glossary is for. (Until then the
-   code and its comments, DISENO.md, PLAN.md, this glossary and the selftest were going to stay in
+   code and its comments, DESIGN.md, PLAN.md, this glossary and the selftest were going to stay in
    Spanish.)
 
 ## Header and screens
@@ -230,7 +230,7 @@ glottal · usuario → user
 ## Scenes
 
 Amanecer dórico → Dorian Dawn · Ambient nocturno (demo) → Night Ambient (demo) · Coro
-robótico → Robot Choir · Techno hipnótico → Hypnotic Techno. The files in `escenas/` keep their
+robótico → Robot Choir · Techno hipnótico → Hypnotic Techno. The files in `scenes/` keep their
 names (they are identifiers).
 
 ## Internal identifiers (JSON)

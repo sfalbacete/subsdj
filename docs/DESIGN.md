@@ -21,7 +21,7 @@ with the first gesture (key or click). `tools/serve.mjs` serves with
 `Cache-Control: no-store`: **use this one and not `python -m http.server`** to
 develop. Python sends no cache headers and the browser applies heuristic
 caching to ES modules (fresh for 10 % of the time since the last
-modification), so after editing the engine you could keep hearing the `Sala.js`
+modification), so after editing the engine you could keep hearing the `Room.js`
 from an hour ago even if you reloaded — it happened with the tape (block 7): three
 versions of the wow and the ear kept hearing the first one. If you use another server,
 reload with Ctrl+F5 after every change.
@@ -95,8 +95,8 @@ Without opening the browser: `node tools/run-selftest.mjs ["selftest=1&demos=DLY
 headless Chrome over CDP with its own static server (8001), waits for the «done» ping
 and prints a summary, failed rows with their reason, demo pairs (diff and peaks), measurement
 logs and JS errors; it exits with 1 if anything fails. Only Node ≥ 22 and Chrome (path via the
-`CHROME` variable if it isn't the usual one). It runs in TWO BATCHES (`?tanda=checks` and
-`?tanda=fabrica`), each in a new Chrome, and adds them up: hundreds of OfflineAudioContexts
+`CHROME` variable if it isn't the usual one). It runs in TWO BATCHES (`?batch=checks` and
+`?batch=factory`), each in a new Chrome, and adds them up: hundreds of OfflineAudioContexts
 in a single page hang it without an error (neither the timers nor the debugger
 respond; with the string and the sync it got stuck around render ~330), because each one
 drags its worklet's thread along and it isn't released in time — calling `gc()` every 5
@@ -121,7 +121,7 @@ browser, `?selftest=1` without a batch does everything in a row (it may not reac
   and Esc closes it without a panic (keyboard.js asks first with the
   `escape-first` event). It lives entirely in localStorage (`subsdj.biblioteca.v1`).
   The factory (code), the repo banks (`subsdj-demos.json`,
-  `subsdj-presets-2.0.json`), the scenes in `escenas/` and the old user
+  `subsdj-presets-2.0.json`), the scenes in `scenes/` and the old user
   presets are SEED: they come in the first time and from then on you are in
   charge. **⟲ Restore factory** puts back only what is missing: what was deleted returns to its
   section; what was renamed, moved or tweaked is not duplicated (every seeded item
@@ -149,7 +149,7 @@ browser, `?selftest=1` without a batch does everything in a row (it may not reac
 - **Arpeggiator** (its own panel): hold notes down and it sequences them at the BPM of the
   FX panel. Modes Up/Down/U·D/Rnd, division ¼/⅛/1/16, 1–3 octaves and a Gate knob.
   Steps come in with audio-clock precision (120 ms look-ahead).
-- **Scenes** (`escenas/*.json`, Parts mode): the complete scene — room,
+- **Scenes** (`scenes/*.json`, Parts mode): the complete scene — room,
   harmony, arrangement, the 4 players and the 4 presets with their mix — as JSON.
   ⇧ Scene in the Arrangement module or a click in the «Scenes» section of the
   library loads it (it turns Parts on if needed); ▶ Play in Harmony, or
@@ -328,7 +328,7 @@ in the slot of the screen being shown; the header with the presets on all of the
 **nothing clipped**: neither the instrument nor any band overflows its box —
 since the bands hide what overflows, one control too many would be silently
 hidden; the Presets list reflects the library and a click loads and stays
-marked) and screenshots with `node tools/shot.mjs "pantalla:secuenciacion" out.png
+marked) and screenshots with `node tools/shot.mjs "screen:sequencing" out.png
 [width]` (`H=height` in the environment for the window height; the fourth
 argument, `"@file.js"`, evaluates a probe before capturing).
 
@@ -515,7 +515,7 @@ js/engine/
   params.js                    PARAMS: the SINGLE table of parameters (defaults, ranges, format)
   state.js                     the synth's state S, derived from PARAMS
   AudioEngine.js               graph of ONE instrument (LFOs, inserts) + voice management
-  Sala.js                      the space: tape delay, reverb, limiter, master (by sends; shared in Parts)
+  Room.js                      the space: tape delay, reverb, limiter, master (by sends; shared in Parts)
   parts.js                     Parts mode: 4 engines over one context + shared Room; part() = the one the rack edits
   nodes.js                     auxiliary nodes: per-context randomness (offline seed), noise, drift, reverb IR, distortion curve, LFOs
   Harmony.js                   the scene's harmony: scales, progression / walk of functions, chords, seeded PRNG
@@ -534,7 +534,7 @@ js/ui/
   partsControls.js             Parts button + 1-4 selector in the header + Part Mixer module
   playerControls.js            Harmony (▶ Play, scale, progression, seed), Player (mode + knobs), Arrangement (+ the part's Enters/Drift row) modules
                                and Arrangement (energy, sway, cycle, open, surprise; ⇩⇧↺ scene)
-escenas/*.json                 the repo's scenes (⇧ Scene in the Arrangement module): night ambient, dorian
+scenes/*.json                 the repo's scenes (⇧ Scene in the Arrangement module): night ambient, dorian
                                dawn, hypnotic techno, robot choir — the selftest renders them all
   frame.js                     the fixed-size instrument scaled to the window (zoom); fitCanvas/uiZoom for the canvases
   screens.js                   Design / Sequencing / Presets tabs: one fixed panel each; moves the shared ones (data-slot)
@@ -548,7 +548,7 @@ escenas/*.json                 the repo's scenes (⇧ Scene in the Arrangement m
   midimap.js                   MIDI learn: CC→control map, pickup, export/import, per device
   keyboard.js presetBank.js recorder.js scope.js adsrGraph.js
 tools/run-selftest.mjs         selftest in headless Chrome (CDP, no dependencies): node tools/run-selftest.mjs "selftest=1&demos=DLY"
-tools/shot.mjs                 PNG capture of a module or of a screen: node tools/shot.mjs "pantalla:presets" out.png [width] ["previous JS"]
+tools/shot.mjs                 PNG capture of a module or of a screen: node tools/shot.mjs "screen:presets" out.png [width] ["previous JS"]
 ```
 
 Presets (format **v2**) store values in **engine space** (`cutoff` in Hz,
@@ -1073,7 +1073,7 @@ oscillator or after a non-linear stage — hence the TX81Z's extra waves.
 **Axis C · parts and generative music** (the big turn; it isn't a multitrack):
 
 - **C1 Parts + mixer** ✔ *(done 2026-09-25; decision «global room by
-  send» confirmed by the user)* — `engine/Sala.js`: the SPACE (ping-pong tape
+  send» confirmed by the user)* — `engine/Room.js`: the SPACE (ping-pong tape
   delay, reverb, limiter, master, analyser) leaves the engine for
   a class of its own with a send/return model, that of the 90s multitimbral
   synths: each engine sends it its dry signal and two SENDS (the preset's `dlyAmt` and
@@ -1673,7 +1673,7 @@ limiter, so lowering it took no work off it. Sergio listened to A/B pairs
 (today / with 9 dB of headroom, same peak): «the A ones sound like I tried to
 describe to you, and the B ones sound very clean».
 
-Fix (Sala.js): `sum → tape → headroom (HEADROOM_DB = −9) → Master →
+Fix (Room.js): `sum → tape → headroom (HEADROOM_DB = −9) → Master →
 limiter`. The tape stays before the headroom (its saturation sees the usual
 level). The Master in front had been tried and reverted on 2026-10-12 with the
 DynamicsCompressor, which let peaks through; the current limiter is
@@ -2452,7 +2452,7 @@ panel silkscreens; no multi-language: other languages lengthen the words on a fi
 2026-10-26, Sergio: the inside too — the keys and values of the JSON — and, even though
 we talk in Spanish, everything that goes into the synth, in English.
 
-**Glossary first** (docs/GLOSARIO.md, approved by Sergio): every term fixed once —
+**Glossary first** (docs/GLOSSARY.md, approved by Sergio): every term fixed once —
 modules, controls, matrix sources and destinations, notes and scales, categories, the 160
 presets, phrases, scenes and the internal identifiers —, with the convention of synth
 panels (Cutoff, Resonance, Glide…) and device abbreviations if it doesn't fit (Fdbk, Sat, Amt).

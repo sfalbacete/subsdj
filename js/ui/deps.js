@@ -9,7 +9,7 @@
    before switching on what activates it, as on hardware (the knob turns
    all the same). A control inside a switched-off section is not dimmed twice.
    The rules come from reading the engine (Voice.js, worklets/pulse-processor.js,
-   Sala.js, AudioEngine.js); if the engine changes, they change here:
+   Room.js, AudioEngine.js); if the engine changes, they change here:
    · A sounds if its level > 0 or Ring > 0; B the same (the Mixer sums
      levelA·A + levelB·B + ring·A×B; the ring needs both oscillators
      even if their levels are at 0). What depends on a WAVE only counts those

@@ -11,7 +11,7 @@
      output L/R = sums of 7 different «taps» from the tank's
      lines (Dattorro, table 2): decorrelated stereo from a single tank.
    Lengths in samples at the design rate (29 761 Hz), scaled
-   to the context's. Output is 100 % wet: the level is set by the send (Sala.js).
+   to the context's. Output is 100 % wet: the level is set by the send (Room.js).
    Params (k-rate): decay (0..1, the Room derives it from Size; ≈1 = FREEZE: the
    tank is a loop of allpasses and delays, lossless at decay 1, so
    the tail keeps sounding as is), damp (0..1, tank lowpass), mod

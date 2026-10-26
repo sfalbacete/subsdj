@@ -6,8 +6,8 @@
 // summary, demo pairs (diff/peaks), failed rows with their reason, measurement logs and
 // JS errors. Chrome is closed via CDP (Browser.close). Exits with 1 if anything failed.
 // BATCHES: hundreds of OfflineAudioContexts in a single page hang it (see js/selftest.js),
-// so the selftest runs in two batches — ?tanda=checks and ?tanda=fabrica —, each in a
-// fresh Chrome, and they are added up here. With «tanda=…» in the query, only that one. If a page stops
+// so the selftest runs in two batches — ?batch=checks and ?batch=factory —, each in a
+// fresh Chrome, and they are added up here. With «batch=…» in the query, only that one. If a page stops
 // responding, that is reported (and counts as a failure) instead of waiting forever.
 // BASE=https://sfalbacete.github.io/subsdj/ → the selftest of the PUBLISHED version: the pings are
 // lost on the foreign server, so it waits for the final title (✓/✗ SELFTEST n/m).
@@ -17,8 +17,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), P
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const q = process.argv[2] || 'selftest=1';
 const BASE = process.env.BASE || null;
-const TANDAS = /(^|&)tanda=/.test(q) ? [null] : ['checks', 'fabrica'];
-const TANDA_MAX_MS = 300000;   // how long a batch may take
+const BATCHES = /(^|&)batch=/.test(q) ? [null] : ['checks', 'factory'];
+const BATCH_MAX_MS = 300000;   // how long a batch may take
 const EV_MAX_MS = 15000;       // how long the page may take to answer a question
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
@@ -37,7 +37,7 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 
 // One batch in a fresh Chrome: returns what gets printed at the end
-async function tanda(qs) {
+async function runBatch(qs) {
   pings = [];
   const profile = path.join(os.tmpdir(), 'subsdj-cdp-' + Date.now());
   fs.mkdirSync(profile, { recursive: true });
@@ -68,7 +68,7 @@ async function tanda(qs) {
   await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + qs });
   const t0 = Date.now();
   let colgada = false;
-  while (Date.now() - t0 < TANDA_MAX_MS) {
+  while (Date.now() - t0 < BATCH_MAX_MS) {
     if (pings.find(p => p.done)) break;
     const title = await ev('document.title');
     if (title === null) { colgada = true; break; }
@@ -87,21 +87,21 @@ async function tanda(qs) {
 }
 
 const res = [];
-for (const t of TANDAS) res.push(await tanda(t ? q + '&tanda=' + t : q));
+for (const t of BATCHES) res.push(await runBatch(t ? q + '&batch=' + t : q));
 // sum of the batches
 let ok = 0, total = 0, bien = true;
-const nombre = r => (r.qs.match(/tanda=(\w+)/) || [, 'all'])[1];
+const batchName = r => (r.qs.match(/batch=(\w+)/) || [, 'all'])[1];
 const partes = res.map(r => {
   const m = /([✓✗]) SELFTEST (\d+)\/(\d+)/.exec(r.title || '');
-  if (!m) { bien = false; return nombre(r) + ' ' + (r.colgada ? 'HUNG' : 'no title'); }
+  if (!m) { bien = false; return batchName(r) + ' ' + (r.colgada ? 'HUNG' : 'no title'); }
   ok += +m[2]; total += +m[3]; if (m[1] !== '✓') bien = false;
-  return nombre(r) + ' ' + m[2] + '/' + m[3];
+  return batchName(r) + ' ' + m[2] + '/' + m[3];
 });
 console.log('title:', (bien ? '✓' : '✗') + ' SELFTEST ' + ok + '/' + total + ' · SubSDJ' + (res.length > 1 ? ' (' + partes.join(' · ') + ')' : ''));
 for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.toFixed(1), 's', r.ultima ? '· ' + r.ultima : '');
 for (const r of res) for (const p of r.demos)
   console.log('demo:', p.demo || ('ERROR ' + p.demo_error), '| diff', p.diff, '| peaks', p.peakA, p.peakB, p.bad ? '| BAD' : '');
-const fails = res.flatMap(r => r.fails || (r.colgada ? ['(batch ' + nombre(r) + ') :: ' + r.ultima] : []));
+const fails = res.flatMap(r => r.fails || (r.colgada ? ['(batch ' + batchName(r) + ') :: ' + r.ultima] : []));
 console.log('fails:', JSON.stringify(fails));
 for (const r of res) if ('extra' in r) console.log('extra:', JSON.stringify(r.extra));
 for (const r of res) for (const l of r.logs) console.log('log:', l);

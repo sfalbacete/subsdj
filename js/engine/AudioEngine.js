@@ -3,7 +3,7 @@
    inserts. Chain:
      voicesBus(auto-gain) -> amp(+tremolo LFO) -> distortion -> flanger
        -> chorus|ensemble -> level -> [dry + delay send + reverb send]
-       -> Sala (engine/Sala.js, the Room: ping-pong delay, reverb, limiter, master)
+       -> Sala (engine/Room.js, the Room: ping-pong delay, reverb, limiter, master)
    Usual mode: the engine creates its own Room. Parts mode (parts.js):
    several engines share ONE Room (send/return model).
    The filter is PER VOICE (in Voice.js). The cutoff/reso/freq/pwm LFOs
@@ -21,7 +21,7 @@ import { getWtSet } from './wavetable.js';
 
 import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
 import { LFO_KEYS, lfoHz, lfoBeats, STR_KEYS } from './params.js';
-import { Sala, SALA_KEYS } from './Sala.js';
+import { Sala, SALA_KEYS } from './Room.js';
 
 const MAX_POLY = 10;    // voices held at once; beyond that, the oldest is stolen
 const MAX_TAILS = 16;   // live release tails; above that, the oldest one fades out (TAIL_FADE)
@@ -137,7 +137,7 @@ export class AudioEngine {
     this.ensSlow = []; this.ensFast = [];
 
     // --- Engine output: level → dry + two SENDS (delay, reverb) → Room ---
-    // The Room (engine/Sala.js) is the space: tape ping-pong delay, reverb,
+    // The Room (engine/Room.js) is the space: tape ping-pong delay, reverb,
     // limiter, master and analyser. Usual mode: this engine creates its own
     // (and `master` is its master, as always). Parts mode (engine/parts.js):
     // it receives the SHARED Room; `master` becomes the part's fader and

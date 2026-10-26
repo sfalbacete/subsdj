@@ -36,7 +36,7 @@ export const SEC_MIOS = '★ Mine', SEC_ESCENAS = 'Scenes', SEC_IMPORT = 'Import
 export const FICHEROS_REPO = [
   { url: 'subsdj-presets-2.0.json', section: 'Presets 2.0', origin: 'v2' },
 ];
-export const ESCENAS_REPO = ['ambient-nocturno', 'amanecer-dorico', 'techno-hipnotico', 'coro-robotico'];
+export const ESCENAS_REPO = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir'];
 const MAX_NOMBRE = 48;
 
 // Canonical JSON (sorted keys, recursive): two equal contents give the same fingerprint
@@ -169,7 +169,7 @@ export class Library {
       catch (e) { errores.push(fr.url); }
     }
     for (const fichero of ESCENAS_REPO) {
-      try { const j = migrateScene(await (await f('escenas/' + fichero + '.json', { cache: 'no-store' })).json()); n += this.sembrar('scene', SEC_ESCENAS, { [j.name || fichero]: j }, 'scene'); }
+      try { const j = migrateScene(await (await f('scenes/' + fichero + '.json', { cache: 'no-store' })).json()); n += this.sembrar('scene', SEC_ESCENAS, { [j.name || fichero]: j }, 'scene'); }
       catch (e) { errores.push(fichero); }
     }
     this.data.files = true;

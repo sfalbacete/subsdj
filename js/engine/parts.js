@@ -1,6 +1,6 @@
 /* =====================================================================
    SubSDJ · Parts — several COMPLETE engines (AudioEngine) on the same
-   AudioContext, mixed into a shared Room (engine/Sala.js): the
+   AudioContext, mixed into a shared Room (engine/Room.js): the
    send/return model of multitimbral synths. Each part has its own preset,
    voices, Arp/Seq/WaveSeq and inserts (dist, flanger, chorus);
    there is a single Room (delay, reverb, BPM, limiter, master).
@@ -13,7 +13,7 @@
    No persistence yet (Roadmap 4.0 · C3 «scenes»).
    ===================================================================== */
 import { AudioEngine, engine as single, loadWorklets } from './AudioEngine.js';
-import { Sala, SALA_KEYS } from './Sala.js';
+import { Sala, SALA_KEYS } from './Room.js';
 import { makeDefaultState, applyPreset, toControls, withPresetBase } from './state.js';
 import { Conductor } from './Conductor.js';
 import { PARAMS } from './params.js';

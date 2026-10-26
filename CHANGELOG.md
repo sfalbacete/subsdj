@@ -4,14 +4,17 @@ One entry per published version, newest first; work that is done but not yet
 published goes under «Unreleased». Numbering X.Y.Z: **Z** = fixes, **Y** = new
 features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
-[docs/DISENO.md](docs/DISENO.md) (in Spanish: it is the development notebook).
+[docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
 ## Unreleased
 
 - **SubSDJ is now in English**: the whole interface (labels, tooltips, the «?»
   help, messages), the factory presets and their categories, the sequencer
   phrases, the repo scenes, the A/B demos and the docs. Notes are named with
-  letters (C D E…). Before, everything was in Spanish.
+  letters (C D E…). Before, everything was in Spanish. The code, its comments, the
+  development notebook (docs/DESIGN.md), the plan and the selftest are in English too,
+  and a few files moved: `scenes/` (was `escenas/`), `docs/DESIGN.md` and
+  `docs/GLOSSARY.md`; the headless selftest batches are `?batch=checks` / `?batch=factory`.
 - **What gets saved is in English too**: presets, scenes, the library and MIDI
   maps now store their keys and values in English. Everything saved with
   1.3.0 or earlier — your library in the browser, exported files, scenes, MIDI

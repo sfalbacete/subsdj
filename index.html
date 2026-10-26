@@ -56,8 +56,8 @@
   <h1 id="aboutBtn" title="About SubSDJ">SubSDJ</h1>
   <span class="badge" id="verBadge" title="SubSDJ version (what changed in each, in CHANGELOG.md) · click: About"></span>
   <nav class="seg" id="screenTabs" title="Screens: each one is a fixed panel with the modules for its job">
-    <button data-screen="diseno" title="Sound design: oscillators, filter, envelopes, modulation and effects">Design</button>
-    <button data-screen="secuenciacion" title="Sequencing: arpeggiator, sequencers, parts, harmony, players and arrangement">Sequencing</button>
+    <button data-screen="design" title="Sound design: oscillators, filter, envelopes, modulation and effects">Design</button>
+    <button data-screen="sequencing" title="Sequencing: arpeggiator, sequencers, parts, harmony, players and arrangement">Sequencing</button>
     <button data-screen="presets" title="Presets: the whole bank at a glance">Presets</button>
   </nav>
   <div id="presetBar">
@@ -115,7 +115,7 @@
 <main id="screens">
 
 <!-- ===================== DESIGN ===================== -->
-<div class="screen" data-screen-body="diseno">
+<div class="screen" data-screen-body="design">
 
 <!-- BAND 1 · SOURCE: the oscillators and their engines (those that don't apply to the chosen wave are dimmed IN PLACE) -->
 <div class="band" id="bandFuente">
@@ -516,7 +516,7 @@
 </div><!-- /diseno -->
 
 <!-- ===================== SEQUENCING ===================== -->
-<div class="screen" data-screen-body="secuenciacion" hidden>
+<div class="screen" data-screen-body="sequencing" hidden>
 
 <div class="band" id="bandSeq">
   <div class="panel">
@@ -698,7 +698,7 @@
     <div class="badge" id="arrInfo" style="margin-top:6px">—</div>
     <div class="row" style="gap:6px;margin-top:8px">
       <button class="btn" id="sceneExp" title="Download the whole scene (presets, mix, room, harmony, players, arrangement, seed) as JSON">⇩ Scene</button>
-      <button class="btn" id="sceneImp" title="Load a scene from a JSON file (the repo's are in escenas/)">⇧ Scene</button>
+      <button class="btn" id="sceneImp" title="Load a scene from a JSON file (the repo's are in scenes/)">⇧ Scene</button>
       <button class="btn" id="sceneLast" title="Bring back the last scene: it saves itself every few seconds and on closing">↺ Last</button>
       <input type="file" id="sceneFile" accept="application/json,.json" style="display:none">
     </div>

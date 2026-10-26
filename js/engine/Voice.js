@@ -317,7 +317,7 @@ export class Voice {
   // Estimated cost of a voice in audio CPU, in «simple voices» (two saws
   // with a static filter and no modules = 1): used by AudioEngine's shared
   // budget (VOICE_BUDGET). MEASURED weights (offline render of 12 voices per
-  // variant; see docs/DISENO.md): what's expensive is what is computed per sample.
+  // variant; see docs/DESIGN.md): what's expensive is what is computed per sample.
   static cost(S) {
     const c = COST;
     const osc = o => {

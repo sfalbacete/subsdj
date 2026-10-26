@@ -15,11 +15,11 @@ what is already there, it does not go in. Order:
    clicks, no strange saturation —, so that it is reliable and invites you to play, to experiment, to
    change things here and there. Review and optimize what is there, not add. ✔ *First pass
    (2026-10-25): factory, knobs, note events and scenes audited — no limiter, no clicks, no NaN; DC
-   removed (centered pulse + AC coupling); nothing clipped with the Parts. See DISENO, «Polish and
+   removed (centered pulse + AC coupling); nothing clipped with the Parts. See DESIGN, «Polish and
    settle».*
 3. **Publish 1.3.0.** ✔ (2026-10-25)
 4. **Export:** 6.1 (SFZ with loops and variations) and 6.2 (WAV).
-5. **English** ✔ (branch ingles, 2026-10-26; DISENO, «English (1.4.0)») (decided on 2026-10-25): the whole interface translated into English, once and ONLY into English —
+5. **English** ✔ (branch ingles, 2026-10-26; DESIGN, «English (1.4.0)») (decided on 2026-10-25): the whole interface translated into English, once and ONLY into English —
    not multi-language: soft synths and the silkscreen of keyboards use English as a neutral language,
    and other languages (German) make the words longer on a fixed panel—. Before the new bank, so that
    the new presets are born in English (all of today's are going to go).
@@ -40,7 +40,7 @@ Old presets are converted only if it is cheap; if not, an old preset is discarde
 
 Each block carries **purpose · what · how · fit · verification · cost · dependencies**. The usual
 method: selftest green before and after; A/B pairs in `subsdj-demos.json` with their own prefix and
-the probe `?selftest=1&demos=PREFIX` if it is audible; screenshots if it is visual; DISENO.md and
+the probe `?selftest=1&demos=PREFIX` if it is audible; screenshots if it is visual; DESIGN.md and
 this plan up to date; one commit per milestone. Constraint on every block with UI: the panel is
 fixed — a new control has to fit in its band (check «nothing clipped») or displace something in an
 agreed way.
@@ -137,7 +137,7 @@ Open (they do not block anything):
 
 ### 0 · Fixes
 
-**0.1 · Keyboard without hanging notes.** ✔ DONE 2026-10-17 (details in DISENO.md).
+**0.1 · Keyboard without hanging notes.** ✔ DONE 2026-10-17 (details in DESIGN.md).
 - *Today* (`ui/keyboard.js`): `keydown` does not look at Ctrl/Alt/Meta, so Ctrl+Z plays a C and
   Ctrl+C an E. The note is stored by `e.key`: with Shift between press and release a different key
   arrives (Shift+2 = `"`) and the note hangs until panic. `pointercancel` (the system cancels a
@@ -150,7 +150,7 @@ Open (they do not block anything):
   zero voices; Ctrl+`KeyZ` → no voice; `pointercancel` releases.
 - *Cost:* low.
 
-**0.2 · SFZ with the real velocity layers.** ✔ DONE 2026-10-17 (details in DISENO.md; the final
+**0.2 · SFZ with the real velocity layers.** ✔ DONE 2026-10-17 (details in DESIGN.md; the final
 measurement is by third-octave bands, not by the tilt proposed here: the tilt did not see changes in
 weak harmonics).
 - *Today* (`ui/sfzExport.js`): two layers only if `filterEnvAmt ≠ 0`. A preset with velocity → FM
@@ -163,7 +163,7 @@ weak harmonics).
 - *Verification:* check that exports «DX E-Piano (vel→FM)» in memory → ≥ 2 layers; Init → 1.
 - *Cost:* low.
 
-**0.3 · Wavetables without interpolation noise.** ✔ DONE 2026-10-20 (details in DISENO.md). Once
+**0.3 · Wavetables without interpolation noise.** ✔ DONE 2026-10-20 (details in DESIGN.md). Once
 measured, the noise was not in the low end but in the middle register (−43 dB at C4): 8× tables +
 Hermite.
 - *Today* (`engine/wavetable.js`): each mip is 4× its harmonics long (minimum 256 samples) and the
@@ -177,7 +177,7 @@ Hermite.
 - *Verification:* check «clean wavetable» with the measured threshold; WT before/after pairs.
 - *Cost:* low-medium.
 
-**0.4 · A common clock.** ✔ DONE 2026-10-20 (details in DISENO.md). Arp and Seq count in clock
+**0.4 · A common clock.** ✔ DONE 2026-10-20 (details in DESIGN.md). Arp and Seq count in clock
 PULSES; a player's key comes in with its instant (not by timer). Still pending: Arp/Seq OFFLINE (they
 run on setInterval: needed for 6.2, exporting to WAV what plays in the Seq/Arp). The wave sequence
 stays per voice from its noteOn (that is its charm), not on the grid.
@@ -198,7 +198,7 @@ stays per voice from its noteOn (that is its charm), not on the grid.
 
 ### 1 · Sound workshop
 
-**1.1 · Undo and redo.** ✔ DONE 2026-10-17 (details in DISENO.md).
+**1.1 · Undo and redo.** ✔ DONE 2026-10-17 (details in DESIGN.md).
 - *Purpose:* designing sounds is trying and going back; without undo, you try things with fear.
 - *What:* Ctrl+Z / Ctrl+Y (and Ctrl+Shift+Z); ↶ ↷ buttons in the header showing what they undo
   («Undo Cutoff»). 100 steps.
@@ -215,7 +215,7 @@ stays per voice from its noteOn (that is its charm), not on the grid.
   undoing goes back to the previous one; a sustained note keeps playing after undo.
 - *Cost:* low-medium.
 
-**1.2 · Compare with the saved one.** ✔ DONE 2026-10-17 (details in DISENO.md).
+**1.2 · Compare with the saved one.** ✔ DONE 2026-10-17 (details in DESIGN.md).
 - *Purpose:* the «Compare» key of hardware synths.
 - *What:* a «modified» dot next to the preset name, computed by COMPARING the state with the loaded
   preset (if you put the knob back where it was, the dot goes out); «Compare» button: while it is
@@ -257,7 +257,7 @@ stays per voice from its noteOn (that is its charm), not on the grid.
 
 ### 2 · Expression and movement
 
-**2.1 · Looping modulation envelope.** ✔ DONE 2026-10-20 (details in DISENO.md). «Mod Env» panel on
+**2.1 · Looping modulation envelope.** ✔ DONE 2026-10-20 (details in DESIGN.md). «Mod Env» panel on
 the Sequencing screen (Sergio's decision: the Voice band in Design was full); in loop mode the
 sustain does not count.
 - *Purpose:* one more free envelope for the matrix that can also REPEAT: timbre rhythms tied to each
@@ -277,7 +277,7 @@ sustain does not count.
   (Goertzel on the Amplitude destination); in trigger, a 20 ms gate completes the curve. ENVM pairs.
 - *Cost:* medium.
 
-**2.2 · Tempo-synced, retriggered and one-shot LFO.** ✔ DONE 2026-10-20 (details in DISENO.md). Sync
+**2.2 · Tempo-synced, retriggered and one-shot LFO.** ✔ DONE 2026-10-20 (details in DESIGN.md). Sync
 per LFO (selector per row) and the phase mode, one for all (global · per voice · retrig · once).
 Along the way: the global LFOs got FROZEN between notes (Chrome does not process what does not reach
 the output); now they always run.
@@ -291,7 +291,7 @@ the output); now they always run.
   (± 1 ms); in once, fixed after one cycle.
 - *Cost:* low-medium. Depends on 0.4.
 
-**2.3 · Steps module (polymetre).** ✔ DONE 2026-10-20 (details in DISENO.md). Panel in the bottom
+**2.3 · Steps module (polymetre).** ✔ DONE 2026-10-20 (details in DESIGN.md). Panel in the bottom
 band of Sequencing (Sergio's decision). Mind the count below: 240 sixteenths are 15 bars, not 30.
 - *Purpose:* the pending item from Roadmap 6.0: the timbre moving in STEPS, with rhythm, complex while
   still rhythmic. Simple lanes of different lengths only line up again after many bars: 16 · 12 · 5
@@ -319,7 +319,7 @@ band of Sequencing (Sergio's decision). Mind the count below: 240 sixteenths are
   bounded). Pairs STEPS 1-6 (static pad / with three lanes; arpeggio without and with «per note»).
 - *Cost:* high. Depends on 0.4 and 2.2.
 
-**2.4 · More destinations in the matrix.** ✔ DONE 2026-10-20 (details in DISENO.md): levels A, B,
+**2.4 · More destinations in the matrix.** ✔ DONE 2026-10-20 (details in DESIGN.md): levels A, B,
 Ring and noise, Drive, Pitch A and Material (retunes the modes; their weights follow the knob). A
 level below 0 inverts the phase and is left that way (AM through zero). Decay NO: linear Q against a
 log knob and the ∝ √Q boost of the noise.
@@ -348,7 +348,7 @@ log knob and the ∝ √Q boost of the noise.
 
 ### 3 · New generators
 
-**3.1 · Drive with character: asymmetric and folded.** ✔ DONE 2026-10-20 (details in DISENO.md).
+**3.1 · Drive with character: asymmetric and folded.** ✔ DONE 2026-10-20 (details in DESIGN.md).
 Instead of three modes, «character» soft | fold + an Asym knob (the bias, in both): soft + Asym =
 the asymmetric one.
 - *Purpose:* two colours a filter does not give. Asymmetric: EVEN harmonics (the «twisted» body of
@@ -373,7 +373,7 @@ the asymmetric one.
   already does at the edges).
 - *Verification:* check: with A at 1.5× B, the fundamental is B's; no aliasing above −60 dB. SYNC
   pairs. **Done:** the −60 dB was not realistic with PolyBLEP (the free saw is already at −43 at
-  C4); criterion: as clean as the free oscillator at its pitch (see DISENO).
+  C4); criterion: as clean as the free oscillator at its pitch (see DESIGN).
 - *Cost:* medium. Depends on 2.4 (Pitch A).
 
 **3.3 · Physical string (extended Karplus-Strong).**
@@ -471,7 +471,7 @@ recording in real time. *Cost:* low.
 
 ### 7 · Reliability
 
-**7.1 · Seeded randomness in offline renders.** ✔ DONE 2026-10-20 (details in DISENO.md). The
+**7.1 · Seeded randomness in offline renders.** ✔ DONE 2026-10-20 (details in DESIGN.md). The
 randomness of the 10 dB was the phase of the 2-op FM modulator, drawn on every note live as well (up
 to 7.7 dB between identical C4s): now it starts at the carrier's phase (key sync, like FM4).
 (Seen while measuring 0.2: several FM presets differ by up to 10 dB from one render to the next; find
@@ -538,16 +538,16 @@ tried and DISCARDED; the direction sought is complex, stepped sounds (step modul
 presets with what is already there; the Steps module, pending until Sergio sees it clearly.
 **Roadmap 5.0 «cinescape» agreed on 2026-10-03** (its own section further down; blocks 1 to 5 and 7
 DONE and in master (`bbba744`), selftest 162/162; number 6, granular, PARKED «for another time»).
-Previous state (2026-09-27): Roadmap 4.0 agreed on 2026-09-10 (DISENO.md); done **A1 tape delay**
+Previous state (2026-09-27): Roadmap 4.0 agreed on 2026-09-10 (DESIGN.md); done **A1 tape delay**
 (`1db2a19`), **B1 FM in the matrix + feedback** (`8978cd6`), **C1 Parts + mixer** (`12b71f6`),
 **C2 Harmony + players** (`f06fa8b`), **C3 Arrangement + scenes** (`8bf1f8e`) and **A2 Plate
 reverb** (`0b77967`), **B2 FM4 oscillator** (`a4d20a4`) and **A3 Envelope curve** (2026-09-27),
 **13a Screens**, **11 runner in `tools/`** and **13b Preset library** (2026-09-27); selftest 120/120.
 Axes B and C are COMPLETE and of axis A only A4 remains. Outside the plan: hanging notes + Panic
-(`4e2b47e`), four scenes in `escenas/` (`c718c63`; the plate in the two ambient ones, `29f172d`).
-This document complements DISENO.md: the summarized roadmap lives there; here, each pending block
+(`4e2b47e`), four scenes in `scenes/` (`c718c63`; the plate in the two ambient ones, `29f172d`).
+This document complements DESIGN.md: the summarized roadmap lives there; here, each pending block
 with its **purpose**, what we will do, how, how we verify it, what it costs and what it depends on.
-When a block is finished it is marked ✔ here and in DISENO.md.
+When a block is finished it is marked ✔ here and in DESIGN.md.
 
 The order of the list is **from what gives us most → least**. The order of EXECUTION is a different
 one and goes separately, because it pays to put the cheap ones in first.
@@ -581,7 +581,7 @@ also remains.
 
 **Usual method in each block:** selftest green before and after; if the improvement is audible, A/B
 pairs in `subsdj-demos.json` with their own prefix and the probe `?selftest=1&demos=PREFIX`; if it is
-visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to date.
+visual, CDP screenshots; one commit per milestone; DESIGN.md and this plan up to date.
 
 ## Open decisions (yours to make)
 
@@ -599,7 +599,7 @@ visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to
    jumped down). Accept or revert (one line in `css/style.css`).
 3. **Listening to A1:** preset «Tape Dub» and pairs DLY 1/2 (damp) and DLY 3/4 (wow) from the demo
    bank. If the range of Damp (LP down to 1.2 kHz, HP up to 200 Hz) or the wow (±2.5 ms) seems short
-   or long to you, they are constants at the top of `Sala.js` (they lived in `AudioEngine.js` until
+   or long to you, they are constants at the top of `Room.js` (they lived in `AudioEngine.js` until
    C1).
 4. ✔ Resolved in C1: 4 generic slots (constant `N_PARTS` in `engine/parts.js`) and a «Layer» box in
    the Part Mixer so the keyboard plays all the parts.
@@ -607,7 +607,7 @@ visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to
    and done that same day. (a) Are factory presets DELETED from the library, with «restore from
    factory» as a safety net, or only hidden? **Recommended: delete with the net** — it is what
    «keeping what you like» asks for; hiding is a deletion that does not free up the list. (b) Do the
-   scenes (`escenas/*.json`) come in as their own section? **Recommended: yes**, a «Scenes» section
+   scenes (`scenes/*.json`) come in as their own section? **Recommended: yes**, a «Scenes» section
    with the same card (load = ⇧ Scene of the Arrangement module); that way there is a single place to
    look. (c) Does the Design quick bar step through the whole library or only an «active» section?
    **Recommended: the whole one**, with optgroups = sections and favorites first: ‹ › and MIDI
@@ -620,7 +620,7 @@ visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to
   scrolling (bands Source / Voice / Modulation-effects in signal order), rotary selectors
   (`ui/rotary.js`), switches with LEDs, faders on the envelopes, LFO bank, Output screen
   (`ui/display.js`); out go `ui/groups.js` and the `data-screens` filters. Check «screens» with
-  «nothing clipped» and check «canvas»; 170/170. Details in DISENO.md («Fixed panel, screens and
+  «nothing clipped» and check «canvas»; 170/170. Details in DESIGN.md («Fixed panel, screens and
   header»).
 - **Dependencies** (2026-10-12, same branch): `ui/deps.js` switches off (dimmed, still playable, with
   the reason in the tooltip and on the Output screen) whatever does nothing with the current
@@ -657,7 +657,7 @@ visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to
   the Arp kept sustaining. Now pending note-ons are cancelled, «immediate» note-offs are synchronous
   and stopping clears the Seq latch. **⏹ Panic** button in the header and the Escape key: they stop
   the conductor and cut everything in every part.
-- **Four scenes in `escenas/`** (`c718c63`): night ambient, dorian dawn, hypnotic techno and robot
+- **Four scenes in `scenes/`** (`c718c63`): night ambient, dorian dawn, hypnotic techno and robot
   choir. Levels balanced with an offline probe that renders each part solo; the drone's fifth is
   quantized to the scale (bug caught: an out-of-scale note in hirajoshi). The two ambient ones use the
   plate (`29f172d`). The selftest renders all of them.
@@ -685,7 +685,7 @@ visual, CDP screenshots; one commit per milestone; DISENO.md and this plan up to
 
 ### 1 · C1 Parts + mixer
 
-**✔ DONE 2026-09-25** — selftest 106/106; details, measurements and evidence in DISENO.md.
+**✔ DONE 2026-09-25** — selftest 106/106; details, measurements and evidence in DESIGN.md.
 
 **Purpose.** To be able to get several instruments (presets) going at once. Without this, nothing
 generative exists. It is not a multitrack: nobody writes notes.
@@ -725,7 +725,7 @@ peak). Screenshot of the selector and the mixer.
 
 ### 2 · C2 Harmony + players
 
-**✔ DONE 2026-09-26** — selftest 107/107; details, measurements and evidence in DISENO.md. The five
+**✔ DONE 2026-09-26** — selftest 107/107; details, measurements and evidence in DESIGN.md. The five
 players of the plan ended up as four modes: Chord with the part's Arp on IS the Arpeggio, and Root
 with the Seq on IS the Phrase.
 
@@ -762,7 +762,7 @@ clipping. A/B pairs: same preset with Pulse player E(3,8) vs E(5,8).
 
 ### 3 · C3 Arrangement and scenes
 
-**✔ DONE 2026-09-26** — selftest 108/108; details, measurements and evidence in DISENO.md. The
+**✔ DONE 2026-09-26** — selftest 108/108; details, measurements and evidence in DESIGN.md. The
 «density curve per part» ended up as an entry threshold per part over a single energy curve
 (simpler to understand and to play); the sections come out of the thresholds on their own.
 
@@ -788,7 +788,7 @@ different seed they differ. Demo scene in the repo.
 
 ### 4 · A2 Algorithmic plate reverb
 
-**✔ DONE 2026-09-27** — selftest 110/110; details, measurements and evidence in DISENO.md.
+**✔ DONE 2026-09-27** — selftest 110/110; details, measurements and evidence in DESIGN.md.
 
 **Purpose.** The biggest «sounds fine». Our reverb is convolution with a noise IR generated by code:
 the tail is static and grainy. An algorithmic reverb has an echo density that GROWS over time and
@@ -811,7 +811,7 @@ are those of the paper and the calibration (RT60 and level) came from measuring,
 
 ### 5 · B1 fmIndex as a matrix destination + operator feedback
 
-**✔ DONE 2026-09-25** — selftest 105/105; the details and measurements are in DISENO.md.
+**✔ DONE 2026-09-25** — selftest 105/105; the details and measurements are in DESIGN.md.
 
 **Purpose.** Static FM is boring: the DX7 lives on the modulation index changing during the note.
 With the index in the matrix: env→index = pluck and bell (bright attack, soft body); velocity→index
@@ -834,7 +834,7 @@ that of the sustained stretch; with feedback the spectrum gains harmonics (tilt 
 
 ### 6 · B2 «FM4» oscillator
 
-**✔ DONE 2026-09-27** — selftest 116/116; details, measurements and evidence in DISENO.md.
+**✔ DONE 2026-09-27** — selftest 116/116; details, measurements and evidence in DESIGN.md.
 
 **Purpose.** Full FM as a SOURCE that then goes through our filter, vocal, matrix and wave
 sequencing — what the DX7 never had. And to understand the «algorithms» once and for all: a directed
@@ -856,7 +856,7 @@ params and the FM4 module.
 
 ### 7 · A3 Envelope curve
 
-**✔ DONE 2026-09-27** — selftest 118/118; details and measurements in DISENO.md.
+**✔ DONE 2026-09-27** — selftest 118/118; details and measurements in DESIGN.md.
 
 **Purpose.** Attack and decay are LINEAR ramps in amplitude; loudness is logarithmic, so a linear
 decay «hangs and then drops all at once». Analog envelopes are RC (exponential) curves and that is
@@ -955,7 +955,7 @@ pill buttons, lowercase typography). Steps:
 ### 11 · Headless runner in the repo
 
 **✔ DONE 2026-09-27** (along the way, with 13a): `tools/run-selftest.mjs` (exits with 1 if there are
-failures) and `tools/shot.mjs` (module by title or a whole `pantalla:NAME`, with optional prior JS).
+failures) and `tools/shot.mjs` (module by title or a whole `screen:NAME`, with optional prior JS).
 Path relative to the script; Chrome through the `CHROME` variable if it is not in the usual path.
 golden/probes stay in temp.
 
@@ -965,7 +965,7 @@ headless Chrome with two Node scripts that live in the session's scratchpad (eph
 `DevToolsActivePort`, prints results, failures and pair diffs) and `shot.mjs` (PNG screenshot of a
 panel by the text of its title). Python is not on Git Bash's PATH, so Node is the way.
 
-**What we will do.** Copy them to `tools/` with a note in DISENO.md (`node tools/run-selftest.mjs
+**What we will do.** Copy them to `tools/` with a note in DESIGN.md (`node tools/run-selftest.mjs
 "selftest=1&demos=DLY"`). It is not a build: the project still has no dependencies.
 
 **Cost.** Minimal.
@@ -977,7 +977,7 @@ looks small and overwhelming. There is no need to see everything all the time. T
 function, and real preset management.
 
 **13a · Screens** ✔ **DONE 2026-09-27** — selftest 119/119 (check «screens»); section «Screens» in
-DISENO.md; screenshots of the three screens. What turned out different from the plan: the quick bar
+DESIGN.md; screenshots of the three screens. What turned out different from the plan: the quick bar
 lives in Design AND in Presets (save/delete/export/import are its buttons); a «Scene» notice in
 Sequencing with Parts off (it explains and switches them on); the Presets screen debuts a v0 list of
 the bank by sections fed from the `<select>` (13b will replace it with the library); the keyboard is
@@ -994,7 +994,7 @@ not touched. Evidence: screenshots of the three screens and a probe that checks 
 left orphaned (all of them on at least one screen).
 
 **13b · Preset library** ✔ **DONE 2026-09-27** — selftest 120/120 (check «library», model over fake
-storage); details in DISENO.md («Recording, presets and arpeggiator» and Roadmap 4.0); screenshots
+storage); details in DESIGN.md («Recording, presets and arpeggiator» and Roadmap 4.0); screenshots
 of the screen with a favorite and a filter. Different from the plan: dragging also reorders within
 the section; the scenes are items of type «scene» in a normal section («Scenes»); importing MERGES
 (never replaces) and accepts a library, a v2 bank or a scene; the quick bar lists the whole library
@@ -1013,11 +1013,11 @@ origins without duplicates) and a probe of the screen.
 
 **Decisions, taken on 2026-09-27 (point 5 of «Open decisions»): delete with the ⟲ net, scenes as a
 section, whole quick bar with ★ first.** They were: can the factory presets be DELETED from the
-library (with «restore from factory» as a net) or only hidden? Do the scenes (`escenas/*.json`) also
+library (with «restore from factory» as a net) or only hidden? Do the scenes (`scenes/*.json`) also
 go into the library, as their own section? Does the Design quick bar show the whole library or only
 an «active» section?
 
-### 12 · Old back burner (already in DISENO.md)
+### 12 · Old back burner (already in DESIGN.md)
 
 - **Large visualizers**: the header's oscilloscope and spectrum (170×36) expandable when you need to
   see them properly (requested by the user «eventually», 2026-09-27).
@@ -1032,7 +1032,7 @@ an «active» section?
 
 Origin: Sergio, playing with the synth, does not get «sounds that grab your attention»: interesting
 but classic timbres. He wants what you hear in films: long, deep, ambient, rich in textures.
-Diagnosis (DISENO.md, section Roadmap 5.0): three properties that the ear reads as «80s synth» —
+Diagnosis (DESIGN.md, section Roadmap 5.0): three properties that the ear reads as «80s synth» —
 global LFOs (everything moves at once), instrument time constants (attack ≤ 2 s, release ≤ 3 s,
 LFO ≥ 0.05 Hz, room ≤ 4 s) and a spectrum that is always harmonic and stable. The tutorial recipe
 (saw + square + unison + LP24 + reverb) is the classic factory pad.
@@ -1052,7 +1052,7 @@ solved (without that they would also sound classic). A recipe to test the diagno
 already there: Layer with four parts (sine sub with drift · 7-voice supersaw LP 600 Hz + LFO
 0.05 Hz + ensemble · noise with Vowel «u» and Life · FM4 bell with a long release), Plate at Size 4.
 
-**1 · Time ×10 + octave per oscillator** ✔ **DONE 2026-10-03** — details in DISENO.md. Summary:
+**1 · Time ×10 + octave per oscillator** ✔ **DONE 2026-10-03** — details in DESIGN.md. Summary:
 ranges ×10 in log with `lmin` (position 0 = exactly 0), sliders that store the exact value, LFO
 Speed from 0.005 Hz, Delay 4 s (`DLY_MAX`), Size 20 s (IR ~55 ms to generate; plate with the
 RT60→decay table extended with measurements in Node between 1 and 15 s: 16.2 ↔ 0.93 · 21.8 ↔ 0.95 ·
@@ -1062,7 +1062,7 @@ RT60→decay table extended with measurements in Node between 1 and 15 s: 16.2 �
 on purpose: raising the reverb Mix ceiling (0.6; the levels are matched by measurement) and the
 chorus/flanger Speeds (effects, not landscape).
 
-**2 · Per-voice drift + per-voice phase** ✔ **DONE 2026-10-03** — details in DISENO.md. Different
+**2 · Per-voice drift + per-voice phase** ✔ **DONE 2026-10-03** — details in DESIGN.md. Different
 from the plan: the drift uses the LFOs' drift buffer (`lfoBuffers.drift`, mulberry32) and not
 Vocal's `wander`; the per-voice phase is NOT random but the Weyl sequence k·φ (deterministic:
 reproducible renders and SFZ, the selftest measures it), with an `lfoPhase` selector global/per
@@ -1074,7 +1074,7 @@ amplitude per voice must render at −12 dB or the Room's limiter couples the tr
 source «Drift (per voice)» in `MX_SOURCES` from a random offset and random phase per voice for the
 dedicated LFOs.
 
-**3 · Shimmer + freeze** ✔ **DONE 2026-10-03** — details in DISENO.md. Different from the plan: the
+**3 · Shimmer + freeze** ✔ **DONE 2026-10-03** — details in DESIGN.md. Different from the plan: the
 loop gain is NOT fixed: it is calibrated against the reverb's energy (IR 0.07·Size because of the
 ConvolverNode's normalization constant; plate measured in Node, table `PLATE_G`) so that the energy
 per round trip is amt·0.8 — with a fixed gain there was no choir (each round trip lost ~9 dB; the
@@ -1085,7 +1085,7 @@ stable (7 s/2 s 0.006 / 0.125); frozen it holds 0.969 at 5 s; 155/155. Preset «
 SHIM 1-4. The plan was: a granular pitch shifter worklet (two grains with a Hann window and sawtooth
 reading, +12 or +7 st) in a loop reverb → LP → shifter → ×amt → reverb; Freeze with decay 0.999.
 
-**4 · Performance sources** ✔ **DONE 2026-10-03** — details in DISENO.md. As planned: a
+**4 · Performance sources** ✔ **DONE 2026-10-03** — details in DESIGN.md. As planned: a
 ConstantSource 0..1 per source and engine (`AudioEngine.perf`), `parts.setPerf` to all the parts,
 `handleMidi` exported for the probe. Added: an on-screen wheel under the keyboard (it follows CC1).
 Decisions: CC1/CC11 ALWAYS feed the source in addition to the mapping (factory CC1 → vibrato);
@@ -1095,7 +1095,7 @@ Measurements: wheel → cutoff tilt ×5.4; aftertouch → pitch exactly 185.0 Hz
 (they are gestures, they do not live in the preset): the evidence is the check. The plan was: wheel
 (CC1), aftertouch and expression (CC11) as matrix sources; verification with a synthetic MIDI probe.
 
-**5 · Resonators** ✔ **DONE 2026-10-03** — details in DISENO.md. Different from the plan: a module of
+**5 · Resonators** ✔ **DONE 2026-10-03** — details in DESIGN.md. Different from the plan: a module of
 its own (`engine/reson.js`, 6 bandpass biquads per voice after the Vocal), not a mode of the Vocal
 nor Karplus-Strong combs (a loop with a native DelayNode has a minimum latency of 128 samples: it
 does not tune above ~340 Hz). Material knob = log morph between string (harmonics) and free bar
@@ -1111,7 +1111,7 @@ and Hann windows, density and pitch/pan scatter) or a granulator on the recorder
 cost.
 
 **7 · Tape on the master** ✔ **DONE 2026-10-03, revised after listening to it** — details in
-DISENO.md. In the Room (sum → tape → limiter): saturation tanh(x) with input 1 + sat² (up to ×2)
+DESIGN.md. In the Room (sum → tape → limiter): saturation tanh(x) with input 1 + sat² (up to ×2)
 and treble loss, and wow (an 8 ms line with 'drift' wander at 0.8 Hz ≈ ±33 ct measured + flutter
 6.5 Hz ≈ ±6 ct); both exact at 0 (wow at 0 adds no latency). Revision by Sergio's ear: the first
 saturation (k = 2, ×3) crackled with three notes (intermodulation of the sub) → a soft curve and the
@@ -1124,7 +1124,7 @@ TAPE 1-4. The plan was: noise at −50 dB, a modulated DelayNode of a few ms, so
 
 ## Roadmap 6.0 — under exploration (2026-10-04)
 
-Origin: «how do we get richer sounds, with more texture?». Full context in DISENO.md.
+Origin: «how do we get richer sounds, with more texture?». Full context in DESIGN.md.
 
 **Discarded: 1 · Grain** (the voice × noise of bandwidth B: tremor / rasp / breath stuck to the
 harmonics). It was done in full (module, check, pairs GRAIN 1-8, two presets) and, after listening to

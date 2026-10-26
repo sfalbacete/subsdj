@@ -48,7 +48,7 @@ export function migratePreset(p) {
   return q || p;
 }
 
-// ---------- names (glossary: docs/GLOSARIO.md) ----------
+// ---------- names (glossary: docs/GLOSSARY.md) ----------
 // Factory categories and fixed library sections
 export const SECTION_NAMES = {
   'Básicos': 'Basics', 'Bajos': 'Bass', 'Escalonados': 'Stepped', 'Voz': 'Voice', 'Plucks & Teclas': 'Plucks & Keys',

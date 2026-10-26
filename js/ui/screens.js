@@ -7,7 +7,8 @@
    on tab change the SAME node is moved into the slot of the visible one —
    controls, canvases and listeners intact. Here the tab is also marked
    and the choice remembered. The engine and the LEDs never notice. */
-export const SCREENS = ['diseno', 'secuenciacion', 'presets'];
+export const SCREENS = ['design', 'sequencing', 'presets'];
+const SCREENS_ES = { diseno: 'design', secuenciacion: 'sequencing' };   // remembered up to 1.3.0
 const LS_KEY = 'subsdj.screen.v1';
 let cur = null;
 
@@ -40,5 +41,5 @@ export function initScreens() {
   });
   let saved = null;
   try { saved = localStorage.getItem(LS_KEY); } catch { /* no persistence */ }
-  showScreen(saved);
+  showScreen(SCREENS_ES[saved] || saved);
 }

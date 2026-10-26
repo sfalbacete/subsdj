@@ -37,10 +37,10 @@ export const velFromY = f => VEL_MIN + (1 - VEL_MIN) * touchCurve(Math.min(1, Ma
 // the mouse (on the press height, keeping its VEL_MIN floor); the
 // QWERTY knows nothing of force and stays at 1.
 const TOUCH = { soft: 0.5, linear: 1, hard: 2 };
-const TOUCH_KEY = 'subsdj.tacto.v1';
+const TOUCH_KEY = 'subsdj.touch.v2', TOUCH_KEY_V1 = 'subsdj.tacto.v1';   // the old key is still read
 let touch = 'linear';
 const TOUCH_ES = { suave: 'soft', lineal: 'linear', dura: 'hard' };   // stored up to 1.3.0
-try { let t = localStorage.getItem(TOUCH_KEY); t = TOUCH_ES[t] || t; if (t in TOUCH) touch = t; } catch (_) {}
+try { let t = localStorage.getItem(TOUCH_KEY) || localStorage.getItem(TOUCH_KEY_V1); t = TOUCH_ES[t] || t; if (t in TOUCH) touch = t; } catch (_) {}
 export function touchCurve(v) { return Math.pow(Math.max(0, Math.min(1, v)), TOUCH[touch]); }
 export function getTouch() { return touch; }
 export function setTouch(t) {

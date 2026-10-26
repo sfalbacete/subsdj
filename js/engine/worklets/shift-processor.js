@@ -4,7 +4,7 @@
    The idea (Eno/Lanois 1983, Eventide H3000): inside the reverb's feedback,
    whatever re-enters goes up an octave on every pass → the tail
    turns into a rising choir. Only the shifter lives here; the
-   loop (HP → LP → this → gain → reverb input) is in Sala.js.
+   loop (HP → LP → this → gain → reverb input) is in Room.js.
    How: a delay line and TWO read heads whose delay ramps down
    (sawtooth) from W to 0. Reading while «approaching» the write head means
    reading faster: the pitch rises by the factor r = 2^(st/12). On reaching 0
