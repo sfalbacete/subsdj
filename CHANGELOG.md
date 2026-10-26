@@ -46,6 +46,17 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
   there when the scene loads. The synth accompanies, you play.
 - Fixed: a part whose player was set to «off» crashed the offline scheduler of the
   selftest (never seen live).
+- **The Presets screen says what each item is**: a factory preset you edited in place
+  (Save under its own name) shows the header's ● — click it and the factory values come
+  back; inside a factory category, a copy of a previous bank, one of yours or an imported
+  one is tagged (old / mine / imported). As before, Save under a new name goes to «★ Mine».
+- **Deleting asks nothing**: a preset or a section goes at once and the notice offers
+  «Undo» for a few seconds (the browser's confirm dialog is gone).
+- **File ▾ → Wipe library**: downloads a copy of the current library (the same file as
+  Export) and starts again from the factory — the library and the old presets it could be
+  rebuilt from are forgotten.
+- **Drag and drop in the Presets screen** shows where the item will land: an insertion
+  line above or below the row under the pointer, or the section lit when it goes to its end.
 - Fixed: an exported scene did not carry its name, so importing it into the library gave
   «Imported scene» («Escena importada» before 1.4.0). Scenes keep their name through
   export and import; one built by hand is exported as «Scene <date>».

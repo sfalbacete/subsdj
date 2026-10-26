@@ -7,12 +7,14 @@
    preset takes the same path as the quick picker; a scene, the one of
    ⇧ Scene in the Arrangement module (it turns Parts on if needed). */
 import { library, normalize } from '../engine/library.js';
-import { loadPresetId, currentPresetId } from './presetBank.js';
+import { BANK } from '../engine/presets.js';
+import { loadPresetId, currentPresetId, undoable } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
 
 const $ = id => document.getElementById(id);
 let list, msgEl, query = '', favOnly = false, dragId = null, playingId = null;   // playingId: the scene that is playing (only one)
 const msg = t => { if (msgEl) msgEl.textContent = t; };
+const BANK_SECTIONS = new Set(BANK.map(c => c.cat));   // inside them an item can be anything: the row says what
 
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function btn(cls, text, title, onClick) {
@@ -52,17 +54,36 @@ function row(it, cur) {
   }
   const label = mk('span', 'pl-label', it.name); r.appendChild(label);
   if (it.type === 'scene') r.appendChild(mk('span', 'pl-tag', 'scene'));
+  // what it is: a factory preset modified in place gets the header's ● (click = the factory values
+  // come back); in a factory category, what is not the factory's says so (old copy, mine, imported)
+  const kind = library.kind(it), inBank = BANK_SECTIONS.has(library.section(it.section)?.name);
+  if (kind === 'modified' && library.factoryDataOf(it)) {
+    const dot = mk('span', 'pl-dot', '●');
+    dot.title = 'Modified: this is no longer the factory preset. Click to bring the factory values back';
+    dot.addEventListener('click', e => { e.stopPropagation(); library.resetToFactory(it.id); msg('«' + it.name + '» back to the factory values.'); });
+    r.appendChild(dot);
+  } else if (inBank && kind !== 'factory' && kind !== 'scene') {
+    r.appendChild(mk('span', 'pl-tag' + (kind === 'old' ? ' old' : ''), kind === 'old' ? 'old' : kind === 'user' ? 'mine' : kind === 'modified' ? 'edited' : 'imported'));
+  }
   const tools = mk('span', 'pl-tools');
   tools.appendChild(btn('', '✎', 'Rename', () => editInline(label, it.name, v => library.rename(it.id, v))));
-  tools.appendChild(btn('del', '🗑', 'Delete' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''), () => {
-    if (confirm('Delete «' + it.name + '»?')) { library.remove(it.id); msg('Deleted «' + it.name + '».'); }
+  tools.appendChild(btn('del', '🗑', 'Delete (Undo in the notice for a few seconds' + (it.origin === 'factory' ? '; ⟲ Restore factory brings it back too' : '') + ')', () => {
+    const snap = library.remove(it.id);
+    undoable(msgEl, 'Deleted «' + it.name + '».', () => library.restore(snap));
   }));
   r.appendChild(tools);
   r.addEventListener('click', () => loadItem(it));
   r.addEventListener('dragstart', e => { dragId = it.id; e.dataTransfer.setData('text/plain', it.id); e.dataTransfer.effectAllowed = 'move'; r.classList.add('drag'); });
-  r.addEventListener('dragend', () => { r.classList.remove('drag'); dragId = null; list.querySelectorAll('.over').forEach(x => x.classList.remove('over')); });
+  r.addEventListener('dragend', () => { r.classList.remove('drag'); dragId = null; clearDrop(); });
+  // the insertion line: above or below this row, by the half the pointer is in
+  r.addEventListener('dragover', e => {
+    if (!dragId || dragId === it.id) return;
+    const below = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+    if (!r.classList.contains(below ? 'drop-after' : 'drop-before')) { clearDrop(); r.classList.add(below ? 'drop-after' : 'drop-before'); }
+  });
   return r;
 }
+function clearDrop() { list.querySelectorAll('.over, .drop-before, .drop-after').forEach(x => x.classList.remove('over', 'drop-before', 'drop-after')); }
 
 async function togglePlay(it) {
   if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Scene stopped: ' + it.name + '.'); return; }
@@ -97,22 +118,34 @@ function render() {
     tools.appendChild(btn('', '‹', 'Move the section towards the start', () => library.moveSection(s.id, -1)));
     tools.appendChild(btn('', '›', 'Move the section towards the end', () => library.moveSection(s.id, 1)));
     tools.appendChild(btn('', '✎', 'Rename the section', () => editInline(name, s.name, v => library.renameSection(s.id, v))));
-    tools.appendChild(btn('del', '🗑', 'Delete the section and everything in it', () => {
-      const n = allItems.length;
-      if (confirm('Delete the section «' + s.name + '»' + (n ? ' and its ' + n + ' items' : '') + '?')) { library.deleteSection(s.id); msg('Section «' + s.name + '» deleted.'); }
+    tools.appendChild(btn('del', '🗑', 'Delete the section and everything in it (Undo in the notice for a few seconds)', () => {
+      const n = allItems.length, snap = library.deleteSectionUndoable(s.id);
+      undoable(msgEl, 'Section «' + s.name + '» deleted' + (n ? ' with its ' + n + ' items' : '') + '.', () => library.restore(snap));
     }));
     head.appendChild(tools);
     name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renameSection(s.id, v)));
     sec.appendChild(head);
     for (const it of items) sec.appendChild(row(it, cur));
-    // drop here: before the item it is dropped on, or at the end of the section
-    sec.addEventListener('dragover', e => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; sec.classList.add('over'); } });
-    sec.addEventListener('dragleave', e => { if (!sec.contains(e.relatedTarget)) sec.classList.remove('over'); });
+    // drop here: where the insertion line is (above or below the row under the pointer) or, over
+    // the section itself (its header, its empty space), at its end — the section lights up
+    sec.addEventListener('dragover', e => {
+      if (!dragId) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      const onRow = e.target.closest && e.target.closest('.pl-item');
+      if (!onRow) { clearDrop(); sec.classList.add('over'); }
+    });
+    sec.addEventListener('dragleave', e => { if (!sec.contains(e.relatedTarget)) clearDrop(); });
     sec.addEventListener('drop', e => {
-      e.preventDefault(); sec.classList.remove('over');
-      const id = dragId || e.dataTransfer.getData('text/plain'); if (!id) return;
+      e.preventDefault();
+      const id = dragId || e.dataTransfer.getData('text/plain'); if (!id) { clearDrop(); return; }
       const over = e.target.closest ? e.target.closest('.pl-item') : null;
-      library.move(id, s.id, over && over.dataset.id !== id ? over.dataset.id : null);
+      let before = null;
+      if (over && over.dataset.id !== id) {   // below the row = before the NEXT item of the section (null = the end)
+        const after = over.classList.contains('drop-after');
+        before = after ? (over.nextElementSibling && over.nextElementSibling.dataset.id) || null : over.dataset.id;
+      }
+      clearDrop();
+      library.move(id, s.id, before);
       dragId = null;
     });
     list.appendChild(sec);

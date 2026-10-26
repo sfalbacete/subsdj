@@ -25,7 +25,7 @@
    UI learns of every change through `onChange` (presetBank turns it into
    the library-changed event).
    ===================================================================== */
-import { FACTORY, META, BANK, BANK_REV, migrateV1, loadUser } from './presets.js';
+import { FACTORY, META, BANK, BANK_REV, factoryPreset, migrateV1, loadUser, LS_USER_KEYS } from './presets.js';
 import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP, DEMO_FP } from './legacy.js';
 
 export const LIB_KEY = 'subsdj.library.v2';
@@ -46,6 +46,7 @@ export function canon(v) {
 // FNV-1a (32 bit, 8 hex chars) of a string: the short fingerprint stored with each seeded item
 export function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
 const fingerprintOf = (name, data) => name + '\u0000' + canon(data);
+const seedNameOf = s => s.replace(/^[a-z0-9]+:(?:\d+:)?/, '');   // 'factory:2:Warm Pad' → 'Warm Pad'
 export const normalize = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const trimName = (s, alt) => (String(s == null ? '' : s).trim().slice(0, MAX_NAME)) || alt;
 const isV2 = d => d && d.format === LIBRARY_FORMAT && Array.isArray(d.sections) && Array.isArray(d.items);
@@ -101,12 +102,13 @@ export class Library {
     if (i < 0 || j < 0 || j >= a.length) return false;
     [a[i], a[j]] = [a[j], a[i]]; this.save(); return true;
   }
-  deleteSection(id) {                 // with everything it contains; returns how many items went with it
-    if (!this.section(id)) return 0;
-    const n = this.data.items.filter(it => it.section === id).length;
+  deleteSection(id) { const snap = this.deleteSectionUndoable(id); return snap ? snap.items.length : 0; }   // returns how many items went with it
+  deleteSectionUndoable(id) {         // with everything it contains; what restore() needs to put it all back
+    const sectionAt = this.data.sections.findIndex(s => s.id === id); if (sectionAt < 0) return null;
+    const items = []; this.data.items.forEach((it, at) => { if (it.section === id) items.push({ it, at }); });
     this.data.items = this.data.items.filter(it => it.section !== id);
-    this.data.sections = this.data.sections.filter(s => s.id !== id);
-    this.save(); return n;
+    const [section] = this.data.sections.splice(sectionAt, 1);
+    this.save(); return { section, sectionAt, items };
   }
 
   // ---------- items ----------
@@ -134,7 +136,39 @@ export class Library {
   rename(id, name) { const it = this.item(id); if (!it) return false; it.name = trimName(name, it.name); this.save(); return true; }
   update(id, data) { const it = this.item(id); if (!it) return false; it.data = data || {}; this.save(); return true; }
   fav(id, on) { const it = this.item(id); if (!it) return false; it.fav = on === undefined ? !it.fav : !!on; this.save(); return it.fav; }
-  remove(id) { const n = this.data.items.length; this.data.items = this.data.items.filter(it => it.id !== id); if (this.data.items.length === n) return false; this.save(); return true; }
+  // Deletions return what they removed (and where), so the UI can offer «Undo» instead of a
+  // confirm; restore() puts it back where it was (the section too, if it went with it).
+  remove(id) {
+    const at = this.data.items.findIndex(it => it.id === id); if (at < 0) return null;
+    const [it] = this.data.items.splice(at, 1); this.save();
+    return { items: [{ it, at }] };
+  }
+  restore(snap) {
+    if (!snap) return false;
+    if (snap.section && !this.section(snap.section.id)) this.data.sections.splice(Math.min(snap.sectionAt, this.data.sections.length), 0, snap.section);
+    for (const { it, at } of snap.items) if (!this.item(it.id)) this.data.items.splice(Math.min(at, this.data.items.length), 0, it);
+    this.save(); return true;
+  }
+  // ---------- what an item is (the Presets screen marks it) ----------
+  // 'factory' = as seeded · 'modified' = a factory preset edited in place (its content no longer
+  // matches the fingerprint it was seeded with) · 'old' = a copy of a previous bank the sync
+  // respected (renamed, moved, edited or ★ back then) · 'scene' · 'user' · 'import'
+  kind(it) {
+    if (it.type === 'scene') return 'scene';
+    if (it.origin === 'factory' || it.origin === 'v2') return !it.seedFp ? 'old' : fnv(canon(it.data)) === it.seedFp ? 'factory' : 'modified';
+    return it.origin === 'user' ? 'user' : 'import';
+  }
+  // the current factory values of a factory item (by its seed name), if the bank still has that name
+  factoryDataOf(it) { const n = it.seed ? seedNameOf(it.seed) : it.name, src = factoryPreset(n); return src ? { name: n, data: dataOf('preset', src) } : null; }
+  resetToFactory(id) {
+    const it = this.item(id), f = it && this.factoryDataOf(it); if (!f) return false;
+    it.data = f.data; it.seedFp = fnv(canon(f.data)); if (!it.seedSec) it.seedSec = (this.section(it.section) || {}).name;
+    const m = META[f.name]; if (m) { it.tags = (m.tags || []).slice(); it.play = m.play; }
+    this.save(); return true;
+  }
+  // Wipe: forgets the library AND everything a load could rebuild it from (the pre-1.4 Spanish
+  // one, the pre-library user presets): the next load seeds from scratch. The UI downloads a copy first.
+  wipe() { for (const k of [this.key, this.keyV1, ...LS_USER_KEYS]) { try { if (this.storage) this.storage.removeItem(k); } catch (e) { /* no persistence */ } } this.data = null; }
   move(id, sectionId, beforeId = null) {   // to another section and/or another position (before an item; without one, at the end)
     const it = this.item(id); if (!it || !this.section(sectionId)) return false;
     this.data.items = this.data.items.filter(x => x !== it);
@@ -180,7 +214,7 @@ export class Library {
   // and a content it was seeded with, and no ★ — by seedFp/seedSec for what 1.5.0 seeds, by LEGACY_FP
   // (every version ever shipped) for what came before. `secName` is the name of the item's section.
   _legacyCopy(it, secName) {
-    if (!it.seed || it.fav || !/^(factory|v2|scene):/.test(it.seed) || it.name !== it.seed.replace(/^[a-z0-9]+:(?:\d+:)?/, '')) return false;
+    if (!it.seed || it.fav || !/^(factory|v2|scene):/.test(it.seed) || it.name !== seedNameOf(it.seed)) return false;
     if (it.seedFp) return secName === it.seedSec && fnv(canon(it.data)) === it.seedFp;
     const old = LEGACY_FP[it.seed];
     return !!old && old.s.includes(secName) && old.f.includes(fnv(canon(it.data)));

@@ -13,6 +13,14 @@ import { record, markSaved } from './history.js';
 
 let curId = null, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
+// A notice with «Undo» (deletions ask no confirm): `fn` puts it back; the chance goes with the notice
+export function undoable(el, text, fn) {
+  if (!el) return;
+  el.textContent = text + ' ';
+  const u = document.createElement('span'); u.className = 'undo'; u.textContent = 'Undo';
+  u.addEventListener('click', e => { e.stopPropagation(); fn(); el.textContent = 'Restored.'; });
+  el.appendChild(u);
+}
 export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // drops unknown keys
 export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
@@ -79,8 +87,17 @@ export function initPresetBank() {
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = currentPreset();
     if (!it) { msg('Pick a preset first.'); return; }
-    if (!confirm('Delete «' + it.name + '» from the library?' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''))) return;
-    library.remove(it.id); msg('Deleted «' + it.name + '».');
+    const snap = library.remove(it.id);                    // no confirm: «Undo» in the notice instead
+    undoable(msgEl, 'Deleted «' + it.name + '».', () => library.restore(snap));
+  });
+  // File ▾ → Wipe library: a copy is downloaded first (the same file as Export), then the library and
+  // everything a load could rebuild it from are forgotten and the page starts again from the factory
+  const wipeBtn = document.getElementById('wipeBtn');
+  if (wipeBtn) wipeBtn.addEventListener('click', () => {
+    const j = library.exportData();
+    download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library-before-wipe.json');
+    msg('Library copied to a file; starting again from the factory…');
+    setTimeout(() => { library.wipe(); location.reload(); }, 600);   // the download has started by then
   });
   document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Default values.'); });
 

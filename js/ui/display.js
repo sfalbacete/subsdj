@@ -113,7 +113,7 @@ export function initDisplay() {
     let t = null;
     new MutationObserver(() => {
       msg.classList.toggle('show', !!msg.textContent.trim());
-      clearTimeout(t); t = setTimeout(() => msg.classList.remove('show'), 4000);
+      clearTimeout(t); t = setTimeout(() => msg.classList.remove('show'), msg.querySelector('.undo') ? 8000 : 4000);   // an «Undo» deserves a little longer
     }).observe(msg, { childList: true, characterData: true, subtree: true });
   }
 }

@@ -686,6 +686,7 @@ export function factoryPreset(name) {
 // ---------- user presets (localStorage) ----------
 const LS_V1 = 'subsdj.presets.v1';       // v1: cutoff as slider position 0..1
 const LS_V2 = 'subsdj.presets.v2';       // v2: engine space
+export const LS_USER_KEYS = [LS_V2, LS_V1];   // what a library wipe has to forget too (they seed «★ Mine» of a new library)
 
 // v1 -> v2: only cutoff changes space (position 0..1 -> Hz). The other
 // keys already matched engine space. Idempotent (a cutoff in Hz

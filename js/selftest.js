@@ -1038,6 +1038,18 @@ export async function runSelfTest() {
     if (!bs || !bs.play || !(bs.tags || []).includes('berlin') || !bs.seedFp || bs.seedSec !== 'Motion' || bs.seed !== 'factory:' + BANK_REV + ':Berlin Sequence')
       problems.push('factory metadata or seed: ' + JSON.stringify(bs && { seed: bs.seed, tags: bs.tags, play: !!bs.play, fp: bs.seedFp, sec: bs.seedSec }));
     if (!L.search('berlin').some(i => i.name === 'Berlin Sequence')) problems.push('search by tag');
+    // kinds: as seeded → factory; edited in place → modified, and resetToFactory brings the factory values
+    // back; deletions (an item, a whole section) come back with restore; wipe forgets every key
+    if (L.kind(bs) !== 'factory' || L.kind(mine) !== 'user') problems.push('kind: ' + L.kind(bs) + ' / ' + L.kind(mine));
+    L.update(bs.id, { ...bs.data, cutoff: 123 });
+    if (L.kind(bs) !== 'modified') problems.push('edited in place is not «modified»');
+    if (!L.resetToFactory(bs.id) || L.kind(bs) !== 'factory' || bs.data.cutoff === 123 || !bs.play) problems.push('reset to factory');
+    const snapI = L.remove(bs.id);
+    if (L.item(bs.id) || !L.restore(snapI) || !L.item(bs.id) || L.items(bs.section).indexOf(L.item(bs.id)) < 0) problems.push('remove → restore');
+    const secM = L.sectionByName('Motion'), nM = L.items(secM.id).length, snapS = L.deleteSectionUndoable(secM.id);
+    if (L.sectionByName('Motion') || snapS.items.length !== nM || !L.restore(snapS) || !L.sectionByName('Motion') || L.items(secM.id).length !== nM) problems.push('delete section → restore');
+    { const st2 = mkStore(), W = new Library({ key: 'subsdj.library.wipe', storage: st2 }); W.load(); st2.setItem('subsdj.presets.v2', '{}');
+      W.wipe(); if (st2.getItem('subsdj.library.wipe') !== null || st2.getItem('subsdj.presets.v2') !== null || !W.load() || W.presets().length < 100) problems.push('wipe'); }
     const acid = L.presets().find(p => p.name === 'Acid Line'), secAcid = acid && acid.section;
     L.remove(acid.id);
     if (L.presets().some(p => p.name === 'Acid Line')) problems.push('delete does not delete');

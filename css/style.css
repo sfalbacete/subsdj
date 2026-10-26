@@ -704,6 +704,17 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 #libMsg{margin:0 0 0 auto;font-size:11px;}
 .pl-item:hover{border-color:var(--accent);color:var(--accent);}
 .pl-item.cur{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:var(--accent);color:var(--accent);}
+/* what an item is: ● = factory preset modified in place (the header's dot; a click brings the factory values back),
+   old = copy of a previous bank, mine / imported out of their sections */
+.pl-dot{color:var(--accent2);cursor:pointer;flex:none;font-size:11px;line-height:1;text-shadow:0 0 5px color-mix(in srgb,var(--accent2) 60%,transparent);}
+.pl-dot:hover{filter:brightness(1.35);}
+.pl-tag.old{color:var(--dim);}
+/* drag and drop: the insertion line where the item will land; a section lit = it lands at its end */
+.pl-item.drop-before{box-shadow:0 -2px 0 0 var(--accent);}
+.pl-item.drop-after{box-shadow:0 2px 0 0 var(--accent);}
+.pl-sec.over .pl-head{background:color-mix(in srgb,var(--accent) 18%,transparent);border-radius:4px;}
+/* «Undo» after a deletion (no confirm dialogs) */
+.undo{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:6px;pointer-events:auto;}
 
 /* mod wheel under the keyboard (Roadmap 5.0 · block 4): the matrix's «Wheel (CC1)» source */
 #kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
