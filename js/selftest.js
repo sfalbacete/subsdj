@@ -600,49 +600,49 @@ export async function runSelfTest() {
         if (!ok) probs.push(label + ': ' + what + ' → ' + (got || 'vivo') + ' (esperado ' + (want || 'vivo') + ')');
       }
     };
-    caso('Reset', () => {}, [['sec:Osc A', null], ['sec:Osc B', 'nivel B'], ['pulseWidth', 'Cuadrada'], ['spread', 'Súper'],
-      ['sec:FM', 'Seno'], ['sec:FM4', 'FM4'], ['sec:Tabla de ondas', 'Tabla'], ['sec:Editor de ondas', 'Tabla'],
-      ['noiseColor', 'Ruido'], ['vocVowel', 'Mix a 0'], ['resMat', 'Mezcla a 0'], ['fa', 'Amount'], ['fenvMode', 'Amount'],
-      ['hitGap', 'golpe'], ['pitchEnvDec', 'Amt'], ['monoTrig', 'Mono'], ['uniDetune', '1 voz'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
-      ['mx1dst', 'libre'], ['mx1amt', 'libre'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
+    caso('Reset', () => {}, [['sec:Osc A', null], ['sec:Osc B', 'Level B'], ['pulseWidth', 'Square'], ['spread', 'Supersaw'],
+      ['sec:FM', 'Sine'], ['sec:FM4', 'FM4'], ['sec:Wavetable', 'Wavetable'], ['sec:Wave Editor', 'Wavetable'],
+      ['noiseColor', 'Noise'], ['vocVowel', 'Mix at 0'], ['resMat', 'Mix at 0'], ['fa', 'Amount'], ['fenvMode', 'Amount'],
+      ['hitGap', 'hit'], ['pitchEnvDec', 'Amt'], ['monoTrig', 'Mono'], ['uniDetune', '1 voice'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
+      ['mx1dst', 'free'], ['mx1amt', 'free'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
       ['bpm', 'tempo'], ['reverbSize', 'Mix'], ['shimInt', 'Mix'], ['arpGate', 'Off'], ['seqGate', 'Off'],
-      ['#seqCanvas', 'Off'], ['sec:Tabla · secuencia', 'Tabla'], ['sec:Unison', null], ['levelB', null], ['cutoff', null]]);
+      ['#seqCanvas', 'Off'], ['sec:Wave Sequence', 'Wavetable'], ['sec:Unison', null], ['levelB', null], ['cutoff', null]]);
     caso('Osc B a medias: suena el B (cuadrada)', () => C.levelB.set(0.5), [['sec:Osc B', null], ['pulseWidth', null], ['pwmLfoLvl', null], ['pwmLfoSpd', 'Level']]);
-    caso('Solo B: el A se apaga', () => { C.levelA.set(0); C.levelB.set(1); }, [['sec:Osc A', 'nivel A'], ['sec:Osc B', null]]);
+    caso('Solo B: el A se apaga', () => { C.levelA.set(0); C.levelB.set(1); }, [['sec:Osc A', 'Level A'], ['sec:Osc B', null]]);
     caso('Solo Ring: suenan los dos (A×B)', () => { C.levelA.set(0); C.ring.set(1); }, [['sec:Osc A', null], ['sec:Osc B', null]]);
     caso('Seno sin índice', () => C.waveA.set('sine'), [['sec:FM', null], ['fmIndex', null], ['fmRatio', 'Index'], ['fmFb', 'Index']]);
     caso('Seno con índice', () => { C.waveA.set('sine'); C.fmIndex.set(2); }, [['fmRatio', null], ['fmFb', null]]);
     caso('Seno + env → FM índice', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
-      [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Env amp']]);
-    caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Seno'], ['fmIndex', 'Seno'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
-    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'nivel 0'], ['fm4D3', 'nivel 0'], ['fm4V3', 'nivel 0'], ['fm4R2', null], ['fm4V2', null]]);
+      [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Amp Env']]);
+    caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Sine'], ['fmIndex', 'Sine'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
+    caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4R2', null], ['fm4V2', null]]);
     caso('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
-    caso('Tabla sin «usuario»', () => C.waveA.set('wavetable'), [['sec:Tabla de ondas', null], ['sec:Editor de ondas', 'usuario'], ['sec:Tabla · secuencia', null], ['wsDiv', 'Off']]);
-    caso('Tabla «usuario»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Editor de ondas', null]]);
-    caso('Súper', () => C.waveA.set('supersaw'), [['phaseA', 'Súper'], ['spread', null], ['sec:Unison', 'Súper']]);
+    caso('Tabla sin «usuario»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
+    caso('Tabla «usuario»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Wave Editor', null]]);
+    caso('Supersaw', () => C.waveA.set('supersaw'), [['phaseA', 'Supersaw'], ['spread', null], ['sec:Unison', 'Supersaw']]);
     caso('Unison', () => C.uniVoices.set('3'), [['uniDetune', null]]);
     caso('Notch', () => C.filterType.set('notch'), [['morph', 'LP↔HP'], ['filterSlope', 'Notch']]);
     caso('BP', () => C.filterType.set('bp'), [['morph', 'LP↔HP'], ['filterSlope', null]]);
-    caso('Env de filtro enlazada', () => C.filterEnvAmt.set(2000), [['fenvMode', null], ['fa', 'Env amp']]);
+    caso('Env de filtro enlazada', () => C.filterEnvAmt.set(2000), [['fenvMode', null], ['fa', 'Amp Env']]);
     caso('Env de filtro propia', () => { C.filterEnvAmt.set(2000); C.fenvMode.set('own'); }, [['fa', null], ['fr', null]]);
     caso('Vocal y resonador', () => { C.vocAmt.set(0.5); C.resAmt.set(0.5); }, [['vocVowel', null], ['vocAtk', null], ['resDecay', null]]);
     caso('Matriz a Wavetable sin tabla', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('wt'); C.mx2amt.set(0.5); },
-      [['mx2dst', 'Tabla'], ['mx2amt', 'Tabla'], ['cutLfoSpd', 'Level'], ['lfoPhase', 'ningún']]);
+      [['mx2dst', 'Wavetable'], ['mx2amt', 'Wavetable'], ['cutLfoSpd', 'Level'], ['lfoPhase', 'in use']]);
     caso('LFO crudo en la matriz', () => { C.mx2src.set('lfoCut'); C.mx2dst.set('pan'); C.mx2amt.set(0.5); },
       [['cutLfoSpd', null], ['cutLfoShape', null], ['lfoPhase', null], ['mx2dst', null]]);
-    caso('Slot con fuente y cantidad 0', () => C.mx3src.set('vel'), [['mx3dst', 'cantidad 0'], ['mx3amt', null]]);
+    caso('Slot con fuente y cantidad 0', () => C.mx3src.set('vel'), [['mx3dst', 'amount 0'], ['mx3amt', null]]);
     caso('Deriva (voz)', () => { C.mx1src.set('drift'); C.mx1amt.set(0.3); }, [['mxDriftSpd', null]]);
     caso('Vibrato con fade', () => C.freqLfoLvl.set(20), [['freqLfoSpd', null], ['lfoFade', null], ['lfoPhase', null]]);
     caso('Delay libre', () => C.dlyAmt.set(0.3), [['dlyTime', null], ['dlyDamp', null], ['bpm', 'tempo']]);
-    caso('Delay sincronizado', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'sincronizado'], ['bpm', null]]);
+    caso('Delay sincronizado', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'synced'], ['bpm', null]]);
     caso('Arpegiador', () => C.arpMode.set('up'), [['arpGate', null], ['bpm', null]]);
     caso('Reverb con shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
     caso('Flam', () => C.hits.set(3), [['hitGap', null]]);
-    caso('Drive a 0', () => {}, [['driveAsym', 'Drive a 0'], ['driveChar', 'Drive a 0']]);
+    caso('Drive at 0', () => {}, [['driveAsym', 'Drive at 0'], ['driveChar', 'Drive at 0']]);
     caso('Drive plegado', () => { C.filterDrive.set(0.5); C.driveChar.set('fold'); }, [['driveAsym', null], ['driveChar', null]]);
-    caso('Matriz → Drive sin Drive', () => { C.mx1src.set('vel'); C.mx1dst.set('drive'); C.mx1amt.set(0.5); }, [['mx1dst', 'knob Drive'], ['mx1amt', 'knob Drive']]);
+    caso('Matriz → Drive sin Drive', () => { C.mx1src.set('vel'); C.mx1dst.set('drive'); C.mx1amt.set(0.5); }, [['mx1dst', 'Drive knob'], ['mx1amt', 'Drive knob']]);
     caso('Matriz → Nivel B enciende el B', () => { C.mx1src.set('lfoCut'); C.mx1dst.set('lvlB'); C.mx1amt.set(0.5); }, [['sec:Osc B', null], ['mx1amt', null]]);
-    caso('Matriz → Material sin Resonador', () => { C.mx1src.set('vel'); C.mx1dst.set('resMat'); C.mx1amt.set(0.5); }, [['mx1amt', 'Mezcla a 0']]);
+    caso('Matriz → Material sin Resonador', () => { C.mx1src.set('vel'); C.mx1dst.set('resMat'); C.mx1amt.set(0.5); }, [['mx1amt', 'Resonator']]);
     loadState({}); refreshDeps();
     const fr = depTargets('fmRatio')[0];
     if (!fr.closest('.dep-off')) probs.push('Reset: FM no aparece atenuado (.dep-off)');
@@ -2229,7 +2229,7 @@ export async function runSelfTest() {
       const catEls = [...document.querySelectorAll('#ppCats .pp-cat')];
       const sec = library.secciones().find(x => library.items(x.id).filter(it => it.type === 'preset').length > 3);
       const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.name);
-      if (catEls[0]?.querySelector('.pp-cname').textContent !== 'Todos' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
+      if (catEls[0]?.querySelector('.pp-cname').textContent !== 'All' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
         probs.push('«Todos» no cuenta la biblioteca entera');
       if (!catEl) probs.push('falta la categoría «' + sec.name + '»');
       else {

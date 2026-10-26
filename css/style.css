@@ -10,7 +10,7 @@
    pulgar, teclas) resuelven sus var(--accent) donde se declaran.
    ===================================================================== */
 :root{
-  --theme-id:"cinescapes"; --theme-name:"Carbón";   /* el bloque base ES el tema por defecto (theme.js lo lista); el id es el de siempre: no se pierde la elección recordada */
+  --theme-id:"cinescapes"; --theme-name:"Carbon";   /* el bloque base ES el tema por defecto (theme.js lo lista); el id es el de siempre: no se pierde la elección recordada */
   /* superficies, de fuera adentro: carbón plano, sin halo */
   --bg:#15171c;          /* página */
   --bg-glow:var(--bg);   /* halo radial en lo alto del fondo (aquí ninguno: plano) */
@@ -71,7 +71,7 @@
    relieve, MAYÚSCULAS espaciadas). Es también la prueba de que los tokens
    cubren todo: si algo no se puede recuperar desde aquí, está a fuego. */
 :root[data-theme="clasico"]{
-  --theme-name:"Clásico";
+  --theme-name:"Classic";
   --bg:#0d1014; --bg-glow:#1a2230; --panel:#161b22; --panel2:#1b222c; --well:#0f141a; --screen:#05080b;
   --edge:#2a3340; --edge-hi:#3d4a5c; --line:#0a0e12;
   --ink:#c9d4e0; --dim:#7d8a99; --ink-on-accent:#04140e; --ink-on-accent2:#04121a;
@@ -203,7 +203,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
    esconden: la posición no cambia). El mezclador vacío dice qué hacer. */
 .panel.parts-off > :not(h2){opacity:.32;pointer-events:none;filter:saturate(.4);}
 .panel.parts-off h2{opacity:.6;}
-#mixStrips:empty::before{content:"Enciende «Partes» en la cabecera: cuatro instrumentos sobre una sala compartida.";
+#mixStrips:empty::before{content:"Turn on «Parts» in the header: four instruments over a shared room.";
   font-size:11px;color:var(--dim);}
 .mix{display:flex;gap:10px;flex-wrap:nowrap;align-items:stretch;}
 .strip{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.18);border:1px solid var(--edge);border-radius:8px;

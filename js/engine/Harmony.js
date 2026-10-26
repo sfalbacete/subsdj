@@ -29,7 +29,7 @@ export const ESCALAS = {
   'hirajoshi':      [0, 2, 3, 7, 8],
   'in sen':         [0, 1, 5, 7, 10],
 };
-export const NOTAS = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+export const NOTAS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const GRADOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 // PRNG con semilla (mulberry32, 32 bits): misma semilla ⇒ misma secuencia.

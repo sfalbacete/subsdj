@@ -19,7 +19,7 @@ const fmtV = v => String(Math.round(v * 100) / 100);
 const valsOf = i => parseSteps(part().S['st' + i + 'Pat']);
 const setPat = (i, vals) => CONTROLS['st' + i + 'Pat'].set(vals.map(fmtV).join(' '));
 const SNAP = 0.08;   // cerca del centro, el paso vale 0 (dibujar un cero a mano es imposible si no)
-const fmtBars = b => b >= 1 ? (Number.isInteger(b) ? b : b.toFixed(2)) + (b === 1 ? ' compás' : ' compases') : (Math.round(b * 4 * 100) / 100) + ' pulsos';
+const fmtBars = b => b >= 1 ? (Number.isInteger(b) ? b : b.toFixed(2)) + (b === 1 ? ' bar' : ' bars') : (Math.round(b * 4 * 100) / 100) + ' beats';
 
 export function bindStepsControls() {
   for (let i = 1; i <= ST_LANES; i++) {
@@ -34,14 +34,14 @@ export function bindStepsControls() {
     initLen(i, row);
   }
   const rs = document.getElementById('stResetSel');
-  if (rs) bindSelect(rs, 'stReset', [{ id: 'play', label: 'al tocar' }, { id: 'never', label: 'never' },
-    ...['1 bar', '2 bars', '4 bars', '8 bars'].map(d => ({ id: d, label: 'cada ' + d }))]);
+  if (rs) bindSelect(rs, 'stReset', [{ id: 'play', label: 'on play' }, { id: 'never', label: 'never' },
+    ...['1 bar', '2 bars', '4 bars', '8 bars'].map(d => ({ id: d, label: 'every ' + d }))]);
   const cyc = document.getElementById('stCycle');
   const upd = () => {
     if (!cyc) return;
     const used = [...part().steps.usedLanes()].sort();
     const b = cycleBars(part().S, used.length ? used : [1, 2, 3, 4]);
-    cyc.textContent = (used.length ? 'carriles ' + used.join(' · ') + ': ' : 'los cuatro: ') + 'el ciclo completo dura ' + fmtBars(b);
+    cyc.textContent = (used.length ? 'lanes ' + used.join(' · ') + ': ' : 'all four: ') + 'the full cycle lasts ' + fmtBars(b);
   };
   document.addEventListener('param-change', e => { if (/^st|^mx\d/.test(e.detail.target)) upd(); });
   for (const ev of ['part-changed', 'preset-loaded', 'scene-loaded']) document.addEventListener(ev, upd);

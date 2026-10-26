@@ -17,7 +17,7 @@ import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
 import { currentPreset, markPreset, markPresetByName } from './presetBank.js';
 
-const SALA_PANELS = ['Delay', 'Reverb', 'Cinta'];
+const SALA_PANELS = ['Delay', 'Reverb', 'Tape'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
 const $ = id => document.getElementById(id);
 let strips = [], silent = false, salaPanels = [];
@@ -36,9 +36,9 @@ function buildStrips() {
   sc.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
-    div.innerHTML = `<div class="shead"><button class="pname" title="Editar esta parte en el rack"></button>` +
-      `<button class="mute" title="Silenciar la parte">M</button></div>` +   // la M junto al nombre: una fila menos (panel fijo)
-      `<div class="row tight">${knobHtml('Nivel')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
+    div.innerHTML = `<div class="shead"><button class="pname" title="Edit this part in the rack"></button>` +
+      `<button class="mute" title="Mute the part">M</button></div>` +   // la M junto al nombre: una fila menos (panel fijo)
+      `<div class="row tight">${knobHtml('Level')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
     host.appendChild(div);
     const [kLevel, kPan, kDly, kRev] = div.querySelectorAll('.knob');
     const S = p.engine.S;
@@ -68,9 +68,9 @@ function buildStrips() {
   // Columna Sala: máster de la escena, realimentación del eco, eco → reverb
   const sala = document.createElement('div');
   sala.className = 'strip sala';
-  sala.innerHTML = `<div class="pname static">Sala</div>` +
-    `<div class="row tight">${knobHtml('Máster')}${knobHtml('Realim.')}${knobHtml('Eco→Rev')}</div>` +
-    `<label class="chk"><input type="checkbox" id="layerChk"> Capa: el teclado toca todas</label>`;
+  sala.innerHTML = `<div class="pname static">Room</div>` +
+    `<div class="row tight">${knobHtml('Master')}${knobHtml('Fdbk')}${knobHtml('Echo→Rev')}</div>` +
+    `<label class="chk"><input type="checkbox" id="layerChk"> Layer: keys play all parts</label>`;
   host.appendChild(sala);
   const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
   attachKnob(kM, { ...PARAMS.master, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
@@ -107,7 +107,7 @@ function choose(i) {
   const p = sc.parts[i];
   if (p.presetVal) markPreset(p.presetVal);
   if (!currentPreset() && p.presetName) markPresetByName(p.presetName);   // escenas de antes de la biblioteca ('f:Nombre'): por nombre
-  const msg = $('presetMsg'); if (msg) msg.textContent = 'Parte ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
+  const msg = $('presetMsg'); if (msg) msg.textContent = 'Part ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
   refreshNames();
   document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // el módulo Jugador sigue a la parte
 }
@@ -125,7 +125,7 @@ function setUI(on) {
   for (const panel of salaPanels) {
     const h2 = panel.querySelector('h2');
     let tag = h2.querySelector('.tag-sala');
-    if (on && !tag) { tag = document.createElement('span'); tag.className = 'tag-sala'; tag.textContent = 'sala'; tag.title = 'Compartido por todas las partes (salvo el envío)'; h2.appendChild(tag); }
+    if (on && !tag) { tag = document.createElement('span'); tag.className = 'tag-sala'; tag.textContent = 'room'; tag.title = 'Shared by all parts (except the send)'; h2.appendChild(tag); }
     if (!on && tag) tag.remove();
   }
 }
@@ -133,7 +133,7 @@ function setUI(on) {
 async function toggle(btn) {
   if (sceneOn()) {
     disableScene(); setUI(false); syncControls(part().S);
-    const msg = $('presetMsg'); if (msg) msg.textContent = 'Partes apagadas: motor único';
+    const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts off: single engine';
     return;
   }
   if (!part().ready) return;
@@ -142,7 +142,7 @@ async function toggle(btn) {
   buildStrips(); setUI(true); syncControls(part().S);
   const cur = currentPreset(), p0 = getScene().parts[0];      // la parte 1 hereda el sonido (y su nombre de preset)
   if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; refreshNames(); }
-  const msg = $('presetMsg'); if (msg) msg.textContent = 'Partes: la 1 hereda el sonido que había';
+  const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts: part 1 takes over the current sound';
 }
 
 export function initPartsControls() {

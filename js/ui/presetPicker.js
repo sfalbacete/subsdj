@@ -28,7 +28,7 @@ function label() {
   const it = currentPreset();
   nameEl.textContent = it ? it.name : '—';
   btn.title = (it ? it.name + ' · ' + (library.seccion(it.section)?.name || '') + '\n' : '') +
-    'Elegir preset: buscar, filtrar por categoría, ↑ ↓ para probar (‹ › recorren la biblioteca entera)';
+    'Choose a preset: search, filter by category, ↑ ↓ to audition (‹ › step through the whole library)';
 }
 
 // Lo que coincide con la búsqueda, por categoría (para los contadores) y lo de la elegida
@@ -43,7 +43,7 @@ function render() {
   // categorías: Todos, ★ (si hay favoritos) y cada sección que tenga presets
   cats.innerHTML = '';
   const secs = library.secciones().filter(s => library.items(s.id).some(it => it.type === 'preset'));
-  const entries = [[ALL, 'Todos'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favoritos']] : []), ...secs.map(s => [s.id, s.name])];
+  const entries = [[ALL, 'All'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favorites']] : []), ...secs.map(s => [s.id, s.name])];
   if (!entries.some(([id]) => id === cat)) cat = ALL;   // la sección elegida desapareció
   for (const [id, nombre] of entries) {
     const n = hits.filter(it => inCat(it, id)).length;
@@ -62,7 +62,7 @@ function render() {
     list.appendChild(row(it, cur));
     vis.push(it.id);
   }
-  if (!shown.length) list.appendChild(mk('div', 'pp-none', cat === ALL ? 'Nada que coincida.' : 'Nada aquí: prueba en «Todos».'));
+  if (!shown.length) list.appendChild(mk('div', 'pp-none', cat === ALL ? 'Nothing matches.' : 'Nothing here: try «All».'));
   if (!vis.includes(hi)) hi = vis.includes(cur) ? cur : vis[0] || null;
   list.scrollTop = scroll;
   paintHi();
@@ -71,7 +71,7 @@ function render() {
 function row(it, cur) {
   const r = mk('div', 'pp-item' + (it.id === cur ? ' cur' : '')); r.dataset.id = it.id;
   const star = mk('span', 'pp-star' + (it.fav ? ' on' : ''), '★');
-  star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale en «★ Favoritos»';
+  star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites»';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repinta
   r.appendChild(star);
   r.appendChild(mk('span', 'pp-name', it.name));

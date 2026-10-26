@@ -34,7 +34,7 @@ export function bindSeg(segId, key, name, target, num = false) {
 // Botón de forma de onda de LFO: cicla sin→tri→saw→sqr→S&H→deriva con cada clic
 // (S&H = escalones aleatorios a la velocidad del LFO; deriva = random suave y lento).
 const SHAPES = ['sine', 'triangle', 'sawtooth', 'square', 'sh', 'drift'];
-const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr', sh: 'S&H', drift: 'deriva' };
+const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr', sh: 'S&H', drift: 'drift' };
 function bindLfoShapes() {
   document.querySelectorAll('.lfoShape').forEach(btn => {
     const name = btn.dataset.shape;
@@ -91,7 +91,7 @@ export function bindOscControls() {
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algoritmo (quién modula a quién)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
   const ph = document.getElementById('lfoPhaseSel');   // LFOs: fase global / por voz (Weyl) / reinicio / una vez (Roadmap 7.0 · 2.2)
-  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voice', label: 'por voz' }, { id: 'retrig', label: 'retrig' }, { id: 'once', label: 'una vez' }]);
+  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voice', label: 'per voice' }, { id: 'retrig', label: 'retrig' }, { id: 'once', label: 'once' }]);
   const divs = [{ id: 'free', label: 'free' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
   document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // LFO a tempo
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: intervalo del desplazador (clave de la Sala)

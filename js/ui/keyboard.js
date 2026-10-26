@@ -144,7 +144,7 @@ function press(midi, vel = 1) {
   const el = kb.querySelector(`[data-midi="${midi}"]`);
   if (el) { el.classList.add('on'); el.style.setProperty('--vel', vel.toFixed(2)); }   // el brillo de la tecla sigue a la fuerza
   active.set(midi, el || null);
-  setStatus('powerInfo', 'on', 'audio activo');
+  setStatus('powerInfo', 'on', 'audio on');
 }
 function release(midi) {
   if (!active.has(midi)) return;

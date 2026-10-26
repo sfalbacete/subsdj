@@ -77,7 +77,7 @@ export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, d
     e.S = applyPreset(makeDefaultState(), states[i] || {});
     for (const k of SALA_KEYS) e.S[k] = S[k];
     await e.init(ctx, { sala });
-    parts.push({ i, engine: e, name: 'Parte ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
+    parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
   }
   const scene = { ctx, sala, parts, S, sel: 0, salaCfg: { fb, dlyToRev, master } };
   scene.conductor = new Conductor(scene, { seed: 1 });   // armonía + jugadores + arreglo (C2/C3)
@@ -135,7 +135,7 @@ export function applySceneJSON(sc, j) {
 // silencia y sigue vivo para volver.
 export async function enableScene() {
   if (scene) return scene;
-  if (!single.ready) throw new Error('el audio aún no está listo');
+  if (!single.ready) throw new Error('the audio is not ready yet');
   const S = single.S;
   scene = await createScene(single.ctx, [toControls(S)],
     { salaS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });

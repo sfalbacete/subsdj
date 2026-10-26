@@ -230,7 +230,7 @@ export class AudioEngine {
     // «en el pasado» y se aplicaban de golpe: el bombo golpeaba solo a veces (en
     // headless y offline el retraso es constante y no se nota). Offline: 5 ms (golden).
     this.mod.lookahead = this.offline ? 0.005 : Math.max(0.005, 0.005 + 2 * (ctx.baseLatency || 0.01));
-    if (!this.offline) console.info('SubSDJ · look-ahead de nota', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
+    if (!this.offline) console.info('SubSDJ · note look-ahead', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
 
     this.ready = true;
   }

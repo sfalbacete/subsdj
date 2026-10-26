@@ -50,7 +50,7 @@ const dim = (c, s) => (255 << 24) | ((((c >> 16) & 255) * s >> 8) << 16) | ((((c
 
 export function splashDate(iso) {
   const d = new Date(iso + 'T12:00:00');
-  return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).format(d).replace(/\./g, '');
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d).replace(/\./g, '');
 }
 const ease = x => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3));
 
@@ -160,7 +160,7 @@ export function initSplash() {
     if (!shown) return; shown = false;
     if (!about) try {                                         // la entrada: el gesto que el navegador pide para sonar
       const e = part();
-      if (e && e.ctx && e.ctx.state === 'suspended') e.ctx.resume().then(() => setStatus('powerInfo', 'on', 'audio activo')).catch(() => {});
+      if (e && e.ctx && e.ctx.state === 'suspended') e.ctx.resume().then(() => setStatus('powerInfo', 'on', 'audio on')).catch(() => {});
     } catch (err) {}
     fx.exitT = (performance.now() - (t0 ?? performance.now())) / 1000;
     el.classList.add('out');

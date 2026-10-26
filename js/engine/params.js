@@ -204,7 +204,7 @@ export const PARAMS = {
   r: { def: 0.02, min: 0.001, max: 30, log: true, fmt: secFmt },
   envCurve: { def: 0, min: 0, max: 1, act: true },   // 0 = rampas lineales (como siempre) · 1 = tramos RC (analógico): ataque y decay exponenciales
   // Flam (clap 808): hits−1 ráfagas cortas separadas hitGap ANTES del ADSR (Voice._flam); 1 = sin flam (camino de siempre)
-  hits:   { def: 1, min: 1, max: 4, step: 1, fmt: v => Math.round(v) + (Math.round(v) > 1 ? ' golpes' : ' golpe') },
+  hits:   { def: 1, min: 1, max: 4, step: 1, fmt: v => Math.round(v) + (Math.round(v) > 1 ? ' hits' : ' hit') },
   hitGap: { def: 0.012, min: 0.005, max: 0.04, unit: ' s', fmt: v => (v * 1000).toFixed(0) + ' ms' },
   glide:  { def: 0, min: 0, max: 10, log: true, lmin: 0.01, fmt: secFmt, act: true },   // hasta 10 s: drones que resbalan
   pitchEnvAmt: { def: 0, min: -2400, max: 2400, unit: ' ct', act: true },   // envolvente de pitch por nota
@@ -256,30 +256,30 @@ export const MX_SOURCES = [                 // señales: LFOs CRUDOS (±1, su kn
   { id: 'off',     label: '—' },            // valores por nota ("CV"): velocity, altura de la nota, S&H aleatorio
   { id: 'lfoCut',  label: 'LFO cutoff' },
   { id: 'lfoRes',  label: 'LFO reso' },
-  { id: 'lfoAmp',  label: 'LFO trémolo' },
+  { id: 'lfoAmp',  label: 'LFO tremolo' },
   { id: 'lfoFreq', label: 'LFO vibrato' },
   { id: 'lfoPwm',  label: 'LFO PWM' },
-  { id: 'env',     label: 'Env filtro' },
-  { id: 'envm',    label: 'Env mod' },        // la envolvente libre (Secuenciación): normal, bucle o disparo
+  { id: 'env',     label: 'Filter env' },
+  { id: 'envm',    label: 'Mod env' },        // la envolvente libre (Secuenciación): normal, bucle o disparo
   // Pasos (Secuenciación): continuo (el escalón mueve una nota sostenida) o «· nota» (el valor del paso en que empieza la nota)
-  { id: 'st1',     label: 'Pasos 1' },
-  { id: 'st2',     label: 'Pasos 2' },
-  { id: 'st3',     label: 'Pasos 3' },
-  { id: 'st4',     label: 'Pasos 4' },
-  { id: 'st1n',    label: 'Pasos 1 · nota' },
-  { id: 'st2n',    label: 'Pasos 2 · nota' },
-  { id: 'st3n',    label: 'Pasos 3 · nota' },
-  { id: 'st4n',    label: 'Pasos 4 · nota' },
+  { id: 'st1',     label: 'Steps 1' },
+  { id: 'st2',     label: 'Steps 2' },
+  { id: 'st3',     label: 'Steps 3' },
+  { id: 'st4',     label: 'Steps 4' },
+  { id: 'st1n',    label: 'Steps 1 · note' },
+  { id: 'st2n',    label: 'Steps 2 · note' },
+  { id: 'st3n',    label: 'Steps 3 · note' },
+  { id: 'st4n',    label: 'Steps 4 · note' },
   { id: 'vel',     label: 'Velocity' },
-  { id: 'acc',     label: 'Acento (Seq)' },   // 1 en los pasos con «!» del secuenciador, 0 en el resto (Roadmap 7.0 · 5.1)
-  { id: 'note',    label: 'Nota (altura)' },
-  { id: 'rnd',     label: 'S&H por nota' },
-  { id: 'drift',   label: 'Deriva (voz)' },  // paseo lento PROPIO de cada voz (nodes.mkVoiceLFO 'drift' a mxDriftSpd): el acorde respira voz a voz
+  { id: 'acc',     label: 'Accent (Seq)' },   // 1 en los pasos con «!» del secuenciador, 0 en el resto (Roadmap 7.0 · 5.1)
+  { id: 'note',    label: 'Note (pitch)' },
+  { id: 'rnd',     label: 'S&H per note' },
+  { id: 'drift',   label: 'Drift (voice)' },  // paseo lento PROPIO de cada voz (nodes.mkVoiceLFO 'drift' a mxDriftSpd): el acorde respira voz a voz
   // Fuentes de EJECUCIÓN (Roadmap 5.0 · bloque 4), 0..1 por motor (AudioEngine.perf):
   // el pad se TOCA durante la nota. 0 = reposo, así un preset suena igual sin tocarlas.
-  { id: 'wheel',   label: 'Rueda (CC1)' },   // rueda de modulación: la de pantalla (bajo el teclado) o el CC1
+  { id: 'wheel',   label: 'Wheel (CC1)' },   // rueda de modulación: la de pantalla (bajo el teclado) o el CC1
   { id: 'at',      label: 'Aftertouch' },    // presión del teclado MIDI (canal; el polifónico se trata igual)
-  { id: 'expr',    label: 'Expresión (CC11)' },  // pedal de expresión
+  { id: 'expr',    label: 'Expression (CC11)' },  // pedal de expresión
   // Macros (Roadmap 7.0 · 2.5): dos knobs 0..1 al pie de la matriz que SÍ se guardan en el
   // preset. Varios slots con la misma macro = un solo mando que abre el filtro, sube el
   // drive y la resonancia a la vez, cada destino con la cantidad de su slot.
@@ -290,20 +290,20 @@ export const MX_DESTS = [
   { id: 'pitch',  label: 'Pitch' },         // cents sobre el detune de ambos osciladores
   { id: 'pw',     label: 'Pulse width' },   // el AudioParam del worklet recorta a [0.01, 0.99]
   { id: 'cutoff', label: 'Cutoff' },        // octavas (detune del filtro, ±4 oct)
-  { id: 'reso',   label: 'Resonancia' },    // dB sobre la Q de la etapa final
-  { id: 'amp',    label: 'Amplitud' },      // ganancia por voz TRAS el VCA (1 ± mod)
+  { id: 'reso',   label: 'Resonance' },    // dB sobre la Q de la etapa final
+  { id: 'amp',    label: 'Amplitude' },      // ganancia por voz TRAS el VCA (1 ± mod)
   { id: 'pan',    label: 'Pan' },
   { id: 'wt',     label: 'Wavetable' },     // morph de la tabla (el AudioParam recorta a [0,1])
-  { id: 'vow',    label: 'Vocal' },         // recorre las vocales a audio-rate (los WaveShapers saturan en u/i)
-  { id: 'fm',     label: 'FM índice' },     // índice de modulación (el AudioParam recorta en 0): env→fm = pluck DX, vel→fm = tacto DX
+  { id: 'vow',    label: 'Vowel' },         // recorre las vocales a audio-rate (los WaveShapers saturan en u/i)
+  { id: 'fm',     label: 'FM index' },     // índice de modulación (el AudioParam recorta en 0): env→fm = pluck DX, vel→fm = tacto DX
   // Roadmap 7.0 · 2.4: los niveles del mezclador (morph vectorial: un LFO que baja A y sube B),
   // la ganancia de entrada del Drive (barridos de plegado), el tono de A solo (barrido de sync)
   // y el Material del resonador. Un nivel que baja de 0 invierte la fase (AM por cero): suena,
   // y con bases razonables (0,5 ± 0,5) no pasa — recortarlo costaría un WaveShaper por voz.
-  { id: 'lvlA',   label: 'Nivel A' },       // ganancia del mezclador (lineal: 1 = 0 dB)
-  { id: 'lvlB',   label: 'Nivel B' },
-  { id: 'lvlRing',label: 'Nivel Ring' },
-  { id: 'lvlNoise', label: 'Nivel ruido' },
+  { id: 'lvlA',   label: 'Level A' },       // ganancia del mezclador (lineal: 1 = 0 dB)
+  { id: 'lvlB',   label: 'Level B' },
+  { id: 'lvlRing',label: 'Level Ring' },
+  { id: 'lvlNoise', label: 'Level Noise' },
   { id: 'drive',  label: 'Drive' },         // ganancia de entrada de la curva (±1 = todo el recorrido del knob); necesita Drive > 0
   { id: 'pitchA', label: 'Pitch A' },       // cents solo sobre el oscilador A
   { id: 'resMat', label: 'Material' },      // resonador: ±1 = de cuerda a barra (cada modo, sus cents)

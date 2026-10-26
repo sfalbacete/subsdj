@@ -46,7 +46,7 @@ const diffKeys = (a, b) => Object.keys(b).filter(k => !same(k, a[k], b[k]));
 
 // Nombre de un control como lo lee la pantalla Salida: «Filtro · Cutoff»
 function labelOf(keys) {
-  if (keys.length !== 1) return keys.length + ' cambios';
+  if (keys.length !== 1) return keys.length + ' changes';
   const k = keys[0], el = CONTROLS[k] && CONTROLS[k].el;
   if (!el) return k;
   const ctl = el.closest('.ctl') || el;
@@ -111,8 +111,8 @@ function travel(from, to, side, verb) {
   refresh();
   return step;
 }
-export const undo = () => { const s = stack(); return travel(s.undo, s.redo, 'b', 'Deshacer'); };
-export const redo = () => { const s = stack(); return travel(s.redo, s.undo, 'a', 'Rehacer'); };
+export const undo = () => { const s = stack(); return travel(s.undo, s.redo, 'b', 'Undo'); };
+export const redo = () => { const s = stack(); return travel(s.redo, s.undo, 'a', 'Redo'); };
 export const historyDepth = () => ({ undo: stack().undo.length, redo: stack().redo.length });
 
 // ---------- comparar con el guardado ----------
@@ -141,15 +141,15 @@ function refresh() {
   requestAnimationFrame(() => {
     pend = false;
     const s = stack(), u = s.undo[s.undo.length - 1], r = s.redo[s.redo.length - 1];
-    if (ui.undo) { ui.undo.disabled = !u; ui.undo.title = u ? 'Deshacer: ' + u.label + ' (Ctrl+Z)' : 'Nada que deshacer'; }
-    if (ui.redo) { ui.redo.disabled = !r; ui.redo.title = r ? 'Rehacer: ' + r.label + ' (Ctrl+Y)' : 'Nada que rehacer'; }
+    if (ui.undo) { ui.undo.disabled = !u; ui.undo.title = u ? 'Undo: ' + u.label + ' (Ctrl+Z)' : 'Nothing to undo'; }
+    if (ui.redo) { ui.redo.disabled = !r; ui.redo.title = r ? 'Redo: ' + r.label + ' (Ctrl+Y)' : 'Nothing to redo'; }
     const mod = comparing ? true : isModified();
     if (ui.dot) ui.dot.classList.toggle('on', mod);
     if (ui.cmp) {
       ui.cmp.classList.toggle('on', !!comparing);
       ui.cmp.disabled = !mod;
-      ui.cmp.title = comparing ? 'Suena el preset GUARDADO: clic para volver a tu edición (tocar cualquier control también vuelve)'
-        : mod ? 'Comparar: oír el preset guardado y volver a tu edición' : 'Sin cambios respecto al preset guardado';
+      ui.cmp.title = comparing ? 'Playing the SAVED preset: click to go back to your edit (touching any control goes back too)'
+        : mod ? 'Compare: hear the saved preset and come back to your edit' : 'No changes from the saved preset';
     }
   });
 }

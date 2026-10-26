@@ -191,9 +191,9 @@ export async function makeSfzKit(state, name, opts = {}, onProgress = null) {
   const rel = Math.min(8, Math.max(0.03, S.r || 0.3));
   const lines = [
     '// SubSDJ · ' + name,
-    '// Multisample del preset (rejilla de ' + o.step + ' st, ' + layers.length + ' capa(s) de velocidad).',
-    '// Reverb y delay NO van horneados: añádelos en el DAW/tracker.',
-    '// Sin loop points: nota sostenible ~' + hold.toFixed(1) + ' s + release.',
+    '// Multisample of the preset (grid of ' + o.step + ' st, ' + layers.length + ' velocity layer(s)).',
+    '// Reverb and delay are NOT baked in: add them in the DAW/tracker.',
+    '// No loop points: notes sustain ~' + hold.toFixed(1) + ' s + release.',
     '',
     '<control>',
     'default_path=samples/',
@@ -287,10 +287,10 @@ export function initSfzExport() {
       // exporta lo que SUENA ahora: el preset cargado + los retoques de knobs
       const kit = await exportPresetSFZ(name, structuredClone(part().S),
         (i, n) => say('SFZ: render ' + i + '/' + n + '…'));
-      say('SFZ exportado: ' + kit.samples.length + ' samples · cárgalo en Sforzando/Renoise.');
+      say('SFZ exported: ' + kit.samples.length + ' samples · load it in Sforzando/Renoise.');
     } catch (e) {
       console.error('SubSDJ sfz:', e);
-      say('Error exportando SFZ (mira la consola).');
+      say('Error exporting SFZ (see the console).');
     } finally { btn.disabled = false; }
   });
 }

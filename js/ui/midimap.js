@@ -127,14 +127,14 @@ export function applyCC(cc, x) {
 export function armLearn(id) {
   pending = id;
   paintPending();
-  if (id) msg('mueve un mando físico para ligarlo a «' + id + '»…');
+  if (id) msg('move a hardware knob to bind it to «' + id + '»…');
 }
 export function learnCapture(cc) {
   if (pending == null) return false;
   for (const k in map.ccs) if (map.ccs[k].id === pending) delete map.ccs[k];  // re-learn = mover el binding
   map.ccs[cc] = { id: pending, lo: 0, hi: 1 };
   delete ccState[cc];
-  msg('ligado: CC ' + cc + ' → ' + pending);
+  msg('bound: CC ' + cc + ' → ' + pending);
   pending = null;
   paintPending(); save(); syncUI();
   return true;
@@ -143,7 +143,7 @@ function unbind(id) {
   let had = false;
   for (const k in map.ccs) if (map.ccs[k].id === id) { delete map.ccs[k]; had = true; }
   if (had) { save(); syncUI(); }
-  msg(had ? '«' + id + '» desligado' : '«' + id + '» no estaba ligado');
+  msg(had ? '«' + id + '» unbound' : '«' + id + '» was not bound');
 }
 
 // ---------- feedback visual ----------
@@ -192,7 +192,7 @@ function setLearn(on) {
     for (const k in CONTROLS) if (CONTROLS[k].el) CONTROLS[k].el.classList.add('mappable');
     for (const k in ACTIONS) if (ACTIONS[k].el) ACTIONS[k].el.classList.add('mappable');
     syncUI();
-    msg(device ? 'aparato: ' + device : 'sin aparato MIDI — conecta uno para ligar mandos');
+    msg(device ? 'device: ' + device : 'no MIDI device — connect one to bind knobs');
   }
 }
 function intercept(e) {   // en modo learn los controles no se accionan: se eligen
@@ -237,7 +237,7 @@ export function initMidiMap() {
   const def = document.getElementById('mmDef');
   if (def) def.addEventListener('click', () => {
     map = sanitize({ ccs: DEFAULT_CCS }); ccState = {};
-    save(); syncUI(); msg('mapeo de fábrica (CC1 · CC74 · CC71)');
+    save(); syncUI(); msg('factory mapping (CC1 · CC74 · CC71)');
   });
 
   // export/import del mapeo (mismo patrón que el banco de presets)
@@ -249,7 +249,7 @@ export function initMidiMap() {
     a.href = URL.createObjectURL(blob); a.download = 'subsdj-midimap.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    msg('mapeo exportado (' + Object.keys(map.ccs).length + ' CCs)');
+    msg('mapping exported (' + Object.keys(map.ccs).length + ' CCs)');
   });
   const impFile = document.getElementById('mmFile');
   const imp = document.getElementById('mmImp');
@@ -257,10 +257,10 @@ export function initMidiMap() {
   if (impFile) impFile.addEventListener('change', () => {
     const f = impFile.files[0]; if (!f) return;
     f.text().then(txt => {
-      let data; try { data = JSON.parse(txt); } catch (e) { msg('ese archivo no es JSON válido'); return; }
+      let data; try { data = JSON.parse(txt); } catch (e) { msg('that file is not valid JSON'); return; }
       map = sanitize(data); ccState = {};
       save(); syncUI();
-      msg('mapeo importado (' + Object.keys(map.ccs).length + ' CCs válidos)');
+      msg('mapping imported (' + Object.keys(map.ccs).length + ' valid CCs)');
       impFile.value = '';
     });
   });

@@ -62,7 +62,7 @@ export function initMIDI() {
   if (!navigator.requestMIDIAccess) {                  // navegador sin Web MIDI
     const btn = document.getElementById('midiLearnBtn');
     if (btn) btn.hidden = true;
-    setStatus('midiInfo', '', 'este navegador no tiene Web MIDI');
+    setStatus('midiInfo', '', 'this browser has no Web MIDI');
     return;
   }
   navigator.requestMIDIAccess().then(acc => {
@@ -70,9 +70,9 @@ export function initMIDI() {
       const names = [];
       acc.inputs.forEach(inp => { inp.onmidimessage = onMsg; names.push(inp.name); });
       setDevice(names[0] || null);                     // carga el mapa de ESTE aparato
-      setStatus('midiInfo', names.length ? 'on' : '', names.length ? 'MIDI: ' + names.join(' · ') : 'sin dispositivo MIDI');   // símbolo de la cabecera
+      setStatus('midiInfo', names.length ? 'on' : '', names.length ? 'MIDI: ' + names.join(' · ') : 'no MIDI device');   // símbolo de la cabecera
     };
     acc.onstatechange = rebind;                        // conectar/desconectar en caliente
     rebind();
-  }).catch(() => setStatus('midiInfo', '', 'MIDI: sin permiso del navegador'));   // permiso denegado: sin MIDI, sin ruido
+  }).catch(() => setStatus('midiInfo', '', 'MIDI: no permission from the browser'));   // permiso denegado: sin MIDI, sin ruido
 }

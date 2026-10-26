@@ -37,25 +37,25 @@ function editInline(span, valor, onCommit) {
 function row(it, cur) {
   const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.type === 'scene' ? ' esc' : ''));
   r.dataset.id = it.id; r.draggable = true;
-  r.title = it.type === 'scene' ? 'Cargar la escena (enciende las Partes) · arrastra para mover'
-                                 : 'Cargar en la parte que edita el rack · arrastra para mover';
+  r.title = it.type === 'scene' ? 'Load the scene (turns Parts on) · drag to move'
+                                 : 'Load into the part the rack is editing · drag to move';
   const star = mk('span', 'pl-star' + (it.fav ? ' on' : ''), '★');
-  star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale en «★ Favoritos» del selector rápido';
+  star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites» in the quick picker';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
   r.appendChild(star);
   if (it.type === 'scene') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
     const on = playingId === it.id && isPlaying();
     const p = mk('span', 'pl-play' + (on ? ' on' : ''), on ? '⏹' : '▶');
-    p.title = on ? 'Parar la escena (las Partes siguen encendidas)' : 'Cargar la escena y ponerla a sonar (solo una a la vez)';
+    p.title = on ? 'Stop the scene (Parts stay on)' : 'Load the scene and start it playing (one at a time)';
     p.addEventListener('click', e => { e.stopPropagation(); togglePlay(it); });
     r.appendChild(p);
   }
   const label = mk('span', 'pl-label', it.name); r.appendChild(label);
   if (it.type === 'scene') r.appendChild(mk('span', 'pl-tag', 'scene'));
   const tools = mk('span', 'pl-tools');
-  tools.appendChild(btn('', '✎', 'Renombrar', () => editInline(label, it.name, v => library.renombrar(it.id, v))));
-  tools.appendChild(btn('del', '🗑', 'Borrar' + (it.origin === 'factory' ? ' (⟲ Traer de fábrica lo devuelve)' : ''), () => {
-    if (confirm('¿Borrar «' + it.name + '»?')) { library.borrar(it.id); msg('Borrado «' + it.name + '».'); }
+  tools.appendChild(btn('', '✎', 'Rename', () => editInline(label, it.name, v => library.renombrar(it.id, v))));
+  tools.appendChild(btn('del', '🗑', 'Delete' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''), () => {
+    if (confirm('Delete «' + it.name + '»?')) { library.borrar(it.id); msg('Deleted «' + it.name + '».'); }
   }));
   r.appendChild(tools);
   r.addEventListener('click', () => cargar(it));
@@ -65,15 +65,15 @@ function row(it, cur) {
 }
 
 async function togglePlay(it) {
-  if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Escena parada: ' + it.name + '.'); return; }
-  try { await loadScene(it.data); } catch (err) { msg('Escena no válida: ' + (err.message || err)); return; }
+  if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Scene stopped: ' + it.name + '.'); return; }
+  try { await loadScene(it.data); } catch (err) { msg('Invalid scene: ' + (err.message || err)); return; }
   playingId = it.id;            // después de cargar: scene-loaded acaba de limpiarlo
-  setPlaying(true); msg('Suena: ' + it.name + '.');
+  setPlaying(true); msg('Playing: ' + it.name + '.');
 }
 async function cargar(it) {
   if (it.type === 'scene') {
-    try { await loadScene(it.data); msg('Escena cargada: ' + it.name + ' (▶ Tocar en Armonía).'); }
-    catch (err) { msg('Escena no válida: ' + (err.message || err)); }
+    try { await loadScene(it.data); msg('Scene loaded: ' + it.name + ' (▶ Play in Harmony).'); }
+    catch (err) { msg('Invalid scene: ' + (err.message || err)); }
     return;
   }
   loadPresetId(it.id);
@@ -94,12 +94,12 @@ function render() {
     const name = mk('span', 'pl-name', s.name); head.appendChild(name);
     head.appendChild(mk('span', 'pl-n', String(todos.length)));
     const tools = mk('span', 'pl-tools');
-    tools.appendChild(btn('', '‹', 'Mover la sección hacia el principio', () => library.moverSeccion(s.id, -1)));
-    tools.appendChild(btn('', '›', 'Mover la sección hacia el final', () => library.moverSeccion(s.id, 1)));
-    tools.appendChild(btn('', '✎', 'Renombrar la sección', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v))));
-    tools.appendChild(btn('del', '🗑', 'Borrar la sección con todo lo que contiene', () => {
+    tools.appendChild(btn('', '‹', 'Move the section towards the start', () => library.moverSeccion(s.id, -1)));
+    tools.appendChild(btn('', '›', 'Move the section towards the end', () => library.moverSeccion(s.id, 1)));
+    tools.appendChild(btn('', '✎', 'Rename the section', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v))));
+    tools.appendChild(btn('del', '🗑', 'Delete the section and everything in it', () => {
       const n = todos.length;
-      if (confirm('¿Borrar la sección «' + s.name + '»' + (n ? ' y sus ' + n + ' elementos' : '') + '?')) { library.borrarSeccion(s.id); msg('Sección «' + s.name + '» borrada.'); }
+      if (confirm('Delete the section «' + s.name + '»' + (n ? ' and its ' + n + ' items' : '') + '?')) { library.borrarSeccion(s.id); msg('Section «' + s.name + '» deleted.'); }
     }));
     head.appendChild(tools);
     name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v)));
@@ -117,7 +117,7 @@ function render() {
     });
     list.appendChild(sec);
   }
-  if (!list.children.length) list.appendChild(mk('div', 'note', q || soloFav ? 'Nada que coincida.' : 'Biblioteca vacía: ⟲ Traer de fábrica.'));
+  if (!list.children.length) list.appendChild(mk('div', 'note', q || soloFav ? 'Nothing matches.' : 'Empty library: ⟲ Restore factory.'));
 }
 function mark() { if (!list) return; const cur = currentPresetId(); list.querySelectorAll('.pl-item').forEach(r => r.classList.toggle('cur', r.dataset.id === cur)); }
 
@@ -127,14 +127,14 @@ export function initLibraryScreen() {
   $('libSearch').addEventListener('input', e => { filtro = e.target.value; render(); });
   $('libFavOnly').addEventListener('change', e => { soloFav = e.target.checked; render(); });
   $('libNewSec').addEventListener('click', () => {
-    const id = library.crearSeccion('Nueva sección');   // library-changed ya repintó: a ponerle nombre
+    const id = library.crearSeccion('New section');   // library-changed ya repintó: a ponerle nombre
     const name = list.querySelector('.pl-sec[data-sec="' + id + '"] .pl-name');
-    if (name) editInline(name, 'Nueva sección', v => library.renombrarSeccion(id, v));
+    if (name) editInline(name, 'New section', v => library.renombrarSeccion(id, v));
   });
   $('libSeed').addEventListener('click', async () => {
     const r = await library.traerDeFabrica();
-    msg((r.n ? 'Traídos ' + r.n + ' elementos de fábrica y del repo.' : 'No faltaba nada de fábrica.')
-        + (r.errores.length ? ' No se pudo leer: ' + r.errores.join(', ') + '.' : ''));
+    msg((r.n ? 'Brought back ' + r.n + ' items from the factory and the repo.' : 'Nothing was missing from the factory.')
+        + (r.errores.length ? ' Could not read: ' + r.errores.join(', ') + '.' : ''));
   });
   document.addEventListener('library-changed', render);
   document.addEventListener('preset-loaded', mark);   // selector rápido, ‹ ›, program change

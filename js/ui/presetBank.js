@@ -33,7 +33,7 @@ function loadCurrent() {
   const it = library.item(curId);
   if (!it || it.type !== 'preset') return;
   record('Preset «' + it.name + '»', () => loadState(it.data), { saved: true });   // deshacer devuelve el sonido de antes
-  msg('Cargado: ' + it.name);
+  msg('Loaded: ' + it.name);
   document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.name, value: it.id } }));   // el mezclador etiqueta la parte
 }
 export function loadPresetId(id) { if (!asPreset(id)) return false; curId = id; loadCurrent(); return true; }
@@ -57,51 +57,51 @@ export function initPresetBank() {
   const init = library.presets().find(it => it.name === 'Init (default)');
   curId = init ? init.id : null;
   if (!library.data.files)                    // bancos del repo y escenas: por fetch, una vez
-    ready = library.sembrarFicheros().then(r => { if (r.n) msg('Biblioteca: traídos ' + r.n + ' presets y escenas del repo.'); });
+    ready = library.sembrarFicheros().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });
 
   document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
   document.getElementById('nextBtn').addEventListener('click', () => stepPreset(1));
   document.getElementById('saveBtn').addEventListener('click', () => {
     const inp = document.getElementById('presetName');
     const name = (inp.value || '').trim();
-    if (!name) { inp.focus(); msg('Escribe un nombre para guardar.'); return; }
+    if (!name) { inp.focus(); msg('Type a name to save.'); return; }
     // Mismo nombre que el preset cargado → se actualiza donde esté; si no, en
     // «★ Míos» (encima del que tenga ese nombre allí, o nuevo).
     const cur = currentPreset();
     let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
     if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
     let id;
-    if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Actualizado «' + name + '».'); }
-    else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Guardado «' + name + '» en ' + SEC_MIOS + ' (este navegador).'); }
+    if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
+    else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MIOS + ' (this browser).'); }
     markPreset(id); inp.value = '';
     markSaved();                                  // lo que suena ES ahora el preset guardado: ● se apaga
   });
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = currentPreset();
-    if (!it) { msg('Elige antes un preset.'); return; }
-    if (!confirm('¿Borrar «' + it.name + '» de la biblioteca?' + (it.origin === 'factory' ? ' (⟲ Traer de fábrica lo devuelve)' : ''))) return;
-    library.borrar(it.id); msg('Borrado «' + it.name + '».');
+    if (!it) { msg('Pick a preset first.'); return; }
+    if (!confirm('Delete «' + it.name + '» from the library?' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''))) return;
+    library.borrar(it.id); msg('Deleted «' + it.name + '».');
   });
-  document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Valores por defecto.'); });
+  document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Default values.'); });
 
   // ---- exportar / importar la biblioteca entera (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {
     const j = library.exportar();
-    download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-biblioteca.json');
-    msg('Exportada la biblioteca: ' + j.items.length + ' elementos en ' + j.sections.length + ' secciones.');
+    download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library.json');
+    msg('Library exported: ' + j.items.length + ' items in ' + j.sections.length + ' sections.');
   });
   const impFile = document.getElementById('impFile');
   document.getElementById('impBtn').addEventListener('click', () => impFile.click());
   impFile.addEventListener('change', () => {
     const f = impFile.files[0]; if (!f) return;
     f.text().then(txt => {
-      let data; try { data = JSON.parse(txt); } catch (e) { msg('Ese archivo no es JSON válido.'); return; }
+      let data; try { data = JSON.parse(txt); } catch (e) { msg('That file is not valid JSON.'); return; }
       try {
         const r = library.importar(data, { limpiar });
-        msg(r.type === 'library' ? 'Biblioteca fundida: ' + r.n + ' elementos nuevos.'
-          : r.type === 'scene' ? (r.n ? 'Escena añadida a «Escenas».' : 'Esa escena ya estaba.')
-          : (r.n ? 'Importados ' + r.n + ' presets (en «Importados»).' : 'El archivo no contenía presets nuevos.'));
-      } catch (err) { msg('No se pudo importar: ' + (err.message || err)); }
+        msg(r.type === 'library' ? 'Library merged: ' + r.n + ' new items.'
+          : r.type === 'scene' ? (r.n ? 'Scene added to «Scenes».' : 'That scene was already there.')
+          : (r.n ? 'Imported ' + r.n + ' presets (into «Imported»).' : 'The file had no new presets.'));
+      } catch (err) { msg('Could not import: ' + (err.message || err)); }
       impFile.value = '';
     });
   });

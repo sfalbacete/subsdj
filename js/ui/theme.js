@@ -54,7 +54,7 @@ export function hue(name) {              // tono 0..360 del token (el espectro s
 }
 
 // ---------- temas ----------
-const unq = s => (s || '').trim().replace(/^["']|["']$/g, '');   // --theme-name:"Clásico" → Clásico
+const unq = s => (s || '').trim().replace(/^["']|["']$/g, '');   // --theme-name:"Classic" → Classic
 
 export function listThemes() {           // [{id, name, base}] leídos de las hojas, en su orden
   const out = [];

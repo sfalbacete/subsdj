@@ -15,39 +15,39 @@ const tokensOf = () => part().S.seqPat.trim().split(/\s+/).filter(Boolean).slice
 // Banco de frases prefabricadas (offsets sobre la raíz; div = división recomendada).
 // El selector es azúcar de UI: solo reescribe seqPat/seqDiv vía CONTROLS.
 export const SEQ_PATTERNS = [
-  { name: 'Octavas',            pat: '0 12 0 12 0 12 0 12',                         div: '1/16' },
-  { name: 'Bajo ácido',         pat: '0 0 12 0 3 3 7 10',                           div: '1/16' },
-  { name: 'Ácido sincopado',    pat: '0 . 0 12 . 10 3 .',                           div: '1/16' },
-  { name: 'Arpegio menor',      pat: '0 3 7 12 . 7 3 .',                            div: '1/16' },
-  { name: 'Arpegio mayor',      pat: '0 4 7 12 16 12 7 4',                          div: '1/16' },
-  { name: 'Quintas rodando',    pat: '0 7 . 7 0 7 10 7',                            div: '1/16' },
-  { name: 'Hook trance',        pat: '0 . 7 . 12 . 7 .',                            div: '1/16' },
-  { name: 'Bajada frigia',      pat: '12 . 10 . 7 . 1 0',                           div: '1/8' },
-  { name: 'Escalera 2 octavas', pat: '0 3 7 10 12 15 19 22 24 22 19 15 12 10 7 3', div: '1/16' },
-  { name: 'Pregunta-respuesta', pat: '0 3 5 7 . 7 10 12 . 12 10 7 5 3 . .',        div: '1/16' },
-  { name: 'Dembow sub',         pat: '0 . . 0 . . 12 .',                            div: '1/8' },
+  { name: 'Octaves',            pat: '0 12 0 12 0 12 0 12',                         div: '1/16' },
+  { name: 'Acid Bass',          pat: '0 0 12 0 3 3 7 10',                           div: '1/16' },
+  { name: 'Syncopated Acid',    pat: '0 . 0 12 . 10 3 .',                           div: '1/16' },
+  { name: 'Minor Arpeggio',     pat: '0 3 7 12 . 7 3 .',                            div: '1/16' },
+  { name: 'Major Arpeggio',     pat: '0 4 7 12 16 12 7 4',                          div: '1/16' },
+  { name: 'Rolling Fifths',     pat: '0 7 . 7 0 7 10 7',                            div: '1/16' },
+  { name: 'Trance Hook',        pat: '0 . 7 . 12 . 7 .',                            div: '1/16' },
+  { name: 'Phrygian Descent',   pat: '12 . 10 . 7 . 1 0',                           div: '1/8' },
+  { name: 'Two-Octave Stairs',  pat: '0 3 7 10 12 15 19 22 24 22 19 15 12 10 7 3', div: '1/16' },
+  { name: 'Call and Response',  pat: '0 3 5 7 . 7 10 12 . 12 10 7 5 3 . .',        div: '1/16' },
+  { name: 'Dembow Sub',         pat: '0 . . 0 . . 12 .',                            div: '1/8' },
   // Con articulaciones (Roadmap 7.0 · 5.1): ! acento · ~ ligadura · / slide · x2-x4 repeticiones
-  { name: 'Ácido con slides',   pat: '0! 0 12/ 0 3 0! 10/ 7',                       div: '1/16' },
-  { name: 'Ácido que pregunta', pat: '0 0! . 0/ 12 . 3! 5/ 7 . 0 10! . 12/ 0 .',    div: '1/16' },
-  { name: 'Ligaduras largas',   pat: '0~ 0 7/ 5 3~ 3 . -2/',                         div: '1/8' },
-  { name: 'Redobles',           pat: '0! . 0 0x2 0! . 0x3 0x4',                      div: '1/8' },
+  { name: 'Acid Slides',        pat: '0! 0 12/ 0 3 0! 10/ 7',                       div: '1/16' },
+  { name: 'Questioning Acid',   pat: '0 0! . 0/ 12 . 3! 5/ 7 . 0 10! . 12/ 0 .',    div: '1/16' },
+  { name: 'Long Ties',          pat: '0~ 0 7/ 5 3~ 3 . -2/',                         div: '1/8' },
+  { name: 'Rolls',              pat: '0! . 0 0x2 0! . 0x3 0x4',                      div: '1/8' },
   // Por grados (5.2): al elegirlas, si las notas están en semitonos pasan a la escala mayor
-  { grp: 'Por grados', name: 'Arpegio de la escala',  pat: '0 2 4 7 4 2 0 -3',            div: '1/16', notes: 'major' },
-  { grp: 'Por grados', name: 'Escala que sube y baja', pat: '0 1 2 3 4 5 6 7 6 5 4 3 2 1 0 -1', div: '1/16', notes: 'major' },
-  { grp: 'Por grados', name: 'Terceras rodando',      pat: '0 2 1 3 2 4 3 5',             div: '1/16', notes: 'major' },
-  { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
+  { grp: 'By degree', name: 'Scale Arpeggio',        pat: '0 2 4 7 4 2 0 -3',            div: '1/16', notes: 'major' },
+  { grp: 'By degree', name: 'Scale Up and Down',     pat: '0 1 2 3 4 5 6 7 6 5 4 3 2 1 0 -1', div: '1/16', notes: 'major' },
+  { grp: 'By degree', name: 'Rolling Thirds',        pat: '0 2 1 3 2 4 3 5',             div: '1/16', notes: 'major' },
+  { name: 'Fanfare',            pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
   // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
   // personal). Relativos a la tecla mantenida; bpm = tempo del original.
-  { grp: 'Clásicas', name: 'Blade Runner · Vangelis',  pat: '0 . 0 0 12 . 0 0 10 . 0 0 12 . 0 0', div: '1/16', bpm: 140 },
-  { grp: 'Clásicas', name: 'Blade Runner · Sergio',  pat: '0 0 2 3', div: '1/16', bpm: 125 },
-  { grp: 'Clásicas', name: 'Chase · Moroder',          pat: '0 7 12 7 0 7 12 7',                  div: '1/16', bpm: 130 },
-  { grp: 'Clásicas', name: 'Stranger Things',          pat: '0 4 7 11 12 11 7 4',                 div: '1/16', bpm: 86 },
-  { grp: 'Clásicas', name: 'Blue Monday · New Order',  pat: '0 0 0 0 0 0 0 0 0 0 0 0 -2 -2 -5 -5', div: '1/16', bpm: 130 },
-  { grp: 'Clásicas', name: 'On The Run · Pink Floyd',  pat: '0 3 5 3 10 8 10 12',                 div: '1/16', bpm: 165 },
-  { grp: 'Clásicas', name: 'The Robots · Kraftwerk',   pat: '0 . 0 12 . 0 . 12 0 . 0 12 10 . 7 .', div: '1/16', bpm: 110 },
-  { grp: 'Clásicas', name: 'I Feel Love · Moroder',    pat: '0 12 0 12 0 12 0 12',                div: '1/16', bpm: 125 },
-  { grp: 'Clásicas', name: 'The Model · Kraftwerk',    pat: '0 0 0 0 8 8 7 7',                    div: '1/8',  bpm: 106 },
-  { grp: 'Clásicas', name: 'Axel F · Faltermeyer',     pat: '0 . . 3 . . 0 . 0 5 . 0 . -2 . .',   div: '1/16', bpm: 118 },
+  { grp: 'Classics', name: 'Blade Runner · Vangelis',  pat: '0 . 0 0 12 . 0 0 10 . 0 0 12 . 0 0', div: '1/16', bpm: 140 },
+  { grp: 'Classics', name: 'Blade Runner · Sergio',  pat: '0 0 2 3', div: '1/16', bpm: 125 },
+  { grp: 'Classics', name: 'Chase · Moroder',          pat: '0 7 12 7 0 7 12 7',                  div: '1/16', bpm: 130 },
+  { grp: 'Classics', name: 'Stranger Things',          pat: '0 4 7 11 12 11 7 4',                 div: '1/16', bpm: 86 },
+  { grp: 'Classics', name: 'Blue Monday · New Order',  pat: '0 0 0 0 0 0 0 0 0 0 0 0 -2 -2 -5 -5', div: '1/16', bpm: 130 },
+  { grp: 'Classics', name: 'On The Run · Pink Floyd',  pat: '0 3 5 3 10 8 10 12',                 div: '1/16', bpm: 165 },
+  { grp: 'Classics', name: 'The Robots · Kraftwerk',   pat: '0 . 0 12 . 0 . 12 0 . 0 12 10 . 7 .', div: '1/16', bpm: 110 },
+  { grp: 'Classics', name: 'I Feel Love · Moroder',    pat: '0 12 0 12 0 12 0 12',                div: '1/16', bpm: 125 },
+  { grp: 'Classics', name: 'The Model · Kraftwerk',    pat: '0 0 0 0 8 8 7 7',                    div: '1/8',  bpm: 106 },
+  { grp: 'Classics', name: 'Axel F · Faltermeyer',     pat: '0 . . 3 . . 0 . 0 5 . 0 . -2 . .',   div: '1/16', bpm: 118 },
 ];
 
 export function bindSeqControls() {
@@ -66,8 +66,8 @@ export function bindSeqControls() {
   CONTROLS.seqPat.set(PARAMS.seqPat.def);
 
   const notes = document.getElementById('seqNotesSel');   // notas por grado (5.2)
-  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'grados · armonía' },
-    ...Object.keys(ESCALAS).map(k => ({ id: k, label: 'grados · ' + k }))]);
+  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'degrees · harmony' },
+    ...Object.keys(ESCALAS).map(k => ({ id: k, label: 'degrees · ' + k }))]);
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
   initSeqPatterns();
@@ -80,10 +80,10 @@ function initSeqPatterns() {
   const sel = document.getElementById('seqPatSel');
   if (!sel) return;
   const opt = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); };
-  opt(sel, '', '— personalizada —');
+  opt(sel, '', '— custom —');
   const groups = new Map();
   SEQ_PATTERNS.forEach((p, i) => {
-    const gname = p.grp || 'Frases';
+    const gname = p.grp || 'Phrases';
     if (!groups.has(gname)) { const og = document.createElement('optgroup'); og.label = gname; sel.appendChild(og); groups.set(gname, og); }
     opt(groups.get(gname), String(i), p.name);
   });

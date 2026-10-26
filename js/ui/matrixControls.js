@@ -13,10 +13,10 @@ export function bindMatrixControls() {
     const row = document.createElement('div');
     row.className = 'mx-row';
     row.innerHTML =
-      `<select id="mx${i}src" title="Fuente de modulación"></select>` +
+      `<select id="mx${i}src" title="Modulation source"></select>` +
       `<span class="mx-arrow">→</span>` +
-      `<select id="mx${i}dst" title="Destino"></select>` +
-      `<div class="ctl ks" data-lab="Slot ${i} · cantidad"><div class="knob" data-knob="mx${i}amt" title="Cantidad (±)"><div class="ind"></div></div><div class="val"></div></div>`;
+      `<select id="mx${i}dst" title="Destination"></select>` +
+      `<div class="ctl ks" data-lab="Slot ${i} · amount"><div class="knob" data-knob="mx${i}amt" title="Amount (±)"><div class="ind"></div></div><div class="val"></div></div>`;
     host.appendChild(row);
     bindSel(row.querySelector(`#mx${i}src`), `mx${i}src`, MX_SOURCES);
     bindSel(row.querySelector(`#mx${i}dst`), `mx${i}dst`, MX_DESTS);

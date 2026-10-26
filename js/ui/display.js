@@ -59,7 +59,7 @@ function describe(el) {
   else val = el.querySelector('.val')?.textContent || '';
   const who = [row ? sec + ' ' + row.dataset.name : sec, lab].filter(Boolean).join(' · ');
   const off = el.closest('[data-off]');   // apagado (ui/deps.js): el control o su sección no hacen nada ahora
-  return { who, val: val.trim(), det, why: off ? 'sin efecto: ' + off.dataset.off : '' };
+  return { who, val: val.trim(), det, why: off ? 'no effect: ' + off.dataset.off : '' };
 }
 
 export function initDisplay() {
@@ -96,7 +96,7 @@ export function initDisplay() {
   // un mensaje de otro módulo (deshacer / rehacer: qué se ha deshecho)
   document.addEventListener('display-show', e => { touched = null; show(e.detail.who || '', e.detail.val || '', '', e.detail.det || ''); });
   // nota tocada con el ratón en el teclado de pantalla: su velocity (sale de la altura de la pulsación)
-  document.addEventListener('kb-note', e => { touched = null; show('Teclado · ' + e.detail.name, 'vel ' + e.detail.vel.toFixed(2), '', 'arriba de la tecla = suave · abajo = fuerte'); });
+  document.addEventListener('kb-note', e => { touched = null; show('Keyboard · ' + e.detail.name, 'vel ' + e.detail.vel.toFixed(2), '', 'top of the key = soft · bottom = hard'); });
   show('Preset', $('presetPickName')?.textContent || '—');
 
   // Menú Archivo: se abre con su botón y se cierra al elegir o al pulsar fuera

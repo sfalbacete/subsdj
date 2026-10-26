@@ -162,7 +162,7 @@ export class Library {
   sembrarUsuario(mapa) { const m = mapa || loadUser(); return Object.keys(m).length ? this.sembrar('user', SEC_MIOS, m) : 0; }
   async sembrarFicheros(fetchFn) {
     const f = fetchFn || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
-    if (!f) return { n: 0, errores: ['sin fetch'] };
+    if (!f) return { n: 0, errores: ['no fetch'] };
     let n = 0; const errores = [];
     for (const fr of FICHEROS_REPO) {
       try { const j = await (await f(fr.url, { cache: 'no-store' })).json(); n += this.sembrar(fr.origin, fr.section, j.presets || j); }

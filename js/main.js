@@ -80,11 +80,11 @@ engine.init()
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
     initMeter();         // medidor de salida: picos L/R y reducción del limitador
-    if (!isStatus('powerInfo', 'on')) setStatus('powerInfo', 'wait', 'audio listo: pulsa una tecla o una nota para sonar');
+    if (!isStatus('powerInfo', 'on')) setStatus('powerInfo', 'wait', 'audio ready: press a key or a note to play');
   })
   .catch(err => {
-    console.error('SubSDJ: no se pudo iniciar el audio', err);
-    setStatus('powerInfo', 'err', 'error al iniciar el audio (mira la consola)');
+    console.error('SubSDJ: could not start the audio', err);
+    setStatus('powerInfo', 'err', 'error starting the audio (see the console)');
   });
 
 // 3) Self-test (?selftest=1): renderiza los presets de fábrica en un
