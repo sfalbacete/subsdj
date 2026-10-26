@@ -948,9 +948,11 @@ export async function runSelfTest() {
       }
       const name = act.dataset.knob, keep = CONTROLS[name].get(), edgeHi = getComputedStyle(document.documentElement).getPropertyValue('--edge-hi').trim();
       CONTROLS[name].set(0);
+      await new Promise(r => setTimeout(r, 450));   // --knob-ind is a registered <color> that FADES (0.3 s) to the off color
+      const toRgb = c => { const d = document.createElement('div'); d.style.color = c; document.body.appendChild(d); const r = getComputedStyle(d).color; d.remove(); return r; };
       const ind0 = getComputedStyle(act).getPropertyValue('--knob-ind').trim();
       if (!act.classList.contains('off')) problems.push('act ' + name + ' at 0 without .off');
-      if (ind0 !== edgeHi) problems.push('act ' + name + ' at 0: indicator ' + ind0 + ' ≠ ' + edgeHi);
+      if (toRgb(ind0) !== toRgb(edgeHi)) problems.push('act ' + name + ' at 0: indicator ' + ind0 + ' ≠ ' + edgeHi);
       CONTROLS[name].set(PARAMS[name].max);
       if (act.classList.contains('off')) problems.push('act ' + name + ' at maximum still .off');
       CONTROLS[name].set(keep);

@@ -191,6 +191,8 @@ function apply(el, why) {
     delete el.dataset.off; el.classList.remove('dep-off');
     if (el.dataset.title0) el.title = el.dataset.title0; else el.removeAttribute('title');
     delete el.dataset.title0;
+    // back on softly: a one-shot animation (style.css .dep-on) instead of a cut
+    el.classList.add('dep-on'); clearTimeout(el._depOnT); el._depOnT = setTimeout(() => el.classList.remove('dep-on'), 400);
   }
 }
 

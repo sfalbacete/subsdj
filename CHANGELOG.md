@@ -55,6 +55,9 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
 - **File ▾ → Wipe library**: downloads a copy of the current library (the same file as
   Export) and starts again from the factory — the library and the old presets it could be
   rebuilt from are forgotten.
+- **On and off, softly**: what dims because it does nothing with the current settings (a
+  control, a whole module, the Parts panels, a muted strip), a knob going to 0 and the
+  activity LEDs now fade over a third of a second instead of switching.
 - **Drag and drop in the Presets screen** shows where the item will land: an insertion
   line above or below the row under the pointer, or the section lit when it goes to its end.
 - Fixed: an exported scene did not carry its name, so importing it into the library gave
