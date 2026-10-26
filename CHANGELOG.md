@@ -6,7 +6,10 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased
+## [1.4.0] — 2026-10-26
+
+SubSDJ speaks English: the interface, the factory bank, the data it saves, the code and
+the docs. Everything saved with earlier versions keeps loading and sounding the same.
 
 - **SubSDJ is now in English**: the whole interface (labels, tooltips, the «?»
   help, messages), the factory presets and their categories, the sequencer
@@ -19,8 +22,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   maps now store their keys and values in English. Everything saved with
   1.3.0 or earlier — your library in the browser, exported files, scenes, MIDI
   maps — is translated when it loads and sounds exactly the same; your old
-  library stays untouched in the browser as a copy. Files exported from now on
-  don't open in 1.3.0.
+  library stays untouched in the browser as a copy. Factory presets you didn't
+  rename get their English names; the ones you created keep the names you gave
+  them. Files exported from now on don't open in 1.3.0.
 - **The A/B demos leave the main library**: they are test pairs, not
   instruments. They can still be loaded with File ▾ → Import
   (`subsdj-demos.json`).
