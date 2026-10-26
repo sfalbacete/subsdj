@@ -60,7 +60,10 @@ function row(it, cur) {
   if (kind === 'modified' && library.factoryDataOf(it)) {
     const dot = mk('span', 'pl-dot', '●');
     dot.title = 'Modified: this is no longer the factory preset. Click to bring the factory values back';
-    dot.addEventListener('click', e => { e.stopPropagation(); library.resetToFactory(it.id); msg('«' + it.name + '» back to the factory values.'); });
+    dot.addEventListener('click', e => {   // the factory values back in the library AND in the rack (what you hear)
+      e.stopPropagation();
+      if (library.resetToFactory(it.id)) { loadPresetId(it.id); msg('«' + it.name + '» back to the factory values.'); }
+    });
     r.appendChild(dot);
   } else if (inBank && kind !== 'factory' && kind !== 'scene') {
     r.appendChild(mk('span', 'pl-tag' + (kind === 'old' ? ' old' : ''), kind === 'old' ? 'old' : kind === 'user' ? 'mine' : kind === 'modified' ? 'edited' : 'imported'));
