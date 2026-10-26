@@ -2539,6 +2539,16 @@ rule — same name and same content never twice — means an old ★ copy identi
 preset simply stays as the new one. The archive `subsdj-bank-1.4.json` is a library file
 (sections «1.4 · …», the scenes with their presets inlined) that imports whole, twice
 without duplicates; the 13 old presets kept as they were are skipped by that same rule.
+*Same day, Sergio: «why do I see repeated presets?»* His library had been seeded weeks
+before 1.4 and «Restore factory» only ever ADDED what was missing, never updated a copy: his
+factory presets still had the Masters from before the 1.1.0 loudness matching, so the sync —
+comparing with the 1.4 content only — took every one of them for an edited copy and kept it
+next to the new one. Fix: the table now holds every version the factory ever shipped, built
+from git (the 45 commits that touched `presets.js`, the 2.0 file or the scenes, each imported
+and translated with the current `migratePreset`/`migrateScene`: 238 seeds, 605 fingerprints,
+with the sections each one was seeded into), and `BANK_REV` went to 3 so the already-synced
+libraries sync again. The lesson: a library is a copy, and a copy seeded at any commit is
+«untouched» only against the history, not against today's code.
 
 **Measuring the bank.** The factory batch renders each preset in its use — one note at
 `root` (C2 for basses, C4 for leads, C3 for the rest), a major triad, or one 50 ms hit —

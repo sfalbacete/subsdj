@@ -182,13 +182,13 @@ export class Library {
     const untouched = it => {
       if (!it.seed || it.fav || it.name !== seedName(it.seed)) return false;
       if (it.seedFp) return secName(it) === it.seedSec && fnv(canon(it.data)) === it.seedFp;
-      const old = LEGACY_FP[it.seed];
-      return !!old && secName(it) === old[0] && fnv(canon(it.data)) === old[1];
+      const old = LEGACY_FP[it.seed];   // seeded before 1.5.0: any version the factory ever shipped counts as untouched
+      return !!old && old.s.includes(secName(it)) && old.f.includes(fnv(canon(it.data)));
     };
     const gone = new Set(this.data.items.filter(it => /^(factory|v2|scene):/.test(it.seed || '') && untouched(it)).map(it => it.id));
     this.data.items = this.data.items.filter(it => !gone.has(it.id));
     // empty bank sections (old categories, the retired repo bank, the scenes) go; a user's empty section stays
-    const bankSecs = new Set([...Object.values(LEGACY_FP).map(v => v[0]), ...BANK.map(c => c.cat), SEC_SCENES]);
+    const bankSecs = new Set([...Object.values(LEGACY_FP).flatMap(v => v.s), ...BANK.map(c => c.cat), SEC_SCENES]);
     const used = new Set(this.data.items.map(it => it.section));
     this.data.sections = this.data.sections.filter(s => used.has(s.id) || !bankSecs.has(s.name));
     const added = this.seedFactory();

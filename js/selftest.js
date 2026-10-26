@@ -1104,7 +1104,9 @@ export async function runSelfTest() {
       const store = mkStore(), fp = d => fnv(canon(d));
       const oldWarm = FX.warmPad, oldPluck = FX.pluckBass, oldKick = FX.kick808;   // 1.4 data: their fingerprints are in LEGACY_FP
       for (const [k, d] of [['factory:Warm Pad', oldWarm], ['factory:Pluck Bass', oldPluck], ['factory:808 Kick', oldKick]])
-        if (!LEGACY_FP[k] || LEGACY_FP[k][1] !== fp(d)) problems.push('LEGACY_FP does not match the 1.4 data of ' + k + ' (canon/fnv changed?)');
+        if (!LEGACY_FP[k] || !LEGACY_FP[k].f.includes(fp(d))) problems.push('LEGACY_FP does not match the 1.4 data of ' + k + ' (canon/fnv changed?)');
+      // a library seeded earlier holds OLDER content (Restore factory never updated a copy): any version counts
+      if (!(LEGACY_FP['factory:Warm Pad'].f.length > 1)) problems.push('LEGACY_FP has a single version of Warm Pad (the history is missing)');
       const dawn = { format: 'subsdj-scene-v2', name: 'Dawn', parts: [] };   // a scene seeded the 1.5.0 way: its fingerprint stored with it
       const lib = { format: 'subsdj-library-v2', next: 20, files: true,
         sections: [{ id: 's1', name: 'Pads' }, { id: 's2', name: 'Bass' }, { id: 's3', name: 'Presets 2.0' }, { id: 's4', name: '★ Mine' }, { id: 's5', name: 'Scenes' }, { id: 's6', name: 'My empty one' }, { id: 's7', name: 'Keys' }],
