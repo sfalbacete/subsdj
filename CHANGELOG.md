@@ -34,7 +34,9 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
 - **Your library follows the bank**: the untouched, unstarred copies of the old factory
   presets are replaced by the new ones — whichever version seeded them (a library from
   before 1.1.0 still carried the Masters of that day: «Restore factory» never updated a
-  copy); anything you renamed, moved, edited or starred stays where it is. The whole old bank — factory, «Presets 2.0» and the four scenes —
+  copy); anything you renamed, moved, edited or starred stays where it is. The same rule
+  applies to a library file exported by an earlier version: File ▾ → Import brings in
+  your own presets and your tweaks, and skips the untouched factory copies it carries. The whole old bank — factory, «Presets 2.0» and the four scenes —
   is archived in `subsdj-bank-1.4.json`: File ▾ → Import brings any of it back.
 - **Scenes**: eight — Night Ambient, Dorian Dawn, Hypnotic Techno, Robot Choir and four
   new ones: **Berlin School**, **Dub Session**, **909 Kit** and **Deep Space** — and all

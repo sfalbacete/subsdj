@@ -73,7 +73,7 @@ export class Library {
     const isNew = !isV2(d);
     this.data = isNew ? this.empty() : d;
     if (typeof this.data.next !== 'number') this.data.next = 1;
-    if (isNew) { if (seed) { this.seedFactory(); this.seedUser(user); } this.data.bankRev = BANK_REV; this.save(); }
+    if (isNew) { if (seed) { this.seedFactory(); this.seedUser(user); this.data.bankRev = BANK_REV; } this.save(); }   // no bank, no revision (tests)
     else if (this.data.bankRev !== BANK_REV && seed) { this.syncBank(); this.save(); }
     else if (fromV1) this.save();
     return isNew;
@@ -176,16 +176,18 @@ export class Library {
   // starred stays where it is. Then the current bank comes in, its categories first, and the
   // repo scenes are re-seeded at the next start (files = false). «As seeded» is known by the
   // fingerprint stored with the item (seedFp) or, for what 1.4 seeded, by legacy.LEGACY_FP.
+  // A seeded copy of the factory / repo bank / scenes the user never touched: its seed name, a section
+  // and a content it was seeded with, and no ★ — by seedFp/seedSec for what 1.5.0 seeds, by LEGACY_FP
+  // (every version ever shipped) for what came before. `secName` is the name of the item's section.
+  _legacyCopy(it, secName) {
+    if (!it.seed || it.fav || !/^(factory|v2|scene):/.test(it.seed) || it.name !== it.seed.replace(/^[a-z0-9]+:(?:\d+:)?/, '')) return false;
+    if (it.seedFp) return secName === it.seedSec && fnv(canon(it.data)) === it.seedFp;
+    const old = LEGACY_FP[it.seed];
+    return !!old && old.s.includes(secName) && old.f.includes(fnv(canon(it.data)));
+  }
   syncBank() {
-    const seedName = s => s.replace(/^[a-z0-9]+:(?:\d+:)?/, '');
     const secName = it => { const s = this.section(it.section); return s ? s.name : null; };
-    const untouched = it => {
-      if (!it.seed || it.fav || it.name !== seedName(it.seed)) return false;
-      if (it.seedFp) return secName(it) === it.seedSec && fnv(canon(it.data)) === it.seedFp;
-      const old = LEGACY_FP[it.seed];   // seeded before 1.5.0: any version the factory ever shipped counts as untouched
-      return !!old && old.s.includes(secName(it)) && old.f.includes(fnv(canon(it.data)));
-    };
-    const gone = new Set(this.data.items.filter(it => /^(factory|v2|scene):/.test(it.seed || '') && untouched(it)).map(it => it.id));
+    const gone = new Set(this.data.items.filter(it => this._legacyCopy(it, secName(it))).map(it => it.id));
     this.data.items = this.data.items.filter(it => !gone.has(it.id));
     // empty bank sections (old categories, the retired repo bank, the scenes) go; a user's empty section stays
     const bankSecs = new Set([...Object.values(LEGACY_FP).flatMap(v => v.s), ...BANK.map(c => c.cat), SEC_SCENES]);
@@ -240,6 +242,9 @@ export class Library {
         const data = type === 'scene' ? migrateScene(it.data || {}) : cl(dataOf('preset', it.data || {}));
         const fp = fingerprintOf(trimName(it.name, type), data);
         if (prints.has(fp)) continue;
+        // an untouched copy of an old factory / repo item (from any version) does not come into a
+        // library that has the bank: the bank has its successor and the archive the original
+        if (this.data.bankRev !== undefined && this._legacyCopy({ ...it, data }, (json.sections.find(s => s.id === it.section) || {}).name)) continue;
         this.add({ type, name: it.name, section: sectionMap[it.section] || this.ensureSection(SEC_IMPORT), data,
                    origin: it.origin || 'import', seed: it.seed || null, fav: it.fav, tags: it.tags, play: it.play, seedFp: it.seedFp, seedSec: it.seedSec }, { save: false });
         prints.add(fp); n++;

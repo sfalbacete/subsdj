@@ -1145,6 +1145,15 @@ export async function runSelfTest() {
       const before = JSON.stringify(L.data);
       const L2 = new Library({ key: 'subsdj.library.sync', storage: store }); L2.load();
       if (JSON.stringify(L2.data) !== before) problems.push('a second load changes the library');
+      // importing a library exported by an older version (here a 1.3.0 one, in Spanish): its untouched
+      // factory copies are skipped (the bank has their successors), the tweaked ones come in
+      const oldSaw = FX.supersawPad;
+      if (!LEGACY_FP['factory:Supersaw Pad'].f.includes(fp(oldSaw))) problems.push('LEGACY_FP does not know the 1.4 Supersaw Pad');
+      const exp = { formato: 'subsdj-biblioteca-v1', next: 3, secciones: [{ id: 's1', nombre: 'Pads' }], items: [
+        { id: 'p1', tipo: 'preset', nombre: 'Supersaw pad', seccion: 's1', fav: false, origen: 'fabrica', semilla: 'fabrica:Supersaw pad', datos: { ...oldSaw } },
+        { id: 'p2', tipo: 'preset', nombre: 'Supersaw pad', seccion: 's1', fav: false, origen: 'fabrica', semilla: 'fabrica:Supersaw pad', datos: { ...oldSaw, cutoff: 777 } } ] };
+      const n0 = count('Supersaw Pad'), ri = L.importData(exp);
+      if (ri.n !== 1 || count('Supersaw Pad') !== n0 + 1) problems.push('import of an old library: ' + ri.n + ' added, Supersaw Pad ×' + count('Supersaw Pad') + ' (expected the untouched copy skipped, the tweaked one in)');
       console.log('bank sync: ' + lib.items.length + ' old items → ' + L.items().length + ' (' + L.sections().length + ' sections)');
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     push({ name: 'bank sync: a 1.4 library follows the new bank, keeping what the user touched or starred', peak: 0, ok: !problems.length, problems });
