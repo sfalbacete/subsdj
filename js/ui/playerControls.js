@@ -77,7 +77,7 @@ function syncHarmonyUI() {
   const h = c.harmony;
   $('harmRoot').value = h.root; $('harmScale').value = h.scale;
   $('harmProg').value = h.prog.join(' '); $('harmBars').textContent = h.bars;
-  document.querySelectorAll('#harmModo button').forEach(b => b.classList.toggle('active', b.dataset.m === h.mode));
+  document.querySelectorAll('#harmMode button').forEach(b => b.classList.toggle('active', b.dataset.m === h.mode));
   $('harmSeed').value = c.seed;
   setPlayBtn(c.running);
   knobRow($('arrKnobs'), ARR_KNOBS, c.arr.cfg);
@@ -127,10 +127,10 @@ export function initPlayerControls() {
     c.harmony.bars = Math.max(1, Math.min(8, c.harmony.bars + (+b.dataset.hbar)));
     $('harmBars').textContent = c.harmony.bars;
   }));
-  document.querySelectorAll('#harmModo button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#harmMode button').forEach(b => b.addEventListener('click', () => {
     const c = conductor(); if (!c) return;
     c.harmony.mode = b.dataset.m;
-    document.querySelectorAll('#harmModo button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('#harmMode button').forEach(x => x.classList.toggle('active', x === b));
     depsRefresh();
   }));
   $('harmSeed').addEventListener('change', () => { const c = conductor(); if (c) c.setSeed(Math.max(1, +$('harmSeed').value | 0)); });

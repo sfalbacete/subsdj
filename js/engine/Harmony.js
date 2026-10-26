@@ -45,7 +45,7 @@ export function mulberry32(a) {
 }
 
 // Tonal functions of each degree and transitions (probabilities) of the walk
-const FUNCION = { 1: 'T', 2: 'S', 3: 'T', 4: 'S', 5: 'D', 6: 'T', 7: 'D' };
+const FUNCTION_OF = { 1: 'T', 2: 'S', 3: 'T', 4: 'S', 5: 'D', 6: 'T', 7: 'D' };
 const NEXT_FN = { T: [['S', 0.45], ['D', 0.35], ['T', 0.20]],
                     S: [['D', 0.60], ['T', 0.30], ['S', 0.10]],
                     D: [['T', 0.80], ['S', 0.05], ['D', 0.15]] };
@@ -53,10 +53,10 @@ const DEGREES_OF = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repeate
 
 // «1 6 4 5», «I vi IV V»… → [1, 6, 4, 5] (1..7; whatever is not understood is skipped)
 export function parseProg(str) {
-  const rom = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7 };
+  const roman = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7 };
   const out = String(str || '').trim().split(/[\s,·|-]+/).filter(Boolean).map(tok => {
     const t = tok.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const n = /^\d+$/.test(t) ? +t : rom[t];
+    const n = /^\d+$/.test(t) ? +t : roman[t];
     return n >= 1 && n <= 7 ? n : null;
   }).filter(Boolean);
   return out.length ? out.slice(0, 16) : [1];
@@ -81,7 +81,7 @@ export class Harmony {
   _walkDegree(i) {
     while (this._walk.length <= i) {
       const prev = this._walk.length ? this._walk[this._walk.length - 1] : 1;
-      const from = FUNCION[prev] || 'T';
+      const from = FUNCTION_OF[prev] || 'T';
       let r = this._rng(), fn = 'T';
       for (const [f, p] of NEXT_FN[from]) { if (r < p) { fn = f; break; } r -= p; }
       const cands = DEGREES_OF[fn];

@@ -118,7 +118,7 @@
 <div class="screen" data-screen-body="design">
 
 <!-- BAND 1 · SOURCE: the oscillators and their engines (those that don't apply to the chosen wave are dimmed IN PLACE) -->
-<div class="band" id="bandFuente">
+<div class="band" id="bandSource">
   <div class="panel osc">
     <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Hard sync: A restarts its cycle with every cycle of B. B sets the note (it can sit at level 0: it keeps time without sounding) and A's pitch becomes TIMBRE: sweep «Pitch A» from the matrix (Filter env, LFO, Steps, wheel, macro) for the classic screaming sync lead">sync</button></h2>
     <div class="hrow">
@@ -278,7 +278,7 @@
 </div>
 
 <!-- BAND 2 · BODY → FILTER → ENVELOPES → VOICE → OUTPUT (the per-voice audio order) -->
-<div class="band" id="bandVoz">
+<div class="band" id="bandVoice">
   <div class="panel">
     <h2>Vocal</h2>
     <div class="g" style="--c:4">
@@ -581,7 +581,7 @@
   <div class="slot" data-slot-host="salida"></div>
 </div>
 
-<div class="band" id="bandSala">
+<div class="band" id="bandRoom">
   <div class="panel" id="envmPanel">
     <h2>Mod Env</h2>
     <div class="hrow" style="align-items:flex-end">
@@ -610,7 +610,7 @@
   <div class="slot" data-slot-host="cinta"></div>
 </div>
 
-<div class="band" id="bandEscena">
+<div class="band" id="bandScene">
   <div class="panel parts-off" id="harmony">
     <h2>Harmony</h2>
     <div class="hrow harmlay">
@@ -629,7 +629,7 @@
           <div class="stepper"><button data-hbar="-1">−</button><span class="num" id="harmBars">2</span><button data-hbar="1">+</button></div>
         </div>
         <div class="row" style="gap:12px;align-items:center;flex-wrap:nowrap">
-          <div class="seg tog" id="harmModo">
+          <div class="seg tog" id="harmMode">
             <button data-m="list" title="The written progression, looped">List</button>
             <button data-m="functions" title="A random walk through tonal functions (T → S/D → T)">Functions</button>
           </div>

@@ -26,7 +26,7 @@ const anyWave = (S, w) => S.oscA.wave === w || S.oscB.wave === w;
 // "something is moving here" — extras on top of the base path (the filter or the ADSR
 // always exist; the LED marks movement). Each row of the LFO bank
 // also carries its own LED.
-const PANELES = {
+const PANELS = {
   'Mixer':           S => S.ring > 0 || S.noise > 0 || S.drift > 0 || ['lvlA', 'lvlB', 'lvlRing', 'lvlNoise'].some(d => dstUsed(S, d)),
   'FM':              S => S.fmIndex > 0 || dstUsed(S, 'fm'),
   'FM4':             S => anyWave(S, 'fm4'),
@@ -56,7 +56,7 @@ export function initActivity() {
   const leds = [];
   const mkLed = () => { const s = document.createElement('span'); s.className = 'led'; return s; };
   for (const h2 of document.querySelectorAll('.panel h2')) {
-    const test = PANELES[h2.textContent.trim()];
+    const test = PANELS[h2.textContent.trim()];
     if (test) { const led = mkLed(); h2.prepend(led); leds.push({ el: led, test }); }
   }
   for (const row of document.querySelectorAll('.lfo-row[data-lfo]')) {

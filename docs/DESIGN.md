@@ -1085,7 +1085,7 @@ oscillator or after a non-linear stage — hence the TX81Z's extra waves.
   `engine/parts.js`: PART = a complete `AudioEngine` (`init(ctx, {sala})`)
   over the shared context; `part()` is the engine the rack edits and
   the keyboard plays — the UI only talks to it (registry, keyboard, midi,
-  seq…); with the scene off it is the single engine and nothing changes. `SALA_KEYS`
+  seq…); with the scene off it is the single engine and nothing changes. `ROOM_KEYS`
   (bpm, time/sync/damp/wow of the echo, size/damp/pre of the reverb) belong to the
   room: in a scene the rack edits them for all the parts (label «room»
   on Delay and Reverb), presets don't touch them and Reset doesn't reset them;
@@ -1468,7 +1468,7 @@ harmonic of a C3 sine at saturation 0 / 0.3 / 1 = 0.0019 / 0.0139 / 0.1035
 (at 0.3 it must be < 2 %: color, not clipping), level at full ×1.00; instantaneous
 frequency of a 440 Hz sine (interpolated zero crossings, 20 periods):
 it wanders 16.8 Hz with wow at full, born at full and raised live, and 0.000
-without; keys in `SALA_KEYS`; 159/159. Preset «Tape Pad (nostalgia)» in
+without; keys in `ROOM_KEYS`; 159/159. Preset «Tape Pad (nostalgia)» in
 Cinescape; pairs **TAPE 1-2** and **TAPE 3-4** (wow only).
 
 **5 Resonators** ✔ *(done 2026-10-03)* — **Resonator** module

@@ -98,7 +98,7 @@ export class AudioEngine {
   }
 
   // optional ctx: the self-test passes an OfflineAudioContext; by default it creates the real one.
-  // optional sala: the SHARED Room (Parts mode); without it the engine creates its own.
+  // optional room: the SHARED Room (Parts mode); without it the engine creates its own.
   async init(providedCtx = null, { room = null } = {}) {
     if (this.ctx) return;
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();

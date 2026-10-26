@@ -30,7 +30,7 @@ const triangle= () => specOf(n => n % 2 ? (((n - 1) / 2) % 2 ? -1 : 1) / (n * n)
 const saw   = (h = WT_H) => specOf(n => n <= h ? 1 / n : 0);
 const square = () => specOf(n => n % 2 ? 1 / n : 0);
 const pulse    = d => specOf(n => (2 / (n * Math.PI)) * Math.sin(Math.PI * n * d));
-const organ   = pesos => specOf(n => pesos[n] || 0);                       // drawbars: weight per harmonic
+const organ   = weights => specOf(n => weights[n] || 0);                   // drawbars: weight per harmonic
 const formant = (c, s = 0.35) => specOf(n =>                               // log-normal bell + fundamental
   (n === 1 ? 0.3 : 0) + Math.exp(-Math.pow(Math.log(n) - Math.log(c), 2) / (2 * s * s)) / n ** 0.3);
 const METAL_PARTS = [1, 4, 7, 11, 15, 22, 29, 38];  // sparse partials: a "bell" flavor
@@ -74,15 +74,15 @@ export const WT_DEFAULT = 'analog';
 const GL_P = 1024;                       // points per pulse (DFT up to 511 harmonics)
 function glottalPulse(oq, cq) {
   const tp = oq * (1 - cq), tn = oq * cq;
-  const flujo = new Array(GL_P);
+  const flow = new Array(GL_P);
   for (let i = 0; i < GL_P; i++) {
     const t = i / GL_P;
-    flujo[i] = t < tp ? 0.5 * (1 - Math.cos(Math.PI * t / tp))
-             : t < tp + tn ? Math.cos(Math.PI * (t - tp) / (2 * tn))
-             : 0;
+    flow[i] = t < tp ? 0.5 * (1 - Math.cos(Math.PI * t / tp))
+            : t < tp + tn ? Math.cos(Math.PI * (t - tp) / (2 * tn))
+            : 0;
   }
   const d = new Array(GL_P);             // circular derivative (the pulse is periodic)
-  for (let i = 0; i < GL_P; i++) d[i] = flujo[(i + 1) % GL_P] - flujo[i];
+  for (let i = 0; i < GL_P; i++) d[i] = flow[(i + 1) % GL_P] - flow[i];
   return d;
 }
 WT_SETS['glottal'] = () => {

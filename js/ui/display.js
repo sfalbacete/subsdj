@@ -37,9 +37,9 @@ function fit(box, max, min) {
 // name is the title) and, separately, what it means (the rest of the title, without repeating
 // the label: «Legato: the note…» → «the note…»). The whole title doesn't fit as a value.
 function segValue(b) {
-  const txt = b.textContent.trim(), tit = (b.title || '').trim(), cap = b.dataset.cap || '';
-  if (!txt) { const i = tit.indexOf(':'); return i > 0 ? { val: tit.slice(0, i), det: tit.slice(i + 1).trim() } : { val: tit, det: '' }; }
-  const det = tit.toLowerCase().startsWith(txt.toLowerCase() + ':') ? tit.slice(txt.length + 1).trim() : tit;
+  const txt = b.textContent.trim(), titleText = (b.title || '').trim(), cap = b.dataset.cap || '';
+  if (!txt) { const i = titleText.indexOf(':'); return i > 0 ? { val: titleText.slice(0, i), det: titleText.slice(i + 1).trim() } : { val: titleText, det: '' }; }
+  const det = titleText.toLowerCase().startsWith(txt.toLowerCase() + ':') ? titleText.slice(txt.length + 1).trim() : titleText;
   return { val: cap ? txt + ' · ' + cap : txt, det };
 }
 

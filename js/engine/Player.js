@@ -209,10 +209,10 @@ export class Player {
     const pool = h.notesIn(lo, hi, h.scaleSet());
     if (!pool.length) { this.nextBeat = b + step; return; }
     // duration in eighths: 1, 2 or 4 — with more density (and more energy), shorter
-    const dens = clamp01(c.density + a.dens), sil = clamp01(c.rest - a.dens * 0.6);
+    const dens = clamp01(c.density + a.dens), restProb = clamp01(c.rest - a.dens * 0.6);
     const w = [dens + 0.05, 0.5, 1.05 - dens], tot = w[0] + w[1] + w[2];
     let x = this.rng() * tot; const len = x < w[0] ? 1 : (x < w[0] + w[1] ? 2 : 4);
-    if (this.rng() < sil) { this.busy = (len - 1) * step; this.nextBeat = b + step; return; }   // a rest of that duration
+    if (this.rng() < restProb) { this.busy = (len - 1) * step; this.nextBeat = b + step; return; }   // a rest of that duration
     // pitch: starts on a chord note; on a strong beat, gravity towards
     // the nearest chord note; otherwise, a step (±1, ±2), staying put, or a leap
     const chordSet = new Set(ch.tones), strong = Math.abs(b % 2) < 1e-6;

@@ -305,8 +305,8 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .screen[hidden]{display:none;}
 .band{flex:none;display:flex;min-width:0;background:var(--panel-face);border:1px solid var(--edge);
   border-radius:var(--r-panel);box-shadow:var(--shadow-panel);overflow:hidden;}
-#bandFuente{height:238px;} #bandVoz{height:236px;} #bandModFx{height:254px;}
-#bandSeq{height:262px;} #bandSala{height:236px;} #bandEscena{height:230px;}
+#bandSource{height:238px;} #bandVoice{height:236px;} #bandModFx{height:254px;}
+#bandSeq{height:262px;} #bandRoom{height:236px;} #bandScene{height:230px;}
 .band-full{flex:1;min-height:0;}
 .slot{display:contents;}
 .panel{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;padding:8px 10px;border-left:1px solid var(--edge);}

@@ -69,7 +69,7 @@ export function initPresetBank() {
     // «★ Mine» (over the one with that name there, or as a new one).
     const cur = currentPreset();
     let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
-    if (!target) { const mios = library.sectionByName(SEC_MINE); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
+    if (!target) { const mine = library.sectionByName(SEC_MINE); if (mine) target = library.items(mine.id).find(it => it.name === name) || null; }
     let id;
     if (target) { library.update(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
     else { id = library.add({ name, section: library.ensureSection(SEC_MINE), data: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MINE + ' (this browser).'); }

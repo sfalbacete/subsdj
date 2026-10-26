@@ -26,16 +26,16 @@ function btn(cls, text, title, onClick) {
 function editInline(span, value, onCommit) {
   const inp = document.createElement('input'); inp.type = 'text'; inp.value = value; inp.maxLength = 48; inp.className = 'pl-edit';
   let done = false;
-  const fin = ok => { if (done) return; done = true; const v = inp.value.trim(); inp.replaceWith(span); if (ok && v && v !== value) onCommit(v); };
-  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') fin(true); else if (e.key === 'Escape') fin(false); });
-  inp.addEventListener('blur', () => fin(true));
+  const finish = ok => { if (done) return; done = true; const v = inp.value.trim(); inp.replaceWith(span); if (ok && v && v !== value) onCommit(v); };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+  inp.addEventListener('blur', () => finish(true));
   inp.addEventListener('click', e => e.stopPropagation());
   inp.draggable = false;
   span.replaceWith(inp); inp.focus(); inp.select();
 }
 
 function row(it, cur) {
-  const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.type === 'scene' ? ' esc' : ''));
+  const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.type === 'scene' ? ' scene' : ''));
   r.dataset.id = it.id; r.draggable = true;
   r.title = it.type === 'scene' ? 'Load the scene (turns Parts on) · drag to move'
                                  : 'Load into the part the rack is editing · drag to move';
