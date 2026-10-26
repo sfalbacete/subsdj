@@ -78,6 +78,8 @@ async function runBatch(qs) {
   const out = { qs, errs, logs, hung, secs: (Date.now() - t0) / 1000 };
   out.done = pings.find(p => p.done) || null;
   out.demos = pings.filter(p => p.demo || p.demo_error);
+  out.bank = pings.filter(p => p.bank);         // per-preset measurements of the factory batch
+  out.sim = pings.filter(p => p.sim);           // closest pairs (spectral fingerprint)
   out.title = hung ? null : await ev('document.title');
   out.fails = hung ? null : await ev(`[...document.querySelectorAll('#stBody .st-row.fail')].map(r => r.querySelector('.st-name').textContent + ' :: ' + (r.nextElementSibling && r.nextElementSibling.classList.contains('st-err') ? r.nextElementSibling.textContent : ''))`);
   if (hung) out.lastNote = 'the page stopped responding after ' + out.secs.toFixed(0) + ' s';
@@ -101,6 +103,11 @@ console.log('title:', (allOk ? '✓' : '✗') + ' SELFTEST ' + ok + '/' + total 
 for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.toFixed(1), 's', r.lastNote ? '· ' + r.lastNote : '');
 for (const r of res) for (const p of r.demos)
   console.log('demo:', p.demo || ('ERROR ' + p.demo_error), '| diff', p.diff, '| peaks', p.peakA, p.peakB, p.bad ? '| BAD' : '');
+for (const r of res) for (const p of r.bank)
+  console.log('bank:', p.bank, '| use', p.use, '| lufs', p.lufs, '| peak', p.peak, '| clip', p.clip + '%', '| dc', p.dc, '| tail', p.tail, '| master', p.master, '→', p.sugg, p.why ? '| ' + p.why : '');
+// BANK_OUT=file.json → the per-preset measurements as JSON (tools/bank-level.mjs writes the suggested Masters into the bank)
+if (process.env.BANK_OUT) { const all = res.flatMap(r => r.bank); fs.writeFileSync(process.env.BANK_OUT, JSON.stringify(all, null, 1)); console.log('bank measurements:', all.length, '→', process.env.BANK_OUT); }
+for (const r of res) for (const p of r.sim) console.log('sim:', p.sim, '| distance', p.dist);
 const fails = res.flatMap(r => r.fails || (r.hung ? ['(batch ' + batchName(r) + ') :: ' + r.lastNote] : []));
 console.log('fails:', JSON.stringify(fails));
 for (const r of res) if ('extra' in r) console.log('extra:', JSON.stringify(r.extra));

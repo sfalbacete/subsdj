@@ -54,7 +54,7 @@ export function initPresetBank() {
 
   library.load();                                // first time: seeds the factory and the old user presets
   library.onChange = () => { if (!asPreset(curId)) curId = null; document.dispatchEvent(new CustomEvent('library-changed')); };
-  const init = library.presets().find(it => it.name === 'Init (default)');
+  const init = library.presets().find(it => it.name === 'Init');
   curId = init ? init.id : null;
   if (!library.data.files)                    // repo banks and scenes: by fetch, once
     ready = library.seedRepoFiles().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });

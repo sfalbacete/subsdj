@@ -31,10 +31,10 @@ function label() {
     'Choose a preset: search, filter by category, ↑ ↓ to audition (‹ › step through the whole library)';
 }
 
-// What matches the search, per category (for the counters) and in the chosen one
+// What matches the search (name or tags), per category (for the counters) and in the chosen one
 function matches() {
   const nq = normalize(q);
-  return library.presets().filter(it => !nq || normalize(it.name).includes(nq));
+  return library.presets().filter(it => !nq || normalize(it.name + ' ' + (it.tags || []).join(' ')).includes(nq));
 }
 const inCat = (it, c) => c === ALL || (c === FAV ? it.fav : it.section === c);
 
@@ -70,6 +70,7 @@ function render() {
 }
 function row(it, cur) {
   const r = mk('div', 'pp-item' + (it.id === cur ? ' cur' : '')); r.dataset.id = it.id;
+  if (it.play) r.title = it.play;   // how to play it (factory metadata)
   const star = mk('span', 'pp-star' + (it.fav ? ' on' : ''), '★');
   star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites»';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repaints

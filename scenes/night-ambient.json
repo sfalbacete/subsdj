@@ -16,8 +16,8 @@
   },
   "parts": [
     { "preset": "Cathedral Pad", "settings": { "reverbMix": 0.45, "dlyAmt": 0.15 }, "pan": -0.2 },
-    { "preset": "Round Sub", "settings": { "reverbMix": 0.05, "dlyAmt": 0 }, "pan": 0 },
-    { "preset": "DX Bell (env→FM)", "settings": { "reverbMix": 0.5, "dlyAmt": 0.35, "master": 0.55 }, "pan": 0.25 },
-    { "preset": "FM Hat (feedback)", "settings": { "dlyAmt": 0.3, "master": 0.45 }, "pan": 0.35 }
+    { "preset": "Sub Bass", "settings": { "reverbMix": 0.05, "dlyAmt": 0 }, "pan": 0 },
+    { "preset": "Glockenspiel", "settings": { "reverbMix": 0.5, "dlyAmt": 0.35, "master": 0.55 }, "pan": 0.25 },
+    { "preset": "Closed Hat", "settings": { "dlyAmt": 0.3, "master": 0.45 }, "pan": 0.35 }
   ]
 }

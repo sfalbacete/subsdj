@@ -38,7 +38,7 @@ function row(it, cur) {
   const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.type === 'scene' ? ' scene' : ''));
   r.dataset.id = it.id; r.draggable = true;
   r.title = it.type === 'scene' ? 'Load the scene (turns Parts on) · drag to move'
-                                 : 'Load into the part the rack is editing · drag to move';
+                                 : (it.play ? it.play + '\n' : '') + 'Load into the part the rack is editing · drag to move';
   const star = mk('span', 'pl-star' + (it.fav ? ' on' : ''), '★');
   star.title = it.fav ? 'Remove from favorites' : 'Favorite: shows up in «★ Favorites» in the quick picker';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
@@ -86,7 +86,7 @@ function render() {
   for (const s of library.sections()) {
     const allItems = library.items(s.id);
     let items = allItems;
-    if (q) items = items.filter(it => normalize(it.name).includes(q));
+    if (q) items = items.filter(it => normalize(it.name + ' ' + (it.tags || []).join(' ')).includes(q));   // name or tags
     if (favOnly) items = items.filter(it => it.fav);
     if ((q || favOnly) && !items.length) continue;   // filtering: only sections with results
     const sec = mk('div', 'pl-sec' + (items.length > 30 ? ' big' : '')); sec.dataset.sec = s.id;   // big: split across columns

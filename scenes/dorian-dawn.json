@@ -15,9 +15,9 @@
     ]
   },
   "parts": [
-    { "preset": "Vowel Choir (wavetable)", "settings": { "reverbMix": 0.4, "dlyAmt": 0.1, "master": 0.65 }, "pan": -0.15 },
-    { "preset": "Creamy Bass (24 dB)", "settings": { "reverbMix": 0.05, "dlyAmt": 0, "master": 0.85 }, "pan": 0 },
-    { "preset": "FM Glockenspiel", "settings": { "dlyAmt": 0.4, "reverbMix": 0.35, "master": 0.6 }, "pan": 0.3 },
+    { "preset": "Vowel Choir", "settings": { "reverbMix": 0.4, "dlyAmt": 0.1, "master": 0.65 }, "pan": -0.15 },
+    { "preset": "Moog Bass", "settings": { "reverbMix": 0.05, "dlyAmt": 0, "master": 0.85 }, "pan": 0 },
+    { "preset": "Glockenspiel", "settings": { "dlyAmt": 0.4, "reverbMix": 0.35, "master": 0.6 }, "pan": 0.3 },
     { "preset": "Music Box", "settings": { "dlyAmt": 0.3, "reverbMix": 0.3, "master": 0.5 }, "pan": -0.35 }
   ]
 }

@@ -25,7 +25,9 @@ import { Steps, cycleBars } from './engine/Steps.js';
 import { Seq, parsePattern, stepFreq, stepToken } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
-import { FACTORY, migrateV1 } from './engine/presets.js';
+import { FACTORY, BANK, META, BANK_REV, rootOf, migrateV1 } from './engine/presets.js';
+import { validateBank, coverage } from './engine/bankCheck.js';
+import { LEGACY_FP } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
@@ -46,7 +48,7 @@ import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
-import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES } from './engine/library.js';
+import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES, canon, fnv } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
@@ -118,6 +120,130 @@ async function renderStress(state) {
   for (let i = 0; i < 16; i++) eng.noteOn('s' + i, 110 * Math.pow(2, i / 12));
   ctx.suspend(0.5).then(() => { for (let i = 0; i < 16; i++) eng.noteOff('s' + i); ctx.resume(); });
   return analyze(await ctx.startRendering());
+}
+
+// FROZEN presets for the checks that need a known sound (parts, scenes, headroom, plate,
+// SFZ layers…): copies of the 1.4 bank, so the factory bank is free to change (docs/BANK.md).
+const FX = {
+  warmPad: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -10, detuneB: 14, octavesB: 2, levelA: 0.5, levelB: 0.5, cutoff: 1180, reso: 2, cutLfoLvl: 800, cutLfoSpd: 0.2,
+    a: 0.8, d: 0.5, s: 0.8, r: 2.0, dlyAmt: 0.3, dlyTime: 0.5, width: 0.6, reverbMix: 0.32, reverbSize: 2.6, master: 0.95 },
+  platePad: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -8, detuneB: 10, octavesB: 2, levelA: 0.5, levelB: 0.5, cutoff: 1400, reso: 1.5, a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.5,
+    reverbType: 'plate', reverbMix: 0.4, reverbSize: 3.2, reverbDamp: 0.35, reverbPre: 0.02, master: 1.03 },
+  glassPad: { waveA: 'sine', waveB: 'sine', ring: 0.3, detuneB: 12, octavesB: 2, levelA: 0.35, levelB: 0.35, cutoff: 5020, a: 0.5, d: 0.6, s: 0.7, r: 1.5, width: 0.5, reverbMix: 0.4, reverbSize: 3.2, master: 1.41 },
+  cathedralPad: { waveA: 'sawtooth', waveB: 'triangle', detuneA: -6, detuneB: 8, octavesB: 2, levelA: 0.55, levelB: 0.45, cutoff: 1600, reso: 1, filterSlope: '24', chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, drift: 3,
+    a: 0.7, d: 0.6, s: 0.85, r: 2.2, width: 0.6, reverbMix: 0.42, reverbSize: 3.6, reverbDamp: 0.6, reverbPre: 0.04, master: 1.11 },
+  supersawPad: { waveA: 'supersaw', waveB: 'supersaw', spread: 0.7, detuneB: 6, levelA: 0.5, levelB: 0.5, cutoff: 1260, reso: 1.5, a: 0.6, d: 0.5, s: 0.85, r: 1.8, width: 0.7, reverbMix: 0.35, reverbSize: 3, master: 0.96 },
+  solinaStrings: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octavesB: 2, levelA: 0.65, levelB: 0.35, cutoff: 3600, reso: 0.7, morph: 0.12, chMode: 'ensemble', chAmt: 0.85, chSpd: 0.65, drift: 4,
+    freqLfoLvl: 7, freqLfoSpd: 5.2, lfoFade: 0.7, a: 0.22, d: 0.3, s: 0.9, r: 0.9, width: 0.35, reverbMix: 0.22, reverbSize: 2.2, master: 0.9 },
+  humanChoir: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 8, levelA: 0.5, levelB: 0.5, vocAmt: 0.75, vocVowel: 0.5, vocQ: 0.65, vocLife: 0.6, noise: 0.08, noiseColor: 0.5, drift: 3, cutoff: 4500, reso: 0.8,
+    chMode: 'ensemble', chAmt: 0.55, chSpd: 0.5, freqLfoLvl: 8, freqLfoSpd: 5.2, lfoFade: 0.8, a: 0.5, d: 0.5, s: 0.85, r: 1.6, width: 0.5, reverbMix: 0.3, reverbSize: 2.6, master: 1.04 },
+  pluckBass: { waveA: 'sawtooth', waveB: 'square', levelA: 0.65, levelB: 0.35, cutoff: 448, reso: 6, filterEnvAmt: 2600, a: 0.002, d: 0.2, s: 0.0, r: 0.13, master: 2.36 },
+  squareLead: { waveA: 'square', waveB: 'square', pulseWidth: 0.35, detuneB: 6, levelA: 0.5, levelB: 0.5, cutoff: 2520, reso: 2, a: 0.01, d: 0.15, s: 0.8, r: 0.2, dlyAmt: 0.2, width: 0.25, master: 1 },
+  kick808: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '0', fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+    pitchEnvAmt: 700, pitchEnvDec: 0.04, cutoff: 2500, envCurve: 1, a: 0, d: 0.55, s: 0.0, r: 0.3, dist: 0.3, master: 2.02 },
+  dxEpVel: { waveA: 'sine', waveB: 'sine', levelA: 0.6, levelB: 0.4, fmRatio: 1, fmIndex: 0.5, mx1src: 'vel', mx1dst: 'fm', mx1amt: 0.2, mx2src: 'env', mx2dst: 'fm', mx2amt: 0.15,
+    fenvMode: 'own', fa: 0.002, fd: 0.12, fs: 0.0, fr: 0.2, a: 0.002, d: 0.9, s: 0.25, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.3, reverbMix: 0.22, master: 0.65 },
+};
+
+// Perceived loudness: BS.1770 K-weighting (shelf + high-pass), maximum over 400 ms blocks
+// (≈ momentary max), between samples i0 and i1 of a stereo buffer
+const biq = (b0, b1, b2, a1, a2) => x => { const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+const kShelf = (() => { const A = Math.pow(10, 4 / 40), w = 2 * Math.PI * 1681.97 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7072), sA = 2 * Math.sqrt(A) * al, a0 = (A + 1) - (A - 1) * c + sA;
+  return biq(A * ((A + 1) + (A - 1) * c + sA) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - sA) / a0, 2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - sA) / a0); })();
+const kHp = (() => { const w = 2 * Math.PI * 38.135 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.5003), a0 = 1 + al; return biq((1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - al) / a0); })();
+function lufs(b, i0 = 0, i1 = Infinity) {
+  const l = kHp(kShelf(b.getChannelData(0))), rr = kHp(kShelf(b.getChannelData(1))), B = Math.round(0.4 * SR), H = Math.round(0.1 * SR), end = Math.min(l.length, i1);
+  let best = 0; for (let i = i0; i + B <= end; i += H) { let s = 0; for (let k = i; k < i + B; k++) s += l[k] * l[k] + rr[k] * rr[k]; best = Math.max(best, s / B); }
+  return best > 0 ? -0.691 + 10 * Math.log10(best) : -99;
+}
+// Spectral fingerprint of a buffer: energy (dB) in 24 third-octave bands (50 Hz – 12.8 kHz)
+// over three windows [t0, t1), each vector centred on its own mean (level-independent).
+// The distance between two presets is the RMS of the dB differences.
+const FP_BANDS = Array.from({ length: 24 }, (_, i) => 50 * Math.pow(2, i / 3));
+function fingerprint(b, windows) {
+  const L = b.getChannelData(0), R = b.getChannelData(1), n = L.length, mono = new Float32Array(n);
+  for (let i = 0; i < n; i++) mono[i] = 0.5 * (L[i] + R[i]);
+  const out = [];
+  for (const fc of FP_BANDS) {
+    const w = 2 * Math.PI * fc / SR, al = Math.sin(w) / (2 * 4.3), a0 = 1 + al;   // band-pass, Q ≈ 4.3 (a third of an octave)
+    const y = biq(al / a0, 0, -al / a0, -2 * Math.cos(w) / a0, (1 - al) / a0)(mono);
+    for (const [t0, t1] of windows) { let e = 0; const i0 = Math.max(0, Math.floor(t0 * SR)), i1 = Math.min(n, Math.floor(t1 * SR)); for (let i = i0; i < i1; i++) e += y[i] * y[i]; out.push(10 * Math.log10(e / Math.max(1, i1 - i0) + 1e-12)); }
+  }
+  const mean = out.reduce((a, v) => a + v, 0) / out.length;
+  return out.map(v => v - mean);
+}
+const fpDistance = (a, b) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) * (v - b[i]), 0) / a.length);
+
+// A factory preset measured in its USE (docs/BANK.md): one note at `root`, a major triad or
+// one hit, sequencer and arpeggiator off (they run on the wall clock). Returns the row for the
+// panel, the numbers for the ping (with the Master that would land it on TARGET) and the fingerprint.
+// SIM_MIN_DB: the closest pair allowed. First measurement (2026-10-26): median 16.8 dB, closest
+// 1.8 (Cathedral Pad / Supersaw Pad — the fingerprint is the spectral envelope, not the motion)
+const TARGET_LUFS = -14, HIT_PEAK_DB = -4, SIM_MIN_DB = 1.5;
+async function measurePreset(cat, p) {
+  const name = p.name, problems = [], m = { ...p, cat }, use = p.use, root = rootOf(m);
+  const badKeys = Object.keys(p.data).filter(k => !(k in CONTROLS));
+  if (badKeys.length) problems.push('unknown keys: ' + badKeys.join(', '));
+  if (!Object.keys(p.data).length) return { row: { name: cat + ' / ' + name, peak: 0, ok: !problems.length, problems } };   // Init = Reset
+  const f0 = n => 440 * Math.pow(2, (n - 69) / 12), dBv = v => (v > 1e-9 ? 20 * Math.log10(v) : -99);
+  let peak = 0, info = { use };
+  try {
+    loadState(p.data);
+    const S = structuredClone(engine.S); S.seqOn = 'off'; S.arpMode = 'off';
+    const notes = (use === 'chord' ? [root, root + 4, root + 7] : [root]).map(f0);
+    const hold = use === 'hit' ? 0.05 : Math.min(20, Math.max(1.5, S.a + S.d + 1.5));   // the real sustain (1.1.0 lesson), not a fixed window
+    const after = use === 'hit' ? 2 : Math.min(2, S.r + 0.3);
+    const ctx = new OfflineAudioContext(2, Math.ceil(SR * (hold + after)), SR);
+    const eng = new AudioEngine(); eng.S = S; await eng.init(ctx);
+    notes.forEach((f, i) => eng.noteOn('n' + i, f, 1));
+    ctx.suspend(hold).then(() => { notes.forEach((f, i) => eng.noteOff('n' + i)); ctx.resume(); });
+    const b = await ctx.startRendering(), a = analyze(b);
+    peak = a.peak;
+    if (a.bad) problems.push(a.bad + ' NaN/Inf samples');
+    else if (peak <= SILENCE) problems.push('silence (peak ' + dB(peak) + ')');
+    const L = b.getChannelData(0), R = b.getChannelData(1), W = Math.round(0.01 * SR), TOP = Math.pow(10, -1.3 / 20);
+    const span = use === 'hit' ? L.length : Math.floor(hold * SR);
+    let hot = 0, n10 = 0;
+    for (let i = 0; i + W <= span; i += W, n10++) { let pk = 0; for (let k = i; k < i + W; k++) pk = Math.max(pk, Math.abs(L[k]), Math.abs(R[k])); if (pk > TOP) hot++; }
+    info.clip = +(100 * hot / Math.max(1, n10)).toFixed(1);
+    info.peak = +dBv(peak).toFixed(1);
+    info.master = S.master;
+    if (use === 'hit') {
+      info.lufs = +lufs(b).toFixed(1);
+      info.sugg = +Math.min(4, S.master * Math.pow(10, (HIT_PEAK_DB - info.peak) / 20)).toFixed(2);
+      if (Math.abs(info.peak - HIT_PEAK_DB) > 2) problems.push('peak ' + info.peak + ' dBFS (hits aim at ' + HIT_PEAK_DB + ' ± 2)');
+    } else {
+      info.lufs = +lufs(b, 0, span).toFixed(1);
+      const ceiling = use === 'chord' ? -3 : -5;   // room for a fourth note / a tied note before the limiter
+      const byLoud = S.master * Math.pow(10, (TARGET_LUFS - info.lufs) / 20), byPeak = S.master * Math.pow(10, (ceiling - info.peak) / 20);
+      info.sugg = +Math.min(4, byLoud, byPeak).toFixed(2);
+      if (Math.abs(info.lufs - TARGET_LUFS) > 3 && Math.abs(info.sugg - S.master) / S.master > 0.06) problems.push(info.lufs + ' LUFS (−14 ± 3): Master ' + S.master + ' → ' + info.sugg);
+      if (info.clip >= 3) problems.push('the limiter works on ' + info.clip + ' % of the sustain (peak ' + info.peak + ' dBFS)');
+      // DC: mean of the last 400 ms of the sustain against the peak
+      let s = 0; const i0 = Math.max(0, span - Math.round(0.4 * SR)); for (let i = i0; i < span; i++) s += L[i] + R[i];
+      info.dc = +(100 * Math.abs(s / (2 * Math.max(1, span - i0))) / Math.max(1e-9, peak)).toFixed(2);
+      if (info.dc > 1) problems.push('DC ' + info.dc + ' % of the peak');
+    }
+    // the dry tail: a short second render without space FX — after the release the voice must be gone
+    if (use !== 'hit' && S.r <= 5) {
+      const S2 = { ...S, reverbMix: 0, dlyAmt: 0, shimAmt: 0 }, h2 = Math.min(1.5, Math.max(0.5, S.a + 0.3)), len = h2 + S.r + 0.4;
+      const c2 = new OfflineAudioContext(2, Math.ceil(SR * len), SR);
+      const e2 = new AudioEngine(); e2.S = S2; await e2.init(c2);
+      notes.forEach((f, i) => e2.noteOn('n' + i, f, 1));
+      c2.suspend(h2).then(() => { notes.forEach((f, i) => e2.noteOff('n' + i)); c2.resume(); });
+      const b2 = await c2.startRendering(), l2 = b2.getChannelData(0), r2 = b2.getChannelData(1);
+      let pAll = 0, pEnd = 0; const iEnd = l2.length - Math.round(0.05 * SR);
+      for (let i = 0; i < l2.length; i++) { const v = Math.max(Math.abs(l2[i]), Math.abs(r2[i])); if (v > pAll) pAll = v; if (i >= iEnd && v > pEnd) pEnd = v; }
+      info.tail = +(dBv(pEnd) - dBv(pAll)).toFixed(1);
+      if (info.tail > -50) problems.push('still sounding ' + (0.4).toFixed(1) + ' s after the release (' + info.tail + ' dB below the peak)');
+    }
+    const wins = use === 'hit' ? [[0, 0.05], [0.05, 0.25], [0.25, 0.6]] : [[0, 0.25], [hold * 0.7 - 0.125, hold * 0.7 + 0.125], [hold, hold + 0.25]];
+    info.print = fingerprint(b, wins);
+  } catch (e) {
+    problems.push('exception: ' + ((e && e.message) || e));
+  }
+  return { row: { name: cat + ' / ' + name, peak, problems, ok: problems.length === 0 }, info };
 }
 
 async function testPreset(name, data) {
@@ -386,8 +512,7 @@ export async function runSelfTest() {
       const okPk = pk > 327 && pk <= 32767;
       // MEASURED velocity layers: a preset whose velocity moves FM through the matrix (it used
       // to come out with ONE layer: only the filter env was looked at) gives ≥ 2, with the soft one raised in level
-      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
-      loadState(find('DX E-Piano (vel→FM)'));
+      loadState(FX.dxEpVel);
       const vl = await velocityLayers(structuredClone(engine.S), 1.2);
       const okVel = vl.layers.length >= 2 && vl.layers[0].gain > 1;
       console.log('sfz layers: Reset Δ ' + kit.timbre.toFixed(1) + ' dB →', kit.layers, '· DX E-Piano Δ ' + vl.timbre.toFixed(1), 'dB →', vl.layers.length, '(soft gain ×' + vl.layers[0].gain.toFixed(2) + ')');
@@ -907,11 +1032,17 @@ export async function runSelfTest() {
     const mine = L.presets().find(p => p.name === 'Mío 1');
     if (!mine || !(mine.data.cutoff > 1) || mine.data.reso !== 3) problems.push('v1 user preset not migrated');
     if (L.seedFactory() !== 0) problems.push('reseeding the factory duplicates');
-    const acid = L.presets().find(p => p.name === 'Acid 303'), secAcid = acid && acid.section;
+    if (L.data.bankRev !== BANK_REV) problems.push('bankRev not stored');
+    // factory metadata travels with the item (tags, play, the seed key with the revision, the seeding fingerprint)
+    const bs = L.presets().find(p => p.name === 'Berlin Sequence');
+    if (!bs || !bs.play || !(bs.tags || []).includes('berlin') || !bs.seedFp || bs.seedSec !== 'Motion' || bs.seed !== 'factory:' + BANK_REV + ':Berlin Sequence')
+      problems.push('factory metadata or seed: ' + JSON.stringify(bs && { seed: bs.seed, tags: bs.tags, play: !!bs.play, fp: bs.seedFp, sec: bs.seedSec }));
+    if (!L.search('berlin').some(i => i.name === 'Berlin Sequence')) problems.push('search by tag');
+    const acid = L.presets().find(p => p.name === 'Acid Line'), secAcid = acid && acid.section;
     L.remove(acid.id);
-    if (L.presets().some(p => p.name === 'Acid 303')) problems.push('delete does not delete');
+    if (L.presets().some(p => p.name === 'Acid Line')) problems.push('delete does not delete');
     if (L.seedFactory() !== 1) problems.push('restore factory does not put back exactly 1');
-    const acid2 = L.presets().find(p => p.name === 'Acid 303');
+    const acid2 = L.presets().find(p => p.name === 'Acid Line');
     if (!acid2 || acid2.section !== secAcid) problems.push('restored outside its section');
     L.rename(acid2.id, 'Ácido mío'); L.update(mine.id, { cutoff: 999 });
     if (L.seedFactory() !== 0) problems.push('renamed or tweaked gets duplicated on restore');
@@ -942,10 +1073,100 @@ export async function runSelfTest() {
     if (fingerprint(L2) !== fingerprint(L)) problems.push('does not persist');
     const f1 = await L.seedRepoFiles(), f2 = await L.seedRepoFiles();
     const lScenesSec = L.sectionByName(SEC_SCENES), scenes = lScenesSec ? L.items(lScenesSec.id) : [];
-    if (!(f1.n > 30) || f2.n !== 0 || f1.errors.length || scenes.length !== REPO_SCENES.length || scenes.some(i => i.type !== 'scene'))   // bank 2.0 + scenes (the A/B demos are no longer seeded)
+    if (f1.n !== REPO_SCENES.length || f2.n !== 0 || f1.errors.length || scenes.length !== REPO_SCENES.length || scenes.some(i => i.type !== 'scene'))   // the repo scenes (no repo bank since 1.5.0)
       problems.push('files: ' + f1.n + '/' + f2.n + ' errors ' + f1.errors.join(',') + ' scenes ' + scenes.length);
     console.log('library: factory ' + nFactory + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length);
     push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files)', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // The factory bank (docs/BANK.md): metadata (unique short names, a play line, tags from the
+    // vocabulary, a valid use, keys the registry knows, the Ring and cutLFO rules) and COVERAGE:
+    // every feature of the synth — waves, filters, LFO shapes, matrix sources and destinations… —
+    // shown by at least one preset (tools/bank-report.mjs prints the table).
+    body.appendChild(el('st-cat', 'Factory bank'));
+    const problems = validateBank(k => k in CONTROLS);
+    const cov = coverage();
+    if (cov.holes.length) problems.push('features no preset shows: ' + cov.holes.join(', '));
+    const n = Object.keys(META).length;
+    console.log('bank: rev ' + BANK_REV + ' · ' + n + ' presets in ' + BANK.length + ' categories · coverage ' + (cov.features.length - cov.holes.length) + '/' + cov.features.length);
+    push({ name: 'factory bank: metadata of ' + n + ' presets and coverage of ' + cov.features.length + ' features', peak: 0, ok: !problems.length, problems: problems.slice(0, 6) });
+  }
+  {
+    // Bank revision sync (1.5.0, docs/BANK.md): a library seeded by 1.4 (no bankRev, items without
+    // seedFp) loads under the new bank: the untouched, unstarred factory / repo-bank / scene copies go,
+    // the renamed, moved, edited or ★ ones stay, the empty old sections go (a user's empty one stays),
+    // the new bank comes in with its categories first (an old copy identical to a new preset is not
+    // duplicated), the scenes are re-seeded (files = false); loading again changes nothing.
+    body.appendChild(el('st-cat', 'Bank sync'));
+    const problems = [];
+    try {
+      const mkStore = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
+      const store = mkStore(), fp = d => fnv(canon(d));
+      const oldWarm = FX.warmPad, oldPluck = FX.pluckBass, oldKick = FX.kick808;   // 1.4 data: their fingerprints are in LEGACY_FP
+      for (const [k, d] of [['factory:Warm Pad', oldWarm], ['factory:Pluck Bass', oldPluck], ['factory:808 Kick', oldKick]])
+        if (!LEGACY_FP[k] || LEGACY_FP[k][1] !== fp(d)) problems.push('LEGACY_FP does not match the 1.4 data of ' + k + ' (canon/fnv changed?)');
+      const dawn = { format: 'subsdj-scene-v2', name: 'Dawn', parts: [] };   // a scene seeded the 1.5.0 way: its fingerprint stored with it
+      const lib = { format: 'subsdj-library-v2', next: 20, files: true,
+        sections: [{ id: 's1', name: 'Pads' }, { id: 's2', name: 'Bass' }, { id: 's3', name: 'Presets 2.0' }, { id: 's4', name: '★ Mine' }, { id: 's5', name: 'Scenes' }, { id: 's6', name: 'My empty one' }, { id: 's7', name: 'Keys' }],
+        items: [
+          { id: 'p1', type: 'preset', name: 'Warm Pad', section: 's1', fav: false, origin: 'factory', seed: 'factory:Warm Pad', data: { ...oldWarm } },       // untouched → goes
+          { id: 'p2', type: 'preset', name: 'Warm Pad', section: 's4', fav: false, origin: 'factory', seed: 'factory:Warm Pad', data: { ...oldWarm } },       // moved → stays
+          { id: 'p3', type: 'preset', name: 'Pluck Bass', section: 's2', fav: true, origin: 'factory', seed: 'factory:Pluck Bass', data: { ...oldPluck } },   // ★ → stays
+          { id: 'p4', type: 'preset', name: 'My bass', section: 's2', fav: false, origin: 'factory', seed: 'factory:Pluck Bass', data: { ...oldPluck } },     // renamed → stays
+          { id: 'p5', type: 'preset', name: 'Pluck Bass', section: 's2', fav: false, origin: 'factory', seed: 'factory:Pluck Bass', data: { ...oldPluck, dist: 0.9 } },   // edited → stays
+          { id: 'p6', type: 'preset', name: 'Rhodes', section: 's7', fav: true, origin: 'factory', seed: 'factory:Rhodes', data: { ...META['Rhodes'].data } },   // ★ and identical to a new preset → stays, the new one is not duplicated
+          { id: 'p7', type: 'preset', name: 'Mine', section: 's4', fav: false, origin: 'user', seed: null, data: { cutoff: 500 } },                           // user → stays
+          { id: 'e8', type: 'scene', name: 'Dawn', section: 's5', fav: false, origin: 'scene', seed: 'scene:1:Dawn', seedFp: fp(dawn), seedSec: 'Scenes', data: dawn } ] };   // untouched repo scene → goes
+      store.setItem('subsdj.library.sync', JSON.stringify(lib));
+      const L = new Library({ key: 'subsdj.library.sync', storage: store });
+      const wasNew = L.load();
+      const it = id => L.item(id), count = n => L.items().filter(i => i.name === n).length;
+      if (wasNew) problems.push('treated as new');
+      if (L.data.bankRev !== BANK_REV) problems.push('bankRev not set');
+      if (it('p1')) problems.push('untouched factory copy kept');
+      if (!it('p2') || L.section(it('p2').section).name !== '★ Mine') problems.push('moved copy lost');
+      if (!it('p3') || !it('p3').fav) problems.push('★ copy lost');
+      if (!it('p4') || it('p4').name !== 'My bass') problems.push('renamed copy lost');
+      if (!it('p5') || it('p5').data.dist !== 0.9) problems.push('edited copy lost');
+      if (!it('p6') || count('Rhodes') !== 1) problems.push('★ copy identical to the new preset: kept ' + !!it('p6') + ', ×' + count('Rhodes'));
+      if (!it('p7')) problems.push('user preset lost');
+      if (it('e8')) problems.push('untouched repo scene kept');
+      if (L.sectionByName('Presets 2.0')) problems.push('empty «Presets 2.0» section kept');
+      if (!L.sectionByName('My empty one')) problems.push('the user\'s empty section went');
+      if (L.data.files !== false) problems.push('files not reset (the scenes would not re-seed)');
+      const secs = L.sections().map(s => s.name), want = BANK.map(c => c.cat);
+      if (secs.slice(0, want.length).join('|') !== want.join('|')) problems.push('bank categories not first and in order: ' + secs.join('|'));
+      const missing = Object.keys(META).filter(n => !count(n));
+      if (missing.length) problems.push('new bank not fully in: ' + missing.slice(0, 5).join(', '));
+      if (count('Warm Pad') !== 2) problems.push('Warm Pad: expected the moved old one + the new one, got ' + count('Warm Pad'));
+      if (count('Pluck Bass') !== 2) problems.push('Pluck Bass: expected ★ + edited, got ' + count('Pluck Bass'));
+      const before = JSON.stringify(L.data);
+      const L2 = new Library({ key: 'subsdj.library.sync', storage: store }); L2.load();
+      if (JSON.stringify(L2.data) !== before) problems.push('a second load changes the library');
+      console.log('bank sync: ' + lib.items.length + ' old items → ' + L.items().length + ' (' + L.sections().length + ' sections)');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: 'bank sync: a 1.4 library follows the new bank, keeping what the user touched or starred', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // The 1.4 bank archive (subsdj-bank-1.4.json): a library file with the whole old bank —
+    // factory, «Presets 2.0» and the four scenes with their presets inlined — importable
+    // (File ▾ → Import) into a library that already has the new bank; twice, without duplicates.
+    body.appendChild(el('st-cat', 'Bank archive'));
+    const problems = [];
+    try {
+      const j = await (await fetch('subsdj-bank-1.4.json', { cache: 'no-store' })).json();
+      const m = {}, store = { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } };
+      const L = new Library({ key: 'subsdj.library.archive', storage: store }); L.load();
+      // an archived preset identical (name and content) to one of the new bank is not duplicated
+      const same = j.items.filter(it => META[it.name] && canon(META[it.name].data) === canon(it.data)).length;
+      const n0 = L.items().length, r1 = L.importData(j), r2 = L.importData(j);
+      if (r1.type !== 'library' || r1.n !== j.items.length - same || r2.n !== 0) problems.push('import: ' + r1.n + '/' + (j.items.length - same) + ' (' + same + ' identical to the new bank), repeated ' + r2.n);
+      if (L.items().length !== n0 + j.items.length - same) problems.push('count after import');
+      if (!(j.items.length >= 160) || j.sections.some(s => !s.name.startsWith('1.4 · '))) problems.push('archive content: ' + j.items.length + ' items, sections ' + j.sections.map(s => s.name).join(','));
+      const sc = L.items().filter(i => i.type === 'scene' && i.origin === 'archive');
+      if (sc.length !== 4 || !sc.every(s => s.data.parts.every(p => p.state))) problems.push('archived scenes: ' + sc.length + ', presets inlined: ' + sc.every(s => s.data.parts.every(p => p.state)));
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: 'bank archive: subsdj-bank-1.4.json imports whole (164 items), twice without duplicates', peak: 0, ok: !problems.length, problems });
   }
   {
     // 1.3.0 compatibility (1.4.0, everything in English): what was saved up to 1.3.0 had
@@ -991,7 +1212,7 @@ export async function runSelfTest() {
       const lib1 = { formato: 'subsdj-biblioteca-v1', next: 9, ficheros: true,
         secciones: [{ id: 's1', nombre: 'Pads' }, { id: 's2', nombre: 'Demos A/B' }, { id: 's3', nombre: '★ Míos' }, { id: 's4', nombre: 'Escenas' }],
         items: [
-          { id: 'p1', tipo: 'preset', nombre: 'Pad cálido', seccion: 's1', fav: true, origen: 'fabrica', semilla: 'fabrica:Pad cálido', datos: { ...FACTORY['Pads']['Warm Pad'] } },
+          { id: 'p1', tipo: 'preset', nombre: 'Pad cálido', seccion: 's1', fav: true, origen: 'fabrica', semilla: 'fabrica:Pad cálido', datos: { ...FX.warmPad } },
           { id: 'p2', tipo: 'preset', nombre: 'DUB 1 · algo', seccion: 's2', fav: false, origen: 'demos', semilla: 'demos:DUB 1 · algo', datos: { cutoff: 900 } },
           { id: 'p3', tipo: 'preset', nombre: 'Mi pad', seccion: 's3', fav: false, origen: 'usuario', semilla: null, datos: { reverbType: 'placa', vocBrillo: 0.6 } },
           { id: 'p4', tipo: 'preset', nombre: 'Mi bombo', seccion: 's1', fav: false, origen: 'fabrica', semilla: 'fabrica:Bombo 808', datos: { cutoff: 120 } },
@@ -1002,15 +1223,18 @@ export async function runSelfTest() {
       const sec = L.sections().map(s => s.name).join('|'), it = id => L.item(id);
       if (wasNew) problems.push('library: the v1 was treated as new');
       if (L.data.format !== 'subsdj-library-v2' || !store.getItem('subsdj.library.compat') || !store.getItem('subsdj.biblioteca.v1')) problems.push('library: format or storage keys');
-      if (sec !== 'Pads|★ Mine|Scenes') problems.push('library: sections ' + sec);
+      // translated AND synced with the 1.5.0 bank (the bank's categories first, then ★ Mine and Scenes)
+      if (sec !== BANK.map(c => c.cat).join('|') + '|★ Mine|Scenes') problems.push('library: sections ' + sec);
       if (!it('p1') || it('p1').name !== 'Warm Pad' || it('p1').seed !== 'factory:Warm Pad' || !it('p1').fav || it('p1').origin !== 'factory') problems.push('library: factory preset not translated');
       if (it('p2')) problems.push('library: the A/B demos are still there');
       if (!it('p3') || it('p3').name !== 'Mi pad' || it('p3').data.reverbType !== 'plate' || it('p3').data.vocBright !== 0.6 || it('p3').origin !== 'user') problems.push('library: user preset');
       if (!it('p4') || it('p4').name !== 'Mi bombo' || it('p4').seed !== 'factory:808 Kick') problems.push('library: renamed by the user');
       if (!it('e5') || it('e5').type !== 'scene' || it('e5').name !== 'Robot Choir' || it('e5').data.format !== 'subsdj-scene-v2') problems.push('library: scene');
-      L.seedFactory();
+      if (L.data.bankRev !== BANK_REV) problems.push('library: not synced with the bank');
+      if (L.seedFactory() !== 0) problems.push('library: restoring the factory after the sync adds items');
       const dup = n => L.items().filter(x => x.name === n).length;
-      if (dup('Warm Pad') !== 1 || dup('808 Kick') !== 0) problems.push('library: restoring the factory duplicates (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ')');
+      // the ★ old Warm Pad stays next to the new one; the renamed «Mi bombo» stays and the new 808 Kick comes in
+      if (dup('Warm Pad') !== 2 || dup('808 Kick') !== 1 || dup('Mi bombo') !== 1) problems.push('library: after the bank sync (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ', Mi bombo ×' + dup('Mi bombo') + ')');
       // (4) MIDI map with an old key
       const prevDev = getDevice(), K = 'subsdj.midimap.v1:compat';
       localStorage.setItem(K, JSON.stringify({ pickup: false, ccs: { 41: { id: 'vocVida', lo: 0, hi: 1 } } }));
@@ -1965,13 +2189,12 @@ export async function runSelfTest() {
       const problems = [];
       const def = toControls(makeDefaultState());
       for (const k in PARAMS) if (def[k] !== PARAMS[k].def) { problems.push('toControls: ' + k + ' ≠ default'); break; }
-      const pr = FACTORY['Pads']['Cathedral Pad'], back = toControls(applyPreset(makeDefaultState(), pr));
+      const pr = FX.cathedralPad, back = toControls(applyPreset(makeDefaultState(), pr));
       for (const k in pr) if (back[k] !== pr[k]) { problems.push('applyPreset/toControls is not a round trip at ' + k); break; }
       const secs = 3.2, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
       // part 4 (the last to sound) has a short attack and the reverb send at
       // full: its tail is the only thing left at the end of the render
-      const presets = [FACTORY['Bass']['Pluck Bass'], FACTORY['Leads']['Square Lead'], FACTORY['Percussion']['808 Kick'],
-                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
+      const presets = [FX.pluckBass, FX.squareLead, FX.kick808, { ...FX.glassPad, a: 0.01, r: 0.15, reverbMix: 0.6 }];
       // reverbSize goes in at creation: regenerating the IR live is debounced (real timer: not deterministic offline)
       const sc = await createScene(ctx, presets, { roomS: { reverbSize: 2.6 } });
       sc.parts[1].engine.setMute(true);
@@ -2075,7 +2298,7 @@ export async function runSelfTest() {
       if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) problems.push('redo does not go back to 1234');
       e.noteOff('hst');
       const ids = library.presets().map(it => it.id), d1 = historyDepth().undo;
-      loadPresetId(ids.find(id => library.item(id).name !== 'Init (default)'));
+      loadPresetId(ids.find(id => library.item(id).name !== 'Init'));
       if (historyDepth().undo !== d1 + 1) problems.push('loading a preset is not a step');
       undo();
       if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) problems.push('undoing the load does not bring back the previous sound');
@@ -2246,11 +2469,11 @@ export async function runSelfTest() {
         // the focus is no longer on the search box: the keyboard plays and Esc closes without cutting the note
         if (document.activeElement === search) search.blur();   // (in the browser the real click does it)
         window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'z', bubbles: true, cancelable: true }));
-        const playing = mv();
+        const playing = part().voices.size;   // all held voices: the loaded preset may be mono (its voice is «mono», not «m1»)
         window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true }));
         if (!playing) problems.push('outside the search box the keyboard does not play');
         if (!pop.hidden) problems.push('Esc does not close');
-        if (playing && mv() !== playing) problems.push('Esc with the selector open triggers panic');
+        if (playing && part().voices.size !== playing) problems.push('Esc with the selector open triggers panic');
         window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyZ', key: 'z', bubbles: true }));
         // reopen: it remembers the category; Enter closes
         $('presetPick').click();
@@ -2356,8 +2579,7 @@ export async function runSelfTest() {
         if (s !== k) { problems.push('E(' + k + ',' + n + ') rot ' + rot + ': ' + s + ' hits'); break; }
       }
       const secs = 4.0, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
-      const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
-                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
+      const presets = [FX.kick808, FX.squareLead, { ...FX.glassPad, a: 0.01, r: 0.2 }, FX.pluckBass];
       const sc = await createScene(ctx, presets, { roomS: { bpm: 120 } });
       const setup = cd => {
         Object.assign(cd.harmony, { root: 2, scale: 'minor', prog: [1, 6, 4, 5], bars: 1, mode: 'list' });
@@ -2428,8 +2650,7 @@ export async function runSelfTest() {
       if (rests.join() !== rests2.join()) problems.push('surprise not deterministic');
       if (!(nRest >= 3 && nRest <= 20)) problems.push('surprise: ' + nRest + ' rests out of 40 (expected ~10)');
       // (2)-(4): offline scene
-      const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
-                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
+      const presets = [FX.kick808, FX.squareLead, { ...FX.glassPad, a: 0.01, r: 0.2 }, FX.pluckBass];
       const conf = cd => {
         Object.assign(cd.harmony, { root: 4, scale: 'dorian', prog: [1, 4], bars: 1, mode: 'list' });
         Object.assign(cd.arr.cfg, { energy: 0.6, sway: 0.6, cycle: 2, open: 1, surprise: 0.3 });
@@ -2582,9 +2803,9 @@ export async function runSelfTest() {
         const alive = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) if (Math.abs(d[i]) > thr) n++; return n; };
         early = alive(0.001, 0.021); late = alive(0.1, 0.12);
         if (!(late > early)) problems.push('the density does not grow (' + early + ' → ' + late + ' live samples)'); }
-      loadState({ ...FACTORY['Pads']['Plate Pad'], reverbType: 'hall' });
+      loadState({ ...FX.platePad, reverbType: 'hall' });
       const bHall = await renderBuf(structuredClone(engine.S));
-      loadState(FACTORY['Pads']['Plate Pad']);
+      loadState(FX.platePad);
       const bPlate = await renderBuf(structuredClone(engine.S));
       const diff = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0); let d = 0, en = 0;
         for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; } return Math.sqrt(d / Math.max(1e-12, en)); };
@@ -3920,7 +4141,7 @@ export async function runSelfTest() {
         for (let i = 0; i + W <= Math.floor(1.8 * SR); i += W, n++) { let p = 0; for (let k = i; k < i + W; k++) p = Math.max(p, Math.abs(l[k]), Math.abs(rr[k])); if (p > TOP) h++; }
         return (100 * h / n).toFixed(0) + ' %';
       };
-      const pad = FACTORY['Pads']['Warm Pad'];
+      const pad = FX.warmPad;
       console.log('mixer: superposition', sup.toFixed(0), 'dB · old/translated', gap.toFixed(0), 'dB · A+B in phase +' + gIn.toFixed(2), 'dB · detuned +' + gDet.toFixed(2),
         'dB · Warm Pad, 4-note chord: limiter ' + await hot(pad) + ' (levels 0.5/0.5) → ' + await hot({ ...pad, levelA: 1, levelB: 1 }) + ' (1/1)');
       loadState(keep);
@@ -3946,10 +4167,9 @@ export async function runSelfTest() {
     let r;
     try {
       const problems = [], keep = snapshot(), CH4 = [130.81, 196.0, 261.63, 329.63];
-      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
       const peaks = [];
-      for (const n of ['Supersaw Pad', 'String Ensemble', 'Warm Pad', 'Solina Strings', 'Plate Pad', 'Human Choir']) {
-        loadState(find(n));
+      for (const [n, pad] of [['Supersaw Pad', FX.supersawPad], ['Warm Pad', FX.warmPad], ['Solina Strings', FX.solinaStrings], ['Plate Pad', FX.platePad], ['Human Choir', FX.humanChoir]]) {
+        loadState(pad);
         const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
         CH4.forEach((f, i) => eng.noteOn('n' + i, f, 1));
@@ -3975,45 +4195,8 @@ export async function runSelfTest() {
     push(r);
   }
 
-  {
-    // Factory loudness (1.1.0): each preset carries a Master measured to sound at
-    // about −14 LUFS at the output in its INTENDED USE (one note for bass and leads, a three-note chord for
-    // pads and keys) without that use reaching the limiter. Perceived loudness =
-    // BS.1770 K-weighting, maximum over 400 ms blocks. Before the adjustment, with the
-    // master headroom, the basses sounded 8-9 dB below the pads.
-    body.appendChild(el('st-cat', 'Factory loudness'));
-    let r;
-    try {
-      const problems = [], keep = snapshot(), measures = [];
-      const biq = (b0, b1, b2, a1, a2) => x => { const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-        for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
-      const kShelf = (() => { const A = Math.pow(10, 4 / 40), w = 2 * Math.PI * 1681.97 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7072), sA = 2 * Math.sqrt(A) * al, a0 = (A + 1) - (A - 1) * c + sA;
-        return biq(A * ((A + 1) + (A - 1) * c + sA) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - sA) / a0, 2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - sA) / a0); })();
-      const kHp = (() => { const w = 2 * Math.PI * 38.135 / SR, c = Math.cos(w), al = Math.sin(w) / (2 * 0.5003), a0 = 1 + al; return biq((1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - al) / a0); })();
-      const lufs = b => { const l = kHp(kShelf(b.getChannelData(0))), rr = kHp(kShelf(b.getChannelData(1))), B = Math.round(0.4 * SR), H = Math.round(0.1 * SR);
-        let best = 0; for (let i = 0; i + B <= l.length; i += H) { let s = 0; for (let k = i; k < i + B; k++) s += l[k] * l[k] + rr[k] * rr[k]; best = Math.max(best, s / B); }
-        return best > 0 ? -0.691 + 10 * Math.log10(best) : -99; };
-      const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
-      for (const [n, notes] of [['Slide Bass', [130.81]], ['Bright Lead', [130.81]], ['Supersaw Pad', [130.81, 164.81, 196.0]], ['DX E-Piano', [130.81, 164.81, 196.0]], ['String Ensemble', [130.81, 164.81, 196.0]]]) {
-        loadState(find(n));
-        const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
-        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
-        notes.forEach((f, i) => eng.noteOn('n' + i, f, 1));
-        c.suspend(2.0).then(() => { notes.forEach((f, i) => eng.noteOff('n' + i)); c.resume(); });
-        const L = lufs(await c.startRendering());
-        measures.push([n, L]);
-        if (!(L > -17 && L < -11)) problems.push(n + ' (' + (notes.length > 1 ? 'chord' : 'one note') + '): ' + L.toFixed(1) + ' LUFS, outside −14 ± 3');
-      }
-      const Ls = measures.map(m => m[1]), spread = Math.max(...Ls) - Math.min(...Ls);
-      if (!(spread < 3.5)) problems.push('from the single note to the chord there is a ' + spread.toFixed(1) + ' dB difference');
-      console.log('loudness in use:', measures.map(([n, L]) => n + ' ' + L.toFixed(1)).join(' · '), '· difference', spread.toFixed(1), 'dB');
-      loadState(keep);
-      r = { name: 'factory loudness: a single bass or lead note sounds like a pad chord (−14 LUFS ± 3)', peak: 0, ok: !problems.length, problems };
-    } catch (e2) {
-      r = { name: 'factory loudness: a single bass or lead note sounds like a pad chord (−14 LUFS ± 3)', peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
-    }
-    push(r);
-  }
+  // (The «factory loudness» check of 1.1.0 — five presets at −14 LUFS in their use — is now the
+  // whole bank, preset by preset, in the «factory» batch: measurePreset.)
 
   {
     // Master limiter with test signals (worklets/limiter-processor.js):
@@ -4276,20 +4459,37 @@ export async function runSelfTest() {
 
   }   // ---------- end of the «checks» batch ----------
 
-  if (inBatch('factory')) {   // ---------- «factory» batch: the whole bank, the stress test and the pair probe ----------
-  // the {} state is equivalent to the Reset button; then, the whole factory bank
-  const jobs = [['Base', 'Reset ({})', {}]];
-  for (const cat in FACTORY) for (const name in FACTORY[cat]) jobs.push([cat, name, FACTORY[cat][name]]);
-
-  let lastCat = null;
-  for (const [cat, name, data] of jobs) {
-    if (cat !== lastCat) { body.appendChild(el('st-cat', cat)); lastCat = cat; }
-    const r = await testPreset(name, data);
-    push(r);
-    summary.textContent = ok + '/' + results.length;
-    ping('i=' + results.length + '&ok=' + (r.ok ? 1 : 0) + '&peak=' + r.peak.toFixed(3) +
-         '&name=' + encodeURIComponent(r.name) +
-         (r.ok ? '' : '&why=' + encodeURIComponent(r.problems.join(' | '))));
+  if (inBatch('factory')) {   // ---------- «factory» batch: the bank measured in its use, the stress test and the pair probe ----------
+  // the {} state is equivalent to the Reset button
+  body.appendChild(el('st-cat', 'Base'));
+  push(await testPreset('Reset ({})', {}));
+  // The bank (docs/BANK.md): each preset rendered in its USE — one note, a major triad or one
+  // hit, sequencer and arpeggiator off — and judged on NaN, silence, the limiter working (% of
+  // 10 ms blocks over −1.3 dBFS), loudness against −14 LUFS (hits: the peak against −4 dBFS), DC
+  // and the dry tail after the release. The ping carries the Master that would land it on the
+  // target: that is how the bank is tuned (node tools/run-selftest.mjs "selftest=1&batch=factory").
+  // Then the spectral fingerprints of all of them: the closest pairs are logged — no two alike.
+  const prints = [];
+  for (const c of BANK) {
+    body.appendChild(el('st-cat', c.cat));
+    for (const p of c.presets) {
+      const { row, info } = await measurePreset(c.cat, p);
+      push(row);
+      summary.textContent = ok + '/' + results.length;
+      if (info && info.print) prints.push([p.name, info.print]);
+      ping('bank=' + encodeURIComponent(p.name) + '&ok=' + (row.ok ? 1 : 0) +
+           (info ? '&use=' + info.use + '&lufs=' + info.lufs + '&peak=' + info.peak + '&clip=' + info.clip + '&dc=' + (info.dc ?? '') + '&tail=' + (info.tail ?? '') + '&master=' + info.master + '&sugg=' + info.sugg : '') +
+           (row.ok ? '' : '&why=' + encodeURIComponent(row.problems.join(' | '))));
+    }
+  }
+  {
+    const pairs = [];
+    for (let i = 0; i < prints.length; i++) for (let j = i + 1; j < prints.length; j++) pairs.push([fpDistance(prints[i][1], prints[j][1]), prints[i][0], prints[j][0]]);
+    pairs.sort((a, b) => a[0] - b[0]);
+    for (const [d, A, B] of pairs.slice(0, 12)) ping('sim=' + encodeURIComponent(A + ' || ' + B) + '&dist=' + d.toFixed(2));
+    const close = pairs.filter(p => p[0] < SIM_MIN_DB).map(p => p[1] + ' ≈ ' + p[2] + ' (' + p[0].toFixed(1) + ' dB)');
+    console.log('similarity: closest ' + pairs.slice(0, 5).map(([d, A, B]) => A + ' ≈ ' + B + ' ' + d.toFixed(1)).join(' · ') + ' · median ' + (pairs[Math.floor(pairs.length / 2)] || [0])[0].toFixed(1));
+    push({ name: 'bank similarity: no two presets closer than ' + SIM_MIN_DB + ' dB (spectral fingerprint)', peak: 0, ok: !close.length, problems: close.slice(0, 6) });
   }
 
   // stress: 16 simultaneous noteOns (triggers voice stealing with MAX_POLY=10) and

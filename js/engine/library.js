@@ -25,25 +25,26 @@
    UI learns of every change through `onChange` (presetBank turns it into
    the library-changed event).
    ===================================================================== */
-import { FACTORY, migrateV1, loadUser } from './presets.js';
-import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene } from './legacy.js';
+import { FACTORY, META, BANK, BANK_REV, migrateV1, loadUser } from './presets.js';
+import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP } from './legacy.js';
 
 export const LIB_KEY = 'subsdj.library.v2';
 const LIB_KEY_V1 = 'subsdj.biblioteca.v1';   // the one up to 1.3.0: read once and translated
 export const SEC_MINE = '★ Mine', SEC_SCENES = 'Scenes', SEC_IMPORT = 'Imported';
-// Repo banks and scenes seeded by fetch (HTTP, like the whole synth)
-export const REPO_FILES = [
-  { url: 'subsdj-presets-2.0.json', section: 'Presets 2.0', origin: 'v2' },
-];
+// Repo banks seeded by fetch (HTTP, like the whole synth). Empty since 1.5.0: the «Presets 2.0»
+// bank retired with the old factory (both live in subsdj-bank-1.4.json, File ▾ → Import).
+export const REPO_FILES = [];
 export const REPO_SCENES = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir'];
 const MAX_NAME = 48;
 
 // Canonical JSON (sorted keys, recursive): two equal contents give the same fingerprint
-function canon(v) {
+export function canon(v) {
   if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
 }
+// FNV-1a (32 bit, 8 hex chars) of a string: the short fingerprint stored with each seeded item
+export function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
 const fingerprintOf = (name, data) => name + '\u0000' + canon(data);
 export const normalize = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const trimName = (s, alt) => (String(s == null ? '' : s).trim().slice(0, MAX_NAME)) || alt;
@@ -62,18 +63,19 @@ export class Library {
 
   // Reads from storage; if there is no library (or it is corrupt) it checks for one
   // from before (v1, in Spanish) and translates it; failing that, it creates one and seeds it with
-  // the factory and the old user presets. Returns whether it was new.
+  // the factory and the old user presets. A library from another bank revision is synced
+  // with the code (syncBank). Returns whether it was new.
   // The repo files are seeded separately (seedRepoFiles: asynchronous).
   load({ user, seed = true } = {}) {
     const read = k => { try { return JSON.parse(this.storage && k ? this.storage.getItem(k) : null); } catch (e) { return null; } };
-    const d = read(this.key);
-    if (!isV2(d)) {
-      const v1 = migrateLibrary(read(this.keyV1));
-      if (isV2(v1)) { this.data = v1; if (typeof this.data.next !== 'number') this.data.next = 1; this.save(); return false; }
-    }
+    let d = read(this.key), fromV1 = false;
+    if (!isV2(d)) { const v1 = migrateLibrary(read(this.keyV1)); if (isV2(v1)) { d = v1; fromV1 = true; } }
     const isNew = !isV2(d);
     this.data = isNew ? this.empty() : d;
-    if (isNew && seed) { this.seedFactory(); this.seedUser(user); this.save(); }
+    if (typeof this.data.next !== 'number') this.data.next = 1;
+    if (isNew) { if (seed) { this.seedFactory(); this.seedUser(user); } this.data.bankRev = BANK_REV; this.save(); }
+    else if (this.data.bankRev !== BANK_REV && seed) { this.syncBank(); this.save(); }
+    else if (fromV1) this.save();
     return isNew;
   }
   save() {
@@ -118,8 +120,13 @@ export class Library {
   }
   presets() { return this.items().filter(it => it.type === 'preset'); }
   item(id) { return this.data.items.find(it => it.id === id) || null; }
-  add({ type = 'preset', name, section, data, origin = 'user', seed = null, fav = false }, { save = true } = {}) {
+  // `tags` and `play` (factory metadata) travel with the item, outside `data`: Save never
+  // overwrites them. `seedFp`/`seedSec` remember how a seeded item came in (syncBank).
+  add({ type = 'preset', name, section, data, origin = 'user', seed = null, fav = false, tags, play, seedFp, seedSec }, { save = true } = {}) {
     const it = { id: this._id(type === 'scene' ? 'e' : 'p'), type, name: trimName(name, type), section, fav: !!fav, origin, seed, data: data || {} };
+    if (Array.isArray(tags) && tags.length) it.tags = tags.slice();
+    if (typeof play === 'string' && play) it.play = play;
+    if (seedFp) { it.seedFp = seedFp; it.seedSec = seedSec; }
     this.data.items.push(it);
     if (save) this.save();
     return it.id;
@@ -137,12 +144,15 @@ export class Library {
     this.save(); return true;
   }
   favorites() { return this.items().filter(it => it.fav); }
-  search(text) { const q = normalize(text); return q ? this.items().filter(it => normalize(it.name).includes(q)) : this.items(); }
+  search(text) { const q = normalize(text); return q ? this.items().filter(it => normalize(it.name + ' ' + (it.tags || []).join(' ')).includes(q)) : this.items(); }   // name or tags
 
   // ---------- seed ----------
   // Adds to the section (creating it) the entries of the map {name: data} that are missing:
   // neither their seed key nor their fingerprint (name + content) is there yet. No save.
-  seed(origin, sectionName, map, type = 'preset', { withSeed = true } = {}) {
+  // The seed key carries the bank revision (`factory:2:Name`): a preset the user tweaked
+  // under a previous revision keeps its key and the new one still comes in. `meta` (name →
+  // {tags, play}) travels with the item.
+  seed(origin, sectionName, map, type = 'preset', { withSeed = true, rev = null, meta = null } = {}) {
     let n = 0;
     const secId = this.ensureSection(sectionName);
     const keys = new Set(this.data.items.map(it => it.seed).filter(Boolean));
@@ -150,14 +160,44 @@ export class Library {
     for (const name in map) {
       const src = map[name]; if (!src || typeof src !== 'object') continue;
       const data = dataOf(type, src);
-      const key = origin + ':' + name, fp = fingerprintOf(trimName(name, type), data);
+      const key = origin + ':' + (rev ? rev + ':' : '') + name, fp = fingerprintOf(trimName(name, type), data);
       if ((withSeed && keys.has(key)) || prints.has(fp)) continue;
-      this.add({ type, name, section: secId, data, origin, seed: withSeed ? key : null }, { save: false });
+      const m = meta && meta[name];
+      this.add({ type, name, section: secId, data, origin, seed: withSeed ? key : null,
+                 seedFp: withSeed ? fnv(canon(data)) : null, seedSec: sectionName, tags: m && m.tags, play: m && m.play }, { save: false });
       keys.add(key); prints.add(fp); n++;
     }
     return n;
   }
-  seedFactory() { let n = 0; for (const cat in FACTORY) n += this.seed('factory', cat, FACTORY[cat]); return n; }
+  seedFactory() { let n = 0; for (const cat in FACTORY) n += this.seed('factory', cat, FACTORY[cat], 'preset', { rev: BANK_REV, meta: META }); return n; }
+  // The code's bank changed (BANK_REV ≠ the library's): the factory and repo items that are still
+  // exactly as they were seeded — same name, same section, same content — and not ★ go (the
+  // archive subsdj-bank-1.4.json has the old ones); what the user renamed, moved, edited or
+  // starred stays where it is. Then the current bank comes in, its categories first, and the
+  // repo scenes are re-seeded at the next start (files = false). «As seeded» is known by the
+  // fingerprint stored with the item (seedFp) or, for what 1.4 seeded, by legacy.LEGACY_FP.
+  syncBank() {
+    const seedName = s => s.replace(/^[a-z0-9]+:(?:\d+:)?/, '');
+    const secName = it => { const s = this.section(it.section); return s ? s.name : null; };
+    const untouched = it => {
+      if (!it.seed || it.fav || it.name !== seedName(it.seed)) return false;
+      if (it.seedFp) return secName(it) === it.seedSec && fnv(canon(it.data)) === it.seedFp;
+      const old = LEGACY_FP[it.seed];
+      return !!old && secName(it) === old[0] && fnv(canon(it.data)) === old[1];
+    };
+    const gone = new Set(this.data.items.filter(it => /^(factory|v2|scene):/.test(it.seed || '') && untouched(it)).map(it => it.id));
+    this.data.items = this.data.items.filter(it => !gone.has(it.id));
+    // empty bank sections (old categories, the retired repo bank, the scenes) go; a user's empty section stays
+    const bankSecs = new Set([...Object.values(LEGACY_FP).map(v => v[0]), ...BANK.map(c => c.cat), SEC_SCENES]);
+    const used = new Set(this.data.items.map(it => it.section));
+    this.data.sections = this.data.sections.filter(s => used.has(s.id) || !bankSecs.has(s.name));
+    const added = this.seedFactory();
+    const order = BANK.map(c => c.cat), rank = s => (order.indexOf(s.name) + 1) || 1e3;   // the bank's categories first, in its order
+    this.data.sections.sort((a, b) => rank(a) - rank(b));
+    this.data.files = false;
+    this.data.bankRev = BANK_REV;
+    return { removed: gone.size, added };
+  }
   seedUser(map) { const m = map || loadUser(); return Object.keys(m).length ? this.seed('user', SEC_MINE, m) : 0; }
   async seedRepoFiles(fetchFn) {
     const f = fetchFn || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
@@ -168,7 +208,7 @@ export class Library {
       catch (e) { errors.push(rf.url); }
     }
     for (const file of REPO_SCENES) {
-      try { const j = migrateScene(await (await f('scenes/' + file + '.json', { cache: 'no-store' })).json()); n += this.seed('scene', SEC_SCENES, { [j.name || file]: j }, 'scene'); }
+      try { const j = migrateScene(await (await f('scenes/' + file + '.json', { cache: 'no-store' })).json()); n += this.seed('scene', SEC_SCENES, { [j.name || file]: j }, 'scene', { rev: BANK_REV }); }
       catch (e) { errors.push(file); }
     }
     this.data.files = true;
@@ -201,7 +241,7 @@ export class Library {
         const fp = fingerprintOf(trimName(it.name, type), data);
         if (prints.has(fp)) continue;
         this.add({ type, name: it.name, section: sectionMap[it.section] || this.ensureSection(SEC_IMPORT), data,
-                   origin: it.origin || 'import', seed: it.seed || null, fav: it.fav }, { save: false });
+                   origin: it.origin || 'import', seed: it.seed || null, fav: it.fav, tags: it.tags, play: it.play, seedFp: it.seedFp, seedSec: it.seedSec }, { save: false });
         prints.add(fp); n++;
       }
       this.save(); return { type: 'library', n };

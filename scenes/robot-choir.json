@@ -15,9 +15,9 @@
     ]
   },
   "parts": [
-    { "preset": "Madrigal (vowel per note)", "settings": { "reverbMix": 0.4, "dlyAmt": 0.1, "master": 0.6 }, "pan": -0.2 },
-    { "preset": "Glottal Voice (effort)", "settings": { "reverbMix": 0.3, "dlyAmt": 0, "master": 0.78 }, "pan": 0.2 },
+    { "preset": "Madrigal", "settings": { "reverbMix": 0.4, "dlyAmt": 0.1, "master": 0.6 }, "pan": -0.2 },
+    { "preset": "Solo Voice", "settings": { "reverbMix": 0.3, "dlyAmt": 0, "master": 0.78 }, "pan": 0.2 },
     { "preset": "Talking Robot", "settings": { "dlyAmt": 0.35, "reverbMix": 0.2, "master": 0.55 }, "pan": 0.35 },
-    { "preset": "Vocal Percussion (ka)", "settings": { "dlyAmt": 0.3, "reverbMix": 0.15, "master": 0.6 }, "pan": -0.35 }
+    { "preset": "Syllables", "settings": { "dlyAmt": 0.3, "reverbMix": 0.15, "master": 0.6 }, "pan": -0.35 }
   ]
 }

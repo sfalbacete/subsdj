@@ -16,8 +16,8 @@
   },
   "parts": [
     { "preset": "808 Kick", "settings": { "reverbMix": 0, "dlyAmt": 0, "master": 0.9 }, "pan": 0 },
-    { "preset": "Acid 303", "settings": { "seqOn": "on", "seqPat": "0 0 12 0 3 3 7 10", "seqDiv": "1/16", "seqGate": 0.55, "seqLatch": "off", "dlyAmt": 0.2, "reverbMix": 0.1, "master": 0.6 }, "pan": 0 },
-    { "preset": "Wavestation Texture (ws)", "settings": { "arpMode": "up", "arpDiv": "1/16", "arpOct": "2", "arpGate": 0.4, "dlyAmt": 0.3, "reverbMix": 0.25, "master": 0.5 }, "pan": 0.2 },
-    { "preset": "FM Hat (feedback)", "settings": { "dlyAmt": 0.15, "reverbMix": 0.05, "master": 0.5 }, "pan": -0.3 }
+    { "preset": "Acid Line", "settings": { "seqOn": "on", "seqPat": "0 0 12 0 3 3 7 10", "seqDiv": "1/16", "seqGate": 0.55, "seqLatch": "off", "dlyAmt": 0.2, "reverbMix": 0.1, "master": 0.6 }, "pan": 0 },
+    { "preset": "Wave Sequence Pad", "settings": { "arpMode": "up", "arpDiv": "1/16", "arpOct": "2", "arpGate": 0.4, "dlyAmt": 0.3, "reverbMix": 0.25, "master": 0.5 }, "pan": 0.2 },
+    { "preset": "Closed Hat", "settings": { "dlyAmt": 0.15, "reverbMix": 0.05, "master": 0.5 }, "pan": -0.3 }
   ]
 }
