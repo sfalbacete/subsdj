@@ -1,0 +1,23 @@
+{
+  "format": "subsdj-scene-v2",
+  "name": "909 Kit",
+  "note": "Four percussion parts, four Pulse players at 128 bpm (the root is C so the hits land on C3, the kit's octave): the 909 kick on every quarter, the snare on two and four (E(2,16) rotated 4), the closed hat on the eighths with alternating accents and the open hat on the off-beats, each one coming in with the energy of the 8-bar cycle. No part is reserved: pick any of the four and add hits by hand, or load a preset into one of them.",
+  "room": { "bpm": 128, "dlySync": "1/8", "dlyDamp": 0.5, "reverbSize": 1.2, "reverbDamp": 0.5, "reverbPre": 0.01, "fb": 0.3, "dlyToRev": 0.2, "master": 1.64 },
+  "conductor": {
+    "seed": 9,
+    "harmony": { "root": 0, "scale": "minor", "prog": [1], "bars": 4, "mode": "list" },
+    "arrangement": { "energy": 0.7, "sway": 0.3, "cycle": 8, "open": 0.7, "surprise": 0.15 },
+    "players": [
+      { "mode": "pulse", "k": 4, "n": 16, "rot": 0, "prob": 1, "gate": 0.5, "accent": 0, "oct": 3, "vel": 1, "threshold": 0 },
+      { "mode": "pulse", "k": 2, "n": 16, "rot": 4, "prob": 1, "gate": 0.5, "accent": 0, "oct": 3, "vel": 0.9, "threshold": 0.3 },
+      { "mode": "pulse", "k": 8, "n": 16, "rot": 0, "prob": 0.95, "gate": 0.3, "accent": 0.5, "oct": 3, "vel": 0.7, "threshold": 0.15 },
+      { "mode": "pulse", "k": 4, "n": 16, "rot": 2, "prob": 0.8, "gate": 0.4, "accent": 0.3, "oct": 3, "vel": 0.6, "threshold": 0.5 }
+    ]
+  },
+  "parts": [
+    { "preset": "909 Kick", "settings": { "dlyAmt": 0, "reverbMix": 0, "master": 1.0 }, "pan": 0 },
+    { "preset": "909 Snare", "settings": { "dlyAmt": 0.1, "reverbMix": 0.15, "master": 0.8 }, "pan": 0.05 },
+    { "preset": "Closed Hat", "settings": { "dlyAmt": 0, "reverbMix": 0.1, "master": 0.5 }, "pan": -0.3 },
+    { "preset": "Open Hat", "settings": { "dlyAmt": 0.15, "reverbMix": 0.12, "master": 0.45 }, "pan": 0.3 }
+  ]
+}

@@ -25,7 +25,7 @@ import { Steps, cycleBars } from './engine/Steps.js';
 import { Seq, parsePattern, stepFreq, stepToken } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
-import { FACTORY, BANK, META, BANK_REV, rootOf, migrateV1 } from './engine/presets.js';
+import { FACTORY, BANK, META, BANK_REV, rootOf, factoryPreset, migrateV1 } from './engine/presets.js';
 import { validateBank, coverage } from './engine/bankCheck.js';
 import { LEGACY_FP } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
@@ -2692,16 +2692,19 @@ export async function runSelfTest() {
       if (strip(J3) !== strip(J1)) problems.push('scene JSON: the round trip is not exact');
       if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) problems.push('import does not restore the part state');
       // (4) the repo scenes (scenes/*.json): they load, their presets are
-      // applied, they sound with no NaN or clipping and everything emitted is in their scale
-      const SCENE_FILES = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir'];
+      // applied, they sound with no NaN or clipping, everything emitted is in their scale and
+      // the part reserved for the player («keys») is selected and has its player off
       const peaks = [];
-      for (const sceneName of SCENE_FILES) {
+      for (const sceneName of REPO_SCENES) {
         const j = await (await fetch('scenes/' + sceneName + '.json', { cache: 'no-store' })).json();
-        const ctxD = new OfflineAudioContext(2, Math.ceil(SR * 4), SR);
+        const SECS = 16;   // long enough for the players with a threshold to come in (the peaks are logged: the scenes are levelled by them)
+        const ctxD = new OfflineAudioContext(2, Math.ceil(SR * SECS), SR);
         const scD = await createScene(ctxD, []);
         applySceneJSON(scD, j);
+        if (j.keys && (scD.sel !== j.keys - 1 || scD.conductor.players[j.keys - 1].cfg.mode !== 'off')) problems.push(sceneName + ': the keys part is not selected or its player is on');
+        if (j.parts.some(p => p.preset && !factoryPreset(p.preset))) problems.push(sceneName + ': a preset name is not in the bank');
         scD.conductor.players.forEach(p => { p.log = []; });
-        scD.conductor.scheduleAll(4);
+        scD.conductor.scheduleAll(SECS);
         const aD = analyze(await ctxD.startRendering());
         peaks.push(sceneName + ' ' + dB(aD.peak));
         if (aD.bad) problems.push(sceneName + ': NaN/Inf'); if (aD.peak > 1) problems.push(sceneName + ': clipping'); if (aD.peak <= SILENCE) problems.push(sceneName + ' silent (' + dB(aD.peak) + ')');
@@ -2714,7 +2717,7 @@ export async function runSelfTest() {
       r = { name: 'arrangement and scenes (energy · threshold · surprise · JSON round trip · same seed = same samples · demo)', peak: aA.peak, ok: !problems.length, problems };
     } catch (e2) {
       r = { name: 'arrangement and scenes (energy · threshold · surprise · JSON round trip · same seed = same samples · demo)', peak: 0, ok: false,
-            problems: ['exception: ' + ((e2 && e2.message) || e2)] };
+            problems: ['exception: ' + ((e2 && e2.message) || e2) + ' @ ' + String(e2 && e2.stack || '').split('\n').slice(1, 3).join(' | ')] };
     }
     push(r);
   }

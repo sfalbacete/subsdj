@@ -1,0 +1,24 @@
+{
+  "format": "subsdj-scene-v2",
+  "name": "Deep Space",
+  "note": "C minor, i-VI-iv-VII at 60 bpm, four bars per chord: the cinescape. Four Winds holds the chords (each voice wandering on its own), the Basement Drone slides down to every new root over three seconds, a Singing Bowl is struck now and then by the melody player, everything into a 10 s plate and the half-note echo. Part 4 is YOURS: Interstellar (FM, shimmer at the fifth) with its player off — sparse notes, let them pile up.",
+  "room": { "bpm": 60, "dlySync": "1/2", "dlyDamp": 0.5, "dlyWow": 0.2, "reverbType": "plate", "reverbSize": 10, "reverbDamp": 0.35, "reverbPre": 0.05, "fb": 0.5, "dlyToRev": 0.6, "master": 1.29 },
+  "conductor": {
+    "seed": 23,
+    "harmony": { "root": 0, "scale": "minor", "prog": [1, 6, 4, 7], "bars": 4, "mode": "list" },
+    "arrangement": { "energy": 0.5, "sway": 0.4, "cycle": 32, "open": 0.4, "surprise": 0.15 },
+    "players": [
+      { "mode": "chord", "notes": 4, "oct": 3, "vel": 0.8, "threshold": 0, "drift": "cutoff", "driftAmt": 0.3 },
+      { "mode": "root", "fifth": 0, "every": 4, "oct": 2, "vel": 0.85, "threshold": 0.25 },
+      { "mode": "melody", "density": 0.15, "rest": 0.6, "gravity": 0.8, "range": 1, "legato": 0.95, "oct": 4, "vel": 0.7, "threshold": 0.5 },
+      { "mode": "off" }
+    ]
+  },
+  "parts": [
+    { "preset": "Four Winds", "settings": { "reverbMix": 0.45, "dlyAmt": 0.1, "master": 0.6 }, "pan": -0.1 },
+    { "preset": "Basement Drone", "settings": { "reverbMix": 0.2, "dlyAmt": 0, "master": 0.7 }, "pan": 0 },
+    { "preset": "Singing Bowl", "settings": { "reverbMix": 0.5, "dlyAmt": 0.3, "master": 0.6 }, "pan": 0.3 },
+    { "preset": "Interstellar", "settings": { "reverbMix": 0.45, "dlyAmt": 0.4, "master": 0.6 }, "pan": 0.1 }
+  ],
+  "keys": 4
+}

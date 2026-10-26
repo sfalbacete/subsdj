@@ -523,7 +523,8 @@ js/engine/
   Conductor.js                 master clock in beats: ticker + look-ahead; scheduleAll() for the offline render; toJSON/fromJSON
   Arrangement.js               arrangement: energy in cycles of bars, entry threshold, surprise, opening macro
   Voice.js                     per-note chain: osc (worklet) → LP/HP filter → VCA → pan
-  presets.js                   FACTORY bank (seed of the library) + v1→v2 migration of the old localStorage
+  presets.js                   the factory BANK (1.5.0: categories of entries with tags/use/root/play + data; FACTORY and META derived; BANK_REV) + v1→v2 migration of the old localStorage
+  bankCheck.js                 metadata validation and feature coverage of the bank (the selftest and tools/bank-report.mjs)
   library.js                   the LIBRARY: sections and items (preset/scene), seed, ★, search, export/import (no DOM)
   worklets/pulse-processor.js  PolyBLEP oscillator (saw/square/sine/tri/supersaw/wavetable/fm4; 2-op FM + feedback; FM4 4 ops with algorithms; wavetable with Hermite)
   worklets/plate-processor.js  algorithmic plate reverb (Dattorro): diffusers + modulated tank, 100 % wet
@@ -549,6 +550,8 @@ scenes/*.json                 the repo's scenes (⇧ Scene in the Arrangement mo
   keyboard.js presetBank.js recorder.js scope.js adsrGraph.js
 tools/run-selftest.mjs         selftest in headless Chrome (CDP, no dependencies): node tools/run-selftest.mjs "selftest=1&demos=DLY"
 tools/shot.mjs                 PNG capture of a module or of a screen: node tools/shot.mjs "screen:presets" out.png [width] ["previous JS"]
+tools/bank-report.mjs          the bank from Node: metadata problems, presets per category, tags, the coverage table and its holes (--full)
+tools/bank-level.mjs           writes the Masters suggested by the factory batch into presets.js (BANK_OUT=file.json on the runner)
 ```
 
 Presets (format **v2**) store values in **engine space** (`cutoff` in Hz,
@@ -2494,3 +2497,79 @@ parallel passes, each checked with a script that strips the comments and require
 code to be byte-identical to git HEAD — and from then on everything new is written in English,
 commit messages included. Only the conversation with the assistant stays in Spanish. The
 identifiers still in Spanish (sembrar, ESCALAS, Sala…) and the Spanish file names get their own pass.
+
+## The 1.5.0 factory bank (2026-10-26)
+
+Block 8 of Roadmap 7.0, with its own plan in [BANK.md](BANK.md): criteria, references
+(what the DX7, the Juno-106, the Minimoog charts, the Prophets, the minilogue xd, the D-50,
+General MIDI and the modern soft synths ship), the triage of the 160 old presets and the
+format. What the notebook keeps is how it was built and what was measured.
+
+**Format.** `engine/presets.js` is a list of categories, each a list of entries
+`{name, tags, use, root, play, data}`; `FACTORY` ({category: {name: data}}) and `META`
+(name → entry) are derived, so the library, the scenes (`factoryPreset`) and the selftest
+kept their API. `use` (note / chord / hit) and `root` are what the selftest renders;
+`tags` (a fixed vocabulary, `TAGS`) and `play` travel with the library item outside `data`
+(Save never overwrites them), the search matches tags, the picker and the Presets screen
+show `play` as the tooltip. `engine/bankCheck.js` validates the metadata and computes the
+**coverage**: 131 features (every wave and wavetable set, sync, unison, ring, noise, FM and
+feedback, every LFO shape and sync and phase mode, every filter type, drive and fold, every
+mod-env mode, vocal, resonator, every FX, flam, glide, every arp mode, the sequencer's
+tokens, both wave-sequence modes, swing, every matrix source and destination), each read on
+the effective value and only when audible (B counts if its level is up; an LFO shape if the
+LFO has a level or feeds the matrix). `tools/bank-report.mjs` prints the table; the selftest
+fails on a hole. The first draft had 14 holes (square LFO, retrig/once phases, normal mod
+env, arp down/random, ties and repeats, swing, the raw tremolo and PWM LFOs as sources, the
+four «Steps · note» sources): each one became a preset that needed it anyway (the robot
+talks in square steps, the wobble restarts with the note, the pluck reads a Steps lane at
+note-on, Sonar pings a chord at random).
+
+**Retiring the old bank without touching anybody's library.** The library seeds the
+factory and keeps copies; replacing the factory meant telling an untouched copy from one
+the user edited. Each seeded item now stores the fingerprint of its data at seeding
+(`seedFp`, FNV-1a of the canonical JSON) and its section (`seedSec`); for what 1.4 seeded
+there is a table of 164 fingerprints in `engine/legacy.js` (`LEGACY_FP`), generated from
+the old code before it was replaced. `library.syncBank` runs when `BANK_REV` differs from
+the library's: a factory / repo-bank / scene item with its seed name, its seed section, its
+seed fingerprint and no ★ goes; everything else stays; empty bank sections go, a user's
+empty section stays; the new bank comes in with its categories first; `files = false` so
+the scenes re-seed. Seed keys carry the revision (`factory:2:Name`) so an old tweaked
+«Warm Pad» (key `factory:Warm Pad`) does not block the new one; and the library's old
+rule — same name and same content never twice — means an old ★ copy identical to a new
+preset simply stays as the new one. The archive `subsdj-bank-1.4.json` is a library file
+(sections «1.4 · …», the scenes with their presets inlined) that imports whole, twice
+without duplicates; the 13 old presets kept as they were are skipped by that same rule.
+
+**Measuring the bank.** The factory batch renders each preset in its use — one note at
+`root` (C2 for basses, C4 for leads, C3 for the rest), a major triad, or one 50 ms hit —
+with the sequencer and the arpeggiator off (wall clock), holding for attack + decay +
+1.5 s (the 1.1.0 lesson: measure the real sustain; Glacier Pad renders 24 s). Per preset:
+NaN, silence, the limiter working (% of 10 ms blocks over −1.3 dBFS: 0 % everywhere), the
+momentary loudness (BS.1770, −14 ± 3 LUFS), DC (mean of the last 400 ms of the sustain
+against the peak: under 1 %), a second short render without space FX for the dry tail (all
+below −80 dB 0.4 s after the release), and the Master that would land it on the target
+(bounded by a peak ceiling: −5 dBFS for a note, −3 for a chord, so a tied note or a fourth
+one still clears the limiter; hits aim at a −4 dBFS peak instead of a loudness). The ping
+carries the suggestion and `tools/bank-level.mjs` writes it into the bank: one pass put
+71 presets at −14.0 ± 0.5 LUFS; the decaying ones (plucks, strings, arps) stop at their
+peak ceiling, 3 to 10 dB lower in momentary loudness, as loud as they can be while clean.
+
+**Similarity.** From the same render, a spectral fingerprint: energy in dB of 24
+third-octave bands (50 Hz – 12.8 kHz, biquad band-passes of Q 4.3) over three windows —
+the first 250 ms, 250 ms around 70 % of the hold, the first 250 ms of the release — each
+vector centred on its mean (level-independent); the distance between two presets is the
+RMS of the dB differences. Over the 103 presets the median distance is 16.8 dB and the
+closest pairs are 1.8–2.6 dB (Cathedral Pad / Supersaw Pad, Juno Brass / OB Brass, Juno
+Brass / Accordion…). The fingerprint sees the spectral envelope, not the motion, so
+Solina Strings / Trance Gate (2.3) are alike on paper and nothing alike by ear; the
+threshold is 1.5 dB and the batch logs the twelve closest pairs for the ear to judge.
+
+**What the bank taught about the instrument.** (1) The matrix has no amount
+modulation: a source is a value, so the wheel can offset the pitch but cannot scale the
+vibrato, and nothing reaches an LFO depth, the echo or the reverb — the «wheel = vibrato»
+convention fell on that; vibrato comes in with `lfoFade` instead, and amount modulation
+goes to the plan. (2) A player set to «off» crashed `Player.schedule` offline: the mode
+resolved to `this._off`, the note-off helper; live the Conductor never scheduled it. (3) A
+Steps lane with values in twelfths × a pitch amount of 1 is an exact semitone sequencer
+(Steps Melody). (4) Scenes can reserve a part for the player (`keys`): seven of the eight
+do, and they are levelled by the peak of a 16 s offline render.

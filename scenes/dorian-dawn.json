@@ -1,7 +1,7 @@
 {
   "format": "subsdj-scene-v2",
   "name": "Dorian Dawn",
-  "note": "F Dorian, i-IV-VII-IV at 84 bpm: the classic Dorian vamp, bright without being major. A wavetable vowel choir holds the chords with its morph drifting (the vowels change on their own), a creamy bass comes in with the first light, the FM glockenspiel draws a sparse melody across two octaves and a music box marks a triplet when the energy rises. 24-bar cycle; high Open so the filter dawns with the energy.",
+  "note": "F Dorian, i-IV-VII-IV at 84 bpm: the classic Dorian vamp, bright without being major. The Vowel Choir holds the chords with its morph drifting (the vowels change on their own), the Moog Bass comes in with the first light and the Music Box marks a triplet when the energy rises. 24-bar cycle; high Open so the filter dawns with the energy. Part 3 is YOURS: the Glockenspiel with its player off — draw the melody over the choir.",
   "room": { "bpm": 84, "dlySync": "1/8.", "dlyDamp": 0.5, "dlyWow": 0.2, "reverbSize": 3, "reverbDamp": 0.5, "reverbPre": 0.02, "fb": 0.45, "dlyToRev": 0.5, "master": 1.93 },
   "conductor": {
     "seed": 21,
@@ -10,7 +10,7 @@
     "players": [
       { "mode": "chord", "notes": 4, "oct": 3, "vel": 0.75, "threshold": 0, "drift": "wtPos", "driftAmt": 0.6 },
       { "mode": "root", "fifth": 0, "every": 2, "oct": 2, "vel": 0.85, "threshold": 0.25 },
-      { "mode": "melody", "density": 0.35, "rest": 0.4, "gravity": 0.7, "range": 2, "legato": 0.9, "oct": 5, "vel": 0.65, "threshold": 0.5 },
+      { "mode": "off" },
       { "mode": "pulse", "k": 3, "n": 8, "rot": 0, "prob": 0.6, "gate": 0.5, "accent": 0.4, "oct": 5, "vel": 0.5, "threshold": 0.7 }
     ]
   },
@@ -19,5 +19,6 @@
     { "preset": "Moog Bass", "settings": { "reverbMix": 0.05, "dlyAmt": 0, "master": 0.85 }, "pan": 0 },
     { "preset": "Glockenspiel", "settings": { "dlyAmt": 0.4, "reverbMix": 0.35, "master": 0.6 }, "pan": 0.3 },
     { "preset": "Music Box", "settings": { "dlyAmt": 0.3, "reverbMix": 0.3, "master": 0.5 }, "pan": -0.35 }
-  ]
+  ],
+  "keys": 3
 }

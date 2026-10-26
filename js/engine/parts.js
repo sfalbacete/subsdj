@@ -105,6 +105,7 @@ export function sceneToJSON(sc) {
     room: { ...room, ...sc.roomCfg },
     conductor: sc.conductor.toJSON(),
     parts: sc.parts.map(p => ({ name: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
+    keys: sc.sel + 1,   // the part the keyboard plays (1-4): a scene can reserve one for the player
   };
 }
 // A part may come with a full `state` (exported scene) or with a
@@ -128,6 +129,8 @@ export function applySceneJSON(sc, j) {
     p.mute = !!pj.mute; p.engine.setMute(p.mute);
   });
   if (j.conductor) sc.conductor.fromJSON(j.conductor);
+  // «keys»: the part reserved for the player (its player is usually off); the rack edits it and the keyboard plays it
+  if (j.keys >= 1 && sc.parts[j.keys - 1]) { sc.sel = j.keys - 1; if (sc === scene) current = sc.parts[sc.sel].engine; }
 }
 
 // Turns on Parts mode on the single engine's context. Part 1

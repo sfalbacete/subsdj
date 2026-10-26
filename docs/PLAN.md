@@ -23,7 +23,8 @@ what is already there, it does not go in. Order:
    not multi-language: soft synths and the silkscreen of keyboards use English as a neutral language,
    and other languages (German) make the words longer on a fixed panel—. Before the new bank, so that
    the new presets are born in English (all of today's are going to go).
-6. **New bank (8)**, with its own plan (see block 8).
+6. **New bank (8)** ✔ (2026-10-26, its own plan in docs/BANK.md: 103 presets measured, 8 scenes;
+   pending Sergio's ear).
 Discarded by the criterion: 3.4, 3.5, 4.2, 4.3 and 5.5 (see «What we will NOT do»); 5.3 with no date.
 
 ## Roadmap 7.0 «the instrument» (proposed 2026-10-17 · pending agreement)
@@ -499,7 +500,15 @@ Cheap conversions (v1 → v2, Mix → levels) in an ordered table. Ask for persi
 (`navigator.storage.persist()`) so that the browser does not empty the library for lack of space.
 *Cost:* low.
 
-### 8 · New bank from scratch (future idea; the language was decided separately: English only, before)
+### 8 · New bank from scratch ✔ DONE 2026-10-26 (docs/BANK.md; the language was decided separately: English only, before)
+
+*Done:* the plan with criteria, references and the triage of the 160 old presets (docs/BANK.md);
+103 presets in 12 categories with tags, `use`, `root` and a `play` line; the old bank archived
+(`subsdj-bank-1.4.json`) and the library synced by bank revision; the factory batch measures
+every preset in its use and the closest pairs; coverage of 131 features; eight scenes with a
+part for the player (`keys`). The half of 1.4 that came with it: tags and `play` on the items,
+search by tags, the tooltip. Pending: Sergio's ear (prune, rework), tag filters and audition
+without loading (the rest of 1.4), the «909 Kit» loose end is done.
 
 - *Purpose:* replace the current factory bank (which grew block by block, often as a demonstration of
   each improvement) with one thought out as a whole: only interesting, useful presets that people

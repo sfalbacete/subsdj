@@ -35,11 +35,18 @@ work — instead of reinventing it.
 4. **It does not repeat another one.** Two presets that sound alike = one too many. The
    technical demonstrations stay in `subsdj-demos.json` (A/B pairs), outside the bank.
    A spectral fingerprint per preset flags the closest pairs; the ear decides.
-5. **Expressive by convention** (two knobs that always mean the same thing, as in modern
+5. **Expressive by convention** (knobs that always mean the same thing, as in modern
    banks): velocity matters in all of them (it already does by design; FM and String
-   presets add vel→index / pluck strength); the **wheel** is vibrato on leads, brightness
-   on pads and the vowel on voices; **Macro 1 = Tone** (brightness, drive, FM index) in
-   every preset, **Macro 2 = Motion** (LFO depth, echo, space) where it adds something.
+   presets add vel→index / pluck strength); the **wheel opens the filter** in every preset
+   (the vowel on voices; nothing on the String presets, whose filter is already open);
+   **Macro 1 is the character knob** — drive, FM index, resonance, pulse width, fold,
+   material, the drawbars — in almost every preset; **Macro 2 a second layer** (sub, noise,
+   ring, morph) where it adds something. *Revised while building (2026-10-26):* the first
+   idea was «wheel = vibrato on leads, Macro 2 = motion», but a matrix source is a VALUE,
+   not a depth: the wheel can offset the pitch, not scale the vibrato LFO, and no
+   destination reaches an LFO depth, the echo or the reverb. Vibrato comes in by itself
+   with `lfoFade` instead. Amount modulation (a source scaling another slot's amount) is
+   the capability the bank found missing: a candidate for the plan.
 6. **Loudness matched by measurement**: about −14 LUFS at the output in its intended use
    (one note, a three-note chord or a hit — the hit by its peak), with that use never
    reaching the limiter. All of them, not a sample of five.
@@ -277,6 +284,31 @@ new checks, coverage tool, `play` in the UI. 4. The presets, category by categor
 screenshots. One commit per milestone; version 1.5.0 by the numbering rule (nothing
 saved stops loading: the old bank comes back from the archive).
 
+## Status (2026-10-26, first measured draft)
+
+- **103 presets in 12 categories** (with Basics), **131/131 features covered**, every
+  matrix source and destination used. Measured in their use: 71 at −14.0 ± 0.5 LUFS; the
+  rest are hits (peak −4 dBFS) or decaying sounds capped by their peak ceiling (Funk Bass,
+  Plucked Bass, Koto, Pizzicato, Nylon Guitar, Harp, Synth Pluck, Berlin Sequence, Uplift
+  Arp, Crystal Arp, Motorik Bass: −17 to −24 LUFS momentary — «as loud as they can be
+  while clean»). 0 % clipped blocks everywhere, DC under 1 % of the peak, every dry tail
+  below −80 dB after the release.
+- **Similarity** (spectral fingerprint, RMS of dB differences over 24 third-octave bands
+  × 3 windows): median distance 16.8 dB; closest pairs Cathedral Pad / Supersaw Pad 1.8,
+  Juno Brass / OB Brass 1.9, Juno Brass / Accordion 2.1, Solina Strings / Trance Gate
+  2.3, Fat Saw Bass / Acid Line 2.4. The fingerprint sees the spectral envelope, not the
+  motion (a gate, an arpeggio, a seq): those pairs are different by ear; the first two
+  are the ones to listen to when pruning. Threshold set at 1.5 dB.
+- **Eight scenes**, levelled by the peak of a 16 s offline render (−4 to −6 dBFS; the
+  Seq-driven parts are silent offline, so Berlin School and Hypnotic Techno sit lower there
+  than live).
+- **Library sync** tested on a fake 1.4 library (untouched → gone; moved, renamed, edited
+  or ★ → kept; an old ★ copy identical to a new preset stays and the new one is not
+  duplicated; the user's empty sections stay; a second load changes nothing) and on the
+  1.3.0-compatibility fixture (translated AND synced).
+- Pending: **Sergio's ear** — prune or rework what does not earn its place; the candidate
+  merges above; then the rest of 1.4 (tag filters, audition without loading).
+
 ## Decisions
 
 - 2026-10-26 (Sergio): quality over quantity; categories as proposed; explore every
@@ -286,7 +318,14 @@ saved stops loading: the old bank comes back from the archive).
   to Claude's judgment, with measurements as evidence.
 - Eleven categories (Brass & Strings added, by the references); ~100 as the starting
   canon, to be pruned by the similarity measure and the ear.
-- Macro 1 = Tone in every preset; Macro 2 = Motion where it adds; wheel by family.
+- Wheel = filter in every preset (vowel on voices); Macro 1 = character; Macro 2 = a
+  second layer where it adds (see criterion 5 for why not «vibrato» and «motion»).
+- Seed keys carry the bank revision (`factory:2:Name`), so a preset the user tweaked under
+  an earlier revision keeps its key and the new one still comes in; an old copy whose
+  name and content equal a new preset's is not duplicated (the library's fingerprint rule).
+- Hits are measured by peak (−4 dBFS), not loudness: a kick is 50 ms of transient.
+- A scene can reserve a part for the player (`keys`, 1-4): its player off, the rack and the
+  keyboard go to it on load; exported scenes carry it too.
 
 ## Sources
 

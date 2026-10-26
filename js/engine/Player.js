@@ -130,6 +130,7 @@ export class Player {
 
   // Schedules everything that falls before `untilBeat` (in conductor beats)
   schedule(untilBeat) {
+    if (this.cfg.mode === 'off') return;   // (the note-off helper is also called _off: never resolve it as a mode)
     const fn = this['_' + this.cfg.mode];
     if (!fn) return;
     const nowB = this.c.beatAt(this.c.ctx.currentTime);   // in case it fell behind (hidden tab)

@@ -1,0 +1,24 @@
+{
+  "format": "subsdj-scene-v2",
+  "name": "Berlin School",
+  "note": "A minor at 120 bpm, almost static (i-i-VI-VII, two bars per chord): the sequencer school of the 70s. The Berlin Sequence is a mono part whose SEQUENCER phrase is transposed by each chord's root (Root + Seq = Phrase), with the dotted-eighth tape echo; the PWM Ensemble holds the chords with its filter drifting; a sparse Pizzicato pulse in E(3,8). Part 3 is YOURS: the Moog Lead with its player off — solo over the sequence.",
+  "room": { "bpm": 120, "dlySync": "1/8.", "dlyDamp": 0.4, "dlyWow": 0.15, "reverbSize": 2.8, "reverbDamp": 0.4, "reverbPre": 0.02, "fb": 0.5, "dlyToRev": 0.4, "master": 0.78 },
+  "conductor": {
+    "seed": 11,
+    "harmony": { "root": 9, "scale": "minor", "prog": [1, 1, 6, 7], "bars": 2, "mode": "list" },
+    "arrangement": { "energy": 0.6, "sway": 0.5, "cycle": 16, "open": 0.5, "surprise": 0.1 },
+    "players": [
+      { "mode": "root", "fifth": 0, "every": 1, "oct": 2, "vel": 0.9, "threshold": 0, "drift": "cutoff", "driftAmt": 0.3 },
+      { "mode": "chord", "notes": 4, "oct": 3, "vel": 0.7, "threshold": 0.3, "drift": "cutoff", "driftAmt": 0.3 },
+      { "mode": "off" },
+      { "mode": "pulse", "k": 3, "n": 8, "rot": 1, "prob": 0.7, "gate": 0.4, "accent": 0.3, "oct": 4, "vel": 0.6, "threshold": 0.55 }
+    ]
+  },
+  "parts": [
+    { "preset": "Berlin Sequence", "settings": { "dlyAmt": 0.3, "reverbMix": 0.1, "master": 0.7 }, "pan": 0 },
+    { "preset": "PWM Ensemble", "settings": { "reverbMix": 0.35, "dlyAmt": 0.1, "master": 0.6 }, "pan": -0.15 },
+    { "preset": "Moog Lead", "settings": { "dlyAmt": 0.35, "reverbMix": 0.25, "master": 0.6 }, "pan": 0.1 },
+    { "preset": "Pizzicato", "settings": { "dlyAmt": 0.3, "reverbMix": 0.3, "master": 0.5 }, "pan": 0.3 }
+  ],
+  "keys": 3
+}

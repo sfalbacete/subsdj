@@ -1,0 +1,24 @@
+{
+  "format": "subsdj-scene-v2",
+  "name": "Dub Session",
+  "note": "D minor, i-VII-VI-VII at 75 bpm. A Reese on the root every two beats, the Tape Dub chord chopped by the part's arpeggiator into off-beat eighths and sent into the Room's tape echo (dotted quarter, 75 % feedback, damped, with wow and loop saturation: every repeat darker and dirtier), the 808 kick on one and three. Part 4 is YOURS: the Vox Lead with its player off — the wheel sweeps the vowel.",
+  "room": { "bpm": 75, "dlySync": "1/4.", "dlyDamp": 0.55, "dlyWow": 0.3, "dlySat": 0.5, "reverbSize": 2.2, "reverbDamp": 0.5, "reverbPre": 0.02, "fb": 0.75, "dlyToRev": 0.5, "master": 1.43 },
+  "conductor": {
+    "seed": 5,
+    "harmony": { "root": 2, "scale": "minor", "prog": [1, 7, 6, 7], "bars": 2, "mode": "list" },
+    "arrangement": { "energy": 0.6, "sway": 0.6, "cycle": 16, "open": 0.5, "surprise": 0.2 },
+    "players": [
+      { "mode": "root", "fifth": 0, "every": 2, "oct": 1, "vel": 0.9, "threshold": 0 },
+      { "mode": "chord", "notes": 3, "oct": 4, "vel": 0.8, "threshold": 0.25 },
+      { "mode": "pulse", "k": 2, "n": 8, "rot": 0, "prob": 1, "gate": 0.5, "accent": 0, "oct": 3, "vel": 1, "threshold": 0.35 },
+      { "mode": "off" }
+    ]
+  },
+  "parts": [
+    { "preset": "Reese", "settings": { "dlyAmt": 0, "reverbMix": 0.05, "master": 0.8 }, "pan": 0 },
+    { "preset": "Tape Dub", "settings": { "arpMode": "up", "arpDiv": "1/8", "arpOct": "1", "arpGate": 0.3, "dlyAmt": 0.5, "reverbMix": 0.15, "master": 0.55 }, "pan": 0.2 },
+    { "preset": "808 Kick", "settings": { "dlyAmt": 0, "reverbMix": 0, "master": 0.9 }, "pan": 0 },
+    { "preset": "Vox Lead", "settings": { "dlyAmt": 0.45, "reverbMix": 0.2, "master": 0.6 }, "pan": -0.15 }
+  ],
+  "keys": 4
+}

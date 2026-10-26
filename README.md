@@ -39,13 +39,33 @@ steps, effects, parts and generative music.
 - Every module has its **?** with the explanation. A dimmed control does
   nothing with the current settings, and its tooltip says why.
 
+## The factory bank
+
+103 presets in 12 categories by use — Bass, Leads, Brass & Strings, Keys, Plucks &
+Bells, Pads, Cinescape, Motion, Percussion, Voice, FX & Textures — chosen so that
+every one has a job and none sounds like another: the classics every synth bank has
+and the sounds only this one does. Hover a preset in the picker or on the Presets
+screen to read **how to play it** (register, note or chord, what the wheel and the
+macros do); the search also finds its tags (warm, dark, rhythmic, techno, fm…). In
+every preset the **wheel** opens the filter (the vowel on voices) and **Macro 1** is
+its character knob. Loudness is matched by measurement; the criteria, the references
+and the checks are in [docs/BANK.md](docs/BANK.md). The bank up to 1.4.0 lives in
+`subsdj-bank-1.4.json`: File ▾ → Import brings any of it back.
+
+Eight **scenes** (Presets screen) show the synth accompanying you: Night Ambient,
+Dorian Dawn, Hypnotic Techno, Robot Choir, Berlin School, Dub Session, 909 Kit and
+Deep Space. All but the kit reserve a part for you, with a lead loaded and its player
+off: load the scene, press ▶ Play in Harmony and play along.
+
 ## Your presets
 
 They are saved **in your browser** (localStorage), not on any server: in another
 browser or on another computer they won't be there. To take them with you or
 share them: **File ▾ → Export library**, and on the other side **Import…** (it
 merges with whatever is there, it never replaces it). Libraries, presets and
-scenes saved with 1.3.0 or earlier load as they are.
+scenes saved with 1.3.0 or earlier load as they are. When the factory bank changes,
+your library follows it: the factory copies you never touched are replaced, and
+anything you renamed, moved, edited or starred stays where it is.
 
 ## Browsers
 

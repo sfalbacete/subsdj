@@ -1,8 +1,8 @@
 {
   "format": "subsdj-scene-v2",
   "name": "Robot Choir",
-  "note": "D hirajoshi (Japanese pentatonic) at 66 bpm with the harmony in FUNCTIONS mode: the T→S/D→T walk picks the degrees. Everything is the Vocal module: a madrigal of voices (a different vowel per note) holds the chords with the base vowel drifting, a glottal voice drones the root and fifth, a talking robot sings the melody softly, and the vocal percussion «ka» plays an E(5,12) when there is energy. Big dark hall, tape echo with wow: a robot cave.",
-  "room": { "bpm": 66, "dlySync": "1/4", "dlyDamp": 0.7, "dlyWow": 0.4, "reverbSize": 3.8, "reverbType": "plate", "reverbDamp": 0.5, "reverbPre": 0.05, "fb": 0.55, "dlyToRev": 0.7, "master": 1.12 },
+  "note": "D hirajoshi (Japanese pentatonic) at 66 bpm with the harmony in FUNCTIONS mode: the T→S/D→T walk picks the degrees. Everything is the Vocal module: the Madrigal (a different vowel per note) holds the chords with the base vowel drifting, the Solo Voice drones the root and fifth, and the Syllables play an E(5,12) when there is energy. Big dark hall, tape echo with wow: a robot cave. Part 3 is YOURS: the Talking Robot with its player off — the wheel moves its vowel.",
+  "room": { "bpm": 66, "dlySync": "1/4", "dlyDamp": 0.7, "dlyWow": 0.4, "reverbSize": 3.8, "reverbType": "plate", "reverbDamp": 0.5, "reverbPre": 0.05, "fb": 0.55, "dlyToRev": 0.7, "master": 2.2 },
   "conductor": {
     "seed": 42,
     "harmony": { "root": 2, "scale": "hirajoshi", "prog": [1, 4, 5, 1], "bars": 2, "mode": "functions" },
@@ -10,7 +10,7 @@
     "players": [
       { "mode": "chord", "notes": 3, "oct": 3, "vel": 0.75, "threshold": 0, "drift": "vocVowel", "driftAmt": 0.5 },
       { "mode": "root", "fifth": 1, "every": 4, "oct": 2, "vel": 0.8, "threshold": 0.2 },
-      { "mode": "melody", "density": 0.4, "rest": 0.35, "gravity": 0.6, "range": 1, "legato": 0.6, "oct": 4, "vel": 0.7, "threshold": 0.5 },
+      { "mode": "off" },
       { "mode": "pulse", "k": 5, "n": 12, "rot": 0, "prob": 0.75, "gate": 0.4, "accent": 0.5, "oct": 3, "vel": 0.7, "threshold": 0.65 }
     ]
   },
@@ -19,5 +19,6 @@
     { "preset": "Solo Voice", "settings": { "reverbMix": 0.3, "dlyAmt": 0, "master": 0.78 }, "pan": 0.2 },
     { "preset": "Talking Robot", "settings": { "dlyAmt": 0.35, "reverbMix": 0.2, "master": 0.55 }, "pan": 0.35 },
     { "preset": "Syllables", "settings": { "dlyAmt": 0.3, "reverbMix": 0.15, "master": 0.6 }, "pan": -0.35 }
-  ]
+  ],
+  "keys": 3
 }

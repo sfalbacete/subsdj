@@ -6,6 +6,42 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased (will go into 1.5.0)
+
+A new factory bank, thought out as a whole: fewer presets, every one of them with a job,
+measured, and showing what the synth can do — classic sounds and its own. The plan, the
+criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
+
+- **New factory bank**: 103 presets in 12 categories by use (Bass, Leads, Brass &
+  Strings, Keys, Plucks & Bells, Pads, Cinescape, Motion, Percussion, Voice, FX &
+  Textures) replace the 124 + 36 that had grown block by block. The classics every bank
+  has (Moog bass, Juno and OB brass, DX e-piano, Solina strings, hoover, supersaw, the
+  808/909 kit…) next to what only this synth does (per-voice drift, resonators, wave
+  sequences, Steps polymeters, the talking chord, shimmer at the fifth). Nothing that
+  sounds like something else in the bank: the selftest measures the distance between every
+  pair of presets (spectral fingerprint) and the closest ones are the first thing it logs.
+- **Every preset says how to play it**: a «play» line (register, note or chord, what the
+  wheel and the macros do) shows as the tooltip in the preset picker and on the Presets
+  screen, and tags (warm, dark, rhythmic, techno, fm…) that the search finds. In every
+  preset the **wheel opens the filter** (the vowel on voices) and **Macro 1 is the
+  character knob** (drive, FM index, resonance, pulse width, material…).
+- **Measured, all of them**: each preset at −14 LUFS in its intended use (one note, a
+  chord or a hit — hits by their peak), no clipping, no DC, the voice gone after the
+  release; the factory batch of the selftest renders every one and the bank is tuned from
+  its numbers (`tools/bank-level.mjs`). Every feature of the synth — every wave, filter,
+  LFO shape, matrix source and destination… — is shown by at least one preset
+  (`tools/bank-report.mjs` prints the table).
+- **Your library follows the bank**: the untouched, unstarred copies of the old factory
+  presets are replaced by the new ones; anything you renamed, moved, edited or starred
+  stays where it is. The whole old bank — factory, «Presets 2.0» and the four scenes —
+  is archived in `subsdj-bank-1.4.json`: File ▾ → Import brings any of it back.
+- **Scenes**: eight — Night Ambient, Dorian Dawn, Hypnotic Techno, Robot Choir and four
+  new ones: **Berlin School**, **Dub Session**, **909 Kit** and **Deep Space** — and all
+  but the kit reserve a part for you: a lead loaded, its player off, the keyboard goes
+  there when the scene loads. The synth accompanies, you play.
+- Fixed: a part whose player was set to «off» crashed the offline scheduler of the
+  selftest (never seen live).
+
 ## [1.4.0] — 2026-10-26
 
 SubSDJ speaks English: the interface, the factory bank, the data it saves, the code and

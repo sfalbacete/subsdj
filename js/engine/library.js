@@ -34,7 +34,7 @@ export const SEC_MINE = '★ Mine', SEC_SCENES = 'Scenes', SEC_IMPORT = 'Importe
 // Repo banks seeded by fetch (HTTP, like the whole synth). Empty since 1.5.0: the «Presets 2.0»
 // bank retired with the old factory (both live in subsdj-bank-1.4.json, File ▾ → Import).
 export const REPO_FILES = [];
-export const REPO_SCENES = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir'];
+export const REPO_SCENES = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir', 'berlin-school', 'dub-session', 'kit-909', 'deep-space'];
 const MAX_NAME = 48;
 
 // Canonical JSON (sorted keys, recursive): two equal contents give the same fingerprint
