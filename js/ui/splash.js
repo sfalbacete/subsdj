@@ -170,7 +170,7 @@ export function initSplash() {
   open = (asAbout) => {
     if (shown) return; shown = true; about = asAbout;
     clearTimeout(timer); cancelAnimationFrame(raf);
-    label.textContent = about ? 'VOLVER' : 'ENTRAR';
+    label.textContent = about ? 'BACK' : 'ENTER';
     fx.exitT = null; t0 = null;
     el.hidden = false; el.classList.remove('out');
     scale(); addEventListener('resize', scale);

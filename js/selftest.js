@@ -4242,7 +4242,7 @@ export async function runSelfTest() {
     else {
       document.getElementById('aboutBtn').click();
       const lab = document.querySelector('#spEnter span').textContent;
-      if (sp.hidden || lab !== 'VOLVER') probs.push('«Acerca de»: ' + (sp.hidden ? 'no se abre' : 'el botón dice ' + lab));
+      if (sp.hidden || lab !== 'BACK') probs.push('«Acerca de»: ' + (sp.hidden ? 'no se abre' : 'el botón dice ' + lab));
       const before = engine.voices.size;
       document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', bubbles: true }));
       const during = engine.voices.size;
