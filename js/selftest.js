@@ -17,7 +17,7 @@
    ===================================================================== */
 import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
 import { Voice } from './engine/Voice.js';
-import { Sala, SALA_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Room.js';
+import { Room, ROOM_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Room.js';
 const HR = Math.pow(10, HEADROOM_DB / 20);   // fixed master headroom (1.1.0): the ABSOLUTE level thresholds include it
 import { Arp } from './engine/Arp.js';
 import { Clock, clockOf } from './engine/Clock.js';
@@ -26,7 +26,7 @@ import { Seq, parsePattern, stepFreq, stepToken } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, migrateV1 } from './engine/presets.js';
-import { espectroDe, puntosDeEspectro, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
+import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
@@ -35,7 +35,7 @@ import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
-import { Harmony, ESCALAS } from './engine/Harmony.js';
+import { Harmony, SCALES } from './engine/Harmony.js';
 import { euclid, Player, PLAYER_DEF } from './engine/Player.js';
 import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState, snapshot } from './ui/registry.js';
@@ -46,7 +46,7 @@ import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
-import { library, Library, SEC_MIOS, SEC_ESCENAS, SEC_IMPORT, ESCENAS_REPO } from './engine/library.js';
+import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
@@ -899,52 +899,52 @@ export async function runSelfTest() {
     const mkStore = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; };
     const store = mkStore();
     const L = new Library({ key: 'subsdj.biblioteca.selftest', storage: store });
-    const nueva = L.load({ usuario: { 'Mío 1': { cutoff: 0.5, reso: 3 } } });
+    const nueva = L.load({ user: { 'Mío 1': { cutoff: 0.5, reso: 3 } } });
     const nFab = Object.values(FACTORY).reduce((a, c) => a + Object.keys(c).length, 0);
     if (!nueva) probs.push('load did not see it as new');
     if (L.presets().length !== nFab + 1) probs.push('seeding: ' + L.presets().length + ' ≠ ' + (nFab + 1));
-    if (L.secciones().map(s => s.name).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('sections: ' + L.secciones().map(s => s.name).join('|'));
+    if (L.sections().map(s => s.name).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MINE) probs.push('sections: ' + L.sections().map(s => s.name).join('|'));
     const mio = L.presets().find(p => p.name === 'Mío 1');
     if (!mio || !(mio.data.cutoff > 1) || mio.data.reso !== 3) probs.push('v1 user preset not migrated');
-    if (L.sembrarFabrica() !== 0) probs.push('reseeding the factory duplicates');
+    if (L.seedFactory() !== 0) probs.push('reseeding the factory duplicates');
     const acid = L.presets().find(p => p.name === 'Acid 303'), secAcid = acid && acid.section;
-    L.borrar(acid.id);
+    L.remove(acid.id);
     if (L.presets().some(p => p.name === 'Acid 303')) probs.push('delete does not delete');
-    if (L.sembrarFabrica() !== 1) probs.push('restore factory does not put back exactly 1');
+    if (L.seedFactory() !== 1) probs.push('restore factory does not put back exactly 1');
     const acid2 = L.presets().find(p => p.name === 'Acid 303');
     if (!acid2 || acid2.section !== secAcid) probs.push('restored outside its section');
-    L.renombrar(acid2.id, 'Ácido mío'); L.actualizar(mio.id, { cutoff: 999 });
-    if (L.sembrarFabrica() !== 0) probs.push('renamed or tweaked gets duplicated on restore');
-    const sT = L.crearSeccion('Prueba'); L.renombrarSeccion(sT, 'Prueba 2');
-    if (!L.seccion(sT) || L.seccion(sT).name !== 'Prueba 2') probs.push('rename section');
+    L.rename(acid2.id, 'Ácido mío'); L.update(mio.id, { cutoff: 999 });
+    if (L.seedFactory() !== 0) probs.push('renamed or tweaked gets duplicated on restore');
+    const sT = L.createSection('Prueba'); L.renameSection(sT, 'Prueba 2');
+    if (!L.section(sT) || L.section(sT).name !== 'Prueba 2') probs.push('rename section');
     const [a, b, c] = L.presets().slice(0, 3);
-    L.mover(a.id, sT); L.mover(b.id, sT); L.mover(c.id, sT, a.id);          // c before a → c, a, b
+    L.move(a.id, sT); L.move(b.id, sT); L.move(c.id, sT, a.id);          // c before a → c, a, b
     if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('move/order: ' + L.items(sT).map(i => i.name).join(','));
-    L.moverSeccion(sT, -1);
-    const secs = L.secciones(); if (secs[secs.length - 2].id !== sT) probs.push('reorder section');
-    L.fav(a.id); if (L.favoritos().length !== 1 || !L.item(a.id).fav) probs.push('favorite');
-    L.fav(a.id); if (L.favoritos().length !== 0) probs.push('remove favorite');
-    if (!L.buscar('acido').some(i => i.id === acid2.id) || L.buscar('ACIDO MIO').length !== 1) probs.push('accent-insensitive search');
-    const huella = X => X.secciones().map(s => s.name + ':' + X.items(s.id).map(i => i.name + (i.fav ? '*' : '') + '/' + i.type).join(',')).join('|');
-    const json = JSON.parse(JSON.stringify(L.exportar()));
-    const M = new Library({ key: 'x', storage: mkStore() }); M.load({ semilla: false });
-    const r1 = M.importar(json), r2 = M.importar(json);
+    L.moveSection(sT, -1);
+    const secs = L.sections(); if (secs[secs.length - 2].id !== sT) probs.push('reorder section');
+    L.fav(a.id); if (L.favorites().length !== 1 || !L.item(a.id).fav) probs.push('favorite');
+    L.fav(a.id); if (L.favorites().length !== 0) probs.push('remove favorite');
+    if (!L.search('acido').some(i => i.id === acid2.id) || L.search('ACIDO MIO').length !== 1) probs.push('accent-insensitive search');
+    const huella = X => X.sections().map(s => s.name + ':' + X.items(s.id).map(i => i.name + (i.fav ? '*' : '') + '/' + i.type).join(',')).join('|');
+    const json = JSON.parse(JSON.stringify(L.exportData()));
+    const M = new Library({ key: 'x', storage: mkStore() }); M.load({ seed: false });
+    const r1 = M.importData(json), r2 = M.importData(json);
     if (r1.type !== 'library' || r1.n !== L.items().length || r2.n !== 0) probs.push('import round trip: ' + r1.n + '/' + L.items().length + ', repeated ' + r2.n);
     if (huella(M) !== huella(L)) probs.push('content after importing');
-    const rb = M.importar({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» is already there, identical
-    if (rb.type !== 'bank' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('import v2 bank: ' + rb.n);
-    const re = M.importar({ formato: 'subsdj-escena-v1', nombre: 'Esc', partes: [] });
-    const secE = M.seccionPorNombre(SEC_ESCENAS);
+    const rb = M.importData({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» is already there, identical
+    if (rb.type !== 'bank' || rb.n !== 1 || !M.sectionByName(SEC_IMPORT)) probs.push('import v2 bank: ' + rb.n);
+    const re = M.importData({ formato: 'subsdj-escena-v1', nombre: 'Esc', partes: [] });
+    const secE = M.sectionByName(SEC_SCENES);
     if (re.type !== 'scene' || re.n !== 1 || !secE || M.items(secE.id)[0].type !== 'scene') probs.push('import scene');
-    const sP = M.seccionPorNombre('Prueba 2');
-    if (M.borrarSeccion(sP.id) !== 3 || M.seccionPorNombre('Prueba 2')) probs.push('delete section with content');
+    const sP = M.sectionByName('Prueba 2');
+    if (M.deleteSection(sP.id) !== 3 || M.sectionByName('Prueba 2')) probs.push('delete section with content');
     const L2 = new Library({ key: 'subsdj.biblioteca.selftest', storage: store }); L2.load();
     if (huella(L2) !== huella(L)) probs.push('does not persist');
-    const f1 = await L.sembrarFicheros(), f2 = await L.sembrarFicheros();
-    const sEsc = L.seccionPorNombre(SEC_ESCENAS), esc = sEsc ? L.items(sEsc.id) : [];
-    if (!(f1.n > 30) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.type !== 'scene'))   // bank 2.0 + scenes (the A/B demos are no longer seeded)
-      probs.push('files: ' + f1.n + '/' + f2.n + ' errors ' + f1.errores.join(',') + ' scenes ' + esc.length);
-    console.log('library: factory ' + nFab + ' · repo ' + f1.n + ' · sections ' + L.secciones().length + ' · items ' + L.items().length);
+    const f1 = await L.seedRepoFiles(), f2 = await L.seedRepoFiles();
+    const sEsc = L.sectionByName(SEC_SCENES), esc = sEsc ? L.items(sEsc.id) : [];
+    if (!(f1.n > 30) || f2.n !== 0 || f1.errors.length || esc.length !== REPO_SCENES.length || esc.some(i => i.type !== 'scene'))   // bank 2.0 + scenes (the A/B demos are no longer seeded)
+      probs.push('files: ' + f1.n + '/' + f2.n + ' errors ' + f1.errors.join(',') + ' scenes ' + esc.length);
+    console.log('library: factory ' + nFab + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length);
     push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files)', peak: 0, ok: !probs.length, problems: probs });
   }
   {
@@ -999,7 +999,7 @@ export async function runSelfTest() {
       store.setItem('subsdj.biblioteca.v1', JSON.stringify(lib1));
       const L = new Library({ key: 'subsdj.library.compat', storage: store });
       const era = L.load();
-      const sec = L.secciones().map(s => s.name).join('|'), it = id => L.item(id);
+      const sec = L.sections().map(s => s.name).join('|'), it = id => L.item(id);
       if (era) probs.push('library: the v1 was treated as new');
       if (L.data.format !== 'subsdj-library-v2' || !store.getItem('subsdj.library.compat') || !store.getItem('subsdj.biblioteca.v1')) probs.push('library: format or storage keys');
       if (sec !== 'Pads|★ Mine|Scenes') probs.push('library: sections ' + sec);
@@ -1008,7 +1008,7 @@ export async function runSelfTest() {
       if (!it('p3') || it('p3').name !== 'Mi pad' || it('p3').data.reverbType !== 'plate' || it('p3').data.vocBright !== 0.6 || it('p3').origin !== 'user') probs.push('library: user preset');
       if (!it('p4') || it('p4').name !== 'Mi bombo' || it('p4').seed !== 'factory:808 Kick') probs.push('library: renamed by the user');
       if (!it('e5') || it('e5').type !== 'scene' || it('e5').name !== 'Robot Choir' || it('e5').data.format !== 'subsdj-scene-v2') probs.push('library: scene');
-      L.sembrarFabrica();
+      L.seedFactory();
       const dup = n => L.items().filter(x => x.name === n).length;
       if (dup('Warm Pad') !== 1 || dup('808 Kick') !== 0) probs.push('library: restoring the factory duplicates (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ')');
       // (4) MIDI map with an old key
@@ -1578,10 +1578,10 @@ export async function runSelfTest() {
     try {
       const P = 256, pts = new Array(P);
       for (let i = 0; i < P; i++) pts[i] = Math.sin(2 * Math.PI * i / P) + 0.5 * Math.cos(2 * Math.PI * 3 * i / P);
-      const sp = espectroDe(pts);
+      const sp = spectrumOf(pts);
       const okDft = Math.abs(sp.sin[0] - 1) < 0.01 && Math.abs(sp.cos[2] - 0.5) < 0.01 &&
                     Math.abs(sp.sin[2]) < 0.01 && Math.abs(sp.cos[0]) < 0.01;
-      const back = puntosDeEspectro(sp, P);
+      const back = pointsFromSpectrum(sp, P);
       let err = 0; for (let i = 0; i < P; i++) err = Math.max(err, Math.abs(back[i] - pts[i]));
       const okRt = err < 0.02;
       // default frames DURING the test (the user may have drawn A≈B); restored on the way out
@@ -1864,21 +1864,21 @@ export async function runSelfTest() {
       const m1 = withPresetBase({ dlyAmt: 0.5 }).dlyFb, m2 = withPresetBase({ dlyAmt: 0.9 }).dlyFb, m3 = withPresetBase({ dlyAmt: 0.3, dlyFb: 1.05 }).dlyFb;
       if (m1 !== 0.425 || m2 !== 0.765 || m3 !== 1.05 || 'dlyFb' in withPresetBase({})) probs.push('migration: ' + m1 + ' / ' + m2 + ' / ' + m3);
       // (2) and (3): the Room alone, with a sine burst into the delay send
-      const salaRun = async (fb, sat, secs, amp = 0.3, f = 440) => {
+      const roomRun = async (fb, sat, secs, amp = 0.3, f = 440) => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
         await loadWorklets(ctx);
         const st = makeDefaultState(); st.dlyTime = 0.3; st.dlySync = 'free'; st.dlyDamp = 0; st.dlyWow = 0; st.dlySat = sat;
-        const sala = new Sala(ctx, st, { fb, dlyToRev: 0, master: 1 });
+        const room = new Room(ctx, st, { fb, dlyToRev: 0, master: 1 });
         const o = ctx.createOscillator(); o.frequency.value = f; const g = ctx.createGain(); g.gain.value = amp;
-        o.connect(g); g.connect(sala.dlyIn); o.start(0); o.stop(0.2);
-        const limpio = sala.fbSatL.wet.gain.value === 0 && sala.fbSatL.dry.gain.value === 1;
+        o.connect(g); g.connect(room.dlyIn); o.start(0); o.stop(0.2);
+        const limpio = room.fbSatL.wet.gain.value === 0 && room.fbSatL.dry.gain.value === 1;
         return { buf: await ctx.startRendering(), limpio };
       };
       const rms = (b, t0, t1) => { let s = 0, n = 0; for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) { s += d[i] * d[i]; n++; } } return 10 * Math.log10(s / n + 1e-30); };
       const sano = b => { let pk = 0, bad = 0; for (let ch = 0; ch < 2; ch++) for (const x of b.getChannelData(ch)) { if (!Number.isFinite(x)) bad++; else pk = Math.max(pk, Math.abs(x)); } return { pk, bad }; };
-      const n0 = await salaRun(0.6, 0, 1);
+      const n0 = await roomRun(0.6, 0, 1);
       if (!n0.limpio) probs.push('with Saturation 0 and feedback 0.6 the saturated branch is not at 0');
-      const run = await salaRun(1.1, 0, 10.5), dec = await salaRun(0.5, 0, 10.5);
+      const run = await roomRun(1.1, 0, 10.5), dec = await roomRun(0.5, 0, 10.5);
       const L56 = rms(run.buf, 5, 6), L910 = rms(run.buf, 9, 10), D12 = rms(dec.buf, 1, 2), D910 = rms(dec.buf, 9, 10);
       const sr = sano(run.buf);
       if (run.limpio) probs.push('at 110 % the saturation did not kick in by itself');
@@ -1890,7 +1890,7 @@ export async function runSelfTest() {
       const h3 = b => { const d = b.getChannelData(0), i0 = Math.floor(0.6 * SR), n = Math.floor(1.2 * SR);
         const at = f => { let re = 0, im = 0; const w = 2 * Math.PI * f / SR; for (let i = 0; i < n; i++) { const x = d[i0 + i]; re += x * Math.cos(w * i); im -= x * Math.sin(w * i); } return Math.hypot(re, im); };
         return 20 * Math.log10(at(900) / at(300)); };
-      const s0 = h3((await salaRun(0.5, 0, 2, 0.9, 300)).buf), s1 = h3((await salaRun(0.5, 1, 2, 0.9, 300)).buf);
+      const s0 = h3((await roomRun(0.5, 0, 2, 0.9, 300)).buf), s1 = h3((await roomRun(0.5, 1, 2, 0.9, 300)).buf);
       if (!(s1 > s0 + 20)) probs.push('saturation barely dirties (3rd harmonic ' + s0.toFixed(1) + ' → ' + s1.toFixed(1) + ' dB)');
       console.log('runaway delay: 110 % ' + L56.toFixed(1) + ' / ' + L910.toFixed(1) + ' dB (s 5-6 / 9-10), peak ' + sr.pk.toFixed(2) + ' · 50 % ' + D12.toFixed(1) + ' → ' + D910.toFixed(1) + ' dB · 3rd harmonic sat 0/1 ' + s0.toFixed(1) + ' / ' + s1.toFixed(1) + ' dB');
       r = { name: NAME, peak: sr.pk, ok: !probs.length, problems: probs };
@@ -1973,10 +1973,10 @@ export async function runSelfTest() {
       const presets = [FACTORY['Bass']['Pluck Bass'], FACTORY['Leads']['Square Lead'], FACTORY['Percussion']['808 Kick'],
                        { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
       // reverbSize goes in at creation: regenerating the IR live is debounced (real timer: not deterministic offline)
-      const sc = await createScene(ctx, presets, { salaS: { reverbSize: 2.6 } });
+      const sc = await createScene(ctx, presets, { roomS: { reverbSize: 2.6 } });
       sc.parts[1].engine.setMute(true);
       sc.parts[0].engine.set('bpm', 99);                       // from a part…
-      sc.sala.set('reverbPre', 0.02);                          // …and from the room
+      sc.room.set('reverbPre', 0.02);                          // …and from the room
       if (!(sc.parts.every(p => p.engine.S.bpm === 99 && p.engine.S.reverbPre === 0.02 && p.engine.S.reverbSize === 2.6) && sc.S.bpm === 99))
         probs.push('the room is not shared (bpm / reverbPre / reverbSize do not reach every part)');
       const T = i => 0.1 + 0.6 * i;                            // each part plays C3 in its window
@@ -2227,7 +2227,7 @@ export async function runSelfTest() {
       }
       // category: only its own, and its counter = what is visible
       const catEls = [...document.querySelectorAll('#ppCats .pp-cat')];
-      const sec = library.secciones().find(x => library.items(x.id).filter(it => it.type === 'preset').length > 3);
+      const sec = library.sections().find(x => library.items(x.id).filter(it => it.type === 'preset').length > 3);
       const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.name);
       if (catEls[0]?.querySelector('.pp-cname').textContent !== 'All' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
         probs.push('«All» does not count the whole library');
@@ -2358,7 +2358,7 @@ export async function runSelfTest() {
       const secs = 4.0, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
       const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
                        { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
-      const sc = await createScene(ctx, presets, { salaS: { bpm: 120 } });
+      const sc = await createScene(ctx, presets, { roomS: { bpm: 120 } });
       const setup = cd => {
         Object.assign(cd.harmony, { root: 2, scale: 'minor', prog: [1, 6, 4, 5], bars: 1, mode: 'list' });
         const [p1, p2, p3, p4] = cd.players;
@@ -2442,7 +2442,7 @@ export async function runSelfTest() {
       const secs = 4.0;
       const render = async seed => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
-        const sc = await createScene(ctx, presets, { salaS: { bpm: 120 } });
+        const sc = await createScene(ctx, presets, { roomS: { bpm: 120 } });
         conf(sc.conductor); sc.conductor.setSeed(seed); sc.conductor.scheduleAll(secs);
         return { sc, buf: await ctx.startRendering() };
       };
@@ -2458,11 +2458,11 @@ export async function runSelfTest() {
       if (!(cents0 < -400 && cents1 > 500)) probs.push('Open macro: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
       // JSON round trip on scene A
       const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.date; return JSON.stringify(o); };
-      sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.salaCfg.fb = 0.61;
+      sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.roomCfg.fb = 0.61;
       const J1 = sceneToJSON(sc);
       sc.conductor.setSeed(1); Object.assign(sc.conductor.harmony, { root: 0, scale: 'major', prog: [1], bars: 2 });
       Object.assign(sc.conductor.arr.cfg, { energy: 0.1, cycle: 8 }); sc.conductor.players.forEach(p => { p.cfg.mode = 'off'; p.cfg.threshold = 0; });
-      sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.salaCfg.fb = 0.2; sc.S.reverbSize = 1.0;
+      sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.roomCfg.fb = 0.2; sc.S.reverbSize = 1.0;
       sc.parts[0].engine.set('cutoff', 555);
       const J2 = sceneToJSON(sc);
       if (strip(J1) === strip(J2)) probs.push('altering the scene does not change its JSON');
@@ -2555,9 +2555,9 @@ export async function runSelfTest() {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.5), SR);
         await loadWorklets(ctx);
         const S = makeDefaultState(); Object.assign(S, { reverbType: 'plate', reverbSize: size, reverbDamp: damp, reverbPre: 0 });
-        const sala = new Sala(ctx, S, { master: 1 });
+        const room = new Room(ctx, S, { master: 1 });
         const b = ctx.createBuffer(1, 8, SR); b.getChannelData(0)[0] = 1;
-        const src = ctx.createBufferSource(); src.buffer = b; src.connect(sala.revIn); src.start(0);
+        const src = ctx.createBufferSource(); src.buffer = b; src.connect(room.revIn); src.start(0);
         return ctx.startRendering();
       };
       const big = await ir(3), small = await ir(0.5);
@@ -3261,10 +3261,10 @@ export async function runSelfTest() {
           for (const [t, fn] of acciones) ctx.suspend(t).then(() => { fn(eng); ctx.resume(); });
           return ctx.startRendering(); };
         const bLibre = await rend(pl, []);
-        const bFrz = await rend(pl, [[0.5, e => { if (!e.sala.setFreeze(true)) probs.push('setFreeze(true) did not act with the plate'); }]]);
-        const bSuelta = await rend(pl, [[0.5, e => e.sala.setFreeze(true)], [3.0, e => e.sala.setFreeze(false)]]);
+        const bFrz = await rend(pl, [[0.5, e => { if (!e.room.setFreeze(true)) probs.push('setFreeze(true) did not act with the plate'); }]]);
+        const bSuelta = await rend(pl, [[0.5, e => e.room.setFreeze(true)], [3.0, e => e.room.setFreeze(false)]]);
         let irOk = true;
-        await rend({ ...pl, reverbType: 'hall' }, [[0.5, e => { irOk = e.sala.setFreeze(true) === false && !e.sala.frozen; }]]);
+        await rend({ ...pl, reverbType: 'hall' }, [[0.5, e => { irOk = e.room.setFreeze(true) === false && !e.room.frozen; }]]);
         const hold = rmsW(bFrz, 5, 5.5) / Math.max(1e-9, rmsW(bFrz, 1, 1.5)), libre = rmsW(bLibre, 5, 5.5) / Math.max(1e-9, rmsW(bLibre, 1, 1.5));
         const caida = rmsW(bSuelta, 5.5, 6) / Math.max(1e-9, rmsW(bSuelta, 2.5, 3));
         if (!(rmsW(bFrz, 5, 5.5) > 1e-3)) probs.push('frozen, the tail dies out (' + dB(rmsW(bFrz, 5, 5.5)) + ' at 5 s)');
@@ -3470,7 +3470,7 @@ export async function runSelfTest() {
       engK.noteOn('k', 440); ctxK.suspend(0.2).then(() => { engK.set('tapeWow', 1); ctxK.resume(); });
       const wK = await ctxK.startRendering(), spK = spread(instFreq(wK, 0.8, 3));
       if (!(spK > 8)) probs.push('raising the wow LIVE (set) the pitch does not wander (' + spK.toFixed(2) + ' Hz)');
-      if (!(['tapeSat', 'tapeWow'].every(k => SALA_KEYS.has(k)))) probs.push('the tape keys are not Room keys');
+      if (!(['tapeSat', 'tapeWow'].every(k => ROOM_KEYS.has(k)))) probs.push('the tape keys are not Room keys');
       loadState({});
       console.log('tape: 3rd harmonic at 0 / 0.3 / 1', h0.toFixed(4), hM.toFixed(4), h1.toFixed(4), '· level x', lvl.toFixed(2), '· wow Hz without/with/live', sp0.toFixed(3), sp1.toFixed(2), spK.toFixed(2));
       r = { name: NAME, peak: analyze(s1).peak, ok: !probs.length, problems: probs };
@@ -3807,7 +3807,7 @@ export async function runSelfTest() {
       if (sem([0, 1, 2, 3, 4, 5, 6, 7, -1]) !== '0 2 4 5 7 9 11 12 -1') probs.push('major: ' + sem([0, 1, 2, 3, 4, 5, 6, 7, -1]));
       e.S.seqNotes = 'minor penta';
       if (sem([0, 1, 4, 5]) !== '0 3 10 12') probs.push('minor pentatonic: ' + sem([0, 1, 4, 5]));
-      e.S.seqNotes = 'harmony'; e.harmony = () => ({ root: 0, notes: ESCALAS.major });
+      e.S.seqNotes = 'harmony'; e.harmony = () => ({ root: 0, notes: SCALES.major });
       const fa = [0, 1, 2, 3, 4].map(d => q.semis(d, 349.23)).join(' ');
       if (fa !== '0 2 4 6 7') probs.push('harmony from F: ' + fa);
       e.S.seqNotes = 'semitones';
@@ -4031,14 +4031,14 @@ export async function runSelfTest() {
       const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), MK = Math.pow(10, LIM_MAKEUP_DB / 20), L = Math.round(LIM_LOOKAHEAD * SR);
       const N = Math.ceil(SR * 1.6), ctx = new OfflineAudioContext(2, N, SR);
       await loadWorklets(ctx);
-      const sala = new Sala(ctx, makeDefaultState(), { master: 1 });
+      const room = new Room(ctx, makeDefaultState(), { master: 1 });
       const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
       const lo = Math.pow(10, -12 / 20), seg = (t0, t1, f) => { for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) f(i, i / SR); };
       seg(0.0, 0.3, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (1) sine at −12 dBFS
       seg(0.4, 0.6, (i, t) => { const v = 4 * ((t * 220) % 1 * 2 - 1); xl[i] = v; xr[i] = -v; });                // (2) saw at +12 dB
       seg(0.7, 0.8, (i, t) => { xr[i] = 4 * Math.sin(2 * Math.PI * 3000 * t); });                                // (2) R only
       seg(1.3, 1.6, (i, t) => { xl[i] = xr[i] = lo * Math.sin(2 * Math.PI * 440 * t); });                        // (2) sine after the silence
-      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(room.comp); src.start(0);
       const out = await ctx.startRendering(), yl = out.getChannelData(0), yr = out.getChannelData(1);
       let dT = 0; for (let i = L + 100; i < Math.floor(0.3 * SR); i++) dT = Math.max(dT, Math.abs(yl[i] - xl[i - L] * MK), Math.abs(yr[i] - xr[i - L] * MK));
       if (!(dT < 1e-5)) probs.push('below the ceiling it is not transparent (max |Δ| ' + dT.toExponential(2) + ')');
@@ -4143,13 +4143,13 @@ export async function runSelfTest() {
     try {
       const probs = [], CEIL = Math.pow(10, LIM_CEIL_DB / 20), N = Math.ceil(SR * 1.2), ctx = new OfflineAudioContext(2, N, SR);
       await loadWorklets(ctx);
-      const sala = new Sala(ctx, makeDefaultState(), { master: 1 });
-      const msgs = []; sala.comp.port.onmessage = e => msgs.push(e.data);
-      sala.comp.port.postMessage('meter-on');
+      const room = new Room(ctx, makeDefaultState(), { master: 1 });
+      const msgs = []; room.comp.port.onmessage = e => msgs.push(e.data);
+      room.comp.port.postMessage('meter-on');
       await new Promise(res => setTimeout(res, 50));
       const buf = ctx.createBuffer(2, N, SR), xl = buf.getChannelData(0), xr = buf.getChannelData(1);
       for (let i = Math.floor(0.1 * SR); i < Math.floor(0.4 * SR); i++) { const s = Math.sin(2 * Math.PI * 440 * i / SR); xl[i] = 4 * s; xr[i] = 0.25 * s; }   // L at +12 dB, R at −12
-      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(sala.comp); src.start(0);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(room.comp); src.start(0);
       await ctx.startRendering();
       await new Promise(res => setTimeout(res, 100));
       const grDb = m => -20 * Math.log10(m.g);

@@ -28,7 +28,7 @@
    moves within the key. 'semitones' = as always.
    ===================================================================== */
 import { clockOf, DIV_BEATS } from './Clock.js';
-import { ESCALAS } from './Harmony.js';
+import { SCALES } from './Harmony.js';
 export const SEQ_MAX_STEPS = 16, SEQ_OFF_MIN = -12, SEQ_OFF_MAX = 24;
 const SEQ_UNACCENT = 0.6;   // with accents in the pattern, unaccented steps sound at this factor of the velocity
 const SEQ_SLIDE = 0.06;     // s: the slide with Glide at 0 (the 303's fixed time)
@@ -121,9 +121,9 @@ export class Seq {
   _scale(rootFreq) {
     const mode = this.e.S.seqNotes;
     if (!mode || mode === 'semitones') return null;
-    if (mode !== 'harmony') return { I: ESCALAS[mode] || ESCALAS.major, i0: 0 };
+    if (mode !== 'harmony') return { I: SCALES[mode] || SCALES.major, i0: 0 };
     const h = this.e.harmony ? this.e.harmony() : null;
-    if (!h) return { I: ESCALAS.major, i0: 0 };      // no scene, no harmony: major from the key
+    if (!h) return { I: SCALES.major, i0: 0 };      // no scene, no harmony: major from the key
     const I = h.notes, pc = ((Math.round(69 + 12 * Math.log2(rootFreq / 440)) - h.root) % 12 + 12) % 12;
     let i0 = 0; for (let i = 0; i < I.length; i++) if (I[i] <= pc) i0 = i;   // the key (or the degree below it, if it is not in the scale)
     return { I, i0 };

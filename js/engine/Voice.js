@@ -17,8 +17,8 @@ import { MX_SLOTS, MX_SPAN, FM4_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
 import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
-import { getVocalBank, bwMul, vocMakeup, brilloMul, VOC_BRILLO_IX,
-         VOC_VIDA_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
+import { getVocalBank, bwMul, vocMakeup, brightMul, VOC_BRIGHT_IX,
+         VOC_LIFE_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
          VOC_ATK_GLIDE, VOC_ATK_TRANS } from './vocal.js';
 
 // Saturation curve of the pre-filter drive, SHARED by all voices
@@ -305,7 +305,7 @@ export class Voice {
     if (S.panLfoLvl) this.ensurePan();          // autopan (needs this.panner already assigned)
     if (S.vocAmt > 0) this.ensureVocal();       // formant bank (the matrix also creates it via 'vow')
     if (S.resAmt > 0) this.ensureReson();       // modal bank (needs vocOut and noiseGain already assigned)
-    if (S.vocLife > 0) this.ensureVida();
+    if (S.vocLife > 0) this.ensureLife();
     if (S.vocAtk > 0 && this.vocBqs) this._vocBurst(t, vel);   // consonant bite (note-start event)
 
     // modulation matrix (needs all the refs already assigned)
@@ -424,11 +424,11 @@ export class Voice {
     if (!(a > 0)) { p.setValueAtTime(peak, t); a = 0; }
     if (!(k > 0)) { if (a > 0) p.linearRampToValueAtTime(peak, t + a); p.linearRampToValueAtTime(sus, t + a + d); return; }
     const den = 1 - Math.exp(-k);
-    const tramo = (v0, v1, t0, dur) => {
+    const segment = (v0, v1, t0, dur) => {
       for (let i = 1; i <= ENV_SEG; i++) { const x = i / ENV_SEG; p.linearRampToValueAtTime(v0 + (v1 - v0) * (1 - Math.exp(-k * x)) / den, t0 + dur * x); }
     };
-    if (a > 0) tramo(from, peak, t, a);
-    tramo(peak, sus, t + a, d);
+    if (a > 0) segment(from, peak, t, a);
+    segment(peak, sus, t + a, d);
   }
   // Flam: hits−1 bursts on param p from t; returns the instant at which
   // the ADSR starts (t if there is no flam). Each burst rises 0 → peak during the attack
@@ -613,14 +613,14 @@ export class Voice {
     if (this.vocBqs || this.disposed) return;
     const ctx = this.ctx, S = this.S, bank = getVocalBank(), mul = bwMul(S.vocQ), x = S.vocVowel * 2 - 1;
     this.vocWet = ctx.createGain(); this.vocWet.gain.value = S.vocAmt * vocMakeup(S.vocQ);
-    this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrillos = [];
+    this.vocBqs = []; this.vocGains = []; this.vocShapers = []; this.vocBrights = [];
     bank.forEach((f, i) => {
       const bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
       Voice._rate(bq, 'k-rate');
       bq.frequency.value = f.ref;
       bq.detune.value = S.vocSize + Voice._shape(f.freqCurve, x);
       bq.Q.value = f.ref / (f.bw * mul);          // constant Q: the BW scales with the shift (natural)
-      const g = ctx.createGain(); g.gain.value = Voice._shape(f.gainCurve, x) * this._vocBrillo(i, S.vocBright);
+      const g = ctx.createGain(); g.gain.value = Voice._shape(f.gainCurve, x) * this._vocBright(i, S.vocBright);
       this.dvOut.connect(bq); bq.connect(g); g.connect(this.vocWet);
       this.vocBqs.push(bq); this.vocGains.push(g);
     });
@@ -628,7 +628,7 @@ export class Voice {
     if (S.vocAtk > 0 || this._mxHasVow()) this._vocGoDynamic();
     // (the matrix's 'vow' slots need no rewiring: mxRewire goes through
     // _mxDestParams, which calls here BEFORE connecting — the bank always arrives first)
-    if (this._needVida) this.ensureVida();
+    if (this._needLife) this.ensureLife();
   }
   // Switch to dynamic mode: the control signal and its 10 WaveShapers (see above).
   _vocGoDynamic() {
@@ -656,15 +656,15 @@ export class Voice {
       this.vocCtl.connect(shF); this.vocCtl.connect(shG);
       shF.connect(bq.detune);
       // F4-F5 (the singer's cluster): their gain goes through the Bright scaling
-      if (i >= VOC_BRILLO_IX) {
-        const bg = ctx.createGain(); bg.gain.value = brilloMul(S.vocBright);
+      if (i >= VOC_BRIGHT_IX) {
+        const bg = ctx.createGain(); bg.gain.value = brightMul(S.vocBright);
         shG.connect(bg); bg.connect(g.gain);
-        this.vocBrillos.push(bg);
+        this.vocBrights.push(bg);
       } else shG.connect(g.gain);
       this.vocShapers.push(shF, shG);
     });
   }
-  _vocBrillo(i, b) { return i >= VOC_BRILLO_IX ? brilloMul(b) : 1; }
+  _vocBright(i, b) { return i >= VOC_BRIGHT_IX ? brightMul(b) : 1; }
   _mxHasVow() { for (let i = 1; i <= MX_SLOTS; i++) if (this.S['mx' + i + 'src'] !== 'off' && this.S['mx' + i + 'dst'] === 'vow') return true; return false; }
   // Value of a curve at control x ∈ [−1, 1] with the WaveShaper's
   // interpolation (spec: index (N−1)·(x+1)/2, linear between neighbours, clipped at the edges).
@@ -680,15 +680,15 @@ export class Voice {
   // (mod.wanderBuffer) read from a RANDOM offset per voice (a
   // decorrelated choir from a single buffer), added in cents to the detune of the
   // 3 biquads at once (correlated within the voice: there's only one jaw).
-  ensureVida() {
+  ensureLife() {
     if (this.vocWander || this.disposed) return;
-    if (!this.vocBqs) { this._needVida = true; return; }   // no bank yet: it hooks up when the bank is created
+    if (!this.vocBqs) { this._needLife = true; return; }   // no bank yet: it hooks up when the bank is created
     const ctx = this.ctx, buf = this.mod.wanderBuffer;
     if (!buf) return;
     this.vocWander = ctx.createBufferSource();
     this.vocWander.buffer = buf; this.vocWander.loop = true;
     this.vocWanderGain = ctx.createGain();
-    this.vocWanderGain.gain.value = this.S.vocLife * VOC_VIDA_CENTS;
+    this.vocWanderGain.gain.value = this.S.vocLife * VOC_LIFE_CENTS;
     this.vocWander.connect(this.vocWanderGain);
     this.vocBqs.forEach(bq => this.vocWanderGain.connect(bq.detune));
     this.vocWander.start(this.t0, this.rnd() * buf.duration);
@@ -766,7 +766,7 @@ export class Voice {
     });
     return this.resMatG;
   }
-  setResBrillo()  { this._resRetune(); }
+  setResBright()  { this._resRetune(); }
   setResDecay(d) {
     if (!this.resBqs) return;
     const q = resQ(d), tc = this.ctx.currentTime;
@@ -917,7 +917,7 @@ export class Voice {
     const tc = this.ctx.currentTime, bank = getVocalBank();
     bank.forEach((f, i) => {
       this.vocBqs[i].detune.setTargetAtTime(size + Voice._shape(f.freqCurve, x), tc, tau);
-      this.vocGains[i].gain.setTargetAtTime(Voice._shape(f.gainCurve, x) * this._vocBrillo(i, this.S.vocBright), tc, tau);
+      this.vocGains[i].gain.setTargetAtTime(Voice._shape(f.gainCurve, x) * this._vocBright(i, this.S.vocBright), tc, tau);
     });
   }
   setVocQ(q) {
@@ -926,15 +926,15 @@ export class Voice {
     this.vocBqs.forEach((bq, i) => bq.Q.setTargetAtTime(bank[i].ref / (bank[i].bw * mul), tc, 0.02));
     this.vocWet.gain.setTargetAtTime(this.S.vocAmt * vocMakeup(q), tc, 0.02);
   }
-  setVocBrillo(b) {
+  setVocBright(b) {
     if (!this.vocBqs) return;
     if (!this.vocCtl) { this._vocStatic(this.S.vocVowel * 2 - 1, 0.02); return; }   // static: Bright goes into the gain of F4-F5
     const tc = this.ctx.currentTime;
-    this.vocBrillos.forEach(g => g.gain.setTargetAtTime(brilloMul(b), tc, 0.02));
+    this.vocBrights.forEach(g => g.gain.setTargetAtTime(brightMul(b), tc, 0.02));
   }
-  setVocVida(v) {
-    if (v > 0) this.ensureVida();
-    if (this.vocWanderGain) this.vocWanderGain.gain.setTargetAtTime(v * VOC_VIDA_CENTS, this.ctx.currentTime, 0.02);
+  setVocLife(v) {
+    if (v > 0) this.ensureLife();
+    if (this.vocWanderGain) this.vocWanderGain.gain.setTargetAtTime(v * VOC_LIFE_CENTS, this.ctx.currentTime, 0.02);
   }
 
   // Glides the tuning to a new note (mono/legato), WITHOUT retriggering the envelope.
@@ -1098,7 +1098,7 @@ export class Voice {
      this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut, this.dvBias, this.dvComp, this.dvDC, this.dvMod, ...(this.resMatG || []),
      this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain, this.vocBurstGain, this.vocBurstBp,
      ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || []),
-     ...(this.vocBrillos || []),
+     ...(this.vocBrights || []),
      this.resDry, this.resOut, this.resIn, this.resNoise, this.resWet, ...(this.resBqs || []), ...(this.resGs || [])].forEach(n => {
       if (n) { try { n.disconnect(); } catch (e) {} }
     });

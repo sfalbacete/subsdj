@@ -110,7 +110,7 @@ export class Conductor {
     if (j.arrangement) Object.assign(this.arr.cfg, j.arrangement);
     (j.players || []).forEach((cfg, i) => {
       const p = this.players[i]; if (!p) return;
-      p.cfg = { ...PLAYER_DEF, ...cfg }; p.derivaKey = 'off'; p.derivaBase = undefined;
+      p.cfg = { ...PLAYER_DEF, ...cfg }; p.driftKey = 'off'; p.driftBase = undefined;
       if (p.cfg.drift === 'mix') p.cfg.drift = 'levelB';   // scenes from before the mixer (1.2.0)
     });
     this.setSeed(+j.seed || 1);         // resets the players and the walk with the saved seed

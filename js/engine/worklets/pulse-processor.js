@@ -296,8 +296,8 @@ class PulseProcessor extends AudioWorkletProcessor {
       // frame and the neighbor correlation (precomputed). Cap ×2: a real
       // null is not amplified up into noise. At the extremes the gain is 1.
       let gMix = 1;
-      if (fB !== fA && wt.energia && wt.corr) {
-        const Ea = wt.energia[fA], Eb = wt.energia[fB], c = wt.corr[fA];
+      if (fB !== fA && wt.energy && wt.corr) {
+        const Ea = wt.energy[fA], Eb = wt.energy[fB], c = wt.corr[fA];
         const mixE = (1 - ff) * (1 - ff) * Ea + ff * ff * Eb + 2 * ff * (1 - ff) * c;
         const target = (1 - ff) * Math.sqrt(Ea) + ff * Math.sqrt(Eb);
         gMix = mixE > 1e-6 ? Math.min(2, target / Math.sqrt(mixE)) : 2;
@@ -620,8 +620,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     const x = pos * (F - 1), fA = F > 1 ? Math.min(F - 2, x | 0) : 0, ff = F > 1 ? x - fA : 0;
     const fB = fA + 1 < F ? fA + 1 : fA;
     let gMix = 1;
-    if (fB !== fA && wt.energia && wt.corr) {
-      const Ea = wt.energia[fA], Eb = wt.energia[fB], c = wt.corr[fA];
+    if (fB !== fA && wt.energy && wt.corr) {
+      const Ea = wt.energy[fA], Eb = wt.energy[fB], c = wt.corr[fA];
       const mixE = (1 - ff) * (1 - ff) * Ea + ff * ff * Eb + 2 * ff * (1 - ff) * c;
       const target = (1 - ff) * Math.sqrt(Ea) + ff * Math.sqrt(Eb);
       gMix = mixE > 1e-6 ? Math.min(2, target / Math.sqrt(mixE)) : 2;

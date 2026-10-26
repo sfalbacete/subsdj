@@ -3,7 +3,7 @@
    inserts. Chain:
      voicesBus(auto-gain) -> amp(+tremolo LFO) -> distortion -> flanger
        -> chorus|ensemble -> level -> [dry + delay send + reverb send]
-       -> Sala (engine/Room.js, the Room: ping-pong delay, reverb, limiter, master)
+       -> Room (engine/Room.js: ping-pong delay, reverb, limiter, master)
    Usual mode: the engine creates its own Room. Parts mode (parts.js):
    several engines share ONE Room (send/return model).
    The filter is PER VOICE (in Voice.js). The cutoff/reso/freq/pwm LFOs
@@ -21,7 +21,7 @@ import { getWtSet } from './wavetable.js';
 
 import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
 import { LFO_KEYS, lfoHz, lfoBeats, STR_KEYS } from './params.js';
-import { Sala, SALA_KEYS } from './Room.js';
+import { Room, ROOM_KEYS } from './Room.js';
 
 const MAX_POLY = 10;    // voices held at once; beyond that, the oldest is stolen
 const MAX_TAILS = 16;   // live release tails; above that, the oldest one fades out (TAIL_FADE)
@@ -99,7 +99,7 @@ export class AudioEngine {
 
   // optional ctx: the self-test passes an OfflineAudioContext; by default it creates the real one.
   // optional sala: the SHARED Room (Parts mode); without it the engine creates its own.
-  async init(providedCtx = null, { sala = null } = {}) {
+  async init(providedCtx = null, { room = null } = {}) {
     if (this.ctx) return;
     const ctx = providedCtx || new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
@@ -142,10 +142,10 @@ export class AudioEngine {
     // (and `master` is its master, as always). Parts mode (engine/parts.js):
     // it receives the SHARED Room; `master` becomes the part's fader and
     // the Room knobs (time, damp, size, bpm…) edit it for all of them.
-    this.ownsSala = !sala;
-    this.sala = sala || new Sala(ctx, S, { fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
-    this.sala.engines.push(this);
-    this.level = ctx.createGain(); this.level.gain.value = this.ownsSala ? 1 : S.master;
+    this.ownsRoom = !room;
+    this.room = room || new Room(ctx, S, { fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
+    this.room.engines.push(this);
+    this.level = ctx.createGain(); this.level.gain.value = this.ownsRoom ? 1 : S.master;
     this.muteG = ctx.createGain();                                            // part mute (Part Mixer)
     this.partPan = ctx.createStereoPanner();                                  // part pan (Part Mixer)
     this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // delay send
@@ -159,9 +159,9 @@ export class AudioEngine {
     this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
     // Output: chOut -> level -> mute -> [pan -> Room dry] + [sends]
     this.chOut.connect(this.acCoup); this.acCoup.connect(this.level); this.level.connect(this.muteG);   // no DC, wherever it comes from (see AC_HZ)
-    this.muteG.connect(this.partPan); this.partPan.connect(this.sala.dry);
-    this.muteG.connect(this.sendDly); this.sendDly.connect(this.sala.dlyIn);
-    this.muteG.connect(this.sendRev); this.sendRev.connect(this.sala.revIn);
+    this.muteG.connect(this.partPan); this.partPan.connect(this.room.dry);
+    this.muteG.connect(this.sendDly); this.sendDly.connect(this.room.dlyIn);
+    this.muteG.connect(this.sendRev); this.sendRev.connect(this.room.revIn);
 
     // LFOs
     this.ampLFO = mkLFO(ctx, S.ampLfoSpd, S.ampLfoLvl); this.ampLFO.depth.connect(this.amp.gain);
@@ -182,7 +182,7 @@ export class AudioEngine {
     // origin changes, and the synced LFOs (global ones and each voice's own) go back to their grid
     const clock = clockOf(ctx);
     clock.setBpm(this.bpm, ctx.currentTime);
-    clock.swing = (this.sala && this.sala.S.swing) || S.swing || 0.5;   // swing: from the Room, like the BPM
+    clock.swing = (this.room && this.room.S.swing) || S.swing || 0.5;   // swing: from the Room, like the BPM
     this._unlisten = clock.listen(() => this._lfoClock());
     this._lfoClock();
 
@@ -239,7 +239,7 @@ export class AudioEngine {
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
   // The right BPM is the ROOM's: in Parts it is shared and only the selected part
   // receives the knob (its S.bpm); the others would have the old one.
-  get bpm() { return (this.sala && this.sala.S.bpm) || this.S.bpm || 120; }
+  get bpm() { return (this.room && this.room.S.bpm) || this.S.bpm || 120; }
   _lfoHz(k) { return lfoHz(this.S, k, clockOf(this.ctx).bpm); }   // with sync, the division at the clock's BPM (= the Room's)
   _lfoClock() {
     if (!this.ctx) return;
@@ -529,7 +529,7 @@ export class AudioEngine {
     // ROOM keys (bpm, echo time/damp/wow, reverb size/damp/pre): applied by
     // the Room, which in Parts mode is shared — and it propagates the value to
     // the S of all the parts (a single clock).
-    if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
+    if (ROOM_KEYS.has(name)) { this.room.set(name, value); return; }
     // Per-voice LFOs (lfoPhase 'voice'): Level/Speed/shape of LFO k also go to the
     // copies of each live voice; the engine's global LFO keeps changing in the switch.
     const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape|Sync)$/.exec(name);
@@ -570,13 +570,13 @@ export class AudioEngine {
       case 'vocVowel': this._forVoices(v => v.setVocVowel(value)); break;
       case 'vocSize':  this._forVoices(v => v.setVocSize(value)); break;
       case 'vocQ':     this._forVoices(v => v.setVocQ(value)); break;
-      case 'vocLife':  this._forVoices(v => v.setVocVida(value)); break;
-      case 'vocBright':this._forVoices(v => v.setVocBrillo(value)); break;
+      case 'vocLife':  this._forVoices(v => v.setVocLife(value)); break;
+      case 'vocBright':this._forVoices(v => v.setVocBright(value)); break;
       // vocAtk is a note-start event: it is read when each voice is created
       case 'resAmt':    this._forVoices(v => v.setResAmt(value)); break;     // modal resonator (engine/reson.js)
       case 'resMat':    this._forVoices(v => v.setResMat(value)); break;
       case 'resDecay':  this._forVoices(v => v.setResDecay(value)); break;
-      case 'resBright': this._forVoices(v => v.setResBrillo(value)); break;
+      case 'resBright': this._forVoices(v => v.setResBright(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;
@@ -632,10 +632,10 @@ export class AudioEngine {
       // Amount and the echoes enter the reverb according to the Mix — as always; in
       // Parts mode that is governed by the Room column of the Part Mixer.
       case 'dlyAmt': smooth(this.sendDly.gain, value); break;
-      case 'dlyFb': if (this.ownsSala) this.sala.setFeedback(value); break;   // in Parts the Room's Fdbk rules (Part Mixer)
+      case 'dlyFb': if (this.ownsRoom) this.room.setFeedback(value); break;   // in Parts the Room's Fdbk rules (Part Mixer)
       case 'width': this._forVoices(v => v.setWidth(value)); break;
-      case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsSala) this.sala.setDlyToRev(value); break;
-      case 'master': if (this.ownsSala) this.sala.setMaster(value); else smooth(this.level.gain, value); break;   // Parts: the part's fader
+      case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsRoom) this.room.setDlyToRev(value); break;
+      case 'master': if (this.ownsRoom) this.room.setMaster(value); else smooth(this.level.gain, value); break;   // Parts: the part's fader
       case 'mode': this.allNotesOff(); break;   // poly<->mono switch: cuts everything so no notes are left hanging
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate are read live by the scheduler
       case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // a bend already moved gets rescaled
@@ -701,13 +701,13 @@ export class AudioEngine {
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }
     for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
-    this.sala.engines = this.sala.engines.filter(e => e !== this);
+    this.room.engines = this.room.engines.filter(e => e !== this);
     this.budget.delete(this);
-    if (this.ownsSala) this.sala.dispose();
+    if (this.ownsRoom) this.room.dispose();
     this.ready = false;
   }
 
-  getAnalyser() { return this.sala ? this.sala.analyser : null; }
+  getAnalyser() { return this.room ? this.room.analyser : null; }
   stats() { return { pressed: this.voiceCount, tails: this.tails.size, worklets: this.modStats ? this.modStats.worklets : 0 }; }
 }
 

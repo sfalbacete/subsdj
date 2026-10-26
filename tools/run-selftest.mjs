@@ -67,21 +67,21 @@ async function runBatch(qs) {
   await send('Runtime.enable'); await send('Page.enable');
   await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + qs });
   const t0 = Date.now();
-  let colgada = false;
+  let hung = false;
   while (Date.now() - t0 < BATCH_MAX_MS) {
     if (pings.find(p => p.done)) break;
     const title = await ev('document.title');
-    if (title === null) { colgada = true; break; }
+    if (title === null) { hung = true; break; }
     if (BASE && /SELFTEST \d+\/\d+/.test(title)) break;
     await sleep(500);
   }
-  const out = { qs, errs, logs, colgada, secs: (Date.now() - t0) / 1000 };
+  const out = { qs, errs, logs, hung, secs: (Date.now() - t0) / 1000 };
   out.done = pings.find(p => p.done) || null;
   out.demos = pings.filter(p => p.demo || p.demo_error);
-  out.title = colgada ? null : await ev('document.title');
-  out.fails = colgada ? null : await ev(`[...document.querySelectorAll('#stBody .st-row.fail')].map(r => r.querySelector('.st-name').textContent + ' :: ' + (r.nextElementSibling && r.nextElementSibling.classList.contains('st-err') ? r.nextElementSibling.textContent : ''))`);
-  if (colgada) out.ultima = 'the page stopped responding after ' + out.secs.toFixed(0) + ' s';
-  if (process.argv[3] && !colgada) out.extra = await ev(process.argv[3]);
+  out.title = hung ? null : await ev('document.title');
+  out.fails = hung ? null : await ev(`[...document.querySelectorAll('#stBody .st-row.fail')].map(r => r.querySelector('.st-name').textContent + ' :: ' + (r.nextElementSibling && r.nextElementSibling.classList.contains('st-err') ? r.nextElementSibling.textContent : ''))`);
+  if (hung) out.lastNote = 'the page stopped responding after ' + out.secs.toFixed(0) + ' s';
+  if (process.argv[3] && !hung) out.extra = await ev(process.argv[3]);
   await Promise.race([send('Browser.close'), sleep(3000)]); ws.close();
   return out;
 }
@@ -89,22 +89,22 @@ async function runBatch(qs) {
 const res = [];
 for (const t of BATCHES) res.push(await runBatch(t ? q + '&batch=' + t : q));
 // sum of the batches
-let ok = 0, total = 0, bien = true;
+let ok = 0, total = 0, allOk = true;
 const batchName = r => (r.qs.match(/batch=(\w+)/) || [, 'all'])[1];
-const partes = res.map(r => {
+const parts = res.map(r => {
   const m = /([✓✗]) SELFTEST (\d+)\/(\d+)/.exec(r.title || '');
-  if (!m) { bien = false; return batchName(r) + ' ' + (r.colgada ? 'HUNG' : 'no title'); }
-  ok += +m[2]; total += +m[3]; if (m[1] !== '✓') bien = false;
+  if (!m) { allOk = false; return batchName(r) + ' ' + (r.hung ? 'HUNG' : 'no title'); }
+  ok += +m[2]; total += +m[3]; if (m[1] !== '✓') allOk = false;
   return batchName(r) + ' ' + m[2] + '/' + m[3];
 });
-console.log('title:', (bien ? '✓' : '✗') + ' SELFTEST ' + ok + '/' + total + ' · SubSDJ' + (res.length > 1 ? ' (' + partes.join(' · ') + ')' : ''));
-for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.toFixed(1), 's', r.ultima ? '· ' + r.ultima : '');
+console.log('title:', (allOk ? '✓' : '✗') + ' SELFTEST ' + ok + '/' + total + ' · SubSDJ' + (res.length > 1 ? ' (' + parts.join(' · ') + ')' : ''));
+for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.toFixed(1), 's', r.lastNote ? '· ' + r.lastNote : '');
 for (const r of res) for (const p of r.demos)
   console.log('demo:', p.demo || ('ERROR ' + p.demo_error), '| diff', p.diff, '| peaks', p.peakA, p.peakB, p.bad ? '| BAD' : '');
-const fails = res.flatMap(r => r.fails || (r.colgada ? ['(batch ' + batchName(r) + ') :: ' + r.ultima] : []));
+const fails = res.flatMap(r => r.fails || (r.hung ? ['(batch ' + batchName(r) + ') :: ' + r.lastNote] : []));
 console.log('fails:', JSON.stringify(fails));
 for (const r of res) if ('extra' in r) console.log('extra:', JSON.stringify(r.extra));
 for (const r of res) for (const l of r.logs) console.log('log:', l);
 console.log('js errors:', JSON.stringify(res.flatMap(r => r.errs)));
 server.close();
-setTimeout(() => process.exit(fails.length || !bien ? 1 : 0), 300);
+setTimeout(() => process.exit(fails.length || !allOk ? 1 : 0), 300);

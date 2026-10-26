@@ -12,7 +12,7 @@
 export const PARAM_KEYS = { vocVida: 'vocLife', vocBrillo: 'vocBright', resBrillo: 'resBright' };
 
 // Scales (Harmony.ESCALAS; used by the scenes and by the Seq in degrees)
-export const SCALES = {
+export const SCALES_ES = {
   'mayor': 'major', 'menor': 'minor', 'menor armónica': 'harmonic minor', 'dórica': 'dorian',
   'frigia': 'phrygian', 'lidia': 'lydian', 'mixolidia': 'mixolydian', 'penta mayor': 'major penta',
   'penta menor': 'minor penta', 'tonos enteros': 'whole tone',
@@ -30,7 +30,7 @@ export const VALUES = {
   envmMode: { bucle: 'loop', disparo: 'trigger' },
   reverbType: { sala: 'hall', placa: 'plate' },
   lfoPhase: { voz: 'voice', reinicio: 'retrig', una: 'once' },
-  seqNotes: { semitonos: 'semitones', 'armonía': 'harmony', ...SCALES },
+  seqNotes: { semitonos: 'semitones', 'armonía': 'harmony', ...SCALES_ES },
   stReset: { tocar: 'play', nunca: 'never', ...BARS },
   dlySync: SYNC, pwmLfoSync: SYNC, cutLfoSync: SYNC, resLfoSync: SYNC, ampLfoSync: SYNC, freqLfoSync: SYNC, panLfoSync: SYNC,
   st1Div: BARS, st2Div: BARS, st3Div: BARS, st4Div: BARS,
@@ -147,7 +147,7 @@ export function migrateScene(j) {
     room: j.sala ? migratePreset(j.sala) : undefined,   // bpm, dlySync ('libre')…: parameter keys
     conductor: j.director ? defined({
       seed: d.seed,
-      harmony: a ? defined({ root: a.root, scale: SCALES[a.scale] || a.scale, prog: a.prog, bars: a.bars, mode: HARMONY_MODES[a.modo] || a.modo }) : undefined,
+      harmony: a ? defined({ root: a.root, scale: SCALES_ES[a.scale] || a.scale, prog: a.prog, bars: a.bars, mode: HARMONY_MODES[a.modo] || a.modo }) : undefined,
       arrangement: d.arreglo ? renameKeys(d.arreglo, ARR_KEYS) : undefined,
       players: (d.jugadores || []).map(c => {
         const q = renameKeys(c, PLAYER_KEYS);

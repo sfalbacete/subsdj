@@ -7,11 +7,11 @@
 import { part } from '../engine/parts.js';
 import { CONTROLS } from './registry.js';
 import { WE_P, loadUserFrames, saveUserFrames, defaultUserFrames, getWtSet,
-         espectroDe, puntosDeEspectro, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
+         spectrumOf, pointsFromSpectrum, encodeUserFrames, decodeUserFrames } from '../engine/wavetable.js';
 import { token, tint } from './theme.js';
 import { fitCanvas } from './frame.js';
 
-const SUAVE = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff per press of «Smooth»
+const SMOOTH = n => 1 / (1 + Math.pow(n / 12, 1.6));   // rolloff per press of «Smooth»
 
 export function initWaveEditor() {
   const cv = document.getElementById('weCanvas');
@@ -71,9 +71,9 @@ export function initWaveEditor() {
   document.getElementById('weSine').addEventListener('click', () => setFrame(t => Math.sin(2 * Math.PI * t)));
   document.getElementById('weSaw').addEventListener('click', () => setFrame(t => 2 * t - 1));
   document.getElementById('weSmooth').addEventListener('click', () => {
-    const sp = espectroDe(frames[cur]);
-    for (let n = 1; n <= WE_P >> 1; n++) { sp.sin[n - 1] *= SUAVE(n); sp.cos[n - 1] *= SUAVE(n); }
-    const pts = puntosDeEspectro(sp);
+    const sp = spectrumOf(frames[cur]);
+    for (let n = 1; n <= WE_P >> 1; n++) { sp.sin[n - 1] *= SMOOTH(n); sp.cos[n - 1] *= SMOOTH(n); }
+    const pts = pointsFromSpectrum(sp);
     let peak = 0; for (const v of pts) peak = Math.max(peak, Math.abs(v));
     const k = peak > 0.05 ? Math.min(1, 0.95 / peak) : 1;    // restores level without amplifying residue
     for (let i = 0; i < WE_P; i++) frames[cur][i] = pts[i] * k;

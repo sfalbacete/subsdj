@@ -20,14 +20,14 @@ export const RES_HARM = [1, 2, 3, 4, 5, 6];
 export const RES_BAR = [1, 2.756, 5.404, 8.933, 13.344, 18.638];
 export const RES_Q_MIN = 10, RES_Q_MAX = 600;              // Decay 0..1 → Q on a log scale
 export const RES_NOISE_K = 0.8;                            // gain of the noise path = K·√Q (Q 77 → ×7 · Q 600 → ×20)
-export const RES_BRILLO_E0 = 1, RES_BRILLO_E1 = -0.3;      // exponent e of the gains r^(−e): 1 = 1/r (dark) … −0.3 = r^0.3 (bright); flat at Bright 0.77
+export const RES_BRIGHT_E0 = 1, RES_BRIGHT_E1 = -0.3;      // exponent e of the gains r^(−e): 1 = 1/r (dark) … −0.3 = r^0.3 (bright); flat at Bright 0.77
 
 export const resRatios = mat => RES_HARM.map((h, i) => Math.pow(h, 1 - mat) * Math.pow(RES_BAR[i], mat));
 export const resQ = decay => RES_Q_MIN * Math.pow(RES_Q_MAX / RES_Q_MIN, decay);
 export const resNoiseGain = q => RES_NOISE_K * Math.sqrt(q);
 // gains of the modes, normalized to Σg² = 2: Bright redistributes, it doesn't raise or lower the level
-export function resGains(ratios, brillo) {
-  const e = RES_BRILLO_E0 + (RES_BRILLO_E1 - RES_BRILLO_E0) * brillo;
+export function resGains(ratios, bright) {
+  const e = RES_BRIGHT_E0 + (RES_BRIGHT_E1 - RES_BRIGHT_E0) * bright;
   const g = ratios.map(r => Math.pow(r, -e)), s = Math.sqrt(2 / g.reduce((a, x) => a + x * x, 0));
   return g.map(x => x * s);
 }

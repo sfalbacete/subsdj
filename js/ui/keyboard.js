@@ -207,7 +207,7 @@ export function panic() {
   held.clear(); holders.clear(); pointers.clear();
   eachPart(e => e.allNotesOff()); forgetSounding(); active.forEach(el => el && el.classList.remove('on')); active.clear();
   // and releases the frozen reverb (❄ Freeze of the Room): «cut everything» means that too
-  const s = part().sala;
+  const s = part().room;
   if (s && s.frozen) { s.setFreeze(false); document.dispatchEvent(new CustomEvent('freeze-changed')); }
 }
 // Release only what THIS keyboard holds (QWERTY / mouse / MIDI): when the window

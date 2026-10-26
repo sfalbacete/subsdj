@@ -6,14 +6,14 @@
    order. Save, delete, export and import act on the whole
    Library. Every model change emits library-changed; changing the current one
    without loading it (a part, saving), preset-marked. */
-import { library, SEC_MIOS } from '../engine/library.js';
+import { library, SEC_MINE } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
 import { record, markSaved } from './history.js';
 
 let curId = null, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
-export const limpiar = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // drops unknown keys
+export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // drops unknown keys
 export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
 const asPreset = id => { const it = id && library.item(id); return it && it.type === 'preset' ? it : null; };
@@ -26,7 +26,7 @@ export function markPreset(id) {
   document.dispatchEvent(new CustomEvent('preset-marked', { detail: { value: curId } }));
   return !!curId;
 }
-export function markPresetByName(nombre) { const it = library.presets().find(p => p.name === nombre); return it ? markPreset(it.id) : false; }
+export function markPresetByName(name) { const it = library.presets().find(p => p.name === name); return it ? markPreset(it.id) : false; }
 export function navIds() { return library.presets().map(it => it.id); }   // the Library in order (section by section)
 
 function loadCurrent() {
@@ -57,7 +57,7 @@ export function initPresetBank() {
   const init = library.presets().find(it => it.name === 'Init (default)');
   curId = init ? init.id : null;
   if (!library.data.files)                    // repo banks and scenes: by fetch, once
-    ready = library.sembrarFicheros().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });
+    ready = library.seedRepoFiles().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });
 
   document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
   document.getElementById('nextBtn').addEventListener('click', () => stepPreset(1));
@@ -69,10 +69,10 @@ export function initPresetBank() {
     // «★ Mine» (over the one with that name there, or as a new one).
     const cur = currentPreset();
     let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
-    if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
+    if (!target) { const mios = library.sectionByName(SEC_MINE); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
     let id;
-    if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
-    else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MIOS + ' (this browser).'); }
+    if (target) { library.update(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
+    else { id = library.add({ name, section: library.ensureSection(SEC_MINE), data: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MINE + ' (this browser).'); }
     markPreset(id); inp.value = '';
     markSaved();                                  // what is sounding IS now the saved preset: ● goes off
   });
@@ -80,13 +80,13 @@ export function initPresetBank() {
     const it = currentPreset();
     if (!it) { msg('Pick a preset first.'); return; }
     if (!confirm('Delete «' + it.name + '» from the library?' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''))) return;
-    library.borrar(it.id); msg('Deleted «' + it.name + '».');
+    library.remove(it.id); msg('Deleted «' + it.name + '».');
   });
   document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Default values.'); });
 
   // ---- export / import the whole Library (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {
-    const j = library.exportar();
+    const j = library.exportData();
     download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library.json');
     msg('Library exported: ' + j.items.length + ' items in ' + j.sections.length + ' sections.');
   });
@@ -97,7 +97,7 @@ export function initPresetBank() {
     f.text().then(txt => {
       let data; try { data = JSON.parse(txt); } catch (e) { msg('That file is not valid JSON.'); return; }
       try {
-        const r = library.importar(data, { limpiar });
+        const r = library.importData(data, { clean: cleanPreset });
         msg(r.type === 'library' ? 'Library merged: ' + r.n + ' new items.'
           : r.type === 'scene' ? (r.n ? 'Scene added to «Scenes».' : 'That scene was already there.')
           : (r.n ? 'Imported ' + r.n + ' presets (into «Imported»).' : 'The file had no new presets.'));

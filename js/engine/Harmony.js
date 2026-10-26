@@ -14,7 +14,7 @@
    almost always to D, D resolves to T. Deterministic: seeded PRNG
    (mulberry32) — same seed, same session (the basis of C3's scenes).
    ===================================================================== */
-export const ESCALAS = {
+export const SCALES = {
   'major':          [0, 2, 4, 5, 7, 9, 11],
   'minor':          [0, 2, 3, 5, 7, 8, 10],
   'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
@@ -29,8 +29,8 @@ export const ESCALAS = {
   'hirajoshi':      [0, 2, 3, 7, 8],
   'in sen':         [0, 1, 5, 7, 10],
 };
-export const NOTAS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-export const GRADOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const DEGREES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 // Seeded PRNG (mulberry32, 32 bits): same seed ⇒ same sequence.
 // Each player and the harmony carry their OWN stream: changing one player does not
@@ -46,10 +46,10 @@ export function mulberry32(a) {
 
 // Tonal functions of each degree and transitions (probabilities) of the walk
 const FUNCION = { 1: 'T', 2: 'S', 3: 'T', 4: 'S', 5: 'D', 6: 'T', 7: 'D' };
-const SIGUIENTE = { T: [['S', 0.45], ['D', 0.35], ['T', 0.20]],
+const NEXT_FN = { T: [['S', 0.45], ['D', 0.35], ['T', 0.20]],
                     S: [['D', 0.60], ['T', 0.30], ['S', 0.10]],
                     D: [['T', 0.80], ['S', 0.05], ['D', 0.15]] };
-const GRADOS_DE = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repeated = more likely
+const DEGREES_OF = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repeated = more likely
 
 // «1 6 4 5», «I vi IV V»… → [1, 6, 4, 5] (1..7; whatever is not understood is skipped)
 export function parseProg(str) {
@@ -68,7 +68,7 @@ export class Harmony {
     this.setSeed(seed);
   }
   setSeed(seed) { this.seed = seed; this._walk = []; this._rng = mulberry32((seed * 7919 + 17) | 0); }
-  get notes() { return ESCALAS[this.scale] || ESCALAS.major; }
+  get notes() { return SCALES[this.scale] || SCALES.major; }
 
   // Current degree at bar `bar` (each chord lasts `bars` bars)
   degreeAt(bar) {
@@ -83,8 +83,8 @@ export class Harmony {
       const prev = this._walk.length ? this._walk[this._walk.length - 1] : 1;
       const from = FUNCION[prev] || 'T';
       let r = this._rng(), fn = 'T';
-      for (const [f, p] of SIGUIENTE[from]) { if (r < p) { fn = f; break; } r -= p; }
-      const cands = GRADOS_DE[fn];
+      for (const [f, p] of NEXT_FN[from]) { if (r < p) { fn = f; break; } r -= p; }
+      const cands = DEGREES_OF[fn];
       this._walk.push(cands[Math.floor(this._rng() * cands.length)]);
     }
     return this._walk[i];
@@ -106,5 +106,5 @@ export class Harmony {
   }
   // MIDI notes in [lo, hi] whose pitch class is in `pcs`
   notesIn(lo, hi, pcs) { const out = []; for (let m = lo; m <= hi; m++) if (pcs.has(m % 12)) out.push(m); return out; }
-  nombre(bar) { const c = this.chordAt(bar); return (GRADOS[c.degree - 1] || c.degree) + ' · ' + NOTAS[c.rootPc]; }
+  chordName(bar) { const c = this.chordAt(bar); return (DEGREES[c.degree - 1] || c.degree) + ' · ' + NOTE_NAMES[c.rootPc]; }
 }

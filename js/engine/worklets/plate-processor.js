@@ -49,7 +49,7 @@ class Allpass {
 class PlateProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'decay', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'k-rate' },   // 1 = freeze (Sala.FREEZE_DECAY stays a hair below)
+      { name: 'decay', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'k-rate' },   // 1 = freeze (Room.FREEZE_DECAY stays a hair below)
       { name: 'damp',  defaultValue: 0.3, minValue: 0, maxValue: 1,    automationRate: 'k-rate' },
       { name: 'mod',   defaultValue: 0.5, minValue: 0, maxValue: 1,    automationRate: 'k-rate' },
     ];

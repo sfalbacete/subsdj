@@ -56,8 +56,8 @@ function bindLfoShapes() {
 function bindFreeze() {
   const fz = document.getElementById('freezeBtn');
   if (!fz) return;
-  const paint = () => { const s = part().sala; fz.classList.toggle('on', !!(s && s.frozen)); };
-  fz.addEventListener('click', () => { part().resume(); const s = part().sala; if (s) s.setFreeze(!s.frozen); paint(); });
+  const paint = () => { const s = part().room; fz.classList.toggle('on', !!(s && s.frozen)); };
+  fz.addEventListener('click', () => { part().resume(); const s = part().room; if (s) s.setFreeze(!s.frozen); paint(); });
   document.addEventListener('freeze-changed', paint);
   document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') { fz.disabled = e.detail.value !== 'plate'; paint(); } });
   fz.disabled = PARAMS.reverbType.def !== 'plate';

@@ -10,14 +10,14 @@
    in the presets: the preset is the instrument, the player is the musician.
    ===================================================================== */
 import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene } from '../engine/parts.js';
-import { ESCALAS, NOTAS, GRADOS, parseProg } from '../engine/Harmony.js';
-import { PLAYER_MODES, DERIVA_KEYS } from '../engine/Player.js';
+import { SCALES, NOTE_NAMES, DEGREES, parseProg } from '../engine/Harmony.js';
+import { PLAYER_MODES, DRIFT_KEYS } from '../engine/Player.js';
 import { attachKnob } from './knobs.js';
 import { CONTROLS } from './registry.js';
 import { download } from './recorder.js';
 
 const $ = id => document.getElementById(id);
-const LS_ESCENA = 'subsdj.scene.v2', LS_ESCENA_V1 = 'subsdj.escena.v1';   // the one up to 1.3.0: ↺ Last reads it if there is no other
+const LS_SCENE = 'subsdj.scene.v2', LS_SCENE_V1 = 'subsdj.escena.v1';   // the one up to 1.3.0: ↺ Last reads it if there is no other
 const conductor = () => { const sc = getScene(); return sc ? sc.conductor : null; };
 const int = v => String(Math.round(v));
 // knobs per mode: [key, label, min, max, integer?]
@@ -64,9 +64,9 @@ function buildPlayerUI() {
   attachKnob(kU.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.threshold }, v => { pl.cfg.threshold = v; });
   const sel = document.createElement('select'); sel.id = 'derivaSel'; sel.title = 'Drift: a parameter of the part\'s preset that wanders slowly («—» = none)';
   host.appendChild(sel);
-  DERIVA_KEYS.forEach(k => sel.add(new Option(k === 'off' ? '—' : k, k)));
+  DRIFT_KEYS.forEach(k => sel.add(new Option(k === 'off' ? '—' : k, k)));
   sel.value = pl.cfg.drift || 'off';
-  sel.addEventListener('change', () => { pl.setDeriva(sel.value); depsRefresh(); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
+  sel.addEventListener('change', () => { pl.setDrift(sel.value); depsRefresh(); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
   const kA = ksEl('amt'); kA.dataset.key = 'driftAmt'; kA.title = 'Amount of drift'; host.appendChild(kA);
   attachKnob(kA.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.driftAmt, act: true }, v => { pl.cfg.driftAmt = v; });
   depsRefresh();
@@ -100,14 +100,14 @@ export function setPlaying(on) {
 function refreshInfo() {
   const c = conductor(); if (!c || !c.running) return;
   const bar = c.barNow(), ch = c.harmony.chordAt(bar);
-  $('harmInfo').textContent = 'bar ' + (bar + 1) + ' · ' + (GRADOS[ch.degree - 1] || ch.degree) + ' · ' + NOTAS[ch.rootPc];
+  $('harmInfo').textContent = 'bar ' + (bar + 1) + ' · ' + (DEGREES[ch.degree - 1] || ch.degree) + ' · ' + NOTE_NAMES[ch.rootPc];
   const E = c.arr.energyAt(bar), n = Math.max(1, c.arr.cfg.cycle);
   $('arrInfo').textContent = 'cycle ' + ((bar % n) + 1) + '/' + n + ' · energy ' + E.toFixed(2) +
     ' · playing ' + c.players.map((p, i) => c.arr.stateAt(bar, i, p.cfg).active && p.cfg.mode !== 'off' ? (i + 1) : '·').join('');
 }
 
 // ---------- scene: export / import / last ----------
-function saveLast() { const sc = getScene(); if (!sc) return; try { localStorage.setItem(LS_ESCENA, JSON.stringify(sceneToJSON(sc))); } catch (e) {} }
+function saveLast() { const sc = getScene(); if (!sc) return; try { localStorage.setItem(LS_SCENE, JSON.stringify(sceneToJSON(sc))); } catch (e) {} }
 export async function loadScene(json) {   // also from the Library (Presets screen)
   if (!sceneOn()) { await enableScene(); document.dispatchEvent(new CustomEvent('scene-loaded')); }   // switches on (and the UI is assembled)
   applySceneJSON(getScene(), json);
@@ -117,8 +117,8 @@ function syncAll() { syncHarmonyUI(); buildPlayerUI(); }
 
 export function initPlayerControls() {
   const rootSel = $('harmRoot'), scaleSel = $('harmScale'); if (!rootSel) return;
-  NOTAS.forEach((n, i) => rootSel.add(new Option(n, i)));
-  Object.keys(ESCALAS).forEach(k => scaleSel.add(new Option(k, k)));
+  NOTE_NAMES.forEach((n, i) => rootSel.add(new Option(n, i)));
+  Object.keys(SCALES).forEach(k => scaleSel.add(new Option(k, k)));
   rootSel.addEventListener('change', () => { const c = conductor(); if (c) c.harmony.root = +rootSel.value; });
   scaleSel.addEventListener('change', () => { const c = conductor(); if (c) c.harmony.scale = scaleSel.value; });
   $('harmProg').addEventListener('change', () => { const c = conductor(); if (!c) return; c.harmony.prog = parseProg($('harmProg').value); $('harmProg').value = c.harmony.prog.join(' '); });
@@ -154,7 +154,7 @@ export function initPlayerControls() {
     catch (err) { $('presetMsg').textContent = 'Invalid scene: ' + (err.message || err); }
   });
   $('sceneLast').addEventListener('click', async () => {
-    let j = null; try { j = JSON.parse(localStorage.getItem(LS_ESCENA) || localStorage.getItem(LS_ESCENA_V1)); } catch (e) {}
+    let j = null; try { j = JSON.parse(localStorage.getItem(LS_SCENE) || localStorage.getItem(LS_SCENE_V1)); } catch (e) {}
     if (!j) { $('presetMsg').textContent = 'No saved scene'; return; }
     try { await loadScene(j); $('presetMsg').textContent = 'Last scene restored (' + (j.date || j.fecha || '').slice(0, 16) + ')'; }
     catch (err) { $('presetMsg').textContent = 'Invalid scene: ' + (err.message || err); }

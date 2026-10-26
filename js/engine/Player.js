@@ -36,7 +36,7 @@ import { PARAMS } from './params.js';
 export const PLAYER_MODES = ['off', 'pulse', 'chord', 'melody', 'root'];
 export const MODE_OCT = { pulse: 2, chord: 4, melody: 5, root: 2 };   // default octave when choosing the mode
 // levelB: B comes in and out over A (replaces 'mix' since the mixer; Conductor.fromJSON translates the scenes)
-export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
+export const DRIFT_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
 export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
   k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, accent: 0.3,     // pulse
@@ -66,7 +66,7 @@ export class Player {
     this.c = conductor; this.part = part; this.i = index;
     this.cfg = { ...PLAYER_DEF };
     this.log = null;            // [] to log the events (selftest)
-    this.derivaKey = 'off'; this.derivaBase = undefined;
+    this.driftKey = 'off'; this.driftBase = undefined;
     this.pending = new Map();   // id → {when}: a key already given to the part's Arp/Seq that has not started yet (or has no note-off)
     this.reset();
   }
@@ -76,7 +76,7 @@ export class Player {
     this.nextBeat = 0; this.held = []; this.seq = 0; this.busy = 0; this.melIdx = -1; this.lastKey = null;
     this.rng = mulberry32((this.c.seed * 7919 + this.i * 104729 + 13) | 0);
     const rngD = mulberry32((this.c.seed * 31 + this.i * 17 + 5) | 0);
-    this.derivaPhase = [0, 1, 2].map(() => rngD() * 2 * Math.PI);
+    this.driftPhase = [0, 1, 2].map(() => rngD() * 2 * Math.PI);
   }
   setMode(mode) {
     if (mode === this.cfg.mode) return;
@@ -86,10 +86,10 @@ export class Player {
     this.busy = 0; this.melIdx = -1; this.lastKey = null;
   }
   // Drift: when the parameter changes, the previous one is put back at its base value
-  setDeriva(key) {
-    if (this.derivaKey !== 'off' && this.derivaBase !== undefined) this.part.engine.set(this.derivaKey, this.derivaBase);
-    this.cfg.drift = key; this.derivaKey = key;
-    this.derivaBase = key !== 'off' ? this.part.engine.S[key] : undefined;
+  setDrift(key) {
+    if (this.driftKey !== 'off' && this.driftBase !== undefined) this.part.engine.set(this.driftKey, this.driftBase);
+    this.cfg.drift = key; this.driftKey = key;
+    this.driftBase = key !== 'off' ? this.part.engine.S[key] : undefined;
   }
   stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
   releaseHeld(when) { for (const id of this.held) this._off(id, when); this.held = []; }
@@ -248,11 +248,11 @@ export class Player {
     const c = this.cfg, key = c.drift;
     if (!key || key === 'off' || !(c.driftAmt > 0)) return;
     const p = PARAMS[key]; if (!p) return;
-    if (this.derivaKey !== key || this.derivaBase === undefined) { this.derivaKey = key; this.derivaBase = this.part.engine.S[key]; }
-    const ph = this.derivaPhase;
+    if (this.driftKey !== key || this.driftBase === undefined) { this.driftKey = key; this.driftBase = this.part.engine.S[key]; }
+    const ph = this.driftPhase;
     const w = (Math.sin(beat / 23 + ph[0]) + 0.6 * Math.sin(beat / 37 + ph[1]) + 0.4 * Math.sin(beat / 59 + ph[2])) / 2;
-    let v = p.log ? this.derivaBase * Math.pow(2, c.driftAmt * w * 1.5)             // cutoff: in octaves
-                  : this.derivaBase + c.driftAmt * w * 0.5 * (p.max - p.min);       // linear: ± half the range
+    let v = p.log ? this.driftBase * Math.pow(2, c.driftAmt * w * 1.5)             // cutoff: in octaves
+                  : this.driftBase + c.driftAmt * w * 0.5 * (p.max - p.min);       // linear: ± half the range
     v = Math.max(p.min, Math.min(p.max, v));
     this.part.engine.set(key, v);
     if (this.c.onDrift) this.c.onDrift(this.i, key, v);

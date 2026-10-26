@@ -6,12 +6,12 @@
    goes through engine/library.js, which announces with library-changed. Loading a
    preset takes the same path as the quick picker; a scene, the one of
    ⇧ Scene in the Arrangement module (it turns Parts on if needed). */
-import { library, normaliza } from '../engine/library.js';
+import { library, normalize } from '../engine/library.js';
 import { loadPresetId, currentPresetId } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
 
 const $ = id => document.getElementById(id);
-let list, msgEl, filtro = '', soloFav = false, dragId = null, playingId = null;   // playingId: the scene that is playing (only one)
+let list, msgEl, query = '', favOnly = false, dragId = null, playingId = null;   // playingId: the scene that is playing (only one)
 const msg = t => { if (msgEl) msgEl.textContent = t; };
 
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -23,10 +23,10 @@ function btn(cls, text, title, onClick) {
 
 // Inline editing: the span becomes an input; Enter or blur save, Escape cancels.
 // keyboard.js ignores <input type=text>, so the piano doesn't steal the letters.
-function editInline(span, valor, onCommit) {
-  const inp = document.createElement('input'); inp.type = 'text'; inp.value = valor; inp.maxLength = 48; inp.className = 'pl-edit';
+function editInline(span, value, onCommit) {
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = value; inp.maxLength = 48; inp.className = 'pl-edit';
   let done = false;
-  const fin = ok => { if (done) return; done = true; const v = inp.value.trim(); inp.replaceWith(span); if (ok && v && v !== valor) onCommit(v); };
+  const fin = ok => { if (done) return; done = true; const v = inp.value.trim(); inp.replaceWith(span); if (ok && v && v !== value) onCommit(v); };
   inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') fin(true); else if (e.key === 'Escape') fin(false); });
   inp.addEventListener('blur', () => fin(true));
   inp.addEventListener('click', e => e.stopPropagation());
@@ -53,12 +53,12 @@ function row(it, cur) {
   const label = mk('span', 'pl-label', it.name); r.appendChild(label);
   if (it.type === 'scene') r.appendChild(mk('span', 'pl-tag', 'scene'));
   const tools = mk('span', 'pl-tools');
-  tools.appendChild(btn('', '✎', 'Rename', () => editInline(label, it.name, v => library.renombrar(it.id, v))));
+  tools.appendChild(btn('', '✎', 'Rename', () => editInline(label, it.name, v => library.rename(it.id, v))));
   tools.appendChild(btn('del', '🗑', 'Delete' + (it.origin === 'factory' ? ' (⟲ Restore factory brings it back)' : ''), () => {
-    if (confirm('Delete «' + it.name + '»?')) { library.borrar(it.id); msg('Deleted «' + it.name + '».'); }
+    if (confirm('Delete «' + it.name + '»?')) { library.remove(it.id); msg('Deleted «' + it.name + '».'); }
   }));
   r.appendChild(tools);
-  r.addEventListener('click', () => cargar(it));
+  r.addEventListener('click', () => loadItem(it));
   r.addEventListener('dragstart', e => { dragId = it.id; e.dataTransfer.setData('text/plain', it.id); e.dataTransfer.effectAllowed = 'move'; r.classList.add('drag'); });
   r.addEventListener('dragend', () => { r.classList.remove('drag'); dragId = null; list.querySelectorAll('.over').forEach(x => x.classList.remove('over')); });
   return r;
@@ -70,7 +70,7 @@ async function togglePlay(it) {
   playingId = it.id;            // after loading: scene-loaded has just cleared it
   setPlaying(true); msg('Playing: ' + it.name + '.');
 }
-async function cargar(it) {
+async function loadItem(it) {
   if (it.type === 'scene') {
     try { await loadScene(it.data); msg('Scene loaded: ' + it.name + ' (▶ Play in Harmony).'); }
     catch (err) { msg('Invalid scene: ' + (err.message || err)); }
@@ -82,27 +82,27 @@ async function cargar(it) {
 function render() {
   if (!list) return;
   list.innerHTML = '';
-  const q = normaliza(filtro), cur = currentPresetId();
-  for (const s of library.secciones()) {
-    const todos = library.items(s.id);
-    let items = todos;
-    if (q) items = items.filter(it => normaliza(it.name).includes(q));
-    if (soloFav) items = items.filter(it => it.fav);
-    if ((q || soloFav) && !items.length) continue;   // filtering: only sections with results
+  const q = normalize(query), cur = currentPresetId();
+  for (const s of library.sections()) {
+    const allItems = library.items(s.id);
+    let items = allItems;
+    if (q) items = items.filter(it => normalize(it.name).includes(q));
+    if (favOnly) items = items.filter(it => it.fav);
+    if ((q || favOnly) && !items.length) continue;   // filtering: only sections with results
     const sec = mk('div', 'pl-sec' + (items.length > 30 ? ' big' : '')); sec.dataset.sec = s.id;   // big: split across columns
     const head = mk('div', 'pl-head');
     const name = mk('span', 'pl-name', s.name); head.appendChild(name);
-    head.appendChild(mk('span', 'pl-n', String(todos.length)));
+    head.appendChild(mk('span', 'pl-n', String(allItems.length)));
     const tools = mk('span', 'pl-tools');
-    tools.appendChild(btn('', '‹', 'Move the section towards the start', () => library.moverSeccion(s.id, -1)));
-    tools.appendChild(btn('', '›', 'Move the section towards the end', () => library.moverSeccion(s.id, 1)));
-    tools.appendChild(btn('', '✎', 'Rename the section', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v))));
+    tools.appendChild(btn('', '‹', 'Move the section towards the start', () => library.moveSection(s.id, -1)));
+    tools.appendChild(btn('', '›', 'Move the section towards the end', () => library.moveSection(s.id, 1)));
+    tools.appendChild(btn('', '✎', 'Rename the section', () => editInline(name, s.name, v => library.renameSection(s.id, v))));
     tools.appendChild(btn('del', '🗑', 'Delete the section and everything in it', () => {
-      const n = todos.length;
-      if (confirm('Delete the section «' + s.name + '»' + (n ? ' and its ' + n + ' items' : '') + '?')) { library.borrarSeccion(s.id); msg('Section «' + s.name + '» deleted.'); }
+      const n = allItems.length;
+      if (confirm('Delete the section «' + s.name + '»' + (n ? ' and its ' + n + ' items' : '') + '?')) { library.deleteSection(s.id); msg('Section «' + s.name + '» deleted.'); }
     }));
     head.appendChild(tools);
-    name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v)));
+    name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renameSection(s.id, v)));
     sec.appendChild(head);
     for (const it of items) sec.appendChild(row(it, cur));
     // drop here: before the item it is dropped on, or at the end of the section
@@ -112,29 +112,29 @@ function render() {
       e.preventDefault(); sec.classList.remove('over');
       const id = dragId || e.dataTransfer.getData('text/plain'); if (!id) return;
       const over = e.target.closest ? e.target.closest('.pl-item') : null;
-      library.mover(id, s.id, over && over.dataset.id !== id ? over.dataset.id : null);
+      library.move(id, s.id, over && over.dataset.id !== id ? over.dataset.id : null);
       dragId = null;
     });
     list.appendChild(sec);
   }
-  if (!list.children.length) list.appendChild(mk('div', 'note', q || soloFav ? 'Nothing matches.' : 'Empty library: ⟲ Restore factory.'));
+  if (!list.children.length) list.appendChild(mk('div', 'note', q || favOnly ? 'Nothing matches.' : 'Empty library: ⟲ Restore factory.'));
 }
 function mark() { if (!list) return; const cur = currentPresetId(); list.querySelectorAll('.pl-item').forEach(r => r.classList.toggle('cur', r.dataset.id === cur)); }
 
 export function initLibraryScreen() {
   list = $('presetList'); msgEl = $('libMsg');
   if (!list) return;
-  $('libSearch').addEventListener('input', e => { filtro = e.target.value; render(); });
-  $('libFavOnly').addEventListener('change', e => { soloFav = e.target.checked; render(); });
+  $('libSearch').addEventListener('input', e => { query = e.target.value; render(); });
+  $('libFavOnly').addEventListener('change', e => { favOnly = e.target.checked; render(); });
   $('libNewSec').addEventListener('click', () => {
-    const id = library.crearSeccion('New section');   // library-changed already repainted: now to name it
+    const id = library.createSection('New section');   // library-changed already repainted: now to name it
     const name = list.querySelector('.pl-sec[data-sec="' + id + '"] .pl-name');
-    if (name) editInline(name, 'New section', v => library.renombrarSeccion(id, v));
+    if (name) editInline(name, 'New section', v => library.renameSection(id, v));
   });
   $('libSeed').addEventListener('click', async () => {
-    const r = await library.traerDeFabrica();
+    const r = await library.restoreFactory();
     msg((r.n ? 'Brought back ' + r.n + ' items from the factory and the repo.' : 'Nothing was missing from the factory.')
-        + (r.errores.length ? ' Could not read: ' + r.errores.join(', ') + '.' : ''));
+        + (r.errors.length ? ' Could not read: ' + r.errors.join(', ') + '.' : ''));
   });
   document.addEventListener('library-changed', render);
   document.addEventListener('preset-loaded', mark);   // quick picker, ‹ ›, program change

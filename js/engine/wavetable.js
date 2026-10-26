@@ -25,24 +25,24 @@ const LENS = CAPS.map(c => Math.max(256, 8 * c));
 
 // ---------- factory spectra (generators; n = harmonic 1..H) ----------
 const specOf = fn => { const a = new Float32Array(WT_H); for (let n = 1; n <= WT_H; n++) a[n - 1] = fn(n); return a; };
-const seno     = () => specOf(n => n === 1 ? 1 : 0);
-const triangulo= () => specOf(n => n % 2 ? (((n - 1) / 2) % 2 ? -1 : 1) / (n * n) : 0);
-const sierra   = (h = WT_H) => specOf(n => n <= h ? 1 / n : 0);
-const cuadrada = () => specOf(n => n % 2 ? 1 / n : 0);
-const pulso    = d => specOf(n => (2 / (n * Math.PI)) * Math.sin(Math.PI * n * d));
-const organo   = pesos => specOf(n => pesos[n] || 0);                       // drawbars: weight per harmonic
-const formante = (c, s = 0.35) => specOf(n =>                               // log-normal bell + fundamental
+const sine     = () => specOf(n => n === 1 ? 1 : 0);
+const triangle= () => specOf(n => n % 2 ? (((n - 1) / 2) % 2 ? -1 : 1) / (n * n) : 0);
+const saw   = (h = WT_H) => specOf(n => n <= h ? 1 / n : 0);
+const square = () => specOf(n => n % 2 ? 1 / n : 0);
+const pulse    = d => specOf(n => (2 / (n * Math.PI)) * Math.sin(Math.PI * n * d));
+const organ   = pesos => specOf(n => pesos[n] || 0);                       // drawbars: weight per harmonic
+const formant = (c, s = 0.35) => specOf(n =>                               // log-normal bell + fundamental
   (n === 1 ? 0.3 : 0) + Math.exp(-Math.pow(Math.log(n) - Math.log(c), 2) / (2 * s * s)) / n ** 0.3);
 const METAL_PARTS = [1, 4, 7, 11, 15, 22, 29, 38];  // sparse partials: a "bell" flavor
-const metalica = tilt => specOf(n => METAL_PARTS.includes(n) ? Math.pow(n, tilt) : 0);
+const metallic = tilt => specOf(n => METAL_PARTS.includes(n) ? Math.pow(n, tilt) : 0);
 
 // F frames by piecewise linear mixing between keyframes (mixing spectra
 // is equivalent to mixing waves: the same linear operation).
-function framesDesdeClaves(claves, F = WT_FRAMES) {
+function framesFromKeys(keyFrames, F = WT_FRAMES) {
   const out = [];
   for (let f = 0; f < F; f++) {
-    const t = f / (F - 1) * (claves.length - 1), i = Math.min(claves.length - 2, Math.floor(t)), w = t - i;
-    const a = claves[i], b = claves[i + 1], s = new Float32Array(WT_H);
+    const t = f / (F - 1) * (keyFrames.length - 1), i = Math.min(keyFrames.length - 2, Math.floor(t)), w = t - i;
+    const a = keyFrames[i], b = keyFrames[i + 1], s = new Float32Array(WT_H);
     for (let n = 0; n < WT_H; n++) s[n] = a[n] * (1 - w) + b[n] * w;
     out.push(s);
   }
@@ -50,15 +50,15 @@ function framesDesdeClaves(claves, F = WT_FRAMES) {
 }
 
 export const WT_SETS = {
-  'analog': () => framesDesdeClaves([seno(), triangulo(), sierra(64), sierra(), cuadrada(), pulso(0.25), pulso(0.12)]),
-  'organ':    () => framesDesdeClaves([
-    organo({ 1: 1 }),
-    organo({ 1: 1, 2: 0.6 }),
-    organo({ 1: 1, 2: 0.5, 3: 0.35, 4: 0.25 }),
-    organo({ 1: 1, 2: 0.7, 3: 0.9, 4: 0.5, 6: 0.4, 8: 0.35, 10: 0.2, 12: 0.15, 16: 0.1 }),
+  'analog': () => framesFromKeys([sine(), triangle(), saw(64), saw(), square(), pulse(0.25), pulse(0.12)]),
+  'organ':    () => framesFromKeys([
+    organ({ 1: 1 }),
+    organ({ 1: 1, 2: 0.6 }),
+    organ({ 1: 1, 2: 0.5, 3: 0.35, 4: 0.25 }),
+    organ({ 1: 1, 2: 0.7, 3: 0.9, 4: 0.5, 6: 0.4, 8: 0.35, 10: 0.2, 12: 0.15, 16: 0.1 }),
   ]),
-  'formant':  () => framesDesdeClaves([formante(2), formante(4), formante(8), formante(16), formante(26)]),
-  'metallic':  () => framesDesdeClaves([metalica(-0.9), metalica(-0.3), metalica(0.15)]),
+  'formant':  () => framesFromKeys([formant(2), formant(4), formant(8), formant(16), formant(26)]),
+  'metallic':  () => framesFromKeys([metallic(-0.9), metallic(-0.3), metallic(0.15)]),
 };
 export const WT_DEFAULT = 'analog';
 
@@ -68,11 +68,11 @@ export const WT_DEFAULT = 'analog';
    differentiation), with the "burst" at the instant of closure. The morph sweeps
    vocal EFFORT: relaxed (large open quotient, slow closure =
    dark, almost a sine) → pressed (abrupt closure = bright, more harmonics).
-   Pipeline reused from the editor: pulse in time → espectroDe (DFT with
+   Pipeline reused from the editor: pulse in time → spectrumOf (DFT with
    phase) → band-limited mips. oq = open fraction of the period; cq =
    fraction of the open stretch that is closing (small = glottal slam). */
 const GL_P = 1024;                       // points per pulse (DFT up to 511 harmonics)
-function pulsoGlotal(oq, cq) {
+function glottalPulse(oq, cq) {
   const tp = oq * (1 - cq), tn = oq * cq;
   const flujo = new Array(GL_P);
   for (let i = 0; i < GL_P; i++) {
@@ -89,7 +89,7 @@ WT_SETS['glottal'] = () => {
   const fr = [];
   for (let f = 0; f < WT_FRAMES; f++) {
     const x = f / (WT_FRAMES - 1);       // effort 0..1: oq 0.80→0.45 · cq 0.40→0.18
-    fr.push(alineaFase(espectroDe(pulsoGlotal(0.8 - 0.35 * x, 0.4 - 0.22 * x))));
+    fr.push(alignPhase(spectrumOf(glottalPulse(0.8 - 0.35 * x, 0.4 - 0.22 * x))));
   }
   return fr;
 };
@@ -100,7 +100,7 @@ WT_SETS['glottal'] = () => {
 const WT_RMS = 0.5;      // target loudness per frame (the classic saw is around 0.52)
 const WT_PEAK = 0.95;    // anti-clipping cap: only rules if the wave is very spiky
 
-function mipsDeEspectro(spec) {
+function mipsFromSpectrum(spec) {
   const sinA = spec.sin || spec, cosA = spec.cos || null;
   // a single gain per frame for ALL levels: the high mips
   // keep the timbre's volume, they only lose the impossible partials
@@ -119,9 +119,9 @@ function mipsDeEspectro(spec) {
   // factor) — that was the "user tables sound too quiet". The peak only
   // acts as an anti-clipping cap; if it rules, the wave cannot sound
   // louder without clipping (physics, not shyness).
-  let peak = 0, energia = 0;
-  for (const v of levels[0]) { const x = Math.abs(v); if (x > peak) peak = x; energia += v * v; }
-  const rms = Math.sqrt(energia / levels[0].length);
+  let peak = 0, energy = 0;
+  for (const v of levels[0]) { const x = Math.abs(v); if (x > peak) peak = x; energy += v * v; }
+  const rms = Math.sqrt(energy / levels[0].length);
   const g = (rms > 1e-9 && peak > 1e-9) ? Math.min(WT_RMS / rms, WT_PEAK / peak) : 1;
   for (const d of levels) for (let i = 0; i < d.length; i++) d[i] *= g;
   return levels;
@@ -134,7 +134,7 @@ function mipsDeEspectro(spec) {
 export const WE_P = 256;                 // points per drawn frame (128 harmonics max: plenty by hand)
 export const WT_LS = 'subsdj.wavetable.usuario.v1';
 
-export function espectroDe(points) {     // short DFT: points -> {sin, cos} (no DC: an osc carries no offset)
+export function spectrumOf(points) {     // short DFT: points -> {sin, cos} (no DC: an osc carries no offset)
   const P = points.length, H = Math.min(WT_H, (P >> 1) - 1);
   const sin = new Float32Array(WT_H), cos = new Float32Array(WT_H);
   let mean = 0; for (const v of points) mean += v; mean /= P;
@@ -148,7 +148,7 @@ export function espectroDe(points) {     // short DFT: points -> {sin, cos} (no 
   }
   return { sin, cos };
 }
-export function puntosDeEspectro(spec, P = WE_P) {   // resynthesis (for Smooth and for drawing)
+export function pointsFromSpectrum(spec, P = WE_P) {   // resynthesis (for Smooth and for drawing)
   const out = new Array(P).fill(0), sinA = spec.sin || spec, cosA = spec.cos || null;
   for (let n = 1; n <= Math.min(WT_H, P >> 1); n++) {
     const a = sinA[n - 1], b = cosA ? cosA[n - 1] : 0;
@@ -164,7 +164,7 @@ export function puntosDeEspectro(spec, P = WE_P) {   // resynthesis (for Smooth 
 // inaudible on its own — absolute phase is not heard — but it keeps two
 // frames drawn "in antiphase" from CANCELING when morphing: 50% of a
 // wave and its inverse is silence). φn' = φn − n·φ1.
-function alineaFase(spec) {
+function alignPhase(spec) {
   const { sin, cos } = spec;
   if (Math.hypot(sin[0], cos[0]) < 1e-6) return spec;   // no fundamental: nothing to align
   const f1 = Math.atan2(cos[0], sin[0]);
@@ -207,7 +207,7 @@ export function saveUserFrames(frames) {
   try { localStorage.setItem(WT_LS, JSON.stringify(frames.map(f => [...f].map(v => +(+v).toFixed(3))))); } catch (e) {}
   cache.delete('user');               // the next note rebuilds the mips
 }
-WT_SETS['user'] = () => (loadUserFrames() || defaultUserFrames()).map(p => alineaFase(espectroDe(p)));
+WT_SETS['user'] = () => (loadUserFrames() || defaultUserFrames()).map(p => alignPhase(spectrumOf(p)));
 export function invalidateUserSet() { cache.delete('user'); }   // after touching localStorage by hand (selftest)
 
 // built and cached set: { lens, frames: [ [Float32Array x levels] x F ] }
@@ -215,23 +215,23 @@ const cache = new Map();
 export function getWtSet(name) {
   const key = WT_SETS[name] ? name : WT_DEFAULT;
   if (!cache.has(key)) {
-    const frames = WT_SETS[key]().map(mipsDeEspectro);
+    const frames = WT_SETS[key]().map(mipsFromSpectrum);
     // energy per frame and correlation between neighbors (level 0): with them the
     // worklet flattens the morph's loudness — rms²(f) of the linear mix is a
     // closed formula and the gain makes up for the dip of poorly correlated frames
     const F = frames.length;
-    const energia = new Float32Array(F), corr = new Float32Array(Math.max(1, F - 1));
+    const energy = new Float32Array(F), corr = new Float32Array(Math.max(1, F - 1));
     for (let i = 0; i < F; i++) {
       const d = frames[i][0]; let e = 0;
       for (let k = 0; k < d.length; k++) e += d[k] * d[k];
-      energia[i] = e / d.length;
+      energy[i] = e / d.length;
     }
     for (let i = 0; i + 1 < F; i++) {
       const A = frames[i][0], B = frames[i + 1][0];
       let s = 0; for (let k = 0; k < A.length; k++) s += A[k] * B[k];
       corr[i] = s / A.length;
     }
-    cache.set(key, { h0: WT_H, lens: LENS.slice(), frames, energia, corr });
+    cache.set(key, { h0: WT_H, lens: LENS.slice(), frames, energy, corr });
   }
   return cache.get(key);
 }

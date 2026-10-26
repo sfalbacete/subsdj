@@ -44,7 +44,7 @@ export const meterLedOn = () => led.classList.contains('on');
 const post = m => { try { comp && comp.port.postMessage(m); } catch (_) {} };
 // The Room (and its limiter) can change (Parts on/off): it is checked every half second.
 function attach() {
-  const c = part()?.sala?.comp || null;
+  const c = part()?.room?.comp || null;
   if (c === comp) return;
   if (comp) { post('meter-off'); comp.port.onmessage = null; }
   comp = c;

@@ -17,10 +17,10 @@ import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
 import { currentPreset, markPreset, markPresetByName } from './presetBank.js';
 
-const SALA_PANELS = ['Delay', 'Reverb', 'Tape'];
+const ROOM_PANELS = ['Delay', 'Reverb', 'Tape'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
 const $ = id => document.getElementById(id);
-let strips = [], silent = false, salaPanels = [];
+let strips = [], silent = false, roomPanels = [];
 
 // Resolved ONCE at startup (before hanging tags on the h2: afterwards its
 // text would no longer match the title).
@@ -66,16 +66,16 @@ function buildStrips() {
     });
   });
   // Room column: scene master, echo feedback, echo → reverb
-  const sala = document.createElement('div');
-  sala.className = 'strip sala';
-  sala.innerHTML = `<div class="pname static">Room</div>` +
+  const room = document.createElement('div');
+  room.className = 'strip room';
+  room.innerHTML = `<div class="pname static">Room</div>` +
     `<div class="row tight">${knobHtml('Master')}${knobHtml('Fdbk')}${knobHtml('Echo→Rev')}</div>` +
     `<label class="chk"><input type="checkbox" id="layerChk"> Layer: keys play all parts</label>`;
-  host.appendChild(sala);
-  const [kM, kFb, kToRev] = sala.querySelectorAll('.knob');
-  attachKnob(kM, { ...PARAMS.master, def: sc.salaCfg.master }, v => { sc.salaCfg.master = v; sc.sala.setMaster(v); });
-  attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.salaCfg.fb, act: true }, v => { sc.salaCfg.fb = v; sc.sala.setFeedback(v); });   // above 1, the echo runs away (Sala)
-  attachKnob(kToRev, { min: 0, max: 1, def: sc.salaCfg.dlyToRev, act: true }, v => { sc.salaCfg.dlyToRev = v; sc.sala.setDlyToRev(v); });
+  host.appendChild(room);
+  const [kM, kFb, kToRev] = room.querySelectorAll('.knob');
+  attachKnob(kM, { ...PARAMS.master, def: sc.roomCfg.master }, v => { sc.roomCfg.master = v; sc.room.setMaster(v); });
+  attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.roomCfg.fb, act: true }, v => { sc.roomCfg.fb = v; sc.room.setFeedback(v); });   // above 1, the echo runs away (Room)
+  attachKnob(kToRev, { min: 0, max: 1, def: sc.roomCfg.dlyToRev, act: true }, v => { sc.roomCfg.dlyToRev = v; sc.room.setDlyToRev(v); });
   $('layerChk').addEventListener('change', e => setLayer(e.target.checked));
   silent = false;
   refreshNames();
@@ -122,10 +122,10 @@ function setUI(on) {
   if (!on) { $('mixStrips').innerHTML = ''; strips = []; }
   document.body.classList.toggle('parts', on);
   document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));
-  for (const panel of salaPanels) {
+  for (const panel of roomPanels) {
     const h2 = panel.querySelector('h2');
-    let tag = h2.querySelector('.tag-sala');
-    if (on && !tag) { tag = document.createElement('span'); tag.className = 'tag-sala'; tag.textContent = 'room'; tag.title = 'Shared by all parts (except the send)'; h2.appendChild(tag); }
+    let tag = h2.querySelector('.tag-room');
+    if (on && !tag) { tag = document.createElement('span'); tag.className = 'tag-room'; tag.textContent = 'room'; tag.title = 'Shared by all parts (except the send)'; h2.appendChild(tag); }
     if (!on && tag) tag.remove();
   }
 }
@@ -147,7 +147,7 @@ async function toggle(btn) {
 
 export function initPartsControls() {
   const btn = $('partsBtn'); if (!btn) return;
-  salaPanels = SALA_PANELS.map(panelByTitle).filter(Boolean);
+  roomPanels = ROOM_PANELS.map(panelByTitle).filter(Boolean);
   btn.addEventListener('click', () => toggle(btn));
   // Panic: the conductor stops and cancels what is pending, and all parts release everything
   const pb = $('panicBtn');

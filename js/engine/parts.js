@@ -7,20 +7,20 @@
    `part()` is the engine the rack EDITS and the keyboard plays: the UI only
    talks to it (registry, keyboard, midi, seq…). With the scene off,
    part() is the usual engine (`engine`) and NOTHING changes.
-   Scene = { ctx, sala, parts:[{i, engine, name, presetVal, presetName,
+   Scene = { ctx, room, parts:[{i, engine, name, presetVal, presetName,
    pan, mute}], S (Room state), sel, conductor }. Layer: the keyboard
    plays all of them. The conductor (engine/Conductor.js) handles harmony and players.
    No persistence yet (Roadmap 4.0 · C3 «scenes»).
    ===================================================================== */
 import { AudioEngine, engine as single, loadWorklets } from './AudioEngine.js';
-import { Sala, SALA_KEYS } from './Room.js';
+import { Room, ROOM_KEYS } from './Room.js';
 import { makeDefaultState, applyPreset, toControls, withPresetBase } from './state.js';
 import { Conductor } from './Conductor.js';
 import { PARAMS } from './params.js';
 import { factoryPreset } from './presets.js';
 import { SCENE_FORMAT, migrateScene } from './legacy.js';
 
-export const ESCENA_FORMATO = SCENE_FORMAT;   // 'subsdj-scene-v2' (the v1 ones, in Spanish, are translated by legacy.migrateScene)
+export { SCENE_FORMAT };   // 'subsdj-scene-v2' (the v1 ones, in Spanish, are translated by legacy.migrateScene)
 
 export const N_PARTS = 4;
 let scene = null, current = single, layer = false;
@@ -64,22 +64,22 @@ export function forgetSounding() { router.clear(); }   // after a general allNot
 
 // Builds a scene on `ctx` (pure: used by enableScene and the selftest).
 // states[i] = preset (PARAMS keys) that part i is born with.
-// salaS = initial Room values (SALA_KEYS); by default those of PARAMS.
+// roomS = initial Room values (ROOM_KEYS); by default those of PARAMS.
 // The Room OVERRIDES whatever each preset brings (a single BPM, a single Room).
-export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, dlyToRev = 0.5, master = 0.7, dest = null } = {}) {
+export async function createScene(ctx, states = [], { roomS = null, fb = 0.45, dlyToRev = 0.5, master = 0.7, dest = null } = {}) {
   const S = makeDefaultState();
-  if (salaS) for (const k of SALA_KEYS) if (k in salaS) S[k] = salaS[k];
+  if (roomS) for (const k of ROOM_KEYS) if (k in roomS) S[k] = roomS[k];
   await loadWorklets(ctx);                                   // the Room may need the plate worklet
-  const sala = new Sala(ctx, S, { fb, dlyToRev, master, dest: dest || ctx.destination });
+  const room = new Room(ctx, S, { fb, dlyToRev, master, dest: dest || ctx.destination });
   const parts = [];
   for (let i = 0; i < N_PARTS; i++) {
     const e = new AudioEngine();
     e.S = applyPreset(makeDefaultState(), states[i] || {});
-    for (const k of SALA_KEYS) e.S[k] = S[k];
-    await e.init(ctx, { sala });
+    for (const k of ROOM_KEYS) e.S[k] = S[k];
+    await e.init(ctx, { room });
     parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
   }
-  const scene = { ctx, sala, parts, S, sel: 0, salaCfg: { fb, dlyToRev, master } };
+  const scene = { ctx, room, parts, S, sel: 0, roomCfg: { fb, dlyToRev, master } };
   scene.conductor = new Conductor(scene, { seed: 1 });   // harmony + players + arrangement (C2/C3)
   for (const p of parts) p.engine.harmony = () => scene.conductor.harmony;   // the Seq by «harmony» degrees (5.2)
   return scene;
@@ -90,7 +90,7 @@ export async function createScene(ctx, states = [], { salaS = null, fb = 0.45, d
 // Room's keys are skipped (they belong to the scene).
 export function applyStateToEngine(e, state) {
   for (const k in state) {
-    const p = PARAMS[k]; if (!p || SALA_KEYS.has(k)) continue;
+    const p = PARAMS[k]; if (!p || ROOM_KEYS.has(k)) continue;
     const t = p.t || k;
     if (t.includes('.')) { const [o, kk] = t.split('.'); e.setOsc(o, kk, state[k]); }
     else e.set(k, state[k]);
@@ -99,10 +99,10 @@ export function applyStateToEngine(e, state) {
 
 // ---------- the SCENE as JSON: Room + conductor (seed, harmony, arrangement, players) + parts ----------
 export function sceneToJSON(sc) {
-  const sala = {}; for (const k of SALA_KEYS) sala[k] = sc.S[k];
+  const room = {}; for (const k of ROOM_KEYS) room[k] = sc.S[k];
   return {
-    format: ESCENA_FORMATO, date: new Date().toISOString(),
-    room: { ...sala, ...sc.salaCfg },
+    format: SCENE_FORMAT, date: new Date().toISOString(),
+    room: { ...room, ...sc.roomCfg },
     conductor: sc.conductor.toJSON(),
     parts: sc.parts.map(p => ({ name: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
   };
@@ -111,12 +111,12 @@ export function sceneToJSON(sc) {
 // factory `preset` + `settings` (hand-written scenes, like the demo).
 export function applySceneJSON(sc, j) {
   j = migrateScene(j);   // those up to 1.3.0, in Spanish
-  if (!j || j.format !== ESCENA_FORMATO) throw new Error('not a SubSDJ scene (' + ESCENA_FORMATO + ')');
+  if (!j || j.format !== SCENE_FORMAT) throw new Error('not a SubSDJ scene (' + SCENE_FORMAT + ')');
   const s = j.room || {};
-  for (const k of SALA_KEYS) if (k in s) sc.sala.set(k, s[k]);
-  if (typeof s.fb === 'number') { sc.salaCfg.fb = s.fb; sc.sala.setFeedback(s.fb); }
-  if (typeof s.dlyToRev === 'number') { sc.salaCfg.dlyToRev = s.dlyToRev; sc.sala.setDlyToRev(s.dlyToRev); }
-  if (typeof s.master === 'number') { sc.salaCfg.master = s.master; sc.sala.setMaster(s.master); }
+  for (const k of ROOM_KEYS) if (k in s) sc.room.set(k, s[k]);
+  if (typeof s.fb === 'number') { sc.roomCfg.fb = s.fb; sc.room.setFeedback(s.fb); }
+  if (typeof s.dlyToRev === 'number') { sc.roomCfg.dlyToRev = s.dlyToRev; sc.room.setDlyToRev(s.dlyToRev); }
+  if (typeof s.master === 'number') { sc.roomCfg.master = s.master; sc.room.setMaster(s.master); }
   (j.parts || []).forEach((pj, i) => {
     const p = sc.parts[i]; if (!p) return;
     let st = pj.state;
@@ -138,9 +138,9 @@ export async function enableScene() {
   if (!single.ready) throw new Error('the audio is not ready yet');
   const S = single.S;
   scene = await createScene(single.ctx, [toControls(S)],
-    { salaS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
+    { roomS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
   single.allNotesOff(); router.clear();
-  single.sala.setMaster(0);
+  single.room.setMaster(0);
   current = scene.parts[0].engine;
   return scene;
 }
@@ -148,9 +148,9 @@ export function disableScene() {
   if (!scene) return;
   scene.conductor.stop();
   for (const p of scene.parts) p.engine.dispose();
-  scene.sala.dispose();
+  scene.room.dispose();
   scene = null; layer = false; current = single; router.clear();
-  single.sala.setMaster(single.S.master);
+  single.room.setMaster(single.S.master);
 }
 export function selectPart(i) { if (!scene || !scene.parts[i]) return; scene.sel = i; current = scene.parts[i].engine; }
 export function setPartMute(i, on) { const p = scene && scene.parts[i]; if (!p) return; p.mute = !!on; p.engine.setMute(p.mute); }

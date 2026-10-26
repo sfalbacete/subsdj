@@ -19,7 +19,7 @@
    to the graph: that is audio logic, not metadata, and it reads well there.
    ===================================================================== */
 
-import { VOC_ORDEN } from './vocal.js';
+import { VOC_ORDER } from './vocal.js';
 
 const msFmt = v => (v * 1000).toFixed(0) + ' ms';
 // Times ×10 (Roadmap 5.0 · block 1): ms below 1 s, seconds above
@@ -31,8 +31,8 @@ const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' :
 const twoDec = v => v.toFixed(2);
 // Vowel knob: shows the vowel (u, o, a…) or the span between two (u·o)
 const vowelFmt = v => {
-  const p = v * (VOC_ORDEN.length - 1), i = Math.min(VOC_ORDEN.length - 2, Math.floor(p)), w = p - i;
-  return w < 0.06 ? VOC_ORDEN[i] : w > 0.94 ? VOC_ORDEN[i + 1] : VOC_ORDEN[i] + '·' + VOC_ORDEN[i + 1];
+  const p = v * (VOC_ORDER.length - 1), i = Math.min(VOC_ORDER.length - 2, Math.floor(p)), w = p - i;
+  return w < 0.06 ? VOC_ORDER[i] : w > 0.94 ? VOC_ORDER[i + 1] : VOC_ORDER[i] + '·' + VOC_ORDER[i + 1];
 };
 
 export const PARAMS = {
@@ -165,7 +165,7 @@ export const PARAMS = {
   // saturation: Room). A preset without dlyFb predates it and gets it computed (state.migrateFb).
   dlyFb:   { def: 0.4, min: 0, max: 1.1, fmt: v => Math.round(v * 100) + ' %' },
   dlySat:  { def: 0, min: 0, max: 1, act: true },      // tape saturation INSIDE the echo loop (a Room key)
-  dlyTime: { def: 0.3, min: 0.02, max: 4, log: true, fmt: secFmt },   // up to 4 s (echoes on the horizon); Sala.DLY_MAX goes along
+  dlyTime: { def: 0.3, min: 0.02, max: 4, log: true, fmt: secFmt },   // up to 4 s (echoes on the horizon); Room.DLY_MAX goes along
   dlySync: { def: 'free' },                        // 'free' | 1/8 | 1/8. | 1/4 | 1/4. | 1/2 (uses bpm)
   dlyDamp: { def: 0, min: 0, max: 1, act: true },   // filter IN THE LOOP: each repeat loses highs (and some lows), like tape/BBD
   dlyWow:  { def: 0, min: 0, max: 1, act: true },   // slow modulation of the time: each repeat detunes a hair (tape wow)
@@ -185,7 +185,7 @@ export const PARAMS = {
   reverbType: { def: 'hall' },                      // 'hall' = convolution (noise IR) | 'plate' = algorithmic (Dattorro)
   // Shimmer (Roadmap 5.0 · block 3; ROOM keys): the tail re-enters
   // the reverb pitch-shifted → a choir that rises on every pass
-  shimAmt:    { def: 0, min: 0, max: 1, act: true },   // how much comes back (energy per pass = shimAmt·Sala.SHIM_LOOP_MAX)
+  shimAmt:    { def: 0, min: 0, max: 1, act: true },   // how much comes back (energy per pass = shimAmt·Room.SHIM_LOOP_MAX)
   shimInt:    { def: '+12' },                          // interval: '+12' octave (the classic) | '+7' fifth | '+5' fourth | '-12' octave down
   // Tape on the master (Roadmap 5.0 · block 7; ROOM keys): soft saturation
   // and wow/flutter over the whole mix — exact at 0 (the hiss was removed after listening: it added nothing)

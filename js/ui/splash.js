@@ -23,9 +23,9 @@ import { uiZoom } from './frame.js';
 
 const BW = 168, BH = 66;        // low-resolution buffer (shown at 336 × 132: double pixels)
 const TAU = Math.PI * 2;
-const SIN_N = 2048, SIN = new Float32Array(SIN_N);
-for (let i = 0; i < SIN_N; i++) SIN[i] = Math.sin(i / SIN_N * TAU);
-const sn = x => SIN[((x * (SIN_N / TAU)) | 0) & (SIN_N - 1)];   // table sine (x in radians, any sign)
+const SINE_N = 2048, SIN = new Float32Array(SINE_N);
+for (let i = 0; i < SINE_N; i++) SIN[i] = Math.sin(i / SINE_N * TAU);
+const sn = x => SIN[((x * (SINE_N / TAU)) | 0) & (SINE_N - 1)];   // table sine (x in radians, any sign)
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];   // 4×4 thresholds (0..15)
 
 // --- Palettes (256 entries) built from color stops. The stops live in

@@ -4,7 +4,7 @@
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget, bindSelect } from './registry.js';
-import { ESCALAS } from '../engine/Harmony.js';
+import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken } from '../engine/Seq.js';
 import { token, tint } from './theme.js';
@@ -67,7 +67,7 @@ export function bindSeqControls() {
 
   const notes = document.getElementById('seqNotesSel');   // notes by degree (5.2)
   if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'degrees · harmony' },
-    ...Object.keys(ESCALAS).map(k => ({ id: k, label: 'degrees · ' + k }))]);
+    ...Object.keys(SCALES).map(k => ({ id: k, label: 'degrees · ' + k }))]);
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
   initSeqPatterns();

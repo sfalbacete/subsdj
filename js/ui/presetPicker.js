@@ -12,7 +12,7 @@
    «Browse all» goes to the Presets screen with the same search. Presets
    only: scenes live on the Presets screen. Here we only paint:
    loading goes through presetBank (the same path as ‹ › and the Presets screen). */
-import { library, normaliza } from '../engine/library.js';
+import { library, normalize } from '../engine/library.js';
 import { loadPresetId, currentPreset, currentPresetId } from './presetBank.js';
 import { showScreen } from './screens.js';
 
@@ -27,14 +27,14 @@ function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.
 function label() {
   const it = currentPreset();
   nameEl.textContent = it ? it.name : '—';
-  btn.title = (it ? it.name + ' · ' + (library.seccion(it.section)?.name || '') + '\n' : '') +
+  btn.title = (it ? it.name + ' · ' + (library.section(it.section)?.name || '') + '\n' : '') +
     'Choose a preset: search, filter by category, ↑ ↓ to audition (‹ › step through the whole library)';
 }
 
 // What matches the search, per category (for the counters) and in the chosen one
 function matches() {
-  const nq = normaliza(q);
-  return library.presets().filter(it => !nq || normaliza(it.name).includes(nq));
+  const nq = normalize(q);
+  return library.presets().filter(it => !nq || normalize(it.name).includes(nq));
 }
 const inCat = (it, c) => c === ALL || (c === FAV ? it.fav : it.section === c);
 
@@ -42,13 +42,13 @@ function render() {
   const hits = matches(), cur = currentPresetId();
   // categories: All, ★ (if there are favorites) and every section that has presets
   cats.innerHTML = '';
-  const secs = library.secciones().filter(s => library.items(s.id).some(it => it.type === 'preset'));
+  const secs = library.sections().filter(s => library.items(s.id).some(it => it.type === 'preset'));
   const entries = [[ALL, 'All'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favorites']] : []), ...secs.map(s => [s.id, s.name])];
   if (!entries.some(([id]) => id === cat)) cat = ALL;   // the chosen section disappeared
-  for (const [id, nombre] of entries) {
+  for (const [id, label] of entries) {
     const n = hits.filter(it => inCat(it, id)).length;
     const c = mk('div', 'pp-cat' + (id === cat ? ' on' : '') + (n ? '' : ' empty'));
-    c.appendChild(mk('span', 'pp-cname', nombre)); c.appendChild(mk('span', 'pp-cn', String(n)));
+    c.appendChild(mk('span', 'pp-cname', label)); c.appendChild(mk('span', 'pp-cn', String(n)));
     c.addEventListener('click', () => { cat = id; hi = null; render(); });
     cats.appendChild(c);
   }
@@ -58,7 +58,7 @@ function render() {
   const shown = hits.filter(it => inCat(it, cat));
   let lastSec = null;
   for (const it of shown) {
-    if (cat === ALL && it.section !== lastSec) { lastSec = it.section; list.appendChild(mk('div', 'pp-sec', library.seccion(it.section)?.name || '')); }
+    if (cat === ALL && it.section !== lastSec) { lastSec = it.section; list.appendChild(mk('div', 'pp-sec', library.section(it.section)?.name || '')); }
     list.appendChild(row(it, cur));
     vis.push(it.id);
   }
@@ -75,7 +75,7 @@ function row(it, cur) {
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repaints
   r.appendChild(star);
   r.appendChild(mk('span', 'pp-name', it.name));
-  if (cat === FAV) r.appendChild(mk('span', 'pp-tag', library.seccion(it.section)?.name || ''));
+  if (cat === FAV) r.appendChild(mk('span', 'pp-tag', library.section(it.section)?.name || ''));
   r.addEventListener('click', () => { hi = it.id; load(it.id); });
   r.addEventListener('dblclick', () => close());   // the first click already loaded it
   return r;

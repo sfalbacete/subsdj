@@ -34,11 +34,11 @@ export const VOWELS = [
   { v: 'e', f: [440, 1800, 2700, 3100, 3400], db: [0, -9, -10, -8, -18] },
   { v: 'i', f: [270, 2140, 2950, 3300, 3600], db: [0, -12, -9, -10, -16] },
 ];
-export const VOC_ORDEN = VOWELS.map(w => w.v).join('');   // 'uoaei' (knob format)
+export const VOC_ORDER = VOWELS.map(w => w.v).join('');   // 'uoaei' (knob format)
 const N_FORM = 5;
-export const VOC_BRILLO_IX = 3;   // Bright acts from this index on (F4-F5, the singer's cluster)
+export const VOC_BRIGHT_IX = 3;   // Bright acts from this index on (F4-F5, the singer's cluster)
 // 0 = no F4-F5 (the usual 3-band bank) · 0.5 = the table · 1 = +12 dB
-export const brilloMul = b => (2 * b) * (2 * b);
+export const brightMul = b => (2 * b) * (2 * b);
 
 /* Natural bandwidth per formant (Hz). Fixed per formant (the vowel
    identity lives in position+amplitude; the BW is second-order) and
@@ -57,7 +57,7 @@ export const bwMul = q => BW_MUL_MIN * Math.pow(BW_MUL_MAX / BW_MUL_MIN, q);
 const VOC_MAKEUP = 3.0;
 export const vocMakeup = q => VOC_MAKEUP / Math.sqrt(bwMul(q));
 
-export const VOC_VIDA_CENTS = 60;   // 'Life' at max: the formants wander ±60 ct (~±3.5%)
+export const VOC_LIFE_CENTS = 60;   // 'Life' at max: the formants wander ±60 ct (~±3.5%)
 export const VOC_SMOOTH = 0.045;    // articulation of the Vowel knob (the mouth takes ~50 ms)
 
 /* 'Bite': percussive consonant at the note start, in TWO parts.
