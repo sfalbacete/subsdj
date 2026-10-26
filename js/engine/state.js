@@ -4,6 +4,7 @@
    propios, así no pueden divergir motor y UI.
    ===================================================================== */
 import { PARAMS, PRESET_BASE } from './params.js';
+import { migratePreset } from './legacy.js';
 
 // Mezclador (1.2.0): antes la voz sumaba (1−ring)·[(1−mix)·A + mix·B] + ring·A×B;
 // ahora levelA·A + levelB·B + ring·A×B. Un preset SIN levelA/levelB es de antes
@@ -30,7 +31,8 @@ export function migrateFb(p) {
 
 // Un preset es una DIFERENCIA sobre PRESET_BASE (params.js), no sobre los
 // defaults neutros: así los de siempre suenan igual. {} = Reset (sin base).
-export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFb(migrateMix(p)) } : {});
+// Lo guardado hasta la 1.3.0 llega en castellano: legacy.migratePreset lo pasa al inglés.
+export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFb(migrateMix(migratePreset(p))) } : {});
 
 export function makeDefaultState() {
   const S = { oscA: {}, oscB: {} };

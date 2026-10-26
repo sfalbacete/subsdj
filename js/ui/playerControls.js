@@ -22,16 +22,16 @@ const conductor = () => { const sc = getScene(); return sc ? sc.conductor : null
 const int = v => String(Math.round(v));
 // knobs por modo: [clave, etiqueta, min, max, entero?]
 const KNOBS = {
-  pulso:   [['k', 'Golpes', 1, 16, 1], ['n', 'Pasos', 4, 32, 1], ['rot', 'Rot', 0, 31, 1], ['prob', 'Prob', 0, 1],
-            ['gate', 'Gate', 0.05, 1], ['acento', 'Acento', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1],
-            ['respira', 'Respira', 0, 8, 1], ['cicloP', 'Ciclo', 2, 16, 1]],   // el pulso que respira (Roadmap 7.0 · 5.4)
-  acorde:  [['notas', 'Notas', 3, 4, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
-  melodia: [['densidad', 'Densidad', 0, 1], ['silencio', 'Silencio', 0, 1], ['gravedad', 'Gravedad', 0, 1],
-            ['rango', 'Rango', 1, 3, 1], ['legato', 'Legato', 0.1, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
-  raiz:    [['quinta', 'Quinta', 0, 1, 1], ['cada', 'Cada', 1, 8, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
+  pulse:   [['k', 'Golpes', 1, 16, 1], ['n', 'Pasos', 4, 32, 1], ['rot', 'Rot', 0, 31, 1], ['prob', 'Prob', 0, 1],
+            ['gate', 'Gate', 0.05, 1], ['accent', 'Acento', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1],
+            ['breathe', 'Respira', 0, 8, 1], ['breatheCycle', 'Ciclo', 2, 16, 1]],   // el pulso que respira (Roadmap 7.0 · 5.4)
+  chord:  [['notes', 'Notas', 3, 4, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
+  melody: [['density', 'Densidad', 0, 1], ['rest', 'Silencio', 0, 1], ['gravity', 'Gravedad', 0, 1],
+            ['range', 'Rango', 1, 3, 1], ['legato', 'Legato', 0.1, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
+  root:    [['fifth', 'Quinta', 0, 1, 1], ['every', 'Cada', 1, 8, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
 };
-const ARR_KNOBS = [['energia', 'Energía', 0, 1], ['vaiven', 'Vaivén', 0, 1], ['ciclo', 'Ciclo', 4, 64, 1],
-                   ['apertura', 'Apertura', 0, 1], ['sorpresa', 'Sorpresa', 0, 1]];
+const ARR_KNOBS = [['energy', 'Energía', 0, 1], ['sway', 'Vaivén', 0, 1], ['cycle', 'Ciclo', 4, 64, 1],
+                   ['open', 'Apertura', 0, 1], ['surprise', 'Sorpresa', 0, 1]];
 let infoTimer = null, saveTimer = null;
 // los ajustes del director no pasan por el registro: avisan a ui/deps.js (qué está apagado) a mano
 const depsRefresh = () => document.dispatchEvent(new Event('deps-refresh'));
@@ -60,15 +60,15 @@ function buildPlayerUI() {
   // arreglo de la parte (fila compacta del panel Arreglo): Entra (umbral) · Deriva (parámetro) · Cantidad
   $('arrPartWho').textContent = 'parte ' + (sc.sel + 1);
   const host = $('playerArr'); host.innerHTML = '';
-  const kU = ksEl('entra'); kU.dataset.key = 'umbral'; host.appendChild(kU);
-  attachKnob(kU.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.umbral }, v => { pl.cfg.umbral = v; });
+  const kU = ksEl('entra'); kU.dataset.key = 'threshold'; host.appendChild(kU);
+  attachKnob(kU.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.threshold }, v => { pl.cfg.threshold = v; });
   const sel = document.createElement('select'); sel.id = 'derivaSel'; sel.title = 'Deriva: un parámetro del preset de la parte que pasea despacio («—» = ninguno)';
   host.appendChild(sel);
   DERIVA_KEYS.forEach(k => sel.add(new Option(k === 'off' ? '—' : k, k)));
-  sel.value = pl.cfg.deriva || 'off';
+  sel.value = pl.cfg.drift || 'off';
   sel.addEventListener('change', () => { pl.setDeriva(sel.value); depsRefresh(); if (sel.value !== 'off' && CONTROLS[sel.value]) CONTROLS[sel.value].set(pl.part.engine.S[sel.value]); });
-  const kA = ksEl('cant.'); kA.dataset.key = 'derivaAmt'; kA.title = 'Cantidad de la deriva'; host.appendChild(kA);
-  attachKnob(kA.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.derivaAmt, act: true }, v => { pl.cfg.derivaAmt = v; });
+  const kA = ksEl('cant.'); kA.dataset.key = 'driftAmt'; kA.title = 'Cantidad de la deriva'; host.appendChild(kA);
+  attachKnob(kA.querySelector('.knob'), { min: 0, max: 1, def: pl.cfg.driftAmt, act: true }, v => { pl.cfg.driftAmt = v; });
   depsRefresh();
 }
 
@@ -77,7 +77,7 @@ function syncHarmonyUI() {
   const h = c.harmony;
   $('harmRoot').value = h.root; $('harmScale').value = h.scale;
   $('harmProg').value = h.prog.join(' '); $('harmBars').textContent = h.bars;
-  document.querySelectorAll('#harmModo button').forEach(b => b.classList.toggle('active', b.dataset.m === h.modo));
+  document.querySelectorAll('#harmModo button').forEach(b => b.classList.toggle('active', b.dataset.m === h.mode));
   $('harmSeed').value = c.seed;
   setPlayBtn(c.running);
   knobRow($('arrKnobs'), ARR_KNOBS, c.arr.cfg);
@@ -101,7 +101,7 @@ function refreshInfo() {
   const c = conductor(); if (!c || !c.running) return;
   const bar = c.barNow(), ch = c.harmony.chordAt(bar);
   $('harmInfo').textContent = 'compás ' + (bar + 1) + ' · ' + (GRADOS[ch.degree - 1] || ch.degree) + ' · ' + NOTAS[ch.rootPc];
-  const E = c.arr.energyAt(bar), n = Math.max(1, c.arr.cfg.ciclo);
+  const E = c.arr.energyAt(bar), n = Math.max(1, c.arr.cfg.cycle);
   $('arrInfo').textContent = 'ciclo ' + ((bar % n) + 1) + '/' + n + ' · energía ' + E.toFixed(2) +
     ' · tocan ' + c.players.map((p, i) => c.arr.stateAt(bar, i, p.cfg).active && p.cfg.mode !== 'off' ? (i + 1) : '·').join('');
 }
@@ -129,7 +129,7 @@ export function initPlayerControls() {
   }));
   document.querySelectorAll('#harmModo button').forEach(b => b.addEventListener('click', () => {
     const c = conductor(); if (!c) return;
-    c.harmony.modo = b.dataset.m;
+    c.harmony.mode = b.dataset.m;
     document.querySelectorAll('#harmModo button').forEach(x => x.classList.toggle('active', x === b));
     depsRefresh();
   }));

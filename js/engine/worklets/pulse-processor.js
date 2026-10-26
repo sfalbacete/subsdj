@@ -59,7 +59,7 @@ function polyBlep(t, dt) {
   return 0;
 }
 function fract(x) { return x - Math.floor(x); }
-// Lectura Hermite de la tabla (la del bucle de 'tabla', como función: la usa el sync)
+// Lectura Hermite de la tabla (la del bucle de 'wavetable', como función: la usa el sync)
 function wtHermite(dA, dB, ff, len, p) {
   const xx = p * len, i1 = xx | 0, w = xx - i1;
   const i0 = i1 === 0 ? len - 1 : i1 - 1, i2 = i1 + 1 === len ? 0 : i1 + 1, i3 = i2 + 1 === len ? 0 : i2 + 1;
@@ -68,7 +68,7 @@ function wtHermite(dA, dB, ff, len, p) {
   const c1 = 0.5 * (y2 - y0), c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3, c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
   return ((c3 * w + c2) * w + c1) * w + y1;
 }
-const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'tabla']);   // supersaw, FM4 y cuerda: sin sync
+const SYNC_TYPES = new Set(['sawtooth', 'square', 'triangle', 'sine', 'wavetable']);   // supersaw, FM4 y cuerda: sin sync
 
 // CUERDA (Karplus-Strong extendido, Jaffe y Smith 1983). Constantes:
 const STR_LEN = 4096;          // muestras de la línea (potencia de 2): hasta ~12 Hz a 48 kHz
@@ -184,7 +184,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     this.t0 = (typeof o.t0 === 'number') ? o.t0 : null;
     this.tBirth = null;
     this.driftZ = 0;    // estado del paseo aleatorio de drift (independiente por oscilador)
-    this.wt = (this.type === 'tabla' && o.wt && o.wt.frames) ? o.wt : null;
+    this.wt = (this.type === 'wavetable' && o.wt && o.wt.frames) ? o.wt : null;
     this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
   }
 
@@ -223,7 +223,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     const uniMul = j => (uv < 2 || uniCt <= 0) ? 1
       : Math.pow(2, ((2 * j / (uv - 1) - 1) * uniCt) / 1200);
 
-    if (type === 'cuerda') {
+    if (type === 'string') {
       this._string(ch, N, params, fs, uv, lvl, uniMul);
     } else if (syncR > 0 && SYNC_TYPES.has(type) && !(type === 'sine' && params.fmIndex[0] > 0)) {
       this._synced(ch, N, params, fs, f0 * syncR, uv, lvl, uniMul);
@@ -282,7 +282,7 @@ class PulseProcessor extends AudioWorkletProcessor {
           this.phases[idx] = p; this.modPhases[idx] = mp;
         }
       }
-    } else if (type === 'tabla') {
+    } else if (type === 'wavetable') {
       const wt = this.wt;
       if (!wt) return !this.stopped;                // sin tablas: silencio (payload ausente)
       const F = wt.frames.length, h0 = wt.h0 || 512, LMAX = wt.frames[0].length - 1;
@@ -461,7 +461,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     else if (type === 'square') { w = p => (p < duty ? 1 : -1); s = () => 0; edges = [[duty, -2], [1, 2]]; }
     else if (type === 'triangle') { w = p => 4 * Math.abs(p - 0.5) - 1; s = p => (p < 0.5 ? -4 : 4); }   // sus picos, sin corregir: como arriba
     else if (type === 'sine') { w = p => Math.sin(2 * Math.PI * p); s = p => 2 * Math.PI * Math.cos(2 * Math.PI * p); }
-    else if (type === 'tabla') { wt = this._wtMorph(params); if (!wt) return; amp = lvl * wt.gMix; }
+    else if (type === 'wavetable') { wt = this._wtMorph(params); if (!wt) return; amp = lvl * wt.gMix; }
     for (let k = 0; k < oct; k++) {
       const base = fs * (1 << k);
       if (base >= nyq) continue;
@@ -612,7 +612,7 @@ class PulseProcessor extends AudioWorkletProcessor {
   }
 
   // Morph de la tabla: par de frames adyacentes, peso y compensación de sonoridad
-  // (la del bucle de 'tabla', aquí para el sync). null sin tablas.
+  // (la del bucle de 'wavetable', aquí para el sync). null sin tablas.
   _wtMorph(params) {
     const wt = this.wt; if (!wt) return null;
     const F = wt.frames.length;

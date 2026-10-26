@@ -8,7 +8,7 @@
    varios motores comparten UNA Sala (modelo send/return).
    El filtro es POR VOZ (en Voice.js). Los LFOs de cutoff/reso/freq/pwm
    son globales al motor pero se conectan a los params de cada voz al crearse
-   (o, con lfoPhase 'voz', cada voz crea sus copias en su propia fase: nodes.mkVoiceLFO).
+   (o, con lfoPhase 'voice', cada voz crea sus copias en su propia fase: nodes.mkVoiceLFO).
    ===================================================================== */
 import { makeDefaultState } from './state.js';
 import { Voice } from './Voice.js';
@@ -69,7 +69,7 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // fuente de la matri
 // El ?v=N rompe la caché heurística del navegador: SUBIRLO al cambiar código
 // de worklet (si no, el navegador puede casar módulos nuevos con un processor
 // viejo y los parámetros nuevos llegan undefined -> crash al crear voces).
-const WK_V = '?v=15';  // v15: el pulso sale centrado (sin la continua de su ancho); v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
+const WK_V = '?v=16';  // v16: ondas 'wavetable' y 'string' (antes 'tabla' y 'cuerda'); v15: el pulso sale centrado (sin la continua de su ancho); v14: onda «cuerda» (Karplus-Strong); v13: sync duro (syncRatio, slave) en el oscilador; v12: el limitador manda picos y reducción al medidor; v11: azar con semilla + key sync del modulador FM 2-op; v10: shift-processor (shimmer) + decay de la placa hasta 1 (freeze); v9: puerta de arranque en t0 + reloj FM4
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
@@ -529,7 +529,7 @@ export class AudioEngine {
     // reverb): las aplica la Sala, que en modo Partes es compartida — y
     // propaga el valor al S de todas las partes (un solo reloj).
     if (SALA_KEYS.has(name)) { this.sala.set(name, value); return; }
-    // LFOs por voz (lfoPhase 'voz'): Level/Speed/forma del LFO k también a las
+    // LFOs por voz (lfoPhase 'voice'): Level/Speed/forma del LFO k también a las
     // copias de cada voz viva; el LFO global del motor sigue cambiando en el switch.
     const lf = /^(cut|res|freq|pwm|pan)Lfo(Lvl|Spd|Shape|Sync)$/.exec(name);
     if (lf) {
@@ -569,13 +569,13 @@ export class AudioEngine {
       case 'vocVowel': this._forVoices(v => v.setVocVowel(value)); break;
       case 'vocSize':  this._forVoices(v => v.setVocSize(value)); break;
       case 'vocQ':     this._forVoices(v => v.setVocQ(value)); break;
-      case 'vocVida':  this._forVoices(v => v.setVocVida(value)); break;
-      case 'vocBrillo':this._forVoices(v => v.setVocBrillo(value)); break;
+      case 'vocLife':  this._forVoices(v => v.setVocVida(value)); break;
+      case 'vocBright':this._forVoices(v => v.setVocBrillo(value)); break;
       // vocAtk es un evento de arranque de nota: se lee al crear cada voz
       case 'resAmt':    this._forVoices(v => v.setResAmt(value)); break;     // resonador modal (engine/reson.js)
       case 'resMat':    this._forVoices(v => v.setResMat(value)); break;
       case 'resDecay':  this._forVoices(v => v.setResDecay(value)); break;
-      case 'resBrillo': this._forVoices(v => v.setResBrillo(value)); break;
+      case 'resBright': this._forVoices(v => v.setResBrillo(value)); break;
 
       case 'amplitude': smooth(this.amp.gain, value); break;
       case 'ampLfoLvl': smooth(this.ampLFO.depth.gain, value); break;

@@ -16,7 +16,7 @@ const msg = t => { if (msgEl) msgEl.textContent = t; };
 export const limpiar = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // descarta claves desconocidas
 export function presetBankReady() { return ready; }   // la siembra de los bancos del repo es asíncrona
 
-const asPreset = id => { const it = id && library.item(id); return it && it.tipo === 'preset' ? it : null; };
+const asPreset = id => { const it = id && library.item(id); return it && it.type === 'preset' ? it : null; };
 export const currentPreset = () => asPreset(curId);
 export const currentPresetId = () => currentPreset() ? curId : null;
 // Marcar el actual SIN cargarlo (la parte que se elige, lo recién guardado). Si ya
@@ -26,15 +26,15 @@ export function markPreset(id) {
   document.dispatchEvent(new CustomEvent('preset-marked', { detail: { value: curId } }));
   return !!curId;
 }
-export function markPresetByName(nombre) { const it = library.presets().find(p => p.nombre === nombre); return it ? markPreset(it.id) : false; }
+export function markPresetByName(nombre) { const it = library.presets().find(p => p.name === nombre); return it ? markPreset(it.id) : false; }
 export function navIds() { return library.presets().map(it => it.id); }   // la biblioteca en orden (sección a sección)
 
 function loadCurrent() {
   const it = library.item(curId);
-  if (!it || it.tipo !== 'preset') return;
-  record('Preset «' + it.nombre + '»', () => loadState(it.datos), { saved: true });   // deshacer devuelve el sonido de antes
-  msg('Cargado: ' + it.nombre);
-  document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.nombre, value: it.id } }));   // el mezclador etiqueta la parte
+  if (!it || it.type !== 'preset') return;
+  record('Preset «' + it.name + '»', () => loadState(it.data), { saved: true });   // deshacer devuelve el sonido de antes
+  msg('Cargado: ' + it.name);
+  document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.name, value: it.id } }));   // el mezclador etiqueta la parte
 }
 export function loadPresetId(id) { if (!asPreset(id)) return false; curId = id; loadCurrent(); return true; }
 export function stepPreset(dir) {
@@ -54,9 +54,9 @@ export function initPresetBank() {
 
   library.load();                                // primera vez: siembra la fábrica y los presets de usuario antiguos
   library.onChange = () => { if (!asPreset(curId)) curId = null; document.dispatchEvent(new CustomEvent('library-changed')); };
-  const init = library.presets().find(it => it.nombre === 'Init (default)');
+  const init = library.presets().find(it => it.name === 'Init (default)');
   curId = init ? init.id : null;
-  if (!library.data.ficheros)                    // bancos del repo y escenas: por fetch, una vez
+  if (!library.data.files)                    // bancos del repo y escenas: por fetch, una vez
     ready = library.sembrarFicheros().then(r => { if (r.n) msg('Biblioteca: traídos ' + r.n + ' presets y escenas del repo.'); });
 
   document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
@@ -68,8 +68,8 @@ export function initPresetBank() {
     // Mismo nombre que el preset cargado → se actualiza donde esté; si no, en
     // «★ Míos» (encima del que tenga ese nombre allí, o nuevo).
     const cur = currentPreset();
-    let target = cur && cur.tipo === 'preset' && cur.nombre === name ? cur : null;
-    if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.nombre === name) || null; }
+    let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
+    if (!target) { const mios = library.seccionPorNombre(SEC_MIOS); if (mios) target = library.items(mios.id).find(it => it.name === name) || null; }
     let id;
     if (target) { library.actualizar(target.id, snapshot()); id = target.id; msg('Actualizado «' + name + '».'); }
     else { id = library.añadir({ nombre: name, seccion: library.asegurarSeccion(SEC_MIOS), datos: snapshot() }); msg('Guardado «' + name + '» en ' + SEC_MIOS + ' (este navegador).'); }
@@ -79,8 +79,8 @@ export function initPresetBank() {
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = currentPreset();
     if (!it) { msg('Elige antes un preset.'); return; }
-    if (!confirm('¿Borrar «' + it.nombre + '» de la biblioteca?' + (it.origen === 'fabrica' ? ' (⟲ Traer de fábrica lo devuelve)' : ''))) return;
-    library.borrar(it.id); msg('Borrado «' + it.nombre + '».');
+    if (!confirm('¿Borrar «' + it.name + '» de la biblioteca?' + (it.origin === 'factory' ? ' (⟲ Traer de fábrica lo devuelve)' : ''))) return;
+    library.borrar(it.id); msg('Borrado «' + it.name + '».');
   });
   document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Valores por defecto.'); });
 
@@ -88,7 +88,7 @@ export function initPresetBank() {
   document.getElementById('expBtn').addEventListener('click', () => {
     const j = library.exportar();
     download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-biblioteca.json');
-    msg('Exportada la biblioteca: ' + j.items.length + ' elementos en ' + j.secciones.length + ' secciones.');
+    msg('Exportada la biblioteca: ' + j.items.length + ' elementos en ' + j.sections.length + ' secciones.');
   });
   const impFile = document.getElementById('impFile');
   document.getElementById('impBtn').addEventListener('click', () => impFile.click());
@@ -98,8 +98,8 @@ export function initPresetBank() {
       let data; try { data = JSON.parse(txt); } catch (e) { msg('Ese archivo no es JSON válido.'); return; }
       try {
         const r = library.importar(data, { limpiar });
-        msg(r.tipo === 'biblioteca' ? 'Biblioteca fundida: ' + r.n + ' elementos nuevos.'
-          : r.tipo === 'escena' ? (r.n ? 'Escena añadida a «Escenas».' : 'Esa escena ya estaba.')
+        msg(r.type === 'library' ? 'Biblioteca fundida: ' + r.n + ' elementos nuevos.'
+          : r.type === 'scene' ? (r.n ? 'Escena añadida a «Escenas».' : 'Esa escena ya estaba.')
           : (r.n ? 'Importados ' + r.n + ' presets (en «Importados»).' : 'El archivo no contenía presets nuevos.'));
       } catch (err) { msg('No se pudo importar: ' + (err.message || err)); }
       impFile.value = '';

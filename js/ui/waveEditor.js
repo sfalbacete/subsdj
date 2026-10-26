@@ -38,7 +38,7 @@ export function initWaveEditor() {
 
   function commit() {
     saveUserFrames(frames);
-    try { getWtSet('usuario'); } catch (e) {}   // precalienta: la próxima nota ya lo lee
+    try { getWtSet('user'); } catch (e) {}   // precalienta: la próxima nota ya lo lee
   }
   function paint(e) {
     const r = cv.getBoundingClientRect();
@@ -81,11 +81,11 @@ export function initWaveEditor() {
   });
 
   // Control VIRTUAL wtUser (sin DOM): mete la onda dibujada DENTRO del preset.
-  // get: solo aporta la receta si el preset usa la tabla 'usuario' (los demás
+  // get: solo aporta la receta si el preset usa la tabla 'user' (los demás
   // presets no cargan con ~2.5 KB de puntos). set: '' = "no traigo onda,
   // respeta la dibujada" (es lo que aplica el Reset previo a cada carga).
   CONTROLS.wtUser = {
-    get: () => part().S.wtSet === 'usuario' ? encodeUserFrames(frames) : '',
+    get: () => part().S.wtSet === 'user' ? encodeUserFrames(frames) : '',
     set: v => {
       part().S.wtUser = v;                       // constancia en S (el motor no tiene case: dato de receta)
       if (!v) return;

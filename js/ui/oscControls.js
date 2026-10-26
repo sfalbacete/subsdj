@@ -59,8 +59,8 @@ function bindFreeze() {
   const paint = () => { const s = part().sala; fz.classList.toggle('on', !!(s && s.frozen)); };
   fz.addEventListener('click', () => { part().resume(); const s = part().sala; if (s) s.setFreeze(!s.frozen); paint(); });
   document.addEventListener('freeze-changed', paint);
-  document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') { fz.disabled = e.detail.value !== 'placa'; paint(); } });
-  fz.disabled = PARAMS.reverbType.def !== 'placa';
+  document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') { fz.disabled = e.detail.value !== 'plate'; paint(); } });
+  fz.disabled = PARAMS.reverbType.def !== 'plate';
 }
 
 // Sync del Osc A (Roadmap 7.0 · 3.2): un botón en la cabecera del módulo que
@@ -91,8 +91,8 @@ export function bindOscControls() {
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algoritmo (quién modula a quién)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: nº de copias por oscilador
   const ph = document.getElementById('lfoPhaseSel');   // LFOs: fase global / por voz (Weyl) / reinicio / una vez (Roadmap 7.0 · 2.2)
-  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voz', label: 'por voz' }, { id: 'reinicio', label: 'reinicio' }, { id: 'una', label: 'una vez' }]);
-  const divs = [{ id: 'libre', label: 'libre' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
+  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voice', label: 'por voz' }, { id: 'retrig', label: 'retrig' }, { id: 'once', label: 'una vez' }]);
+  const divs = [{ id: 'free', label: 'free' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
   document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // LFO a tempo
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: intervalo del desplazador (clave de la Sala)
   bindFreeze();

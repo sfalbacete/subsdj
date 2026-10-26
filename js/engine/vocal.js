@@ -7,7 +7,7 @@
    los formantes NO dependen de la nota (cantar /a/ en Do2 o Do4 mueve
    qué armónico cae dentro de la campana, no la campana). Por eso esto es
    una etapa de FILTRADO a frecuencias absolutas por voz — el set
-   wavetable 'formante' no puede cantar: sus picos viven en el armónico n
+   wavetable 'formant' no puede cantar: sus picos viven en el armónico n
    y se transponen con el pitch (efecto ardilla).
 
    Aquí viven la tabla de vocales y las CURVAS de morph: el recorrido de

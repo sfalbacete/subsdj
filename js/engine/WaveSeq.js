@@ -53,7 +53,7 @@ export class WaveSeq {
   }
 
   // Engancha una voz recién creada (la llaman los dos `new Voice` del engine).
-  // Solo actúa con wsOn y algún oscilador en modo 'tabla'; el estado de la
+  // Solo actúa con wsOn y algún oscilador en modo 'wavetable'; el estado de la
   // frase vive EN la voz ({idx, nextT, pos}) — el ticker es compartido.
   attach(v) {
     const S = this.e.S;

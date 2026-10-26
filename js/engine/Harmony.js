@@ -15,17 +15,17 @@
    (mulberry32) — misma semilla, misma sesión (base de las escenas de C3).
    ===================================================================== */
 export const ESCALAS = {
-  'mayor':          [0, 2, 4, 5, 7, 9, 11],
-  'menor':          [0, 2, 3, 5, 7, 8, 10],
-  'menor armónica': [0, 2, 3, 5, 7, 8, 11],
-  'dórica':         [0, 2, 3, 5, 7, 9, 10],
-  'frigia':         [0, 1, 3, 5, 7, 8, 10],
-  'lidia':          [0, 2, 4, 6, 7, 9, 11],
-  'mixolidia':      [0, 2, 4, 5, 7, 9, 10],
-  'penta mayor':    [0, 2, 4, 7, 9],
-  'penta menor':    [0, 3, 5, 7, 10],
+  'major':          [0, 2, 4, 5, 7, 9, 11],
+  'minor':          [0, 2, 3, 5, 7, 8, 10],
+  'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
+  'dorian':         [0, 2, 3, 5, 7, 9, 10],
+  'phrygian':       [0, 1, 3, 5, 7, 8, 10],
+  'lydian':         [0, 2, 4, 6, 7, 9, 11],
+  'mixolydian':     [0, 2, 4, 5, 7, 9, 10],
+  'major penta':    [0, 2, 4, 7, 9],
+  'minor penta':    [0, 3, 5, 7, 10],
   'blues':          [0, 3, 5, 6, 7, 10],
-  'tonos enteros':  [0, 2, 4, 6, 8, 10],
+  'whole tone':     [0, 2, 4, 6, 8, 10],
   'hirajoshi':      [0, 2, 3, 7, 8],
   'in sen':         [0, 1, 5, 7, 10],
 };
@@ -63,17 +63,17 @@ export function parseProg(str) {
 }
 
 export class Harmony {
-  constructor({ root = 0, scale = 'menor', prog = [1, 6, 4, 5], bars = 2, modo = 'lista', seed = 1 } = {}) {
-    this.root = root; this.scale = scale; this.prog = prog; this.bars = bars; this.modo = modo;
+  constructor({ root = 0, scale = 'minor', prog = [1, 6, 4, 5], bars = 2, mode = 'list', seed = 1 } = {}) {
+    this.root = root; this.scale = scale; this.prog = prog; this.bars = bars; this.mode = mode;
     this.setSeed(seed);
   }
   setSeed(seed) { this.seed = seed; this._walk = []; this._rng = mulberry32((seed * 7919 + 17) | 0); }
-  get notes() { return ESCALAS[this.scale] || ESCALAS.mayor; }
+  get notes() { return ESCALAS[this.scale] || ESCALAS.major; }
 
   // Grado vigente en el compás `bar` (cada acorde dura `bars` compases)
   degreeAt(bar) {
     const i = Math.max(0, Math.floor(bar / Math.max(1, this.bars)));
-    if (this.modo === 'funciones') return this._walkDegree(i);
+    if (this.mode === 'functions') return this._walkDegree(i);
     const p = this.prog && this.prog.length ? this.prog : [1];
     return p[i % p.length];
   }

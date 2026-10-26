@@ -40,7 +40,7 @@ const conductor = () => (sceneOn() ? getScene().conductor : null);
 // Un destino que no puede moverse con la configuración actual (null = puede).
 const dstWhy = (S, d) =>
   d === 'pw' ? (has(S, 'square') ? null : 'Pulse width: ningún oscilador que suene está en Cuadrada')
-  : d === 'wt' ? (has(S, 'tabla') ? null : 'Wavetable: ningún oscilador que suene está en Tabla')
+  : d === 'wt' ? (has(S, 'wavetable') ? null : 'Wavetable: ningún oscilador que suene está en Tabla')
   : d === 'fm' ? (has(S, 'sine') ? null : 'FM índice: solo actúa en osciladores en Seno')
   : d === 'vow' ? (S.vocAmt > 0 ? null : 'Vocal: el módulo Vocal tiene el Mix a 0')
   : d === 'drive' ? (S.filterDrive > 0 ? null : 'Drive: el knob Drive está a 0 y la señal no pasa por la curva')
@@ -67,9 +67,9 @@ const lfoLive = (S, k) => k === 'pan' ? S.panLfoLvl > 0
   : ((S[k + 'LfoLvl'] > 0 && (k !== 'pwm' || has(S, 'square'))) || mxFrom(S, LFO_SRC[k]));
 const dlyLive = S => anyPart(S, s => s.dlyAmt > 0);
 const revLive = S => anyPart(S, s => s.reverbMix > 0);
-const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'libre';
-const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'libre') || sceneOn()
-  || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'tabla'))
+const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'free';
+const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'free') || sceneOn()
+  || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'wavetable'))
     || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)));   // un LFO a tempo en uso
 // el swing columpia lo que va por PASOS (Arp, Seq, Pasos en la matriz, jugadores); el delay y los LFO a tempo, no
 const swingUsed = S => sceneOn() || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || [1, 2, 3, 4, 5, 6].some(j => /^st\d/.test(s['mx' + j + 'src'] || '') && s['mx' + j + 'amt']));
@@ -87,12 +87,12 @@ export const RULES = [
   ['sec:Osc B', S => (oscOn(S, 'B') || S.syncA === 'on' ? null : 'nivel B y Ring a 0 en Mezcla: el B no llega a la salida')],
   ...live(['waveB', 'octavesB'], S => oscOn(S, 'B'), 'el B no suena (nivel 0): con Sync solo marca el tiempo del A, y para eso cuentan su octava, su detune y su fase'),
   ['phaseA', S => (S.oscA.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar'
-    : S.oscA.wave === 'cuerda' ? 'la Cuerda arranca con la púa: no tiene fase'
+    : S.oscA.wave === 'string' ? 'la Cuerda arranca con la púa: no tiene fase'
     : S.syncA === 'on' ? 'con Sync, el A vuelve a 0 con cada ciclo del B: su fase de arranque no cuenta' : null)],
-  ['syncA', S => (['supersaw', 'fm4', 'cuerda'].includes(S.oscA.wave) ? 'la Súper, FM4 y la Cuerda no tienen sync'
+  ['syncA', S => (['supersaw', 'fm4', 'string'].includes(S.oscA.wave) ? 'la Súper, FM4 y la Cuerda no tienen sync'
     : S.oscA.wave === 'sine' && S.fmIndex > 0 ? 'el Seno con FM (Index > 0) va sin sync' : null)],
   ['phaseB', S => (S.oscB.wave === 'supersaw' ? 'la Súper arranca cada sierra en una fase al azar'
-    : S.oscB.wave === 'cuerda' ? 'la Cuerda arranca con la púa: no tiene fase' : null)],
+    : S.oscB.wave === 'string' ? 'la Cuerda arranca con la púa: no tiene fase' : null)],
   ['noiseColor', S => (S.noise > 0 ? null : 'Ruido a 0')],
   ['spread', S => (has(S, 'supersaw') ? null : 'solo abre la Súper: ' + NO('Súper'))],
   ['pulseWidth', S => (has(S, 'square') ? null : 'solo mueve la Cuadrada: ' + NO('Cuadrada'))],
@@ -104,14 +104,14 @@ export const RULES = [
   ['fmFb', S => (has(S, 'fm4') || !has(S, 'sine') ? null : fmIdle(S) ? 'Index a 0: no hay modulador que realimentar' : null)],
   ['sec:FM4', S => (has(S, 'fm4') ? null : NO('FM4'))],
   ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i, 'fm4V' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' con nivel 0: ni suena ni modula')),
-  ['sec:Cuerda', S => (has(S, 'cuerda') ? null : NO('Cuerda'))],
-  ['sec:Tabla de ondas', S => (has(S, 'tabla') ? null : NO('Tabla'))],
-  ['sec:Editor de ondas', S => (!has(S, 'tabla') ? NO('Tabla')
-    : S.wtSet !== 'usuario' ? 'dibuja la tabla «usuario»: elígela en Tabla de ondas' : null)],
+  ['sec:Cuerda', S => (has(S, 'string') ? null : NO('Cuerda'))],
+  ['sec:Tabla de ondas', S => (has(S, 'wavetable') ? null : NO('Tabla'))],
+  ['sec:Editor de ondas', S => (!has(S, 'wavetable') ? NO('Tabla')
+    : S.wtSet !== 'user' ? 'dibuja la tabla «usuario»: elígela en Tabla de ondas' : null)],
 
   // ---------- Voz ----------
-  ...live(['vocVowel', 'vocSize', 'vocQ', 'vocVida', 'vocBrillo', 'vocAtk'], S => S.vocAmt > 0, 'Mix a 0: el tracto vocal no está en la señal'),
-  ...live(['resMat', 'resDecay', 'resBrillo'], S => S.resAmt > 0, 'Mezcla a 0: el resonador no está en la señal'),
+  ...live(['vocVowel', 'vocSize', 'vocQ', 'vocLife', 'vocBright', 'vocAtk'], S => S.vocAmt > 0, 'Mix a 0: el tracto vocal no está en la señal'),
+  ...live(['resMat', 'resDecay', 'resBright'], S => S.resAmt > 0, 'Mezcla a 0: el resonador no está en la señal'),
   ['morph', S => (S.filterType === 'morph' ? null : 'Low↔Hi solo funde en LP↔HP')],
   ...live(['driveChar', 'driveAsym'], S => S.filterDrive > 0, 'Drive a 0: la señal no pasa por la curva'),
   ['filterSlope', S => (S.filterType === 'notch' ? 'el Notch no lleva 2ª etapa: no tiene pendiente' : null)],
@@ -140,7 +140,7 @@ export const RULES = [
   ['sec:Env mod', S => (mxFrom(S, 'envm') ? null : 'ningún slot de la matriz usa «Env mod»: elígela como fuente en la Matriz')],
   ['sec:Pasos', S => ([1, 2, 3, 4].some(i => mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n')) ? null : 'ningún slot de la matriz usa «Pasos»: elige «Pasos 1…4» como fuente en la Matriz')],
   ...[1, 2, 3, 4].map(i => ['.ps-row[data-lane="' + i + '"]', S => (mxFrom(S, 'st' + i) || mxFrom(S, 'st' + i + 'n') ? null : 'ningún slot de la matriz usa «Pasos ' + i + '»')]),
-  ['envmS', S => (S.envmMode === 'bucle' ? 'en bucle el sostenido no cuenta: ataque y caída se repiten' : null)],
+  ['envmS', S => (S.envmMode === 'loop' ? 'en bucle el sostenido no cuenta: ataque y caída se repiten' : null)],
   ...Array.from({ length: MX_SLOTS }, (_, j) => j + 1).flatMap(i => [
     ['mx' + i + 'dst', S => slotWhy(S, i, false)],
     ['mx' + i + 'amt', S => slotWhy(S, i, true)],
@@ -151,9 +151,9 @@ export const RULES = [
   ...live(['chMode', 'chSpd'], S => S.chAmt > 0, 'Amount a 0'),
   ...live(['dlyDamp', 'dlyWow', 'dlySync', 'dlySat'], dlyLive, DLY_IDLE),
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'en Partes manda la Realim. de la Sala (mezclador)' : null)],
-  ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'libre' ? 'sincronizado: manda la división del BPM' : null)],
+  ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'free' ? 'sincronizado: manda la división del BPM' : null)],
   ...live(['bpm'], bpmUsed, 'nada va a tempo: delay libre o apagado, sin arpegiador ni secuenciadores'),
-  ['seqNotes', S => (S.seqNotes === 'armonía' && !sceneOn() ? 'sin Partes no hay armonía de escena: los grados van en mayor desde la tecla' : null)],
+  ['seqNotes', S => (S.seqNotes === 'harmony' && !sceneOn() ? 'sin Partes no hay armonía de escena: los grados van en mayor desde la tecla' : null)],
   ...live(['swing'], swingUsed, 'nada va a tempo que columpiar: sin arpegiador, secuenciador, Pasos ni jugadores'),
   ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE),
   ['shimInt', S => (!revLive(S) ? REV_IDLE() : S.shimAmt > 0 ? null : 'Shimmer a 0')],
@@ -161,14 +161,14 @@ export const RULES = [
   // ---------- Secuenciación ----------
   ...live(['arpDiv', 'arpOct', 'arpGate'], S => S.arpMode !== 'off', 'Modo Off'),
   ...live(['seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', '#seqPatSel', '#seqCanvas', '.ctl:has(#seqLenNum)'], S => S.seqOn === 'on', 'Estado Off'),
-  ['sec:Tabla · secuencia', S => (has(S, 'tabla') ? null : 'solo mueve el Morph de la Tabla: ' + NO('Tabla'))],
+  ['sec:Tabla · secuencia', S => (has(S, 'wavetable') ? null : 'solo mueve el Morph de la Tabla: ' + NO('Tabla'))],
   ...live(['wsDiv', 'wsMode', 'wsXf', '#wsCanvas', '.ctl:has(#wsLenNum)'], S => S.wsOn === 'on', 'Estado Off'),
   // escena (Partes): estado del director, no del preset
-  ['#harmProg', () => (conductor() && conductor().harmony.modo === 'funciones' ? 'Funciones: el paseo no usa la lista' : null)],
-  ['#arrKnobs [data-key="ciclo"]', () => (conductor() && !(conductor().arr.cfg.vaiven > 0) ? 'Vaivén a 0: no hay ciclo' : null)],
+  ['#harmProg', () => (conductor() && conductor().harmony.mode === 'functions' ? 'Funciones: el paseo no usa la lista' : null)],
+  ['#arrKnobs [data-key="cycle"]', () => (conductor() && !(conductor().arr.cfg.sway > 0) ? 'Vaivén a 0: no hay ciclo' : null)],
   ['#playerArr', () => { const c = conductor(); return c && c.players[getScene().sel].cfg.mode === 'off' ? 'el jugador está en Off' : null; }],
-  ['#playerKnobs [data-key="cicloP"]', () => { const c = conductor(); return c && !(c.players[getScene().sel].cfg.respira > 0) ? 'Respira a 0: el pulso no cambia de un compás a otro' : null; }],
-  ['#playerArr [data-key="derivaAmt"]', () => { const c = conductor(); return c && (c.players[getScene().sel].cfg.deriva || 'off') === 'off' ? 'Deriva «—»: no hay parámetro que pasee' : null; }],
+  ['#playerKnobs [data-key="breatheCycle"]', () => { const c = conductor(); return c && !(c.players[getScene().sel].cfg.breathe > 0) ? 'Respira a 0: el pulso no cambia de un compás a otro' : null; }],
+  ['#playerArr [data-key="driftAmt"]', () => { const c = conductor(); return c && (c.players[getScene().sel].cfg.drift || 'off') === 'off' ? 'Deriva «—»: no hay parámetro que pasee' : null; }],
 ];
 
 // --- aplicar -----------------------------------------------------------------

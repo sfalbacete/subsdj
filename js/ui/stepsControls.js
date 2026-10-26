@@ -34,8 +34,8 @@ export function bindStepsControls() {
     initLen(i, row);
   }
   const rs = document.getElementById('stResetSel');
-  if (rs) bindSelect(rs, 'stReset', [{ id: 'tocar', label: 'al tocar' }, { id: 'nunca', label: 'nunca' },
-    ...['1 c', '2 c', '4 c', '8 c'].map(d => ({ id: d, label: 'cada ' + d }))]);
+  if (rs) bindSelect(rs, 'stReset', [{ id: 'play', label: 'al tocar' }, { id: 'never', label: 'never' },
+    ...['1 bar', '2 bars', '4 bars', '8 bars'].map(d => ({ id: d, label: 'cada ' + d }))]);
   const cyc = document.getElementById('stCycle');
   const upd = () => {
     if (!cyc) return;

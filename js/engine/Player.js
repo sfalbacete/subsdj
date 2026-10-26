@@ -33,18 +33,18 @@
 import { mulberry32 } from './Harmony.js';
 import { PARAMS } from './params.js';
 
-export const PLAYER_MODES = ['off', 'pulso', 'acorde', 'melodia', 'raiz'];
-export const MODE_OCT = { pulso: 2, acorde: 4, melodia: 5, raiz: 2 };   // octava por defecto al elegir el modo
+export const PLAYER_MODES = ['off', 'pulse', 'chord', 'melody', 'root'];
+export const MODE_OCT = { pulse: 2, chord: 4, melody: 5, root: 2 };   // octava por defecto al elegir el modo
 // levelB: el B entra y sale sobre el A (sustituye a 'mix' desde el mezclador; Conductor.fromJSON traduce las escenas)
 export const DERIVA_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
 export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
-  k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, acento: 0.3,     // pulso
-  respira: 0, cicloP: 4,                                    // pulso que respira: golpes de más en la cima de un ciclo de N compases
-  notas: 3,                                                 // acorde
-  densidad: 0.5, silencio: 0.2, gravedad: 0.6, rango: 1, legato: 0.8,   // melodía
-  quinta: 0, cada: 2,                                       // raíz
-  umbral: 0, deriva: 'off', derivaAmt: 0.3,                 // arreglo de la parte
+  k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, accent: 0.3,     // pulso
+  breathe: 0, breatheCycle: 4,                                    // pulso que respira: golpes de más en la cima de un ciclo de N compases
+  notes: 3,                                                 // acorde
+  density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melodía
+  fifth: 0, every: 2,                                       // raíz
+  threshold: 0, drift: 'off', driftAmt: 0.3,                 // arreglo de la parte
 };
 const BAR = 4;            // beats por compás (4/4)
 const GRID_MEL = 0.5;     // rejilla de la melodía: corcheas (en beats)
@@ -88,7 +88,7 @@ export class Player {
   // Deriva: al cambiar de parámetro se devuelve el anterior a su valor base
   setDeriva(key) {
     if (this.derivaKey !== 'off' && this.derivaBase !== undefined) this.part.engine.set(this.derivaKey, this.derivaBase);
-    this.cfg.deriva = key; this.derivaKey = key;
+    this.cfg.drift = key; this.derivaKey = key;
     this.derivaBase = key !== 'off' ? this.part.engine.S[key] : undefined;
   }
   stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
@@ -139,18 +139,18 @@ export class Player {
 
   // Golpes del pulso en el compás «bar»: k, o k + lo que respira en su ciclo
   kAt(bar) {
-    const c = this.cfg, r = Math.max(0, Math.round(c.respira || 0));
+    const c = this.cfg, r = Math.max(0, Math.round(c.breathe || 0));
     if (!r) return c.k;
-    const N = Math.max(1, Math.round(c.cicloP || 4));
+    const N = Math.max(1, Math.round(c.breatheCycle || 4));
     return Math.min(c.n, c.k + Math.round(r * (1 - Math.cos(2 * Math.PI * (bar % N) / N)) / 2));
   }
-  _pulso(nowB) {
+  _pulse(nowB) {
     const c = this.cfg, step = BAR / Math.max(1, c.n);
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / step) * step;
     const b = this.nextBeat, idx = Math.round(b / step) % c.n, a = this._arr(b);
     if (a.active && euclid(this.kAt(Math.floor(b / BAR + 1e-9)), c.n, c.rot)[idx] && this.rng() < c.prob * a.probMul) {
       const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // swing del reloj (si la rejilla es binaria)
-      const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.acento) * (0.92 + 0.16 * this.rng()));
+      const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.accent) * (0.92 + 0.16 * this.rng()));
       const id = this._id();
       this._on(id, this.base() + this.c.chordAtBeat(b).rootPc, vel, t);
       this._off(id, t + this.c.swingLen(b, step) * c.gate * this.c.beatLen());
@@ -158,13 +158,13 @@ export class Player {
     this.nextBeat = b + step;
   }
 
-  _acorde(nowB) {
+  _chord(nowB) {
     const c = this.cfg;
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / BAR) * BAR;
     const b = this.nextBeat, a = this._arr(b);
     if (!a.active) { if (this.held.length) this.releaseHeld(this.c.timeAt(b)); this.lastKey = null; this.nextBeat = b + BAR; return; }
     this._checkHeld();
-    const ch = this.c.chordAtBeat(b), pcs = ch.tones.slice(0, c.notas), key = pcs.join(',');
+    const ch = this.c.chordAtBeat(b), pcs = ch.tones.slice(0, c.notes), key = pcs.join(',');
     if (key !== this.lastKey) {                     // solo al cambiar de acorde (un pad se mantiene)
       const t = this.c.timeAt(b);
       this.releaseHeld(t);
@@ -178,26 +178,26 @@ export class Player {
     this.nextBeat = b + BAR;
   }
 
-  _raiz(nowB) {
+  _root(nowB) {
     const c = this.cfg;
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / BAR) * BAR;
     const b = this.nextBeat, bar = Math.round(b / BAR), a = this._arr(b);
     if (!a.active) { if (this.held.length) this.releaseHeld(this.c.timeAt(b)); this.lastKey = null; this.nextBeat = b + BAR; return; }
     this._checkHeld();
     const ch = this.c.chordAtBeat(b);
-    if (ch.rootPc !== this.lastKey || bar % Math.max(1, c.cada) === 0) {
+    if (ch.rootPc !== this.lastKey || bar % Math.max(1, c.every) === 0) {
       const t = this.c.timeAt(b);
       this.releaseHeld(t);
       const root = this.base() + ch.rootPc;
       // la quinta, DENTRO de la escala: sobre algunos grados de hirajoshi o blues no hay quinta justa
-      const notes = c.quinta ? [root, this.c.harmony.quantize(root + 7)] : [root];
+      const notes = c.fifth ? [root, this.c.harmony.quantize(root + 7)] : [root];
       for (const m of notes) { const id = this._id(); this._on(id, m, Math.min(1, c.vel * a.velMul), t); this.held.push(id); }
       this.lastKey = ch.rootPc;
     }
     this.nextBeat = b + BAR;
   }
 
-  _melodia(nowB) {
+  _melody(nowB) {
     const c = this.cfg, step = GRID_MEL;
     if (this.nextBeat < nowB - 1) { this.nextBeat = Math.ceil(nowB / step) * step; this.busy = 0; }
     const b = this.nextBeat;
@@ -205,11 +205,11 @@ export class Player {
     const a = this._arr(b);
     if (!a.active) { this.nextBeat = b + step; return; }
     const h = this.c.harmony, ch = this.c.chordAtBeat(b);
-    const lo = this.base(), hi = lo + 12 * Math.max(1, c.rango);
+    const lo = this.base(), hi = lo + 12 * Math.max(1, c.range);
     const pool = h.notesIn(lo, hi, h.scaleSet());
     if (!pool.length) { this.nextBeat = b + step; return; }
     // duración en corcheas: 1, 2 o 4 — con más densidad (y más energía), más cortas
-    const dens = clamp01(c.densidad + a.dens), sil = clamp01(c.silencio - a.dens * 0.6);
+    const dens = clamp01(c.density + a.dens), sil = clamp01(c.rest - a.dens * 0.6);
     const w = [dens + 0.05, 0.5, 1.05 - dens], tot = w[0] + w[1] + w[2];
     let x = this.rng() * tot; const len = x < w[0] ? 1 : (x < w[0] + w[1] ? 2 : 4);
     if (this.rng() < sil) { this.busy = (len - 1) * step; this.nextBeat = b + step; return; }   // silencio de esa duración
@@ -220,7 +220,7 @@ export class Player {
     if (idx < 0) {
       const cands = pool.map((m, i) => i).filter(i => chordSet.has(pool[i] % 12));
       idx = cands.length ? cands[Math.floor(cands.length / 2)] : Math.floor(pool.length / 2);
-    } else if (strong && this.rng() < c.gravedad) {
+    } else if (strong && this.rng() < c.gravity) {
       let best = idx, bd = 99;
       for (let i = 0; i < pool.length; i++) if (chordSet.has(pool[i] % 12)) { const d = Math.abs(i - idx); if (d < bd) { bd = d; best = i; } }
       idx = best;
@@ -245,14 +245,14 @@ export class Player {
   // Deriva lenta del parámetro elegido (la llama el director cada ~100 ms, en vivo).
   // Paseo suave ≈ ±1: 3 senos de periodos primos (en beats) con fases de la semilla.
   drift(beat) {
-    const c = this.cfg, key = c.deriva;
-    if (!key || key === 'off' || !(c.derivaAmt > 0)) return;
+    const c = this.cfg, key = c.drift;
+    if (!key || key === 'off' || !(c.driftAmt > 0)) return;
     const p = PARAMS[key]; if (!p) return;
     if (this.derivaKey !== key || this.derivaBase === undefined) { this.derivaKey = key; this.derivaBase = this.part.engine.S[key]; }
     const ph = this.derivaPhase;
     const w = (Math.sin(beat / 23 + ph[0]) + 0.6 * Math.sin(beat / 37 + ph[1]) + 0.4 * Math.sin(beat / 59 + ph[2])) / 2;
-    let v = p.log ? this.derivaBase * Math.pow(2, c.derivaAmt * w * 1.5)             // cutoff: en octavas
-                  : this.derivaBase + c.derivaAmt * w * 0.5 * (p.max - p.min);       // lineal: ± mitad del rango
+    let v = p.log ? this.derivaBase * Math.pow(2, c.driftAmt * w * 1.5)             // cutoff: en octavas
+                  : this.derivaBase + c.driftAmt * w * 0.5 * (p.max - p.min);       // lineal: ± mitad del rango
     v = Math.max(p.min, Math.min(p.max, v));
     this.part.engine.set(key, v);
     if (this.c.onDrift) this.c.onDrift(this.i, key, v);

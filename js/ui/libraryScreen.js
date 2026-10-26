@@ -35,27 +35,27 @@ function editInline(span, valor, onCommit) {
 }
 
 function row(it, cur) {
-  const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.tipo === 'escena' ? ' esc' : ''));
+  const r = mk('div', 'pl-item' + (it.id === cur ? ' cur' : '') + (it.type === 'scene' ? ' esc' : ''));
   r.dataset.id = it.id; r.draggable = true;
-  r.title = it.tipo === 'escena' ? 'Cargar la escena (enciende las Partes) · arrastra para mover'
+  r.title = it.type === 'scene' ? 'Cargar la escena (enciende las Partes) · arrastra para mover'
                                  : 'Cargar en la parte que edita el rack · arrastra para mover';
   const star = mk('span', 'pl-star' + (it.fav ? ' on' : ''), '★');
   star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale en «★ Favoritos» del selector rápido';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });
   r.appendChild(star);
-  if (it.tipo === 'escena') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
+  if (it.type === 'scene') {   // ▶ carga y arranca el director; ⏹ lo para (las Partes siguen encendidas)
     const on = playingId === it.id && isPlaying();
     const p = mk('span', 'pl-play' + (on ? ' on' : ''), on ? '⏹' : '▶');
     p.title = on ? 'Parar la escena (las Partes siguen encendidas)' : 'Cargar la escena y ponerla a sonar (solo una a la vez)';
     p.addEventListener('click', e => { e.stopPropagation(); togglePlay(it); });
     r.appendChild(p);
   }
-  const label = mk('span', 'pl-label', it.nombre); r.appendChild(label);
-  if (it.tipo === 'escena') r.appendChild(mk('span', 'pl-tag', 'escena'));
+  const label = mk('span', 'pl-label', it.name); r.appendChild(label);
+  if (it.type === 'scene') r.appendChild(mk('span', 'pl-tag', 'scene'));
   const tools = mk('span', 'pl-tools');
-  tools.appendChild(btn('', '✎', 'Renombrar', () => editInline(label, it.nombre, v => library.renombrar(it.id, v))));
-  tools.appendChild(btn('del', '🗑', 'Borrar' + (it.origen === 'fabrica' ? ' (⟲ Traer de fábrica lo devuelve)' : ''), () => {
-    if (confirm('¿Borrar «' + it.nombre + '»?')) { library.borrar(it.id); msg('Borrado «' + it.nombre + '».'); }
+  tools.appendChild(btn('', '✎', 'Renombrar', () => editInline(label, it.name, v => library.renombrar(it.id, v))));
+  tools.appendChild(btn('del', '🗑', 'Borrar' + (it.origin === 'factory' ? ' (⟲ Traer de fábrica lo devuelve)' : ''), () => {
+    if (confirm('¿Borrar «' + it.name + '»?')) { library.borrar(it.id); msg('Borrado «' + it.name + '».'); }
   }));
   r.appendChild(tools);
   r.addEventListener('click', () => cargar(it));
@@ -65,14 +65,14 @@ function row(it, cur) {
 }
 
 async function togglePlay(it) {
-  if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Escena parada: ' + it.nombre + '.'); return; }
-  try { await loadScene(it.datos); } catch (err) { msg('Escena no válida: ' + (err.message || err)); return; }
+  if (playingId === it.id && isPlaying()) { setPlaying(false); msg('Escena parada: ' + it.name + '.'); return; }
+  try { await loadScene(it.data); } catch (err) { msg('Escena no válida: ' + (err.message || err)); return; }
   playingId = it.id;            // después de cargar: scene-loaded acaba de limpiarlo
-  setPlaying(true); msg('Suena: ' + it.nombre + '.');
+  setPlaying(true); msg('Suena: ' + it.name + '.');
 }
 async function cargar(it) {
-  if (it.tipo === 'escena') {
-    try { await loadScene(it.datos); msg('Escena cargada: ' + it.nombre + ' (▶ Tocar en Armonía).'); }
+  if (it.type === 'scene') {
+    try { await loadScene(it.data); msg('Escena cargada: ' + it.name + ' (▶ Tocar en Armonía).'); }
     catch (err) { msg('Escena no válida: ' + (err.message || err)); }
     return;
   }
@@ -86,23 +86,23 @@ function render() {
   for (const s of library.secciones()) {
     const todos = library.items(s.id);
     let items = todos;
-    if (q) items = items.filter(it => normaliza(it.nombre).includes(q));
+    if (q) items = items.filter(it => normaliza(it.name).includes(q));
     if (soloFav) items = items.filter(it => it.fav);
     if ((q || soloFav) && !items.length) continue;   // filtrando: solo secciones con resultados
     const sec = mk('div', 'pl-sec' + (items.length > 30 ? ' big' : '')); sec.dataset.sec = s.id;   // grande: se parte entre columnas
     const head = mk('div', 'pl-head');
-    const name = mk('span', 'pl-name', s.nombre); head.appendChild(name);
+    const name = mk('span', 'pl-name', s.name); head.appendChild(name);
     head.appendChild(mk('span', 'pl-n', String(todos.length)));
     const tools = mk('span', 'pl-tools');
     tools.appendChild(btn('', '‹', 'Mover la sección hacia el principio', () => library.moverSeccion(s.id, -1)));
     tools.appendChild(btn('', '›', 'Mover la sección hacia el final', () => library.moverSeccion(s.id, 1)));
-    tools.appendChild(btn('', '✎', 'Renombrar la sección', () => editInline(name, s.nombre, v => library.renombrarSeccion(s.id, v))));
+    tools.appendChild(btn('', '✎', 'Renombrar la sección', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v))));
     tools.appendChild(btn('del', '🗑', 'Borrar la sección con todo lo que contiene', () => {
       const n = todos.length;
-      if (confirm('¿Borrar la sección «' + s.nombre + '»' + (n ? ' y sus ' + n + ' elementos' : '') + '?')) { library.borrarSeccion(s.id); msg('Sección «' + s.nombre + '» borrada.'); }
+      if (confirm('¿Borrar la sección «' + s.name + '»' + (n ? ' y sus ' + n + ' elementos' : '') + '?')) { library.borrarSeccion(s.id); msg('Sección «' + s.name + '» borrada.'); }
     }));
     head.appendChild(tools);
-    name.addEventListener('dblclick', () => editInline(name, s.nombre, v => library.renombrarSeccion(s.id, v)));
+    name.addEventListener('dblclick', () => editInline(name, s.name, v => library.renombrarSeccion(s.id, v)));
     sec.appendChild(head);
     for (const it of items) sec.appendChild(row(it, cur));
     // soltar aquí: antes del ítem sobre el que se suelta, o al final de la sección

@@ -16,17 +16,17 @@
    también offline — y cae en la rejilla del Arp, el Seq y el director.
    Índice en el patrón = (k + rotación + deriva) mod longitud, con deriva = un
    paso más cada N compases (el desfase de Reich).
-   Reinicio (stReset): 'tocar' = los Pasos se unen al reloj con la primera
+   Reinicio (stReset): 'play' = los Pasos se unen al reloj con la primera
    nota tras el silencio (si nadie más va a tempo, esa nota es el paso 0) y lo
-   sueltan al callar todo · 'nunca' = siguen el origen del reloj aunque pares
-   · '1 c' … '8 c' = vuelven al paso 0 cada N compases.
+   sueltan al callar todo · 'never' = siguen el origen del reloj aunque pares
+   · '1 bar' … '8 bars' = vuelven al paso 0 cada N compases.
    ===================================================================== */
 import { clockOf } from './Clock.js';
 
 export const ST_LANES = 4, ST_MAX = 32;
-export const ST_DIVS = { '1/32': 0.125, '1/16T': 1 / 6, '1/16': 0.25, '1/8T': 1 / 3, '1/8': 0.5, '1/4T': 2 / 3, '1/4': 1, '1/2': 2, '1 c': 4 };
-export const ST_DRIFTS = { 'off': 0, '1 c': 1, '2 c': 2, '4 c': 4, '8 c': 8, '16 c': 16 };
-export const ST_RESETS = { 'tocar': -1, 'nunca': 0, '1 c': 1, '2 c': 2, '4 c': 4, '8 c': 8 };
+export const ST_DIVS = { '1/32': 0.125, '1/16T': 1 / 6, '1/16': 0.25, '1/8T': 1 / 3, '1/8': 0.5, '1/4T': 2 / 3, '1/4': 1, '1/2': 2, '1 bar': 4 };
+export const ST_DRIFTS = { 'off': 0, '1 bar': 1, '2 bars': 2, '4 bars': 4, '8 bars': 8, '16 bars': 16 };
+export const ST_RESETS = { 'play': -1, 'never': 0, '1 bar': 1, '2 bars': 2, '4 bars': 4, '8 bars': 8 };
 const BAR = 4, LOOKAHEAD = 0.12, TICK_MS = 25, MICRO = 0.004;   // MICRO: la rampa más corta (un escalón sin clic)
 
 // '0.5 -1 0 …' → valores en [−1, 1] (un token raro vale 0), como mucho ST_MAX
@@ -99,18 +99,18 @@ export class Steps {
   }
 
   // Una nota empieza en t (la llama el motor ANTES de crear la voz). idle = no
-  // sonaba nada: con reinicio 'tocar' es «empezar a tocar» y el reloj se suelta
+  // sonaba nada: con reinicio 'play' es «empezar a tocar» y el reloj se suelta
   // y se retoma en t (si nadie más va a tempo, t es el paso 0).
   noteOn(t, idle) {
     if (!this.usedLanes().size) return;
     const clock = this.clock;
-    if (idle && this.e.S.stReset === 'tocar' && clock.users.has(this)) clock.leave(this);
+    if (idle && this.e.S.stReset === 'play' && clock.users.has(this)) clock.leave(this);
     if (!clock.users.has(this)) clock.join(this, t, 0.25, this.e.bpm);
     if (this.src.some(Boolean)) this._run(t);
   }
-  // Todo callado (sin voces ni colas): con 'tocar', fuera del reloj
+  // Todo callado (sin voces ni colas): con 'play', fuera del reloj
   idle() {
-    if (this.e.S.stReset === 'tocar') this.clock.leave(this);
+    if (this.e.S.stReset === 'play') this.clock.leave(this);
     this._stop();
   }
 

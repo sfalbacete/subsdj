@@ -36,10 +36,11 @@ export const velFromY = f => VEL_MIN + (1 - VEL_MIN) * touchCurve(Math.min(1, Ma
 // (v^0,5: 64 → 90), dura = hay que apretar (v^2: 64 → 32). Vale para el MIDI y para
 // el ratón (sobre la altura de la pulsación, conservando su suelo VEL_MIN); el
 // QWERTY no sabe de fuerza y sigue a 1.
-const TOUCH = { suave: 0.5, lineal: 1, dura: 2 };
+const TOUCH = { soft: 0.5, linear: 1, hard: 2 };
 const TOUCH_KEY = 'subsdj.tacto.v1';
-let touch = 'lineal';
-try { const t = localStorage.getItem(TOUCH_KEY); if (t in TOUCH) touch = t; } catch (_) {}
+let touch = 'linear';
+const TOUCH_ES = { suave: 'soft', lineal: 'linear', dura: 'hard' };   // guardado hasta la 1.3.0
+try { let t = localStorage.getItem(TOUCH_KEY); t = TOUCH_ES[t] || t; if (t in TOUCH) touch = t; } catch (_) {}
 export function touchCurve(v) { return Math.pow(Math.max(0, Math.min(1, v)), TOUCH[touch]); }
 export function getTouch() { return touch; }
 export function setTouch(t) {

@@ -23,9 +23,9 @@
    Se combinan: «7!/», «0x3», «3!~».
    NOTAS POR GRADO (Roadmap 7.0 · 5.2): con seqNotes = una escala, el número
    del paso es un GRADO contado desde la tecla mantenida (pasar del último sube
-   de octava); con 'armonía', los grados de la escala de la ESCENA (Partes) a
+   de octava); con 'harmony', los grados de la escala de la ESCENA (Partes) a
    partir de la tecla — la raíz del acorde si la pone el jugador —: la frase se
-   mueve dentro de la tonalidad. 'semitonos' = como siempre.
+   mueve dentro de la tonalidad. 'semitones' = como siempre.
    ===================================================================== */
 import { clockOf, DIV_BEATS } from './Clock.js';
 import { ESCALAS } from './Harmony.js';
@@ -120,10 +120,10 @@ export class Seq {
   // Escala de los grados (intervalos desde su tónica) e índice de la tecla en ella; null = semitonos
   _scale(rootFreq) {
     const mode = this.e.S.seqNotes;
-    if (!mode || mode === 'semitonos') return null;
-    if (mode !== 'armonía') return { I: ESCALAS[mode] || ESCALAS.mayor, i0: 0 };
+    if (!mode || mode === 'semitones') return null;
+    if (mode !== 'harmony') return { I: ESCALAS[mode] || ESCALAS.major, i0: 0 };
     const h = this.e.harmony ? this.e.harmony() : null;
-    if (!h) return { I: ESCALAS.mayor, i0: 0 };      // sin escena no hay armonía: mayor desde la tecla
+    if (!h) return { I: ESCALAS.major, i0: 0 };      // sin escena no hay armonía: mayor desde la tecla
     const I = h.notes, pc = ((Math.round(69 + 12 * Math.log2(rootFreq / 440)) - h.root) % 12 + 12) % 12;
     let i0 = 0; for (let i = 0; i < I.length; i++) if (I[i] <= pc) i0 = i;   // la tecla (o el grado de debajo, si no es de la escala)
     return { I, i0 };

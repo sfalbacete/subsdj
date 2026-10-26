@@ -277,7 +277,7 @@ export async function runSelfTest() {
       const eC = mk({ arpMode: 'up', arpDiv: '1/16', bpm: 120 }), when = clk.timeAt(2);
       eC.noteOn('j', 330, 1, when);
       await wait(1150);
-      if (!(eC.log.length && Math.abs(eC.log[0] - when) < 0.5 / SR)) probs.push('jugador: la tecla con instante empieza a ' + (eC.log.length ? ((eC.log[0] - when) * 1000).toFixed(2) + ' ms' : 'nunca') + ' de su pulso');
+      if (!(eC.log.length && Math.abs(eC.log[0] - when) < 0.5 / SR)) probs.push('jugador: la tecla con instante empieza a ' + (eC.log.length ? ((eC.log[0] - when) * 1000).toFixed(2) + ' ms' : 'never') + ' de su pulso');
       // cambio de tempo en marcha
       const nBefore = eC.log.length; clk.setBpm(90, live.currentTime); eC.S.bpm = 90;
       await wait(500);
@@ -387,7 +387,7 @@ export async function runSelfTest() {
       // capas de velocity MEDIDAS: un preset cuya velocity mueve la FM por la matriz (antes
       // salía con UNA capa: solo se miraba la env de filtro) da ≥ 2, con la suave subida a nivel
       const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
-      loadState(find('E-piano DX (vel→FM)'));
+      loadState(find('DX E-Piano (vel→FM)'));
       const vl = await velocityLayers(structuredClone(engine.S), 1.2);
       const okVel = vl.layers.length >= 2 && vl.layers[0].gain > 1;
       console.log('sfz capas: Reset Δ ' + kit.timbre.toFixed(1) + ' dB →', kit.layers, '· E-piano DX Δ ' + vl.timbre.toFixed(1), 'dB →', vl.layers.length, '(ganancia suave ×' + vl.layers[0].gain.toFixed(2) + ')');
@@ -617,8 +617,8 @@ export async function runSelfTest() {
     caso('Solo FM4: el Feedback sí', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Seno'], ['fmIndex', 'Seno'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
     caso('FM4 con el op 3 mudo', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'nivel 0'], ['fm4D3', 'nivel 0'], ['fm4V3', 'nivel 0'], ['fm4R2', null], ['fm4V2', null]]);
     caso('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
-    caso('Tabla sin «usuario»', () => C.waveA.set('tabla'), [['sec:Tabla de ondas', null], ['sec:Editor de ondas', 'usuario'], ['sec:Tabla · secuencia', null], ['wsDiv', 'Off']]);
-    caso('Tabla «usuario»', () => { C.waveA.set('tabla'); C.wtSet.set('usuario'); }, [['sec:Editor de ondas', null]]);
+    caso('Tabla sin «usuario»', () => C.waveA.set('wavetable'), [['sec:Tabla de ondas', null], ['sec:Editor de ondas', 'usuario'], ['sec:Tabla · secuencia', null], ['wsDiv', 'Off']]);
+    caso('Tabla «usuario»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Editor de ondas', null]]);
     caso('Súper', () => C.waveA.set('supersaw'), [['phaseA', 'Súper'], ['spread', null], ['sec:Unison', 'Súper']]);
     caso('Unison', () => C.uniVoices.set('3'), [['uniDetune', null]]);
     caso('Notch', () => C.filterType.set('notch'), [['morph', 'LP↔HP'], ['filterSlope', 'Notch']]);
@@ -639,7 +639,7 @@ export async function runSelfTest() {
     caso('Reverb con shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
     caso('Flam', () => C.hits.set(3), [['hitGap', null]]);
     caso('Drive a 0', () => {}, [['driveAsym', 'Drive a 0'], ['driveChar', 'Drive a 0']]);
-    caso('Drive plegado', () => { C.filterDrive.set(0.5); C.driveChar.set('plegado'); }, [['driveAsym', null], ['driveChar', null]]);
+    caso('Drive plegado', () => { C.filterDrive.set(0.5); C.driveChar.set('fold'); }, [['driveAsym', null], ['driveChar', null]]);
     caso('Matriz → Drive sin Drive', () => { C.mx1src.set('vel'); C.mx1dst.set('drive'); C.mx1amt.set(0.5); }, [['mx1dst', 'knob Drive'], ['mx1amt', 'knob Drive']]);
     caso('Matriz → Nivel B enciende el B', () => { C.mx1src.set('lfoCut'); C.mx1dst.set('lvlB'); C.mx1amt.set(0.5); }, [['sec:Osc B', null], ['mx1amt', null]]);
     caso('Matriz → Material sin Resonador', () => { C.mx1src.set('vel'); C.mx1dst.set('resMat'); C.mx1amt.set(0.5); }, [['mx1amt', 'Mezcla a 0']]);
@@ -903,49 +903,122 @@ export async function runSelfTest() {
     const nFab = Object.values(FACTORY).reduce((a, c) => a + Object.keys(c).length, 0);
     if (!nueva) probs.push('load no la vio nueva');
     if (L.presets().length !== nFab + 1) probs.push('siembra: ' + L.presets().length + ' ≠ ' + (nFab + 1));
-    if (L.secciones().map(s => s.nombre).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('secciones: ' + L.secciones().map(s => s.nombre).join('|'));
-    const mio = L.presets().find(p => p.nombre === 'Mío 1');
-    if (!mio || !(mio.datos.cutoff > 1) || mio.datos.reso !== 3) probs.push('usuario v1 no migrado');
+    if (L.secciones().map(s => s.name).join('|') !== Object.keys(FACTORY).join('|') + '|' + SEC_MIOS) probs.push('secciones: ' + L.secciones().map(s => s.name).join('|'));
+    const mio = L.presets().find(p => p.name === 'Mío 1');
+    if (!mio || !(mio.data.cutoff > 1) || mio.data.reso !== 3) probs.push('usuario v1 no migrado');
     if (L.sembrarFabrica() !== 0) probs.push('resembrar fábrica duplica');
-    const acid = L.presets().find(p => p.nombre === 'Ácido 303'), secAcid = acid && acid.seccion;
+    const acid = L.presets().find(p => p.name === 'Acid 303'), secAcid = acid && acid.section;
     L.borrar(acid.id);
-    if (L.presets().some(p => p.nombre === 'Ácido 303')) probs.push('borrar no borra');
+    if (L.presets().some(p => p.name === 'Acid 303')) probs.push('borrar no borra');
     if (L.sembrarFabrica() !== 1) probs.push('traer de fábrica no repone exactamente 1');
-    const acid2 = L.presets().find(p => p.nombre === 'Ácido 303');
-    if (!acid2 || acid2.seccion !== secAcid) probs.push('repuesto fuera de su sección');
+    const acid2 = L.presets().find(p => p.name === 'Acid 303');
+    if (!acid2 || acid2.section !== secAcid) probs.push('repuesto fuera de su sección');
     L.renombrar(acid2.id, 'Ácido mío'); L.actualizar(mio.id, { cutoff: 999 });
     if (L.sembrarFabrica() !== 0) probs.push('renombrado o retocado se duplica al traer');
     const sT = L.crearSeccion('Prueba'); L.renombrarSeccion(sT, 'Prueba 2');
-    if (!L.seccion(sT) || L.seccion(sT).nombre !== 'Prueba 2') probs.push('renombrar sección');
+    if (!L.seccion(sT) || L.seccion(sT).name !== 'Prueba 2') probs.push('renombrar sección');
     const [a, b, c] = L.presets().slice(0, 3);
     L.mover(a.id, sT); L.mover(b.id, sT); L.mover(c.id, sT, a.id);          // c antes de a → c, a, b
-    if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('mover/orden: ' + L.items(sT).map(i => i.nombre).join(','));
+    if (L.items(sT).map(i => i.id).join() !== [c.id, a.id, b.id].join()) probs.push('mover/orden: ' + L.items(sT).map(i => i.name).join(','));
     L.moverSeccion(sT, -1);
     const secs = L.secciones(); if (secs[secs.length - 2].id !== sT) probs.push('reordenar sección');
     L.fav(a.id); if (L.favoritos().length !== 1 || !L.item(a.id).fav) probs.push('favorito');
     L.fav(a.id); if (L.favoritos().length !== 0) probs.push('quitar favorito');
     if (!L.buscar('acido').some(i => i.id === acid2.id) || L.buscar('ACIDO MIO').length !== 1) probs.push('búsqueda sin acentos');
-    const huella = X => X.secciones().map(s => s.nombre + ':' + X.items(s.id).map(i => i.nombre + (i.fav ? '*' : '') + '/' + i.tipo).join(',')).join('|');
+    const huella = X => X.secciones().map(s => s.name + ':' + X.items(s.id).map(i => i.name + (i.fav ? '*' : '') + '/' + i.type).join(',')).join('|');
     const json = JSON.parse(JSON.stringify(L.exportar()));
     const M = new Library({ key: 'x', storage: mkStore() }); M.load({ semilla: false });
     const r1 = M.importar(json), r2 = M.importar(json);
-    if (r1.tipo !== 'biblioteca' || r1.n !== L.items().length || r2.n !== 0) probs.push('import ida y vuelta: ' + r1.n + '/' + L.items().length + ', repetido ' + r2.n);
+    if (r1.type !== 'library' || r1.n !== L.items().length || r2.n !== 0) probs.push('import ida y vuelta: ' + r1.n + '/' + L.items().length + ', repetido ' + r2.n);
     if (huella(M) !== huella(L)) probs.push('contenido tras importar');
     const rb = M.importar({ formato: 'subsdj-presets-v2', presets: { 'Nuevo': { cutoff: 500 }, 'Mío 1': { cutoff: 999 } } });   // «Mío 1» ya está igual
-    if (rb.tipo !== 'banco' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('importar banco v2: ' + rb.n);
+    if (rb.type !== 'bank' || rb.n !== 1 || !M.seccionPorNombre(SEC_IMPORT)) probs.push('importar banco v2: ' + rb.n);
     const re = M.importar({ formato: 'subsdj-escena-v1', nombre: 'Esc', partes: [] });
     const secE = M.seccionPorNombre(SEC_ESCENAS);
-    if (re.tipo !== 'escena' || re.n !== 1 || !secE || M.items(secE.id)[0].tipo !== 'escena') probs.push('importar escena');
+    if (re.type !== 'scene' || re.n !== 1 || !secE || M.items(secE.id)[0].type !== 'scene') probs.push('importar escena');
     const sP = M.seccionPorNombre('Prueba 2');
     if (M.borrarSeccion(sP.id) !== 3 || M.seccionPorNombre('Prueba 2')) probs.push('borrar sección con contenido');
     const L2 = new Library({ key: 'subsdj.biblioteca.selftest', storage: store }); L2.load();
     if (huella(L2) !== huella(L)) probs.push('no persiste');
     const f1 = await L.sembrarFicheros(), f2 = await L.sembrarFicheros();
     const sEsc = L.seccionPorNombre(SEC_ESCENAS), esc = sEsc ? L.items(sEsc.id) : [];
-    if (!(f1.n > 100) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.tipo !== 'escena'))
+    if (!(f1.n > 30) || f2.n !== 0 || f1.errores.length || esc.length !== ESCENAS_REPO.length || esc.some(i => i.type !== 'scene'))   // banco 2.0 + escenas (las demos A/B ya no se siembran)
       probs.push('ficheros: ' + f1.n + '/' + f2.n + ' errores ' + f1.errores.join(',') + ' escenas ' + esc.length);
     console.log('biblioteca: fábrica ' + nFab + ' · repo ' + f1.n + ' · secciones ' + L.secciones().length + ' · ítems ' + L.items().length);
     push({ name: 'biblioteca (siembra · borrar/traer · secciones · mover · ★ · buscar · export/import · ficheros)', peak: 0, ok: !probs.length, problems: probs });
+  }
+  {
+    // Compatibilidad 1.3.0 (1.4.0, todo en inglés): lo guardado hasta la 1.3.0 llevaba
+    // claves, valores y nombres en castellano y se traduce AL CARGARLO (engine/legacy.js).
+    // (1) un preset con valores viejos = su equivalente en inglés, sobre la base; (2) una
+    // escena v1 aplicada = la misma escena escrita en v2 (JSON idéntico); (3) una biblioteca
+    // v1 en su clave antigua: formato v2, secciones y nombres de fábrica traducidos, la
+    // semilla traducida (traer la fábrica no la duplica), favorito y datos de usuario
+    // conservados, las demos A/B fuera; (4) un mapa MIDI con una clave renombrada.
+    body.appendChild(el('st-cat', 'Compatibilidad'));
+    const NAME = 'compatibilidad 1.3.0 (preset · escena · biblioteca · mapa MIDI en castellano se traducen al cargar)';
+    const probs = [];
+    try {
+      // (1) preset
+      const ES = { waveA: 'tabla', waveB: 'cuerda', wtSet: 'formante', reverbType: 'placa', driveChar: 'plegado', envmMode: 'bucle',
+        lfoPhase: 'voz', stReset: 'tocar', cutLfoSync: '1 c', dlySync: 'libre', st2Div: '1 c', st3Drift: '2 c', seqNotes: 'dórica', vocVida: 0.4, resBrillo: 0.7 };
+      const EN = { waveA: 'wavetable', waveB: 'string', wtSet: 'formant', reverbType: 'plate', driveChar: 'fold', envmMode: 'loop',
+        lfoPhase: 'voice', stReset: 'play', cutLfoSync: '1 bar', dlySync: 'free', st2Div: '1 bar', st3Drift: '2 bars', seqNotes: 'dorian', vocLife: 0.4, resBright: 0.7 };
+      const canon = v => Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}' : JSON.stringify(v);
+      if (canon(withPresetBase(ES)) !== canon(withPresetBase(EN))) probs.push('preset: los valores en castellano no se traducen igual que su versión en inglés');
+      for (const k in EN) if (!(k in PARAMS)) probs.push('preset: «' + k + '» no es un parámetro');
+      // (2) escena v1 = la misma en v2
+      const v1 = { formato: 'subsdj-escena-v1', nombre: 'Coro robótico', fecha: '2026-10-01T00:00:00Z',
+        sala: { bpm: 66, dlySync: 'libre', reverbType: 'placa', fb: 0.4, master: 1 },
+        director: { seed: 3, armonia: { root: 2, scale: 'penta menor', prog: [1, 4], bars: 2, modo: 'funciones' },
+          arreglo: { energia: 0.5, vaiven: 0.3, ciclo: 8, apertura: 0.4, sorpresa: 0.1 },
+          jugadores: [{ mode: 'pulso', k: 5, n: 12, acento: 0.4, respira: 2, cicloP: 4, umbral: 0.2, deriva: 'cutoff', derivaAmt: 0.2 },
+            { mode: 'acorde', notas: 4 }, { mode: 'melodia', densidad: 0.5, silencio: 0.2, gravedad: 0.7, rango: 2 }, { mode: 'raiz', quinta: 1, cada: 2 }] },
+        partes: [{ preset: 'Bombo 808', ajustes: { reverbMix: 0 } }, { nombre: 'Mi pad', presetVal: 'f:Pad cálido', estado: { waveA: 'tabla', wtSet: 'formante', reverbType: 'placa', vocVida: 0.3 } }] };
+      const v2 = { format: 'subsdj-scene-v2', name: 'Robot Choir', date: '2026-10-01T00:00:00Z',
+        room: { bpm: 66, dlySync: 'free', reverbType: 'plate', fb: 0.4, master: 1 },
+        conductor: { seed: 3, harmony: { root: 2, scale: 'minor penta', prog: [1, 4], bars: 2, mode: 'functions' },
+          arrangement: { energy: 0.5, sway: 0.3, cycle: 8, open: 0.4, surprise: 0.1 },
+          players: [{ mode: 'pulse', k: 5, n: 12, accent: 0.4, breathe: 2, breatheCycle: 4, threshold: 0.2, drift: 'cutoff', driftAmt: 0.2 },
+            { mode: 'chord', notes: 4 }, { mode: 'melody', density: 0.5, rest: 0.2, gravity: 0.7, range: 2 }, { mode: 'root', fifth: 1, every: 2 }] },
+        parts: [{ preset: '808 Kick', settings: { reverbMix: 0 } }, { name: 'Mi pad', presetVal: 'f:Warm Pad', state: { waveA: 'wavetable', wtSet: 'formant', reverbType: 'plate', vocLife: 0.3 } }] };
+      const viaScene = async j => { const ctx = new OfflineAudioContext(2, SR, SR), sc = await createScene(ctx, []); applySceneJSON(sc, j); const o = sceneToJSON(sc); delete o.date; return canon(o); };
+      const s1 = await viaScene(JSON.parse(JSON.stringify(v1))), s2 = await viaScene(v2);
+      if (s1 !== s2) probs.push('escena: la v1 no queda igual que la v2');
+      if (!s1.includes('"808 Kick"') || !s1.includes('"mode":"functions"') || !s1.includes('"threshold":0.2')) probs.push('escena: nombres, modo o claves sin traducir');
+      // (3) biblioteca v1 en su clave antigua
+      const m = {}, store = { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } };
+      const lib1 = { formato: 'subsdj-biblioteca-v1', next: 9, ficheros: true,
+        secciones: [{ id: 's1', nombre: 'Pads' }, { id: 's2', nombre: 'Demos A/B' }, { id: 's3', nombre: '★ Míos' }, { id: 's4', nombre: 'Escenas' }],
+        items: [
+          { id: 'p1', tipo: 'preset', nombre: 'Pad cálido', seccion: 's1', fav: true, origen: 'fabrica', semilla: 'fabrica:Pad cálido', datos: { ...FACTORY['Pads']['Warm Pad'] } },
+          { id: 'p2', tipo: 'preset', nombre: 'DUB 1 · algo', seccion: 's2', fav: false, origen: 'demos', semilla: 'demos:DUB 1 · algo', datos: { cutoff: 900 } },
+          { id: 'p3', tipo: 'preset', nombre: 'Mi pad', seccion: 's3', fav: false, origen: 'usuario', semilla: null, datos: { reverbType: 'placa', vocBrillo: 0.6 } },
+          { id: 'p4', tipo: 'preset', nombre: 'Mi bombo', seccion: 's1', fav: false, origen: 'fabrica', semilla: 'fabrica:Bombo 808', datos: { cutoff: 120 } },
+          { id: 'e5', tipo: 'escena', nombre: 'Coro robótico', seccion: 's4', fav: false, origen: 'escena', semilla: 'escena:Coro robótico', datos: v1 }] };
+      store.setItem('subsdj.biblioteca.v1', JSON.stringify(lib1));
+      const L = new Library({ key: 'subsdj.library.compat', storage: store });
+      const era = L.load();
+      const sec = L.secciones().map(s => s.name).join('|'), it = id => L.item(id);
+      if (era) probs.push('biblioteca: la v1 se trató como nueva');
+      if (L.data.format !== 'subsdj-library-v2' || !store.getItem('subsdj.library.compat') || !store.getItem('subsdj.biblioteca.v1')) probs.push('biblioteca: formato o claves de almacenamiento');
+      if (sec !== 'Pads|★ Mine|Scenes') probs.push('biblioteca: secciones ' + sec);
+      if (!it('p1') || it('p1').name !== 'Warm Pad' || it('p1').seed !== 'factory:Warm Pad' || !it('p1').fav || it('p1').origin !== 'factory') probs.push('biblioteca: preset de fábrica sin traducir');
+      if (it('p2')) probs.push('biblioteca: las demos A/B siguen');
+      if (!it('p3') || it('p3').name !== 'Mi pad' || it('p3').data.reverbType !== 'plate' || it('p3').data.vocBright !== 0.6 || it('p3').origin !== 'user') probs.push('biblioteca: preset de usuario');
+      if (!it('p4') || it('p4').name !== 'Mi bombo' || it('p4').seed !== 'factory:808 Kick') probs.push('biblioteca: renombrado por el usuario');
+      if (!it('e5') || it('e5').type !== 'scene' || it('e5').name !== 'Robot Choir' || it('e5').data.format !== 'subsdj-scene-v2') probs.push('biblioteca: escena');
+      L.sembrarFabrica();
+      const dup = n => L.items().filter(x => x.name === n).length;
+      if (dup('Warm Pad') !== 1 || dup('808 Kick') !== 0) probs.push('biblioteca: traer la fábrica duplica (Warm Pad ×' + dup('Warm Pad') + ', 808 Kick ×' + dup('808 Kick') + ')');
+      // (4) mapa MIDI con una clave de antes
+      const prevDev = getDevice(), K = 'subsdj.midimap.v1:compat';
+      localStorage.setItem(K, JSON.stringify({ pickup: false, ccs: { 41: { id: 'vocVida', lo: 0, hi: 1 } } }));
+      setDevice('compat');
+      if (!getMap().ccs[41] || getMap().ccs[41].id !== 'vocLife') probs.push('mapa MIDI: vocVida no pasa a vocLife');
+      localStorage.removeItem(K); setDevice(prevDev);
+    } catch (e2) { probs.push('excepción: ' + ((e2 && e2.message) || e2)); }
+    push({ name: NAME, peak: 0, ok: !probs.length, problems: probs });
   }
 
   {
@@ -983,9 +1056,9 @@ export async function runSelfTest() {
     body.appendChild(el('st-cat', 'Tabla de ondas'));
     let r;
     try {
-      loadState({ waveA: 'tabla', levelA: 1, levelB: 0, wtPos: 0 });
+      loadState({ waveA: 'wavetable', levelA: 1, levelB: 0, wtPos: 0 });
       const bA = await renderBuf(structuredClone(engine.S));
-      loadState({ waveA: 'tabla', levelA: 1, levelB: 0, wtPos: 1 });
+      loadState({ waveA: 'wavetable', levelA: 1, levelB: 0, wtPos: 1 });
       const bB = await renderBuf(structuredClone(engine.S));
       const aA = analyze(bA), aB = analyze(bB);
       const cA = bA.getChannelData(0), cB = bB.getChannelData(0);
@@ -1007,7 +1080,7 @@ export async function runSelfTest() {
 
   {
     // tabla limpia (Roadmap 7.0 · 0.3): el oscilador «Tabla» solo, en un frame de
-    // banda completa (el 4 de 'analógica': sierra + cuadrada, 512 armónicos), a
+    // banda completa (el 4 de 'analog': sierra + cuadrada, 512 armónicos), a
     // f0 = k·SR/N: cada armónico cae EXACTO en un bin múltiplo de k (sin ventana
     // ni fugas) y todo lo demás es error de la lectura (interpolación, aliasing).
     // Energía fuera de los armónicos bajo la fundamental: con lineal y tablas 4×
@@ -1031,7 +1104,7 @@ export async function runSelfTest() {
         const ctx = new OfflineAudioContext(1, 4096 + N, SR);
         await loadWorklets(ctx);
         const node = new AudioWorkletNode(ctx, 'pulse-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1],
-          processorOptions: { type: 'tabla', octaves: 1, wt: getWtSet('analógica') } });
+          processorOptions: { type: 'wavetable', octaves: 1, wt: getWtSet('analog') } });
         node.parameters.get('frequency').value = k * SR / N;
         node.parameters.get('wtPos').value = 4 / 7;
         node.connect(ctx.destination);
@@ -1166,7 +1239,7 @@ export async function runSelfTest() {
     try {
       const probs = [], keep = snapshot(), log = [];
       const render = async (st, f, vel = 1, secs = 2) => {
-        loadState({ waveA: 'cuerda', levelA: 0.8, levelB: 0, cutoff: 20000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.05, amplitude: 0.3, master: 0.4, ...st });
+        loadState({ waveA: 'string', levelA: 0.8, levelB: 0, cutoff: 20000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.05, amplitude: 0.3, master: 0.4, ...st });
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.noteOn('c', f, vel);
         return (await ctx.startRendering()).getChannelData(0);
@@ -1260,18 +1333,18 @@ export async function runSelfTest() {
       if (!(h2s < 1e-3)) probs.push('simétrico con pares: ' + dB(h2s));
       // (2) silencio: sin fuente (niveles a 0) y todo el sesgo, en los dos caracteres
       let sil = 0;
-      for (const driveChar of ['suave', 'plegado']) { const d = await renderF336(st({ levelA: 0, filterDrive: 1, driveAsym: 1, driveChar })); for (const x of d) sil = Math.max(sil, Math.abs(x)); }
+      for (const driveChar of ['soft', 'fold']) { const d = await renderF336(st({ levelA: 0, filterDrive: 1, driveAsym: 1, driveChar })); for (const x of d) sil = Math.max(sil, Math.abs(x)); }
       if (!(sil < 1e-6)) probs.push('silencio con sesgo: pico ' + dB(sil));
       // (3) brillo frente a la ganancia de entrada: vel 1 → ganancia 1 … vel 0,1 → 9,1
       const sweep = async driveChar => { const S = st({ filterDrive: 1, driveChar, mx1src: 'vel', mx1dst: 'drive', mx1amt: -1 }), c = [];
         for (let v = 10; v >= 1; v--) c.push(centroid336(await renderF336(S, v / 10))); return c; };
-      const cF = await sweep('plegado'), cS = await sweep('suave');
+      const cF = await sweep('fold'), cS = await sweep('soft');
       const drops = cF.filter((x, i) => i > 0 && x < cF[i - 1] - 0.05).length, sDrops = cS.filter((x, i) => i > 0 && x < cS[i - 1] - 0.05).length;
       if (!(cF[cF.length - 1] > 2 * cF[0])) probs.push('plegado: el brillo no sube con el Drive (' + cF[0].toFixed(2) + ' → ' + cF[cF.length - 1].toFixed(2) + ')');
       if (!(drops >= 1)) probs.push('plegado: el brillo sube de forma monótona (sin pliegues)');
       if (sDrops) probs.push('suave: el brillo baja al subir el Drive (' + sDrops + ' veces)');
       // (4) simetría a tope en el plegado = curva par: la fundamental desaparece
-      const oct = await renderF336(st({ filterDrive: 1, driveChar: 'plegado', driveAsym: 1 }));
+      const oct = await renderF336(st({ filterDrive: 1, driveChar: 'fold', driveAsym: 1 }));
       const h1o = harm336(oct, 1) / harm336(oct, 2);
       if (!(h1o < 0.0316)) probs.push('plegado simétrico a tope: fundamental ' + dB(h1o) + ' bajo el 2.º (esperado < −30 dB)');
       loadState({});
@@ -1325,10 +1398,10 @@ export async function runSelfTest() {
         return env;
       };
       const rel = (a, b) => { let d = 0, e = 0; for (let i = 0; i < Math.min(a.length, b.length); i++) { d += (a[i] - b[i]) ** 2; e += a[i] ** 2; } return Math.sqrt(d / e); };
-      const SR2 = st({ lfoPhase: 'reinicio' }), SG = st({ lfoPhase: 'global' });
+      const SR2 = st({ lfoPhase: 'retrig' }), SG = st({ lfoPhase: 'global' });
       const dRe = rel(await envFrom(SR2, 0), await envFrom(structuredClone(SR2), 0.37)), dGl = rel(await envFrom(SG, 0), await envFrom(structuredClone(SG), 0.37));
       if (!(dRe < 0.01 && dGl > 0.1)) probs.push('reinicio: dos notas difieren ' + dRe.toFixed(4) + ' (global: ' + dGl.toFixed(3) + ')');
-      const eU = await envFrom(st({ lfoPhase: 'una' }), 0);
+      const eU = await envFrom(st({ lfoPhase: 'once' }), 0);
       const nU = Math.round((0.5 - 4 * 336 / SR) / (336 / SR)), during = eU.slice(0, nU), after = eU.slice(nU + 6);
       const swing = Math.max(...during) / Math.min(...during), still = Math.max(...after) / Math.min(...after);
       if (!(swing > 1.5 && still < 1.01)) probs.push('una vez: oscila ×' + swing.toFixed(2) + ' en su ciclo y ×' + still.toFixed(3) + ' después (esperado quieto)');
@@ -1365,7 +1438,7 @@ export async function runSelfTest() {
       };
       const at = (x, t) => x.d[Math.round(t * SR)];
       // (1) bucle
-      const B = await run({ envmMode: 'bucle', envmA: 0.01, envmD: 0.09, envmR: 0.2 }, 0.8);
+      const B = await run({ envmMode: 'loop', envmA: 0.01, envmD: 0.09, envmR: 0.2 }, 0.8);
       let per = 0, mx = 0, mn = 1;
       for (let i = Math.round((B.t0 + 0.05) * SR); i < Math.round((B.t0 + 0.6) * SR); i++) { per = Math.max(per, Math.abs(B.d[i] - B.d[i + 4410])); mx = Math.max(mx, B.d[i]); mn = Math.min(mn, B.d[i]); }
       const iOff = Math.round(B.tOff * SR), jump = Math.abs(B.d[iOff] - B.d[iOff - 1]), endB = Math.abs(at(B, B.tOff + 0.2 + 0.02));
@@ -1373,7 +1446,7 @@ export async function runSelfTest() {
       if (!(jump < 0.02 && endB < 1e-3)) probs.push('bucle al soltar: salto ' + jump.toFixed(3) + ', tras R ' + endB.toFixed(4));
       // (2) disparo frente a normal con una nota de 20 ms
       const env = { envmA: 0.01, envmD: 0.2, envmS: 0.5, envmR: 0.3 };
-      const P = await run({ envmMode: 'disparo', ...env }, 0.02), N = await run({ envmMode: 'normal', ...env }, 0.02);
+      const P = await run({ envmMode: 'trigger', ...env }, 0.02), N = await run({ envmMode: 'normal', ...env }, 0.02);
       const pS = at(P, P.t0 + 0.21), pEnd = at(P, P.t0 + 0.52), nMid = at(N, N.t0 + 0.21);
       if (!(Math.abs(pS - 0.5) < 0.02 && Math.abs(pEnd) < 0.01)) probs.push('disparo: en A + D vale ' + pS.toFixed(3) + ' (esperado 0,5) y tras R ' + pEnd.toFixed(3));
       if (!(nMid < 0.4)) probs.push('normal con 20 ms: no suelta (' + nMid.toFixed(3) + ' en A + D)');
@@ -1425,12 +1498,12 @@ export async function runSelfTest() {
       if (!(Math.abs(mid1) < 0.01)) probs.push('suavizado 1: a mitad del paso vale ' + mid1.toFixed(3) + ' (esperado 0)');
       // (2) cuentas sobre un motor de mentira (sin audio)
       const fakeCtx = { currentTime: 0 }, clk = clockOf(fakeCtx); clk.anchor('d', 0, 120);
-      const fe = { ctx: fakeCtx, bpm: 120, S: { ...structuredClone(engine.S), stReset: 'nunca', st2Pat: '0 0.25 0.5 0.75 1', st2Div: '1/16', st2Rot: 2, st2Drift: '1 c' } };
+      const fe = { ctx: fakeCtx, bpm: 120, S: { ...structuredClone(engine.S), stReset: 'never', st2Pat: '0 0.25 0.5 0.75 1', st2Div: '1/16', st2Rot: 2, st2Drift: '1 bar' } };
       const sp = new Steps(fe);
       const r0 = sp.valueAt(2, 0.01), r16 = sp.valueAt(2, 2.01);   // paso 0: índice 2 · paso 16 (compás 1): 16 + 2 + 1 = 19 → 4
-      if (!(r0 === 0.5 && r16 === 1)) probs.push('rotación y deriva: ' + r0 + ' / ' + r16 + ' (esperado 0,5 / 1)');
-      const cyc = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st2Pat: Array(12).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st2Div: '1/16', st3Div: '1/16', stReset: 'tocar' }, [1, 2, 3]);
-      const cycD = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st3Div: '1/16', st3Drift: '2 c', stReset: 'tocar' }, [1, 3]);
+      if (!(r0 === 0.5 && r16 === 1)) probs.push('rotación y drift: ' + r0 + ' / ' + r16 + ' (esperado 0,5 / 1)');
+      const cyc = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st2Pat: Array(12).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st2Div: '1/16', st3Div: '1/16', stReset: 'play' }, [1, 2, 3]);
+      const cycD = cycleBars({ st1Pat: Array(16).fill(0).join(' '), st3Pat: '0 0 0 0 0', st1Div: '1/16', st3Div: '1/16', st3Drift: '2 bars', stReset: 'play' }, [1, 3]);
       if (!(cyc === 15 && cycD === 10)) probs.push('ciclo: 16 · 12 · 5 = ' + cyc + ' compases (esperado 15); 16 · 5 con deriva de 2 c = ' + cycD + ' (esperado 10)');
       // (3) y (4): por nota y reinicio, leyendo el valor fijo de cada voz
       const perNote = async (reset, idleBetween) => {
@@ -1443,7 +1516,7 @@ export async function runSelfTest() {
         await ctx.startRendering();
         return vals;
       };
-      const pT = await perNote('tocar', true), pN = await perNote('nunca', true);
+      const pT = await perNote('play', true), pN = await perNote('never', true);
       // a: paso 0 (1) · b a 0,30 s: paso 2 (0,5) · c a 1,37 s tras el silencio: «al tocar» = paso 0 (1);
       // «nunca» = el paso en que cae su arranque (t0 = tecla + look-ahead: el 11 → 0), que no es el 0
       const wantN = want[Math.floor(pN.t0c / step + 1e-9) % 4];
@@ -1498,7 +1571,7 @@ export async function runSelfTest() {
   {
     // editor de ondas: (1) la DFT corta recupera un espectro conocido
     // (seno h1 + coseno h3), (2) puntos→espectro→puntos reproduce el dibujo
-    // (entrada band-limited por construcción), (3) la tabla 'usuario' (frames
+    // (entrada band-limited por construcción), (3) la tabla 'user' (frames
     // por defecto seno/sierra en un perfil limpio) da morph 0 ≠ 1.
     body.appendChild(el('st-cat', 'Editor de ondas'));
     let r;
@@ -1514,9 +1587,9 @@ export async function runSelfTest() {
       // frames por defecto DURANTE el test (el usuario puede tener A≈B dibujado); se restaura al salir
       const prevWt = localStorage.getItem(WT_LS);
       saveUserFrames(defaultUserFrames());
-      loadState({ waveA: 'tabla', wtSet: 'usuario', levelA: 1, levelB: 0, wtPos: 0 });
+      loadState({ waveA: 'wavetable', wtSet: 'user', levelA: 1, levelB: 0, wtPos: 0 });
       const bA = await renderBuf(structuredClone(engine.S));
-      loadState({ waveA: 'tabla', wtSet: 'usuario', levelA: 1, levelB: 0, wtPos: 1 });
+      loadState({ waveA: 'wavetable', wtSet: 'user', levelA: 1, levelB: 0, wtPos: 1 });
       const bB = await renderBuf(structuredClone(engine.S));
       if (prevWt === null) localStorage.removeItem(WT_LS); else localStorage.setItem(WT_LS, prevWt);
       invalidateUserSet();
@@ -1551,7 +1624,7 @@ export async function runSelfTest() {
     // render frente al seco (la etapa suena y el makeup no lo silencia ni lo
     // revienta), (2) vocal /u/ ≠ /i/ (la identidad vocálica es espectral y
     // el morph por WaveShaper→detune la mueve de verdad). Deterministas:
-    // saw base sin random y vocVida a 0.
+    // saw base sin random y vocLife a 0.
     body.appendChild(el('st-cat', 'Vocal'));
     let r;
     try {
@@ -1625,13 +1698,13 @@ export async function runSelfTest() {
         }
         return ctx.startRendering();
       };
-      loadState({ waveA: 'tabla', wtSet: 'glotal', levelA: 1, levelB: 0, wtPos: 0 });
+      loadState({ waveA: 'wavetable', wtSet: 'glottal', levelA: 1, levelB: 0, wtPos: 0 });
       const bG0 = await renderBuf(structuredClone(engine.S));
-      loadState({ waveA: 'tabla', wtSet: 'glotal', levelA: 1, levelB: 0, wtPos: 1 });
+      loadState({ waveA: 'wavetable', wtSet: 'glottal', levelA: 1, levelB: 0, wtPos: 1 });
       const bG1 = await renderBuf(structuredClone(engine.S));
-      loadState({ vocAmt: 1, vocBrillo: 0 });
+      loadState({ vocAmt: 1, vocBright: 0 });
       const bB0 = await renderBuf(structuredClone(engine.S));
-      loadState({ vocAmt: 1, vocBrillo: 1 });
+      loadState({ vocAmt: 1, vocBright: 1 });
       const bB1 = await renderBuf(structuredClone(engine.S));
       const bK0 = await renderK({ vocAmt: 1, vocAtk: 0, a: 0.005, r: 0.02 });
       const bK1 = await renderK({ vocAmt: 1, vocAtk: 1, a: 0.005, r: 0.02 });
@@ -1680,7 +1753,7 @@ export async function runSelfTest() {
       const p = parseWsPattern('0 7 . 3 9 -2');
       const okParse = p.length === 6 && p[0] === 0 && p[1] === 7 && p[2] === null &&
                       p[3] === 3 && p[4] === 7 && p[5] === 0 && parseWsPattern('').length === 0;
-      const base = { waveA: 'tabla', levelA: 1, levelB: 0, wtPos: 0, bpm: 120 };
+      const base = { waveA: 'wavetable', levelA: 1, levelB: 0, wtPos: 0, bpm: 120 };
       loadState(base);
       const bOff = await renderBuf(structuredClone(engine.S));
       loadState({ ...base, wsOn: 'on', wsPat: '0 7', wsDiv: '1/16', wsXf: 0.1 });
@@ -1733,7 +1806,7 @@ export async function runSelfTest() {
     let r;
     try {
       const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 12000, reso: 0.7, a: 0.002, d: 0.12, s: 0, r: 0.1,
-                     dlyAmt: 0.9, dlyTime: 0.25, dlySync: 'libre', width: 0 };
+                     dlyAmt: 0.9, dlyTime: 0.25, dlySync: 'free', width: 0 };
       loadState(base);
       const b0 = await renderOne(structuredClone(engine.S));
       loadState({ ...base, dlyDamp: 1 });
@@ -1794,7 +1867,7 @@ export async function runSelfTest() {
       const salaRun = async (fb, sat, secs, amp = 0.3, f = 440) => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
         await loadWorklets(ctx);
-        const st = makeDefaultState(); st.dlyTime = 0.3; st.dlySync = 'libre'; st.dlyDamp = 0; st.dlyWow = 0; st.dlySat = sat;
+        const st = makeDefaultState(); st.dlyTime = 0.3; st.dlySync = 'free'; st.dlyDamp = 0; st.dlyWow = 0; st.dlySat = sat;
         const sala = new Sala(ctx, st, { fb, dlyToRev: 0, master: 1 });
         const o = ctx.createOscillator(); o.frequency.value = f; const g = ctx.createGain(); g.gain.value = amp;
         o.connect(g); g.connect(sala.dlyIn); o.start(0); o.stop(0.2);
@@ -1892,13 +1965,13 @@ export async function runSelfTest() {
       const probs = [];
       const def = toControls(makeDefaultState());
       for (const k in PARAMS) if (def[k] !== PARAMS[k].def) { probs.push('toControls: ' + k + ' ≠ default'); break; }
-      const pr = FACTORY['Pads']['Pad catedral'], back = toControls(applyPreset(makeDefaultState(), pr));
+      const pr = FACTORY['Pads']['Cathedral Pad'], back = toControls(applyPreset(makeDefaultState(), pr));
       for (const k in pr) if (back[k] !== pr[k]) { probs.push('applyPreset/toControls no es ida y vuelta en ' + k); break; }
       const secs = 3.2, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
       // la parte 4 (la última en sonar) lleva ataque corto y envío a reverb a
       // tope: su cola es lo único que queda al final del render
-      const presets = [FACTORY['Bajos']['Bajo pluck'], FACTORY['Leads']['Lead cuadrado'], FACTORY['Percusión']['Bombo 808'],
-                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
+      const presets = [FACTORY['Bass']['Pluck Bass'], FACTORY['Leads']['Square Lead'], FACTORY['Percussion']['808 Kick'],
+                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.15, reverbMix: 0.6 }];
       // reverbSize va en la creación: regenerar la IR en vivo lleva debounce (timer real: no determinista offline)
       const sc = await createScene(ctx, presets, { salaS: { reverbSize: 2.6 } });
       sc.parts[1].engine.setMute(true);
@@ -1941,7 +2014,7 @@ export async function runSelfTest() {
     let r;
     try {
       const probs = [], near = (a, b) => Math.abs(a - b) < 1e-9, tk = getTouch();
-      setTouch('lineal');                          // la curva de tacto del navegador no cuenta aquí
+      setTouch('linear');                          // la curva de tacto del navegador no cuenta aquí
       if (!(near(velFromY(0), 0.2) && near(velFromY(0.425), 0.6) && near(velFromY(0.85), 1) && near(velFromY(1), 1) && near(velFromY(-0.1), 0.2)))
         probs.push('curva: ' + [0, 0.425, 0.85, 1].map(velFromY).map(v => v.toFixed(3)).join(' '));
       const keep = snapshot();
@@ -2002,7 +2075,7 @@ export async function runSelfTest() {
       if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('rehacer no vuelve a 1234');
       e.noteOff('hst');
       const ids = library.presets().map(it => it.id), d1 = historyDepth().undo;
-      loadPresetId(ids.find(id => library.item(id).nombre !== 'Init (default)'));
+      loadPresetId(ids.find(id => library.item(id).name !== 'Init (default)'));
       if (historyDepth().undo !== d1 + 1) probs.push('cargar un preset no es un paso');
       undo();
       if (Math.abs(CONTROLS.cutoff.get() - 1234) > 1e-6) probs.push('deshacer la carga no devuelve el sonido de antes');
@@ -2144,25 +2217,25 @@ export async function runSelfTest() {
       const mv = () => [...part().voices.keys()].filter(k => /^m\d+$/.test(k)).length;
       $('presetPick').click();
       if (pop.hidden || document.activeElement !== search) probs.push('no se abre con el buscador enfocado');
-      // un preset con acento, buscado sin él y en mayúsculas
-      const conAcento = library.presets().find(it => /[áéíóúñ]/i.test(it.nombre));
+      // un preset buscado en mayúsculas (y sin acentos, si hay alguno con ellos; la fábrica ya no los lleva)
+      const conAcento = library.presets().find(it => /[áéíóúñ]/i.test(it.name)) || library.presets().find(it => it.name.length > 8);
       if (conAcento) {
-        const sin = conAcento.nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+        const sin = conAcento.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
         type(sin);
-        if (!ids().includes(conAcento.id)) probs.push('«' + sin + '» no encuentra «' + conAcento.nombre + '»');
+        if (!ids().includes(conAcento.id)) probs.push('«' + sin + '» no encuentra «' + conAcento.name + '»');
         type('');
       }
       // categoría: solo lo suyo, y su contador = lo que se ve
       const catEls = [...document.querySelectorAll('#ppCats .pp-cat')];
-      const sec = library.secciones().find(x => library.items(x.id).filter(it => it.tipo === 'preset').length > 3);
-      const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.nombre);
+      const sec = library.secciones().find(x => library.items(x.id).filter(it => it.type === 'preset').length > 3);
+      const catEl = catEls.find(c => c.querySelector('.pp-cname').textContent === sec.name);
       if (catEls[0]?.querySelector('.pp-cname').textContent !== 'Todos' || +catEls[0].querySelector('.pp-cn').textContent !== library.presets().length)
         probs.push('«Todos» no cuenta la biblioteca entera');
-      if (!catEl) probs.push('falta la categoría «' + sec.nombre + '»');
+      if (!catEl) probs.push('falta la categoría «' + sec.name + '»');
       else {
         catEl.click();
         const v = ids();
-        if (!v.length || v.some(id => library.item(id).seccion !== sec.id)) probs.push('«' + sec.nombre + '» enseña presets de otras secciones');
+        if (!v.length || v.some(id => library.item(id).section !== sec.id)) probs.push('«' + sec.name + '» enseña presets de otras secciones');
         const cnt = +document.querySelector('#ppCats .pp-cat.on .pp-cn')?.textContent;
         if (cnt !== v.length) probs.push('contador ' + cnt + ' ≠ ' + v.length + ' a la vista');
         // clic carga; ↓ desde ahí carga el siguiente
@@ -2181,7 +2254,7 @@ export async function runSelfTest() {
         window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyZ', key: 'z', bubbles: true }));
         // reabrir: recuerda la categoría; Intro cierra
         $('presetPick').click();
-        if (!document.querySelector('#ppCats .pp-cat.on .pp-cname')?.textContent.startsWith(sec.nombre)) probs.push('no recuerda la categoría');
+        if (!document.querySelector('#ppCats .pp-cat.on .pp-cname')?.textContent.startsWith(sec.name)) probs.push('no recuerda la categoría');
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
         if (!pop.hidden) probs.push('Intro no cierra');
       }
@@ -2266,12 +2339,12 @@ export async function runSelfTest() {
     let r;
     try {
       const probs = [];
-      const h = new Harmony({ root: 0, scale: 'mayor', prog: [1, 6, 4, 5], bars: 1, seed: 3 });
+      const h = new Harmony({ root: 0, scale: 'major', prog: [1, 6, 4, 5], bars: 1, seed: 3 });
       const q = [h.quantize(61), h.quantize(66), h.quantize(62)];
       if (q.join() !== '60,65,62') probs.push('cuantización: ' + q.join());
       const tri = b => h.chordAt(b).tones.slice(0, 3).join('.');
       if (tri(0) !== '0.4.7' || tri(1) !== '9.0.4' || tri(3) !== '7.11.2') probs.push('acordes: ' + [tri(0), tri(1), tri(3)].join(' | '));
-      const walk = seed => { const hf = new Harmony({ modo: 'funciones', seed }); return [...Array(16)].map((_, i) => hf.degreeAt(i)); };
+      const walk = seed => { const hf = new Harmony({ mode: 'functions', seed }); return [...Array(16)].map((_, i) => hf.degreeAt(i)); };
       const w = walk(5), w2 = walk(5), w3 = walk(6);
       if (w.join() !== w2.join()) probs.push('paseo de funciones no determinista');
       if (w.join() === w3.join()) probs.push('paseo de funciones igual con otra semilla');
@@ -2283,17 +2356,17 @@ export async function runSelfTest() {
         if (s !== k) { probs.push('E(' + k + ',' + n + ') rot ' + rot + ': ' + s + ' golpes'); break; }
       }
       const secs = 4.0, ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
-      const presets = [FACTORY['Percusión']['Bombo 808'], FACTORY['Leads']['Lead cuadrado'],
-                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.2 }, FACTORY['Bajos']['Bajo pluck']];
+      const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
+                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
       const sc = await createScene(ctx, presets, { salaS: { bpm: 120 } });
       const setup = cd => {
-        Object.assign(cd.harmony, { root: 2, scale: 'menor', prog: [1, 6, 4, 5], bars: 1, modo: 'lista' });
+        Object.assign(cd.harmony, { root: 2, scale: 'minor', prog: [1, 6, 4, 5], bars: 1, mode: 'list' });
         const [p1, p2, p3, p4] = cd.players;
-        p1.setMode('pulso');   Object.assign(p1.cfg, { k: 4, n: 16, prob: 1 });
-        p2.setMode('melodia'); Object.assign(p2.cfg, { densidad: 0.7, silencio: 0.1 });
-        p3.setMode('acorde');  Object.assign(p3.cfg, { notas: 3 });
-        p4.setMode('raiz');    Object.assign(p4.cfg, { cada: 1, quinta: 1 });
-        Object.assign(cd.arr.cfg, { energia: 1, vaiven: 0, sorpresa: 0, apertura: 0 });   // arreglo neutro: aquí se prueban los jugadores
+        p1.setMode('pulse');   Object.assign(p1.cfg, { k: 4, n: 16, prob: 1 });
+        p2.setMode('melody'); Object.assign(p2.cfg, { density: 0.7, rest: 0.1 });
+        p3.setMode('chord');  Object.assign(p3.cfg, { notes: 3 });
+        p4.setMode('root');    Object.assign(p4.cfg, { every: 1, fifth: 1 });
+        Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 });   // arreglo neutro: aquí se prueban los jugadores
         cd.players.forEach(p => { p.log = []; });
       };
       const logs = cd => JSON.stringify(cd.players.map(p => p.log));
@@ -2343,28 +2416,28 @@ export async function runSelfTest() {
     try {
       const probs = [];
       const fake = { seed: 3 }, arr = new Arrangement(fake);
-      Object.assign(arr.cfg, { energia: 0.6, vaiven: 0.6, ciclo: 16, sorpresa: 0 });
+      Object.assign(arr.cfg, { energy: 0.6, sway: 0.6, cycle: 16, surprise: 0 });
       const E0 = arr.energyAt(0), E8 = arr.energyAt(8), Emax = Math.max(...[...Array(64)].map((_, b) => arr.energyAt(b))), Emin = Math.min(...[...Array(64)].map((_, b) => arr.energyAt(b)));
       if (!(Math.abs(E0 - 0.3) < 1e-9 && Math.abs(E8 - 0.9) < 1e-9)) probs.push('energía: E(0)=' + E0.toFixed(3) + ' E(8)=' + E8.toFixed(3));
       if (Emin < 0 || Emax > 1) probs.push('energía fuera de [0,1]');
-      const pc = { umbral: 0.85 };
+      const pc = { threshold: 0.85 };
       if (arr.stateAt(0, 0, pc).active || !arr.stateAt(8, 0, pc).active) probs.push('umbral: la parte no calla/entra donde toca');
-      arr.cfg.sorpresa = 1;
+      arr.cfg.surprise = 1;
       const rests = [...Array(40)].map((_, b) => arr.rest(b, 1)), rests2 = [...Array(40)].map((_, b) => arr.rest(b, 1));
       const nRest = rests.filter(Boolean).length;
       if (rests.join() !== rests2.join()) probs.push('sorpresa no determinista');
       if (!(nRest >= 3 && nRest <= 20)) probs.push('sorpresa: ' + nRest + ' silencios de 40 (esperados ~10)');
       // (2)-(4): escena offline
-      const presets = [FACTORY['Percusión']['Bombo 808'], FACTORY['Leads']['Lead cuadrado'],
-                       { ...FACTORY['Pads']['Pad de cristal'], a: 0.01, r: 0.2 }, FACTORY['Bajos']['Bajo pluck']];
+      const presets = [FACTORY['Percussion']['808 Kick'], FACTORY['Leads']['Square Lead'],
+                       { ...FACTORY['Pads']['Glass Pad'], a: 0.01, r: 0.2 }, FACTORY['Bass']['Pluck Bass']];
       const conf = cd => {
-        Object.assign(cd.harmony, { root: 4, scale: 'dórica', prog: [1, 4], bars: 1, modo: 'lista' });
-        Object.assign(cd.arr.cfg, { energia: 0.6, vaiven: 0.6, ciclo: 2, apertura: 1, sorpresa: 0.3 });
+        Object.assign(cd.harmony, { root: 4, scale: 'dorian', prog: [1, 4], bars: 1, mode: 'list' });
+        Object.assign(cd.arr.cfg, { energy: 0.6, sway: 0.6, cycle: 2, open: 1, surprise: 0.3 });
         const [p1, p2, p3, p4] = cd.players;
-        p1.setMode('pulso');   Object.assign(p1.cfg, { k: 4, n: 16, umbral: 0.4 });
-        p2.setMode('melodia'); Object.assign(p2.cfg, { densidad: 0.7, silencio: 0.1 });
-        p3.setMode('acorde');  Object.assign(p3.cfg, { notas: 3, umbral: 0.2 });
-        p4.setMode('raiz');    Object.assign(p4.cfg, { cada: 1, quinta: 1 });
+        p1.setMode('pulse');   Object.assign(p1.cfg, { k: 4, n: 16, threshold: 0.4 });
+        p2.setMode('melody'); Object.assign(p2.cfg, { density: 0.7, rest: 0.1 });
+        p3.setMode('chord');  Object.assign(p3.cfg, { notes: 3, threshold: 0.2 });
+        p4.setMode('root');    Object.assign(p4.cfg, { every: 1, fifth: 1 });
       };
       const secs = 4.0;
       const render = async seed => {
@@ -2384,11 +2457,11 @@ export async function runSelfTest() {
       const cents0 = A.sc.conductor.arr.macroCents(0), cents1 = A.sc.conductor.arr.macroCents(1);
       if (!(cents0 < -400 && cents1 > 500)) probs.push('macro de apertura: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
       // JSON ida y vuelta sobre la escena A
-      const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.fecha; return JSON.stringify(o); };
+      const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.date; return JSON.stringify(o); };
       sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.salaCfg.fb = 0.61;
       const J1 = sceneToJSON(sc);
-      sc.conductor.setSeed(1); Object.assign(sc.conductor.harmony, { root: 0, scale: 'mayor', prog: [1], bars: 2 });
-      Object.assign(sc.conductor.arr.cfg, { energia: 0.1, ciclo: 8 }); sc.conductor.players.forEach(p => { p.cfg.mode = 'off'; p.cfg.umbral = 0; });
+      sc.conductor.setSeed(1); Object.assign(sc.conductor.harmony, { root: 0, scale: 'major', prog: [1], bars: 2 });
+      Object.assign(sc.conductor.arr.cfg, { energy: 0.1, cycle: 8 }); sc.conductor.players.forEach(p => { p.cfg.mode = 'off'; p.cfg.threshold = 0; });
       sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.salaCfg.fb = 0.2; sc.S.reverbSize = 1.0;
       sc.parts[0].engine.set('cutoff', 555);
       const J2 = sceneToJSON(sc);
@@ -2396,7 +2469,7 @@ export async function runSelfTest() {
       applySceneJSON(sc, JSON.parse(JSON.stringify(J1)));
       const J3 = sceneToJSON(sc);
       if (strip(J3) !== strip(J1)) probs.push('escena JSON: ida y vuelta no es exacta');
-      if (sc.parts[0].engine.S.cutoff !== J1.partes[0].estado.cutoff) probs.push('importar no restaura el estado de la parte');
+      if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) probs.push('importar no restaura el estado de la parte');
       // (4) las escenas del repo (escenas/*.json): cargan, sus presets se
       // aplican, suenan sin NaN ni clipping y todo lo emitido está en su escala
       const ESCENAS = ['ambient-nocturno', 'amanecer-dorico', 'techno-hipnotico', 'coro-robotico'];
@@ -2411,7 +2484,7 @@ export async function runSelfTest() {
         const aD = analyze(await ctxD.startRendering());
         picos.push(nombre + ' ' + dB(aD.peak));
         if (aD.bad) probs.push(nombre + ': NaN/Inf'); if (aD.peak > 1) probs.push(nombre + ': clipping'); if (aD.peak <= SILENCE) probs.push(nombre + ' en silencio (' + dB(aD.peak) + ')');
-        if (scD.parts.map(p => p.presetName).join('|') !== j.partes.map(p => p.preset).join('|')) probs.push(nombre + ': nombres de preset no aplicados');
+        if (scD.parts.map(p => p.presetName).join('|') !== j.parts.map(p => p.preset).join('|')) probs.push(nombre + ': nombres de preset no aplicados');
         const esc = scD.conductor.harmony.scaleSet(), ons = scD.conductor.players.flatMap(p => p.log.filter(x => x[1] === 'on'));
         if (!ons.length) probs.push(nombre + ': ningún jugador emite');
         if (ons.some(x => !esc.has(((x[2] % 12) + 12) % 12))) probs.push(nombre + ': notas fuera de la escala');
@@ -2438,7 +2511,7 @@ export async function runSelfTest() {
     try {
       const probs = [];
       loadState({ waveA: 'sine', fmIndex: 3, fmRatio: 2, uniVoices: '3', drift: 8, waveB: 'supersaw', levelB: 0.5,
-                  noise: 0.3, reverbMix: 0.3, vocAmt: 0.6, vocVida: 0.5, vocAtk: 0.8, mx1src: 'rnd', mx1dst: 'cutoff', mx1amt: 0.5 });
+                  noise: 0.3, reverbMix: 0.3, vocAmt: 0.6, vocLife: 0.5, vocAtk: 0.8, mx1src: 'rnd', mx1dst: 'cutoff', mx1amt: 0.5 });
       const S = structuredClone(engine.S);
       const render = async seed => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
@@ -2481,7 +2554,7 @@ export async function runSelfTest() {
       const ir = async (size, damp = 0.3) => {
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.5), SR);
         await loadWorklets(ctx);
-        const S = makeDefaultState(); Object.assign(S, { reverbType: 'placa', reverbSize: size, reverbDamp: damp, reverbPre: 0 });
+        const S = makeDefaultState(); Object.assign(S, { reverbType: 'plate', reverbSize: size, reverbDamp: damp, reverbPre: 0 });
         const sala = new Sala(ctx, S, { master: 1 });
         const b = ctx.createBuffer(1, 8, SR); b.getChannelData(0)[0] = 1;
         const src = ctx.createBufferSource(); src.buffer = b; src.connect(sala.revIn); src.start(0);
@@ -2509,9 +2582,9 @@ export async function runSelfTest() {
         const alive = (t0, t1) => { let n = 0; for (let i = Math.floor(t0 * SR); i < Math.floor(t1 * SR); i++) if (Math.abs(d[i]) > thr) n++; return n; };
         early = alive(0.001, 0.021); late = alive(0.1, 0.12);
         if (!(late > early)) probs.push('la densidad no crece (' + early + ' → ' + late + ' muestras vivas)'); }
-      loadState({ ...FACTORY['Pads']['Pad de placa'], reverbType: 'sala' });
+      loadState({ ...FACTORY['Pads']['Plate Pad'], reverbType: 'hall' });
       const bS = await renderBuf(structuredClone(engine.S));
-      loadState(FACTORY['Pads']['Pad de placa']);
+      loadState(FACTORY['Pads']['Plate Pad']);
       const bP = await renderBuf(structuredClone(engine.S));
       const diff = (x, y) => { const cX = x.getChannelData(0), cY = y.getChannelData(0); let d = 0, en = 0;
         for (let i = 0; i < cX.length; i += 16) { const e = cX[i] - cY[i]; d += e * e; en += cX[i] * cX[i]; } return Math.sqrt(d / Math.max(1e-12, en)); };
@@ -2989,7 +3062,7 @@ export async function runSelfTest() {
         if (!pd.every((v, i) => i === 0 || v > pd[i - 1]) || !(pd[4] > 0.93 && pd[4] < 0.98)) probs.push('plateDecay no es monótona/acotada: ' + pd.map(x => x.toFixed(3)).join(' '));
         const pl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.08, s: 0, r: 0.05, width: 0, reverbMix: 0.6, reverbPre: 0 };
         const colas = {};
-        for (const type of ['sala', 'placa']) {
+        for (const type of ['hall', 'plate']) {
           loadState({ ...pl, reverbType: type, reverbSize: 4 });
           const b4 = await renderOne(structuredClone(engine.S), { secs: 4, offAt: 0.1 });
           loadState({ ...pl, reverbType: type, reverbSize: 20 });
@@ -3001,14 +3074,14 @@ export async function runSelfTest() {
           if (analyze(b20).bad) probs.push(type + ': NaN/Inf con Size 20');
         }
         const dl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: 0.7, a: 0.002, d: 0.05, s: 0, r: 0.05, width: 0,
-                     dlyAmt: 0.6, dlyTime: 3.5, dlySync: 'libre', dlyDamp: 0, reverbMix: 0 };
+                     dlyAmt: 0.6, dlyTime: 3.5, dlySync: 'free', dlyDamp: 0, reverbMix: 0 };
         loadState(dl);
         const bD = await renderOne(structuredClone(engine.S), { secs: 4.2, offAt: 0.1 });
         const eco = rmsW(bD, 3.5, 3.8), hueco = rmsW(bD, 2.0, 3.4);
         if (!(eco > 1e-3 && eco > 10 * hueco)) probs.push('eco de 3,5 s: ' + dB(eco) + ' frente a ' + dB(hueco) + ' en el hueco anterior');
         loadState({});
         console.log('sala larga: IR 20 s en', msIR.toFixed(0), 'ms · nivel a 10 s', qIR.toFixed(3), '· plateDecay 4/8,25/12/16,2/20 =', pd.map(x => x.toFixed(3)).join(' '),
-                    '· cola 3,5 s IR 20/4', dB(colas.sala[0]), dB(colas.sala[1]), '· placa 20/4', dB(colas.placa[0]), dB(colas.placa[1]), '· eco 3,5 s', dB(eco), 'hueco', dB(hueco));
+                    '· cola 3,5 s IR 20/4', dB(colas.hall[0]), dB(colas.hall[1]), '· placa 20/4', dB(colas.plate[0]), dB(colas.plate[1]), '· eco 3,5 s', dB(eco), 'hueco', dB(hueco));
         r = { name: NAME, peak: analyze(bD).peak, ok: !probs.length, problems: probs };
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
@@ -3044,7 +3117,7 @@ export async function runSelfTest() {
     const base = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.25, master: 0.4 };
     // Fase por voz: con el LFO de cutoff (crudo, vía matriz → amplitud) las dos
     // notas suben y bajan juntas en 'global' (corr ≈ 1) y desfasadas 0,618 de
-    // ciclo en 'voz' (corr ≈ cos(2π·0,618) = −0,74). La primera voz en 'voz'
+    // ciclo en 'voice' (corr ≈ cos(2π·0,618) = −0,74). La primera voz en 'voice'
     // suena como en 'global' (fase 0: el buffer seno ≡ el oscilador nativo).
     {
       const NAME = 'fase por voz de los LFO (global: a la vez · por voz: desfasadas 0,618 de ciclo · voz 0 = el global · buffers de forma)';
@@ -3052,7 +3125,7 @@ export async function runSelfTest() {
       try {
         const probs = [];
         const st = { ...base, cutLfoLvl: 0, cutLfoSpd: 1, cutLfoShape: 'sine', mx1src: 'lfoCut', mx1dst: 'amp', mx1amt: 0.8 };
-        const bG = await chord({ ...st, lfoPhase: 'global' }), bV = await chord({ ...st, lfoPhase: 'voz' });
+        const bG = await chord({ ...st, lfoPhase: 'global' }), bV = await chord({ ...st, lfoPhase: 'voice' });
         const g1 = track(bG, NOTE1, 0.3, 2.3), g2 = track(bG, NOTE2, 0.3, 2.3), v1 = track(bV, NOTE1, 0.3, 2.3), v2 = track(bV, NOTE2, 0.3, 2.3);
         const cG = corr(g1, g2), cV = corr(v1, v2), c11 = corr(g1, v1);
         if (!(swing(g1) > 2 && swing(v1) > 2 && swing(v2) > 2)) probs.push('el LFO no mueve la amplitud (vaivén ' + [swing(g1), swing(v1), swing(v2)].map(x => x.toFixed(2)).join(' / ') + ')');
@@ -3149,7 +3222,7 @@ export async function runSelfTest() {
         const pl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 6000, reso: 0.7, a: 0.002, d: 0.1, s: 0, r: 0.05, width: 0,
                      reverbMix: 0.6, reverbSize: 4, reverbDamp: 0, reverbPre: 0, shimInt: '+12' };
         let peak = 0;
-        for (const type of ['placa', 'sala']) {
+        for (const type of ['plate', 'hall']) {
           loadState({ ...pl, reverbType: type, shimAmt: 0 });
           const b0 = await renderOne(structuredClone(engine.S), { secs: 8, offAt: 0.1 });
           loadState({ ...pl, reverbType: type, shimAmt: 1 });
@@ -3164,10 +3237,10 @@ export async function runSelfTest() {
           const a1 = analyze(b1); peak = Math.max(peak, a1.peak);
           if (a1.bad || a1.peak > 1) probs.push(type + ': NaN/Inf o clipping con shimmer');
         }
-        const gP = reverbEnergyGain('placa', 4), gI = reverbEnergyGain('sala', 4);
+        const gP = reverbEnergyGain('plate', 4), gI = reverbEnergyGain('hall', 4);
         if (!(Math.abs(gP - 0.189) < 0.01 && Math.abs(gI - 0.28) < 0.01)) probs.push('reverbEnergyGain a Size 4: placa ' + gP.toFixed(3) + ' (medido 0,189) · IR ' + gI.toFixed(3) + ' (0,280)');
-        console.log('shimmer: placa tilt con/sin', med.placa.t1.toExponential(2), med.placa.t0.toExponential(2), 'rms', dB(med.placa.e1), dB(med.placa.e0), '7 s/2 s', med.placa.crece.toFixed(3),
-                    '· IR tilt', med.sala.t1.toExponential(2), med.sala.t0.toExponential(2), 'rms', dB(med.sala.e1), dB(med.sala.e0), '7 s/2 s', med.sala.crece.toFixed(3), '· G placa/IR', gP.toFixed(3), gI.toFixed(3));
+        console.log('shimmer: placa tilt con/sin', med.plate.t1.toExponential(2), med.plate.t0.toExponential(2), 'rms', dB(med.plate.e1), dB(med.plate.e0), '7 s/2 s', med.plate.crece.toFixed(3),
+                    '· IR tilt', med.hall.t1.toExponential(2), med.hall.t0.toExponential(2), 'rms', dB(med.hall.e1), dB(med.hall.e0), '7 s/2 s', med.hall.crece.toFixed(3), '· G placa/IR', gP.toFixed(3), gI.toFixed(3));
         r = { name: NAME, peak, ok: !probs.length, problems: probs };
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['excepción: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
@@ -3181,7 +3254,7 @@ export async function runSelfTest() {
       try {
         const probs = [];
         const pl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 6000, reso: 0.7, a: 0.002, d: 0.1, s: 0, r: 0.05, width: 0,
-                     reverbType: 'placa', reverbMix: 0.6, reverbSize: 2, reverbDamp: 0, reverbPre: 0 };
+                     reverbType: 'plate', reverbMix: 0.6, reverbSize: 2, reverbDamp: 0, reverbPre: 0 };
         const rend = async (st, acciones) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 6), SR);
           const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
           eng.noteOn('f', NOTE1); ctx.suspend(0.1).then(() => { eng.noteOff('f'); ctx.resume(); });
@@ -3191,7 +3264,7 @@ export async function runSelfTest() {
         const bFrz = await rend(pl, [[0.5, e => { if (!e.sala.setFreeze(true)) probs.push('setFreeze(true) no actuó con la placa'); }]]);
         const bSuelta = await rend(pl, [[0.5, e => e.sala.setFreeze(true)], [3.0, e => e.sala.setFreeze(false)]]);
         let irOk = true;
-        await rend({ ...pl, reverbType: 'sala' }, [[0.5, e => { irOk = e.sala.setFreeze(true) === false && !e.sala.frozen; }]]);
+        await rend({ ...pl, reverbType: 'hall' }, [[0.5, e => { irOk = e.sala.setFreeze(true) === false && !e.sala.frozen; }]]);
         const hold = rmsW(bFrz, 5, 5.5) / Math.max(1e-9, rmsW(bFrz, 1, 1.5)), libre = rmsW(bLibre, 5, 5.5) / Math.max(1e-9, rmsW(bLibre, 1, 1.5));
         const caida = rmsW(bSuelta, 5.5, 6) / Math.max(1e-9, rmsW(bSuelta, 2.5, 3));
         if (!(rmsW(bFrz, 5, 5.5) > 1e-3)) probs.push('congelada, la cola se apaga (' + dB(rmsW(bFrz, 5, 5.5)) + ' a los 5 s)');
@@ -3314,7 +3387,7 @@ export async function runSelfTest() {
       const probs = [], keep = snapshot(), tk = getTouch(), near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
       loadState({});
       const v64 = 64 / 127;
-      for (const [t, g] of [['suave', 0.5], ['lineal', 1], ['dura', 2]]) {
+      for (const [t, g] of [['soft', 0.5], ['linear', 1], ['hard', 2]]) {
         setTouch(t);
         handleMidi([0x90, 60, 64]);
         const v = part().voices.get('m60');
@@ -3443,7 +3516,7 @@ export async function runSelfTest() {
       if (!(rh.every((x, i) => Math.abs(x - (i + 1)) < 1e-9) && Math.abs(rb[1] - 2.756) < 1e-9 && Math.abs(rb[5] - 18.638) < 1e-9)) probs.push('razones: ' + rh.map(x => x.toFixed(2)).join(',') + ' / ' + rb.map(x => x.toFixed(2)).join(','));
       if (!(Math.abs(resQ(0) - 10) < 1e-9 && Math.abs(resQ(1) - 600) < 1e-6)) probs.push('resQ: ' + resQ(0) + ' ' + resQ(1));
       if (!(Math.abs(e2 - 2) < 1e-9)) probs.push('ganancias no normalizadas (Σg² = ' + e2.toFixed(3) + ')');
-      const ex = { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 1, resBrillo: 0.6 };
+      const ex = { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, resAmt: 1, resDecay: 1, resBright: 0.6 };
       const rendCut = async (st, { cut = CUT, legato = 0 } = {}) => {   // ruido + seno; en `cut` se corta el ruido con la nota pulsada
         loadState(st);
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * (CUT + 1.6)), SR), eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
@@ -3706,10 +3779,10 @@ export async function runSelfTest() {
       if (at.length !== 4 || rel.some((t, i) => Math.abs(t - esp[i]) > 5)) probs.push('Seq con swing: ataques a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms (esperado 0 / 167 / 250 / 417)');
       // (3) el pulso que respira
       const pl = Object.create(Player.prototype);
-      pl.cfg = { ...PLAYER_DEF, k: 2, n: 16, respira: 4, cicloP: 4 };
+      pl.cfg = { ...PLAYER_DEF, k: 2, n: 16, breathe: 4, breatheCycle: 4 };
       const ks = [0, 1, 2, 3].map(bar => pl.kAt(bar));
       if (ks.join() !== '2,4,6,4') probs.push('pulso que respira: golpes ' + ks.join(' '));
-      pl.cfg.respira = 0;
+      pl.cfg.breathe = 0;
       if ([0, 1, 2, 3].some(bar => pl.kAt(bar) !== 2)) probs.push('con Respira 0 el pulso cambia');
       loadState({});
       console.log('swing: Seq a ' + rel.map(t => t.toFixed(0)).join(' / ') + ' ms · pulso que respira ' + ks.join('-'));
@@ -3730,18 +3803,18 @@ export async function runSelfTest() {
     let r;
     try {
       const probs = [];
-      const e = { S: { seqNotes: 'mayor' } }, q = new Seq(e), sem = ds => ds.map(d => q.semis(d, 261.63)).join(' ');
+      const e = { S: { seqNotes: 'major' } }, q = new Seq(e), sem = ds => ds.map(d => q.semis(d, 261.63)).join(' ');
       if (sem([0, 1, 2, 3, 4, 5, 6, 7, -1]) !== '0 2 4 5 7 9 11 12 -1') probs.push('mayor: ' + sem([0, 1, 2, 3, 4, 5, 6, 7, -1]));
-      e.S.seqNotes = 'penta menor';
+      e.S.seqNotes = 'minor penta';
       if (sem([0, 1, 4, 5]) !== '0 3 10 12') probs.push('pentatónica menor: ' + sem([0, 1, 4, 5]));
-      e.S.seqNotes = 'armonía'; e.harmony = () => ({ root: 0, notes: ESCALAS.mayor });
+      e.S.seqNotes = 'harmony'; e.harmony = () => ({ root: 0, notes: ESCALAS.major });
       const fa = [0, 1, 2, 3, 4].map(d => q.semis(d, 349.23)).join(' ');
       if (fa !== '0 2 4 6 7') probs.push('armonía desde Fa: ' + fa);
-      e.S.seqNotes = 'semitonos';
+      e.S.seqNotes = 'semitones';
       if (sem([0, 3, 7, -5]) !== '0 3 7 -5') probs.push('semitonos: ' + sem([0, 3, 7, -5]));
       // (2) el Seq en dórica, medido
       loadState({ mode: 'poly', waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.002, d: 0.05, s: 1, r: 0.01,
-        bpm: 120, seqOn: 'on', seqDiv: '1/8', seqGate: 0.9, seqPat: '0 2 4 .', seqNotes: 'dórica' });
+        bpm: 120, seqOn: 'on', seqDiv: '1/8', seqGate: 0.9, seqPat: '0 2 4 .', seqNotes: 'dorian' });
       const S = structuredClone(engine.S), c = new OfflineAudioContext(2, Math.ceil(SR * 1.0), SR);
       const eng = new AudioEngine(); eng.S = S; await eng.init(c);
       const sq = eng.seq; sq.held = [{ id: 'k', freq: NOTE1, vel: 1 }]; sq._begin(0.03); sq.timer = 'sim';
@@ -3847,7 +3920,7 @@ export async function runSelfTest() {
         for (let i = 0; i + W <= Math.floor(1.8 * SR); i += W, n++) { let p = 0; for (let k = i; k < i + W; k++) p = Math.max(p, Math.abs(l[k]), Math.abs(rr[k])); if (p > TOP) h++; }
         return (100 * h / n).toFixed(0) + ' %';
       };
-      const pad = FACTORY['Pads']['Pad cálido'];
+      const pad = FACTORY['Pads']['Warm Pad'];
       console.log('mezclador: superposición', sup.toFixed(0), 'dB · antes/traducido', gap.toFixed(0), 'dB · A+B en fase +' + gIn.toFixed(2), 'dB · desafinados +' + gDet.toFixed(2),
         'dB · Pad cálido, acorde de 4: limitador ' + await hot(pad) + ' (niveles 0,5/0,5) → ' + await hot({ ...pad, levelA: 1, levelB: 1 }) + ' (1/1)');
       loadState(keep);
@@ -3875,7 +3948,7 @@ export async function runSelfTest() {
       const probs = [], keep = snapshot(), CH4 = [130.81, 196.0, 261.63, 329.63];
       const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
       const peaks = [];
-      for (const n of ['Supersaw pad', 'Strings ensemble', 'Pad cálido', 'Solina strings', 'Pad de placa', 'Coro humano']) {
+      for (const n of ['Supersaw Pad', 'String Ensemble', 'Warm Pad', 'Solina Strings', 'Plate Pad', 'Human Choir']) {
         loadState(find(n));
         const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
@@ -3921,7 +3994,7 @@ export async function runSelfTest() {
         let best = 0; for (let i = 0; i + B <= l.length; i += H) { let s = 0; for (let k = i; k < i + B; k++) s += l[k] * l[k] + rr[k] * rr[k]; best = Math.max(best, s / B); }
         return best > 0 ? -0.691 + 10 * Math.log10(best) : -99; };
       const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
-      for (const [n, notes] of [['Slide bass', [130.81]], ['Lead brillante', [130.81]], ['Supersaw pad', [130.81, 164.81, 196.0]], ['DX e-piano', [130.81, 164.81, 196.0]], ['Strings ensemble', [130.81, 164.81, 196.0]]]) {
+      for (const [n, notes] of [['Slide Bass', [130.81]], ['Bright Lead', [130.81]], ['Supersaw Pad', [130.81, 164.81, 196.0]], ['DX E-Piano', [130.81, 164.81, 196.0]], ['String Ensemble', [130.81, 164.81, 196.0]]]) {
         loadState(find(n));
         const c = new OfflineAudioContext(2, Math.ceil(SR * 2.4), SR);
         const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
@@ -3929,7 +4002,7 @@ export async function runSelfTest() {
         c.suspend(2.0).then(() => { notes.forEach((f, i) => eng.noteOff('n' + i)); c.resume(); });
         const L = lufs(await c.startRendering());
         meds.push([n, L]);
-        if (!(L > -17 && L < -11)) probs.push(n + ' (' + (notes.length > 1 ? 'acorde' : 'una nota') + '): ' + L.toFixed(1) + ' LUFS, fuera de −14 ± 3');
+        if (!(L > -17 && L < -11)) probs.push(n + ' (' + (notes.length > 1 ? 'chord' : 'una nota') + '): ' + L.toFixed(1) + ' LUFS, fuera de −14 ± 3');
       }
       const Ls = meds.map(m => m[1]), spread = Math.max(...Ls) - Math.min(...Ls);
       if (!(spread < 3.5)) probs.push('de la nota suelta al acorde hay ' + spread.toFixed(1) + ' dB de diferencia');
@@ -4005,7 +4078,7 @@ export async function runSelfTest() {
     try {
       const probs = [], meds = [];
       const find = n => { for (const ps of Object.values(FACTORY)) if (ps[n]) return ps[n]; };
-      for (const n of ['Lead cuadrado', 'Hoover rave', 'Ensemble PWM']) {
+      for (const n of ['Square Lead', 'Rave Hoover', 'PWM Ensemble']) {
         const S = applyPreset(makeDefaultState(), find(n));
         const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
         const eng = new AudioEngine(); eng.S = S; await eng.init(ctx);
@@ -4251,8 +4324,8 @@ export async function runSelfTest() {
     try {
       const bank = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
       const names = Object.keys(bank.presets).filter(n => n.startsWith(demosPrefix));
-      // «velocidad»: {prefijo: v} — pares que solo se distinguen tocando flojo (sensibilidad a la velocity)
-      const velOf = n => { for (const [p, v] of Object.entries(bank.velocidad || {})) if (n.startsWith(p)) return v; return 1; };
+      // «velocity»: {prefijo: v} — pares que solo se distinguen tocando flojo (sensibilidad a la velocity)
+      const velOf = n => { for (const [p, v] of Object.entries(bank.velocity || {})) if (n.startsWith(p)) return v; return 1; };
       const bufs = {};
       for (const n of names) {
         loadState(bank.presets[n]);

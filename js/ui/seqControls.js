@@ -32,9 +32,9 @@ export const SEQ_PATTERNS = [
   { name: 'Ligaduras largas',   pat: '0~ 0 7/ 5 3~ 3 . -2/',                         div: '1/8' },
   { name: 'Redobles',           pat: '0! . 0 0x2 0! . 0x3 0x4',                      div: '1/8' },
   // Por grados (5.2): al elegirlas, si las notas están en semitonos pasan a la escala mayor
-  { grp: 'Por grados', name: 'Arpegio de la escala',  pat: '0 2 4 7 4 2 0 -3',            div: '1/16', notas: 'mayor' },
-  { grp: 'Por grados', name: 'Escala que sube y baja', pat: '0 1 2 3 4 5 6 7 6 5 4 3 2 1 0 -1', div: '1/16', notas: 'mayor' },
-  { grp: 'Por grados', name: 'Terceras rodando',      pat: '0 2 1 3 2 4 3 5',             div: '1/16', notas: 'mayor' },
+  { grp: 'Por grados', name: 'Arpegio de la escala',  pat: '0 2 4 7 4 2 0 -3',            div: '1/16', notes: 'major' },
+  { grp: 'Por grados', name: 'Escala que sube y baja', pat: '0 1 2 3 4 5 6 7 6 5 4 3 2 1 0 -1', div: '1/16', notes: 'major' },
+  { grp: 'Por grados', name: 'Terceras rodando',      pat: '0 2 1 3 2 4 3 5',             div: '1/16', notes: 'major' },
   { name: 'Fanfarria',          pat: '0 12 24 12 0 12 24 12',                       div: '1/16' },
   // Clásicas: riffs de synth famosos transcritos de oído (aproximaciones, uso
   // personal). Relativos a la tecla mantenida; bpm = tempo del original.
@@ -66,7 +66,7 @@ export function bindSeqControls() {
   CONTROLS.seqPat.set(PARAMS.seqPat.def);
 
   const notes = document.getElementById('seqNotesSel');   // notas por grado (5.2)
-  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitonos', label: 'semitonos' }, { id: 'armonía', label: 'grados · armonía' },
+  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'grados · armonía' },
     ...Object.keys(ESCALAS).map(k => ({ id: k, label: 'grados · ' + k }))]);
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
@@ -101,7 +101,7 @@ function initSeqPatterns() {
     part().resume();
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
-    if (p.notas && CONTROLS.seqNotes.get() === 'semitonos') CONTROLS.seqNotes.set(p.notas);   // una frase por grados necesita escala
+    if (p.notes && CONTROLS.seqNotes.get() === 'semitones') CONTROLS.seqNotes.set(p.notes);   // una frase por grados necesita escala
     if (p.bpm) CONTROLS.bpm.set(p.bpm);       // las clásicas caen en su tempo
   });
   document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });

@@ -56,7 +56,7 @@ const tableAt = (tab, x) => {
   for (let i = 1; i < tab.length; i++) { const [x0, y0] = tab[i - 1], [x1, y1] = tab[i]; if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
   return tab[tab.length - 1][1];
 };
-export const reverbEnergyGain = (type, size) => type === 'placa' ? tableAt(PLATE_G, size) : IR_G_PER_S * size;
+export const reverbEnergyGain = (type, size) => type === 'plate' ? tableAt(PLATE_G, size) : IR_G_PER_S * size;
 // Freeze: la placa a decay FREEZE_DECAY (un pelo bajo 1: el tanque es casi sin
 // pérdidas y la cola tarda ~media hora en caer 60 dB) con la ENTRADA cerrada: lo
 // que estaba sonando se queda. Solo la placa tiene estado que congelar (la IR
@@ -212,8 +212,8 @@ export class Sala {
     // Dos reverbs a elegir (reverbType): «sala» = convolución con la IR de
     // ruido; «placa» = algorítmica (worklet Dattorro, se crea al elegirla).
     // Crossfade entre ambas; solo la activa recibe entrada (la otra no gasta).
-    this.irMix = ctx.createGain(); this.irMix.gain.value = S.reverbType === 'placa' ? 0 : 1;
-    this.plateMix = ctx.createGain(); this.plateMix.gain.value = S.reverbType === 'placa' ? 1 : 0;
+    this.irMix = ctx.createGain(); this.irMix.gain.value = S.reverbType === 'plate' ? 0 : 1;
+    this.plateMix = ctx.createGain(); this.plateMix.gain.value = S.reverbType === 'plate' ? 1 : 0;
     this.plate = null;
     this.revRet = ctx.createGain();                  // retorno a 1 (idem: el nivel lo pone el envío)
     this.dlyToRev = ctx.createGain(); this.dlyToRev.gain.value = dlyToRev;   // eco → reverb (los ecos viven en la sala)
@@ -267,7 +267,7 @@ export class Sala {
     this.convA.connect(this.revXA); this.revXA.connect(this.irMix);          // (convB no recibe entrada hasta el primer cambio de Size/Damp)
     this.convB.connect(this.revXB); this.revXB.connect(this.irMix);
     this.irMix.connect(this.revRet); this.plateMix.connect(this.revRet);
-    if (S.reverbType === 'placa') { this._ensurePlate(); this.revPre.connect(this.plate); }
+    if (S.reverbType === 'plate') { this._ensurePlate(); this.revPre.connect(this.plate); }
     else this.revPre.connect(this.convA);
     this.revRet.connect(this.sum);
     // suma → cinta (saturación → wow) → margen → máster → limitador → analizador. El
@@ -314,7 +314,7 @@ export class Sala {
   setFreeze(on, at = null) {
     on = !!on;
     if (on === this.frozen) return false;
-    if (on && this.S.reverbType !== 'placa') return false;
+    if (on && this.S.reverbType !== 'plate') return false;
     this.frozen = on;
     const t = at !== null ? at : this.ctx.currentTime;
     this.revIn.gain.setTargetAtTime(on ? 0 : 1, t, 0.05);
@@ -342,11 +342,11 @@ export class Sala {
       case 'reverbDamp':                                   // (el damp vive en la IR: misma ruta)
         this._plateParams();                               // la placa cambia al instante (son dos params)
         this._shimUpdate(smooth);                          // la ganancia del bucle del shimmer sigue a la energía de la reverb (Size)
-        if (this.S.reverbType === 'placa') { this._irStale = true; break; }   // la IR se rehará al volver a «sala»
+        if (this.S.reverbType === 'plate') { this._irStale = true; break; }   // la IR se rehará al volver a «hall»
         clearTimeout(this._revTimer);
         this._revTimer = setTimeout(() => this._swapIR(this.S.reverbSize), 120);
         break;
-      case 'reverbType': if (this.frozen && value !== 'placa') this.setFreeze(false); this._setType(value); this._shimUpdate(smooth); break;   // la IR no congela: soltar antes de cambiar
+      case 'reverbType': if (this.frozen && value !== 'plate') this.setFreeze(false); this._setType(value); this._shimUpdate(smooth); break;   // la IR no congela: soltar antes de cambiar
       // cinta en el máster (TAPE_*): cada etapa vuelve a ser exacta a 0
       case 'tapeSat':
         smooth(this.satDry.gain, 1 - value); smooth(this.satWet.gain, value);
@@ -378,7 +378,7 @@ export class Sala {
   // Cambio de reverb con fundido de 50 ms; la entrada de la que se apaga se
   // desconecta al acabar (un convolver o un worklet con entrada gastan CPU).
   _setType(type) {
-    const placa = type === 'placa', t = this.ctx.currentTime;
+    const placa = type === 'plate', t = this.ctx.currentTime;
     if (placa) { this._ensurePlate(); this.revPre.connect(this.plate); }
     else if (this._irStale) { this._irStale = false; clearTimeout(this._revTimer); this._swapIR(this.S.reverbSize); }
     else this.revPre.connect(this._front());

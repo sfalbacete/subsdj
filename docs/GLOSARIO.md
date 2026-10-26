@@ -10,9 +10,10 @@ vez para que salga igual en etiquetas, tooltips, ayudas, presets y documentos. L
    (Cutoff, Resonance, Glide, Env Amount…), no la traducción literal.
 2. **Cortas**: el panel es fijo; si la palabra inglesa no cabe, la abreviatura que usan los
    aparatos (Res, Amt, Fdbk, Sat, Len…).
-3. **Los identificadores internos no cambian** (`'semitonos'`, `'acorde'`, `'dorica'`,
-   `'analógica'`, las claves de los parámetros…): solo lo que se ve. Así los presets, escenas,
-   bibliotecas y mapas MIDI guardados siguen cargando y sonando igual.
+3. **Lo de dentro también va en inglés** (decidido por Sergio el 2026-10-26): las claves y
+   valores de los JSON (presets, escenas, biblioteca, mapas MIDI, bancos del repo). Lo guardado
+   hasta la 1.3.0 se traduce AL CARGARLO (`js/engine/legacy.js`, check «compatibilidad 1.3.0»):
+   sigue cargando y sonando igual. Ver «Identificadores internos» al final.
 4. **Notas en letras** (C D E F G A B, con #), no Do Re Mi.
 5. **Nombres de presets en Title Case** ⚑ («Warm Pad»), como en los bancos de los sintes en
    inglés. Los paréntesis de los nombres (lo que enseña el preset) se quedan en minúsculas.
@@ -227,3 +228,22 @@ glottal · usuario → user
 Amanecer dórico → Dorian Dawn · Ambient nocturno (demo) → Night Ambient (demo) · Coro
 robótico → Robot Choir · Techno hipnótico → Hypnotic Techno. Los ficheros de `escenas/` no
 cambian de nombre (son identificadores).
+
+## Identificadores internos (JSON)
+
+| Dónde | Antes (≤ 1.3.0) | Ahora (1.4.0) |
+|---|---|---|
+| Claves de parámetro | vocVida · vocBrillo · resBrillo | vocLife · vocBright · resBright |
+| waveA / waveB | tabla · cuerda | wavetable · string |
+| wtSet | analógica · órgano · formante · metálica · glotal · usuario | analog · organ · formant · metallic · glottal · user |
+| driveChar · envmMode · reverbType | suave/plegado · bucle/disparo · sala/placa | soft/fold · loop/trigger · hall/plate |
+| lfoPhase | voz · reinicio · una | voice · retrig · once |
+| seqNotes | semitonos · armonía · escalas | semitones · harmony · escalas en inglés |
+| *Sync · st*Div · st*Drift · stReset | libre · '1 c'… · tocar · nunca | free · '1 bar', '2 bars'… · play · never |
+| Escena | subsdj-escena-v1: nombre, nota, fecha, sala, director {armonia {modo}, arreglo, jugadores}, partes {nombre, ajustes, estado} | subsdj-scene-v2: name, note, date, room, conductor {harmony {mode}, arrangement, players}, parts {name, settings, state} |
+| Jugador | acento · respira · cicloP · notas · densidad · silencio · gravedad · rango · quinta · cada · umbral · deriva · derivaAmt; modos pulso/acorde/melodia/raiz | accent · breathe · breatheCycle · notes · density · rest · gravity · range · fifth · every · threshold · drift · driftAmt; pulse/chord/melody/root |
+| Arreglo · armonía | energia · vaiven · ciclo · apertura · sorpresa · modo lista/funciones | energy · sway · cycle · open · surprise · mode list/functions |
+| Biblioteca | subsdj-biblioteca-v1 (clave subsdj.biblioteca.v1): secciones {nombre}, items {tipo, nombre, seccion, origen, semilla, datos} | subsdj-library-v2 (clave subsdj.library.v2): sections {name}, items {type, name, section, origin, seed, data} |
+| Orígenes | fabrica · usuario · escena | factory · user · scene |
+| Bancos del repo | formato · banco · nota · velocidad | format · bank · note · velocity |
+| Tacto (localStorage) | suave · lineal · dura | soft · linear · hard |

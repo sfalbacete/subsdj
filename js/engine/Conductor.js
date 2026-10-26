@@ -100,18 +100,18 @@ export class Conductor {
 
   toJSON() {
     const h = this.harmony;
-    return { seed: this.seed, armonia: { root: h.root, scale: h.scale, prog: [...h.prog], bars: h.bars, modo: h.modo },
-             arreglo: { ...this.arr.cfg }, jugadores: this.players.map(p => ({ ...p.cfg })) };
+    return { seed: this.seed, harmony: { root: h.root, scale: h.scale, prog: [...h.prog], bars: h.bars, mode: h.mode },
+             arrangement: { ...this.arr.cfg }, players: this.players.map(p => ({ ...p.cfg })) };
   }
   fromJSON(j) {
     if (!j) return;
     if (this.running) this.stop();
-    if (j.armonia) Object.assign(this.harmony, j.armonia);
-    if (j.arreglo) Object.assign(this.arr.cfg, j.arreglo);
-    (j.jugadores || []).forEach((cfg, i) => {
+    if (j.harmony) Object.assign(this.harmony, j.harmony);
+    if (j.arrangement) Object.assign(this.arr.cfg, j.arrangement);
+    (j.players || []).forEach((cfg, i) => {
       const p = this.players[i]; if (!p) return;
       p.cfg = { ...PLAYER_DEF, ...cfg }; p.derivaKey = 'off'; p.derivaBase = undefined;
-      if (p.cfg.deriva === 'mix') p.cfg.deriva = 'levelB';   // escenas de antes del mezclador (1.2.0)
+      if (p.cfg.drift === 'mix') p.cfg.drift = 'levelB';   // escenas de antes del mezclador (1.2.0)
     });
     this.setSeed(+j.seed || 1);         // resetea jugadores y paseo con la semilla guardada
   }

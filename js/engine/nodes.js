@@ -120,7 +120,7 @@ export function lfoBuffers(ctx) {
 }
 // --- LFO POR VOZ (Roadmap 5.0 · bloque 2: fase por voz y deriva por voz) ---
 // Por qué: los LFO del motor son UNO por motor, así que un acorde respira en
-// bloque. Con lfoPhase 'voz' cada voz lleva sus propias copias (cut/res/freq/
+// bloque. Con lfoPhase 'voice' cada voz lleva sus propias copias (cut/res/freq/
 // pwm/pan) arrancadas en una FASE distinta; y la fuente «Deriva (voz)» de la
 // matriz es un paseo lento propio de cada voz. La fase de cada voz sale de la
 // secuencia de Weyl k·φ mod 1 (φ = razón áurea): determinista (renders y SFZ

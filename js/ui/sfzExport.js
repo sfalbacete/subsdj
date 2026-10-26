@@ -282,7 +282,7 @@ export function initSfzExport() {
   btn.addEventListener('click', async () => {
     if (btn.disabled) return;
     btn.disabled = true;
-    const name = currentPreset()?.nombre || 'preset';
+    const name = currentPreset()?.name || 'preset';
     try {
       // exporta lo que SUENA ahora: el preset cargado + los retoques de knobs
       const kit = await exportPresetSFZ(name, structuredClone(part().S),

@@ -17,6 +17,7 @@
    no entran en presets/snapshot y disparan por flanco de subida (≥64),
    pensadas para botones físicos que mandan 0/127.
    ===================================================================== */
+import { PARAM_KEYS } from '../engine/legacy.js';
 import { PARAMS, posToVal, valToPos } from '../engine/params.js';
 import { CONTROLS } from './registry.js';
 import { stepPreset } from './presetBank.js';
@@ -57,8 +58,9 @@ const lsKey = () => LS_PREFIX + (device || 'default');
 function save() { try { localStorage.setItem(lsKey(), JSON.stringify(map)); } catch (e) {} }
 
 // Controles que cambiaron de clave: un mapa guardado sigue moviendo su sucesor
-// (el Mix A↔B se partió en dos niveles en 1.2.0: el CC pasa a mover el del B).
-const RENAMED = { mix: 'levelB' };
+// (el Mix A↔B se partió en dos niveles en 1.2.0: el CC pasa a mover el del B;
+// en 1.4.0 las claves en castellano pasaron al inglés: legacy.PARAM_KEYS).
+const RENAMED = { mix: 'levelB', ...PARAM_KEYS };
 
 // Acepta JSON externo o de versiones futuras: filtra ids muertos y CCs imposibles.
 function sanitize(raw) {
@@ -241,7 +243,7 @@ export function initMidiMap() {
   // export/import del mapeo (mismo patrón que el banco de presets)
   const exp = document.getElementById('mmExp');
   if (exp) exp.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ formato: FORMAT, device, ...map }, null, 2)],
+    const blob = new Blob([JSON.stringify({ format: FORMAT, device, ...map }, null, 2)],
       { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'subsdj-midimap.json';

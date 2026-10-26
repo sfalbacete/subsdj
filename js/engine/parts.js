@@ -18,8 +18,9 @@ import { makeDefaultState, applyPreset, toControls, withPresetBase } from './sta
 import { Conductor } from './Conductor.js';
 import { PARAMS } from './params.js';
 import { factoryPreset } from './presets.js';
+import { SCENE_FORMAT, migrateScene } from './legacy.js';
 
-export const ESCENA_FORMATO = 'subsdj-escena-v1';
+export const ESCENA_FORMATO = SCENE_FORMAT;   // 'subsdj-scene-v2' (las v1, en castellano, las traduce legacy.migrateScene)
 
 export const N_PARTS = 4;
 let scene = null, current = single, layer = false;
@@ -100,32 +101,33 @@ export function applyStateToEngine(e, state) {
 export function sceneToJSON(sc) {
   const sala = {}; for (const k of SALA_KEYS) sala[k] = sc.S[k];
   return {
-    formato: ESCENA_FORMATO, fecha: new Date().toISOString(),
-    sala: { ...sala, ...sc.salaCfg },
-    director: sc.conductor.toJSON(),
-    partes: sc.parts.map(p => ({ nombre: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, estado: toControls(p.engine.S) })),
+    format: ESCENA_FORMATO, date: new Date().toISOString(),
+    room: { ...sala, ...sc.salaCfg },
+    conductor: sc.conductor.toJSON(),
+    parts: sc.parts.map(p => ({ name: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
   };
 }
-// Una parte puede venir con `estado` completo (escena exportada) o con
-// `preset` de fábrica + `ajustes` (escenas escritas a mano, como la demo).
+// Una parte puede venir con `state` completo (escena exportada) o con
+// `preset` de fábrica + `settings` (escenas escritas a mano, como la demo).
 export function applySceneJSON(sc, j) {
-  if (!j || j.formato !== ESCENA_FORMATO) throw new Error('no es una escena SubSDJ (' + ESCENA_FORMATO + ')');
-  const s = j.sala || {};
+  j = migrateScene(j);   // las de hasta la 1.3.0, en castellano
+  if (!j || j.format !== ESCENA_FORMATO) throw new Error('not a SubSDJ scene (' + ESCENA_FORMATO + ')');
+  const s = j.room || {};
   for (const k of SALA_KEYS) if (k in s) sc.sala.set(k, s[k]);
   if (typeof s.fb === 'number') { sc.salaCfg.fb = s.fb; sc.sala.setFeedback(s.fb); }
   if (typeof s.dlyToRev === 'number') { sc.salaCfg.dlyToRev = s.dlyToRev; sc.sala.setDlyToRev(s.dlyToRev); }
   if (typeof s.master === 'number') { sc.salaCfg.master = s.master; sc.sala.setMaster(s.master); }
-  (j.partes || []).forEach((pj, i) => {
+  (j.parts || []).forEach((pj, i) => {
     const p = sc.parts[i]; if (!p) return;
-    let st = pj.estado;
-    if (!st && pj.preset) st = { ...(factoryPreset(pj.preset) || {}), ...(pj.ajustes || {}) };
+    let st = pj.state;
+    if (!st && pj.preset) st = { ...(factoryPreset(pj.preset) || {}), ...(pj.settings || {}) };
     if (st) { p.engine.allNotesOff(); applyStateToEngine(p.engine, { ...toControls(makeDefaultState()), ...withPresetBase(st) }); }   // base limpia + estado (sobre la base de los presets)
-    p.presetName = pj.nombre || pj.preset || p.presetName;
+    p.presetName = pj.name || pj.preset || p.presetName;
     p.presetVal = pj.presetVal || (pj.preset ? 'f:' + pj.preset : p.presetVal);
     if (typeof pj.pan === 'number') { p.pan = pj.pan; p.engine.setPan(pj.pan); }
     p.mute = !!pj.mute; p.engine.setMute(p.mute);
   });
-  if (j.director) sc.conductor.fromJSON(j.director);
+  if (j.conductor) sc.conductor.fromJSON(j.conductor);
 }
 
 // Enciende el modo Partes sobre el contexto del motor único. La parte 1

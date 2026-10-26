@@ -50,19 +50,19 @@ function framesDesdeClaves(claves, F = WT_FRAMES) {
 }
 
 export const WT_SETS = {
-  'analógica': () => framesDesdeClaves([seno(), triangulo(), sierra(64), sierra(), cuadrada(), pulso(0.25), pulso(0.12)]),
-  'órgano':    () => framesDesdeClaves([
+  'analog': () => framesDesdeClaves([seno(), triangulo(), sierra(64), sierra(), cuadrada(), pulso(0.25), pulso(0.12)]),
+  'organ':    () => framesDesdeClaves([
     organo({ 1: 1 }),
     organo({ 1: 1, 2: 0.6 }),
     organo({ 1: 1, 2: 0.5, 3: 0.35, 4: 0.25 }),
     organo({ 1: 1, 2: 0.7, 3: 0.9, 4: 0.5, 6: 0.4, 8: 0.35, 10: 0.2, 12: 0.15, 16: 0.1 }),
   ]),
-  'formante':  () => framesDesdeClaves([formante(2), formante(4), formante(8), formante(16), formante(26)]),
-  'metálica':  () => framesDesdeClaves([metalica(-0.9), metalica(-0.3), metalica(0.15)]),
+  'formant':  () => framesDesdeClaves([formante(2), formante(4), formante(8), formante(16), formante(26)]),
+  'metallic':  () => framesDesdeClaves([metalica(-0.9), metalica(-0.3), metalica(0.15)]),
 };
-export const WT_DEFAULT = 'analógica';
+export const WT_DEFAULT = 'analog';
 
-/* ---------- set 'glotal': la FUENTE de la voz (modelo Rosenberg) ----------
+/* ---------- set 'glottal': la FUENTE de la voz (modelo Rosenberg) ----------
    Una sierra no es una glotis: el flujo glotal real abre-cierra-descansa y
    lo que excita al tracto es su DERIVADA (la radiación de los labios ≈
    derivar), con el "estallido" en el instante de cierre. El morph recorre
@@ -85,7 +85,7 @@ function pulsoGlotal(oq, cq) {
   for (let i = 0; i < GL_P; i++) d[i] = flujo[(i + 1) % GL_P] - flujo[i];
   return d;
 }
-WT_SETS['glotal'] = () => {
+WT_SETS['glottal'] = () => {
   const fr = [];
   for (let f = 0; f < WT_FRAMES; f++) {
     const x = f / (WT_FRAMES - 1);       // esfuerzo 0..1: oq 0.80→0.45 · cq 0.40→0.18
@@ -205,10 +205,10 @@ export function loadUserFrames() {
 }
 export function saveUserFrames(frames) {
   try { localStorage.setItem(WT_LS, JSON.stringify(frames.map(f => [...f].map(v => +(+v).toFixed(3))))); } catch (e) {}
-  cache.delete('usuario');               // la próxima nota reconstruye los mips
+  cache.delete('user');               // la próxima nota reconstruye los mips
 }
-WT_SETS['usuario'] = () => (loadUserFrames() || defaultUserFrames()).map(p => alineaFase(espectroDe(p)));
-export function invalidateUserSet() { cache.delete('usuario'); }   // tras tocar localStorage a mano (selftest)
+WT_SETS['user'] = () => (loadUserFrames() || defaultUserFrames()).map(p => alineaFase(espectroDe(p)));
+export function invalidateUserSet() { cache.delete('user'); }   // tras tocar localStorage a mano (selftest)
 
 // set construido y cacheado: { lens, frames: [ [Float32Array x niveles] x F ] }
 const cache = new Map();

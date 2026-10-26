@@ -26,24 +26,24 @@ function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.
 
 function label() {
   const it = currentPreset();
-  nameEl.textContent = it ? it.nombre : '—';
-  btn.title = (it ? it.nombre + ' · ' + (library.seccion(it.seccion)?.nombre || '') + '\n' : '') +
+  nameEl.textContent = it ? it.name : '—';
+  btn.title = (it ? it.name + ' · ' + (library.seccion(it.section)?.name || '') + '\n' : '') +
     'Elegir preset: buscar, filtrar por categoría, ↑ ↓ para probar (‹ › recorren la biblioteca entera)';
 }
 
 // Lo que coincide con la búsqueda, por categoría (para los contadores) y lo de la elegida
 function matches() {
   const nq = normaliza(q);
-  return library.presets().filter(it => !nq || normaliza(it.nombre).includes(nq));
+  return library.presets().filter(it => !nq || normaliza(it.name).includes(nq));
 }
-const inCat = (it, c) => c === ALL || (c === FAV ? it.fav : it.seccion === c);
+const inCat = (it, c) => c === ALL || (c === FAV ? it.fav : it.section === c);
 
 function render() {
   const hits = matches(), cur = currentPresetId();
   // categorías: Todos, ★ (si hay favoritos) y cada sección que tenga presets
   cats.innerHTML = '';
-  const secs = library.secciones().filter(s => library.items(s.id).some(it => it.tipo === 'preset'));
-  const entries = [[ALL, 'Todos'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favoritos']] : []), ...secs.map(s => [s.id, s.nombre])];
+  const secs = library.secciones().filter(s => library.items(s.id).some(it => it.type === 'preset'));
+  const entries = [[ALL, 'Todos'], ...(library.presets().some(it => it.fav) ? [[FAV, '★ Favoritos']] : []), ...secs.map(s => [s.id, s.name])];
   if (!entries.some(([id]) => id === cat)) cat = ALL;   // la sección elegida desapareció
   for (const [id, nombre] of entries) {
     const n = hits.filter(it => inCat(it, id)).length;
@@ -58,7 +58,7 @@ function render() {
   const shown = hits.filter(it => inCat(it, cat));
   let lastSec = null;
   for (const it of shown) {
-    if (cat === ALL && it.seccion !== lastSec) { lastSec = it.seccion; list.appendChild(mk('div', 'pp-sec', library.seccion(it.seccion)?.nombre || '')); }
+    if (cat === ALL && it.section !== lastSec) { lastSec = it.section; list.appendChild(mk('div', 'pp-sec', library.seccion(it.section)?.name || '')); }
     list.appendChild(row(it, cur));
     vis.push(it.id);
   }
@@ -74,8 +74,8 @@ function row(it, cur) {
   star.title = it.fav ? 'Quitar de favoritos' : 'Favorito: sale en «★ Favoritos»';
   star.addEventListener('click', e => { e.stopPropagation(); library.fav(it.id); });   // library-changed repinta
   r.appendChild(star);
-  r.appendChild(mk('span', 'pp-name', it.nombre));
-  if (cat === FAV) r.appendChild(mk('span', 'pp-tag', library.seccion(it.seccion)?.nombre || ''));
+  r.appendChild(mk('span', 'pp-name', it.name));
+  if (cat === FAV) r.appendChild(mk('span', 'pp-tag', library.seccion(it.section)?.name || ''));
   r.addEventListener('click', () => { hi = it.id; load(it.id); });
   r.addEventListener('dblclick', () => close());   // el primer clic ya lo cargó
   return r;

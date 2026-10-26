@@ -141,7 +141,7 @@ async function toggle(btn) {
   try { await enableScene(); } finally { btn.disabled = false; }
   buildStrips(); setUI(true); syncControls(part().S);
   const cur = currentPreset(), p0 = getScene().parts[0];      // la parte 1 hereda el sonido (y su nombre de preset)
-  if (cur) { p0.presetVal = cur.id; p0.presetName = cur.nombre; refreshNames(); }
+  if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; refreshNames(); }
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Partes: la 1 hereda el sonido que había';
 }
 
