@@ -149,7 +149,12 @@ export class Player {
     const c = this.cfg, step = BAR / Math.max(1, c.n);
     if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / step) * step;
     const b = this.nextBeat, idx = Math.round(b / step) % c.n, a = this._arr(b);
-    if (a.active && euclid(this.kAt(Math.floor(b / BAR + 1e-9)), c.n, c.rot)[idx] && this.rng() < c.prob * a.probMul) {
+    // Probability 100 % means EVERY hit, whatever the energy: the arrangement's thinning
+    // (probMul, 75-100 %) only eats into the uncertainty the knob already allows. Until
+    // 2026-10-26 it multiplied the knob outright, and a hat at 100 % lost one hit in eight
+    // in the energy valleys (Sergio: «not all the hits came out»).
+    const p = c.prob * (a.probMul + (1 - a.probMul) * c.prob);
+    if (a.active && euclid(this.kAt(Math.floor(b / BAR + 1e-9)), c.n, c.rot)[idx] && this.rng() < p) {
       const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // the clock's swing (if the grid is binary)
       const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.accent) * (0.92 + 0.16 * this.rng()));
       const id = this._id();

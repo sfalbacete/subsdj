@@ -41,6 +41,12 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
   there when the scene loads. The synth accompanies, you play.
 - Fixed: a part whose player was set to «off» crashed the offline scheduler of the
   selftest (never seen live).
+- Fixed: a Pulse player at **100 % probability lost hits** — one in eight at the bottom
+  of the energy sway, more at low Energy — because the arrangement multiplied the knob
+  by its own 75-100 % thinning. Now 100 % means every hit, whatever the energy; below
+  100 % the energy thins only the uncertainty the knob already allows. (The Accent knob
+  still plays the off-beat hits softer, and Energy still lowers every part's velocity:
+  a quiet hit is not a missing one.)
 
 ## [1.4.0] — 2026-10-26
 

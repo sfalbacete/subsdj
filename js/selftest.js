@@ -2596,6 +2596,12 @@ export async function runSelfTest() {
       for (const cd of [cdA, cdB, cdC]) { cd.dry = true; setup(cd); cd.scheduleAll(secs); }
       if (logs(cdA) !== logs(cdB)) problems.push('players not deterministic with the same seed');
       if (logs(cdA) === logs(cdC)) problems.push('players identical with another seed');
+      // probability 100 % means EVERY hit whatever the energy (the arrangement thins only below 100 %):
+      // at energy 0.2 the pulse at 100 % still gives 4 × 2 bars; at 50 % it gives fewer
+      const low = prob => { const cd = new Conductor(sc, { seed: 11 }); cd.dry = true; setup(cd); Object.assign(cd.arr.cfg, { energy: 0.2 }); cd.players[0].cfg.prob = prob; cd.scheduleAll(secs); return cd.players[0].log.filter(e => e[1] === 'on').length; };
+      const full = low(1), half = low(0.5);
+      if (full !== 8) problems.push('pulse at 100 % loses hits at low energy: ' + full + '/8');
+      if (!(half < 8)) problems.push('pulse at 50 % at low energy: ' + half + '/8 (expected fewer)');
       const cd = sc.conductor; cd.setSeed(11); setup(cd); cd.scheduleAll(secs);
       const buf = await ctx.startRendering();
       const a = analyze(buf);
