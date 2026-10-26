@@ -44,8 +44,8 @@ import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip, velocityLayers } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
-import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId } from './ui/presetBank.js';
-import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing } from './ui/history.js';
+import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId, currentPreset, markPreset } from './ui/presetBank.js';
+import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing, record } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
 import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES, canon, fnv } from './engine/library.js';
@@ -2527,6 +2527,44 @@ export async function runSelfTest() {
       loadState(keep);
       r = { name: NAME, peak: 0, ok: !problems.length, problems };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Save / Save as (2026-10-27): Save is enabled only with a preset loaded AND changed, and
+    // updates that preset (a factory one becomes «modified»); Save as needs a name in the
+    // field and makes a new preset in «★ Mine», the current one from then on.
+    body.appendChild(el('st-cat', 'Save bar'));
+    const NAME = 'Save / Save as (Save only when loaded and changed, updates it · Save as needs a name, goes to «★ Mine»)';
+    const problems = [], frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const hadMine = !!library.sectionByName(SEC_MINE);
+    let r, warm = null, made = null;
+    try {
+      const g = id => document.getElementById(id), save = g('saveBtn'), saveAs = g('saveAsBtn'), inp = g('presetName'), keep = snapshot(), id0 = currentPresetId();
+      warm = library.presets().find(it => it.name === 'Warm Pad' && library.kind(it) === 'factory');
+      if (!warm) throw new Error('no pristine Warm Pad to test with');
+      loadPresetId(warm.id); await frames();
+      if (!save.disabled) problems.push('Save enabled right after loading');
+      record('selftest change', () => CONTROLS.cutoff.set(777)); await frames();
+      if (save.disabled) problems.push('Save disabled after a change');
+      const n0 = library.items().length;
+      inp.value = ''; saveAs.click();
+      if (library.items().length !== n0 || currentPresetId() !== warm.id) problems.push('Save as without a name did something');
+      save.click(); await frames();
+      if (library.item(warm.id).data.cutoff !== 777) problems.push('Save did not update the loaded preset');
+      if (library.kind(library.item(warm.id)) !== 'modified') problems.push('the saved factory preset is not «modified»');
+      if (!save.disabled) problems.push('Save still enabled right after saving');
+      inp.value = 'Selftest save as'; saveAs.click(); await frames();
+      made = currentPreset();
+      if (!made || made.name !== 'Selftest save as' || library.section(made.section)?.name !== SEC_MINE || made.data.cutoff !== 777) problems.push('Save as did not make the new preset in «★ Mine» (current: ' + (made && made.name) + ')');
+      if (library.item(warm.id).name !== 'Warm Pad') problems.push('Save as touched the loaded preset');
+      if (id0) { loadPresetId(id0); } loadState(keep);
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    // leave the library as it was: the factory values back, the new preset gone, «★ Mine» gone if it did not exist
+    if (warm) library.resetToFactory(warm.id);
+    if (made) library.remove(made.id);
+    if (!hadMine) { const s = library.sectionByName(SEC_MINE); if (s && !library.items(s.id).length) library.deleteSection(s.id); }
     push(r);
   }
 

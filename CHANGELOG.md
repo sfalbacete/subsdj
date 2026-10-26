@@ -50,6 +50,11 @@ criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
   (Save under its own name) shows the header's ● — click it and the factory values come
   back; inside a factory category, a copy of a previous bank, one of yours or an imported
   one is tagged (old / mine / imported). As before, Save under a new name goes to «★ Mine».
+- **Save and Save as are two buttons**: **Save** updates the loaded preset with what is
+  sounding and is only enabled when there is one and something changed (the same state
+  as the ● and Compare; Ctrl+S); **Save as** makes a new preset in «★ Mine» with the name
+  in the field (Enter in the field, or Ctrl+Shift+S) and makes it the current one. Before,
+  one button did either depending on whether the name matched.
 - **Deleting asks nothing**: a preset or a section goes at once and the notice offers
   «Undo» for a few seconds (the browser's confirm dialog is gone).
 - **File ▾ → Wipe library**: downloads a copy of the current library (the same file as

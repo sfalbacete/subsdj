@@ -72,8 +72,9 @@
     </span>
     <span id="modDot" title="Modified: what you hear is no longer the saved preset (put it back as it was and the dot goes out)">●</span>
     <button class="btn nav" id="nextBtn" title="Next preset">›</button>
-    <input id="presetName" type="text" placeholder="preset name…" maxlength="32">
-    <button class="btn" id="saveBtn" title="Save the current sound under that name: into «★ Mine», or over the loaded preset if the name is the same">Save</button>
+    <button class="btn" id="saveBtn" title="Nothing to save: load a preset and change something" disabled>Save</button>
+    <button class="btn" id="saveAsBtn" title="Save the current sound as a NEW preset in «★ Mine», with the name in the field (Ctrl+Shift+S)">Save as</button>
+    <input id="presetName" type="text" placeholder="name for Save as…" maxlength="32">
     <span class="menuWrap">
       <button class="btn" id="fileBtn" title="Delete · Export · Import · SFZ · About">File ▾</button>
       <div class="menu" id="fileMenu" hidden>

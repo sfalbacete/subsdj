@@ -145,6 +145,7 @@ function refresh() {
     if (ui.redo) { ui.redo.disabled = !r; ui.redo.title = r ? 'Redo: ' + r.label + ' (Ctrl+Y)' : 'Nothing to redo'; }
     const mod = comparing ? true : isModified();
     if (ui.dot) ui.dot.classList.toggle('on', mod);
+    document.dispatchEvent(new CustomEvent('modified-changed', { detail: { modified: mod } }));   // the Save button follows the ●
     if (ui.cmp) {
       ui.cmp.classList.toggle('on', !!comparing);
       ui.cmp.disabled = !mod;
@@ -181,9 +182,16 @@ export function initHistory() {
   // Changing part or switching Parts on: first, close what is open and leave compare
   document.getElementById('partsBar')?.addEventListener('pointerdown', () => { end(); exitCompare(); }, true);
   document.addEventListener('scene-loaded', () => { savedBy.clear(); refresh(); });   // the parts bring new sounds
-  // Shortcuts: Ctrl+Z · Ctrl+Y / Ctrl+Shift+Z (in a text field, the field's own undo)
+  // Shortcuts: Ctrl+Z · Ctrl+Y / Ctrl+Shift+Z (in a text field, the field's own undo);
+  // Ctrl+S = Save (if there is something to save) · Ctrl+Shift+S = Save as (the name field), anywhere
   window.addEventListener('keydown', e => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.code === 'KeyS') {
+      e.preventDefault();   // never the browser's «save page»
+      if (e.shiftKey) { const inp = document.getElementById('presetName'); if (inp) { if (inp.value.trim()) document.getElementById('saveAsBtn')?.click(); else { inp.focus(); inp.select(); } } }
+      else { const b = document.getElementById('saveBtn'); if (b && !b.disabled) b.click(); }
+      return;
+    }
     const t = e.target, txt = t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text') || t.isContentEditable);
     if (txt) return;
     if (e.code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); undo(); }

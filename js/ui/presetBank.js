@@ -9,7 +9,7 @@
 import { library, SEC_MINE } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
-import { record, markSaved } from './history.js';
+import { record, markSaved, isModified } from './history.js';
 
 let curId = null, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
@@ -69,21 +69,37 @@ export function initPresetBank() {
 
   document.getElementById('prevBtn').addEventListener('click', () => stepPreset(-1));
   document.getElementById('nextBtn').addEventListener('click', () => stepPreset(1));
-  document.getElementById('saveBtn').addEventListener('click', () => {
-    const inp = document.getElementById('presetName');
-    const name = (inp.value || '').trim();
-    if (!name) { inp.focus(); msg('Type a name to save.'); return; }
-    // Same name as the loaded preset → it is updated wherever it is; otherwise, in
-    // «★ Mine» (over the one with that name there, or as a new one).
-    const cur = currentPreset();
-    let target = cur && cur.type === 'preset' && cur.name === name ? cur : null;
-    if (!target) { const mine = library.sectionByName(SEC_MINE); if (mine) target = library.items(mine.id).find(it => it.name === name) || null; }
-    let id;
-    if (target) { library.update(target.id, snapshot()); id = target.id; msg('Updated «' + name + '».'); }
-    else { id = library.add({ name, section: library.ensureSection(SEC_MINE), data: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MINE + ' (this browser).'); }
-    markPreset(id); inp.value = '';
+  // Two gestures that cannot be confused (Sergio, 2026-10-27):
+  //   Save     updates the LOADED preset with what is sounding; enabled only when there is one
+  //            and something changed (the same state as the ● and Compare). No name involved.
+  //   Save as  a NEW preset in «★ Mine» (or over the one with that name there), with the name
+  //            in the field; it becomes the current preset.
+  const saveBtn = document.getElementById('saveBtn'), saveAsBtn = document.getElementById('saveAsBtn'), inp = document.getElementById('presetName');
+  const refreshSave = () => {
+    const cur = currentPreset(), on = !!cur && isModified();
+    saveBtn.disabled = !on;
+    saveBtn.title = on ? 'Save over «' + cur.name + '» (Ctrl+S)' : cur ? 'Nothing to save: «' + cur.name + '» is as loaded' : 'Nothing to save: load a preset and change something';
+  };
+  saveBtn.addEventListener('click', () => {
+    const cur = currentPreset(); if (!cur || !isModified()) return;
+    library.update(cur.id, snapshot());
+    msg('Saved over «' + cur.name + '».');
     markSaved();                                  // what is sounding IS now the saved preset: ● goes off
   });
+  const saveAs = () => {
+    const name = (inp.value || '').trim();
+    if (!name) { inp.focus(); msg('Save as: type a name in the field first.'); return; }
+    const mine = library.sectionByName(SEC_MINE), target = mine ? library.items(mine.id).find(it => it.name === name) : null;
+    let id;
+    if (target) { library.update(target.id, snapshot()); id = target.id; msg('Updated «' + name + '» in ' + SEC_MINE + '.'); }
+    else { id = library.add({ name, section: library.ensureSection(SEC_MINE), data: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MINE + ' (this browser).'); }
+    markPreset(id); inp.value = ''; inp.blur();
+    markSaved();
+  };
+  saveAsBtn.addEventListener('click', saveAs);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveAs(); } else if (e.key === 'Escape') { inp.value = ''; inp.blur(); } });
+  for (const ev of ['preset-loaded', 'preset-marked', 'library-changed', 'modified-changed']) document.addEventListener(ev, refreshSave);
+  refreshSave();
   document.getElementById('delBtn').addEventListener('click', () => {
     const it = currentPreset();
     if (!it) { msg('Pick a preset first.'); return; }
