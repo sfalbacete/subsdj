@@ -6,11 +6,14 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased (will go into 1.5.0)
+## [1.5.0] — 2026-10-29
 
 A new factory bank, thought out as a whole: fewer presets, every one of them with a job,
 measured, and showing what the synth can do — classic sounds and its own. The plan, the
-criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md).
+criteria and the triage of the old bank are in [docs/BANK.md](docs/BANK.md). Around it, the
+Presets screen and the preset bar grew up: Save and Save as, ● on modified factory presets,
+Undo instead of confirm dialogs, Wipe library, a visible drop target; and everything that
+turns on or off now fades.
 
 - **New factory bank**: 103 presets in 12 categories by use (Bass, Leads, Brass &
   Strings, Keys, Plucks & Bells, Pads, Cinescape, Motion, Percussion, Voice, FX &

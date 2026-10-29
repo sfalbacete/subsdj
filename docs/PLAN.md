@@ -115,6 +115,11 @@ agreed way.
 - **Fold the limiter makeup (+1.71 dB) into the master headroom**: cosmetic, does not change a single
   sample.
 - **Granular**: parked since Roadmap 5.0 («for another time»).
+- **Parts on demand** (Sergio, 2026-10-26: not limited to 4, like adding musicians): agreed in
+  principle, left for a later version — it deserves a screen of its own to organise the parts,
+  their players and the mixer as they grow. Sketch: a cap of 8, «+ / −» parts, scenes save N,
+  the factory scenes stay at 4; CPU is the real limit (the shared voice budget), the fixed
+  panel the real work (strips at half width or a scrolling mixer).
 - **Credits** on publishing: a line of acknowledgements in the README and, in the CHANGELOG, @tacowars
   wherever something inspired by his ideas goes in (it already appears that way in 1.1.0).
 
