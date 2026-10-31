@@ -249,18 +249,30 @@ export const BANK = [
       play: 'C3–C6; the tremolo is the motor. Wheel: opens the filter · M1: harder mallet.',
       data: { waveA: 'sine', waveB: 'sine', levelA: 0.6, levelB: 0.4, fmRatio: 4, fmIndex: 1.2, keytrack: 0.6, ampLfoLvl: 0.4, ampLfoSpd: 4.5,
         cutoff: 4000, a: 0.002, d: 1.2, s: 0, r: 0.9, width: 0.4, reverbMix: 0.28, ...WHEEL(0.3), ...MAC1('fm', 0.3), master: 0.59 } },
+    /* a wooden bar is ADDITIVE, not FM: its partials sit at 1×, 4× and 10× (the tuned bar), and FM
+       with ratio 4 can only give 1 ± 4k = 3, 5, 7, 9… — the old preset had the 7× and 9× as loud as
+       the fundamental and sounded like nasal metal (measured; ear session 2026-10-31). FM4 in
+       additive mode: three carriers with their own decays (the 4× dies in 160 ms, the 10× in 50),
+       slightly flat 4× like a real bar, a 120 ct thump from the mallet; velocity brings the «tock» */
     { name: 'Marimba', tags: ['fm', 'warm', 'short', 'classic'], use: 'chord',
-      play: 'C3–C6, fast lines and rolls. Wheel: opens the filter · M1: harder mallet.',
-      data: { waveA: 'sine', waveB: 'sine', levelA: 0.6, levelB: 0.4, fmRatio: 4, fmIndex: 1.1, cutoff: 2520,
-        a: 0.002, d: 0.32, s: 0.0, r: 0.18, width: 0.3, reverbMix: 0.2, ...WHEEL(0.3), ...MAC1('fm', 0.3), master: 1.05 } },
+      play: 'C3–C6, fast lines and rolls; velocity brings the bar\'s «tock». Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
+        fm4R1: 1, fm4L1: 1, fm4D1: 1.4, fm4R2: 3.92, fm4L2: 0.35, fm4D2: 0.16, fm4R3: 9.8, fm4L3: 0.12, fm4D3: 0.05, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+        fm4V2: 0.5, fm4V3: 0.7, pitchEnvAmt: 120, pitchEnvDec: 0.015, cutoff: 6000, envCurve: 1, a: 0, d: 1.0, s: 0, r: 0.3,
+        width: 0.3, reverbMix: 0.2, ...WHEEL(0.3), master: 1.74 } },
     { name: 'Music Box', tags: ['glassy', 'soft', 'short', 'classic'], use: 'chord',
       play: 'C4–C7, single notes and little chords. Wheel: opens the filter · M1: more ring (metal).',
       data: { waveA: 'sine', waveB: 'sine', ring: 0.5, detuneB: 24, octavesB: 2, levelA: 0.25, levelB: 0.25, cutoff: 7100,
         a: 0.002, d: 0.8, s: 0.0, r: 0.6, dlyAmt: 0.3, dlyTime: 0.35, width: 0.4, reverbMix: 0.35, ...WHEEL(0.3), ...MAC1('lvlRing', 0.4), master: 1.68 } },
+    /* the musette: THREE reeds per note (unison ×3 at ±10 ct, beating at 2-4 Hz), a saw and a narrow
+       pulse (the reed), a breath of air, the filter following the keyboard, and a soft bellows tremolo
+       at 5.5 Hz — no chorus and no vibrato: accordions beat, they do not wobble (ear session
+       2026-10-31; the old «two saws + chorus + vibrato» was a saw with chorus) */
     { name: 'Accordion', tags: ['analog', 'warm', 'chords', 'world'], use: 'chord',
-      play: 'C2–C5 chords and melodies; the reeds beat. Wheel: opens the filter.',
-      data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -10, detuneB: 12, levelA: 0.5, levelB: 0.5, octavesB: 2, cutoff: 2200, reso: 1,
-        chAmt: 0.5, chSpd: 3.5, freqLfoLvl: 6, freqLfoSpd: 5, a: 0.06, d: 0.1, s: 0.95, r: 0.15, width: 0.25, reverbMix: 0.15, ...WHEEL(0.3), master: 0.86 } },
+      play: 'C2–C5 chords and melodies; the three reeds beat, the bellows tremble. Wheel: opens the filter.',
+      data: { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.3, uniVoices: '3', uniDetune: 10, levelA: 0.55, levelB: 0.45,
+        noise: 0.04, noiseColor: 0.6, cutoff: 3500, reso: 0.7, keytrack: 0.4, ampLfoLvl: 0.12, ampLfoSpd: 5.5,
+        a: 0.04, d: 0.1, s: 1, r: 0.12, width: 0.3, reverbMix: 0.12, ...WHEEL(0.3), master: 0.56 } },
     /* a 1-shot wave sequence: starts on the bright frame and settles on the soft one —
        «attack sample + synth body», the D-50 trick */
     { name: 'Digital Keys', tags: ['wavetable', 'digital', 'bright', 'chords', 'classic'], use: 'chord',
@@ -311,10 +323,18 @@ export const BANK = [
       data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '2',
         fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 3.5, fm4L2: 0.45, fm4D2: 1.2, fm4R3: 5.19, fm4L3: 0.3, fm4D3: 0.8, fm4R4: 7.3, fm4L4: 0.2, fm4D4: 0.5,
         cutoff: 12000, a: 0.002, d: 2.2, s: 0, r: 1.6, dlyAmt: 0.2, dlySync: '1/4.', width: 0.5, reverbMix: 0.35, reverbSize: 2.8, ...WHEEL(0.3), master: 0.61 } },
+    /* a plate, not a string: FM4 in additive mode with four INHARMONIC partials (a sub at 0.5×, then
+       1 · 1.52 · 2.37, each dying over 3-4 s) and the bloom of a real gong — the filter is closed at
+       the strike and opens over a second (own filter env), so the brightness ARRIVES after the hit;
+       feedback on op 4 for the air, a 6 s plate. Ear session 2026-10-31: the old 2-op FM «gong» rang
+       like a struck wire; the first additive plate was «a small gong»; the sub partial and the
+       longer decays made it big */
     { name: 'Gong', tags: ['fm', 'metallic', 'long', 'dark', 'world'], use: 'note', root: 48,
-      play: 'C1–C3, one note; the strike blooms and dies slowly. M1: harder strike.',
-      data: { waveA: 'sine', waveB: 'sine', ring: 0.2, detuneB: 20, levelA: 0.4, levelB: 0.4, fmRatio: 2.74, fmIndex: 8,
-        a: 0.005, d: 2.5, s: 0.0, r: 2.0, cutLfoLvl: 1500, cutLfoSpd: 0.2, width: 0.5, reverbMix: 0.42, reverbSize: 3.5, ...MAC1('fm', 0.3), master: 1.57 } },
+      play: 'C1–C3, one note; the strike blooms over a second and dies for ten. Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fmFb: 0.3,
+        fm4R1: 0.5, fm4L1: 0.7, fm4D1: 4, fm4R2: 1, fm4L2: 1, fm4D2: 4, fm4R3: 1.52, fm4L3: 0.6, fm4D3: 4, fm4R4: 2.37, fm4L4: 0.45, fm4D4: 3,
+        cutoff: 400, reso: 1, fenvMode: 'own', filterEnvAmt: 4500, fa: 1.0, fd: 3.5, fs: 0.3, fr: 3,
+        envCurve: 0.8, a: 0.02, d: 8, s: 0, r: 4, width: 0.6, reverbType: 'plate', reverbMix: 0.45, reverbSize: 6, reverbDamp: 0.3, ...WHEEL(0.3), master: 1.57 } },
   ] },
 
   /* ---------- Pads: slow, for chords ---------- */

@@ -16,6 +16,12 @@ scenes, libraries, MIDI maps). The why behind each module is in
   knob is at 0 but is fed by another is live (the Matrix no longer dims it). The leads of the
   bank — Moog Lead, Breath Flute, Vox Lead, Fold Lead — now get their vibrato from the wheel.
   A/B pair AMT 1-2 in the demo bank.
+- **Marimba, Gong and Accordion remade by ear** (candidates rendered with the new
+  `tools/render.mjs`, listened A/B): the Marimba is an additive bar (partials 1×, 4×, 10×
+  with their own decays, a mallet thump; FM with ratio 4 could only give 3, 5, 7, 9… and
+  sounded like nasal metal), the Gong an inharmonic plate with a sub partial that blooms after
+  the strike and dies for ten seconds, the Accordion a musette (three reeds beating, a bellows
+  tremolo, no chorus, no vibrato).
 
 ## [1.5.0] — 2026-10-29
 

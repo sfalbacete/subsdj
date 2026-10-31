@@ -2616,3 +2616,32 @@ a self-modulating slot → 130.8; Env → Amount with sustain 0.2: +600 ct at th
 in the sustain. A/B pair AMT 1-2 in the demo bank. In the bank, the four leads route the
 vibrato LFO to the pitch with a hair of depth (0.004–0.005) and the wheel to that slot's
 amount (0.03 = ±36 ct at full): wheel = vibrato depth and brightness.
+
+## Ear session: Marimba, Gong, Accordion (2026-10-31)
+
+Sergio's verdict on the 1.5.0 bank: fine, but the FM imitations «are far from what they name
+and not clean». The method of the percussion session, now a tool: `tools/render.mjs` renders
+a JSON of candidates (notes, durations, velocities) through the real engine to WAVs normalised
+to −3 dBFS, and a Goertzel scan of each WAV says which partials are there. Three rounds:
+
+- **Marimba.** The old preset was 2-op FM with ratio 4. Measured at C4: partials at 1×, **7×
+  and 9× at 0 dB**, 11× at −10 — nasal metal. A wooden bar is additive: its tuned partials sit
+  at 1×, 4× and 10×, and FM with ratio 4 can only produce 1 ± 4k = 3, 5, 7, 9… — no setting of
+  the index reaches 4 or 10. FM4 in additive mode (algorithm 7, four carriers) with ratios 1 ·
+  3.92 · 9.8 and decays 1.4 · 0.16 · 0.05 s, velocity on the two upper partials and a 120 ct
+  thump: «genuinely good». FM stays useful only for a mallet click.
+- **Gong.** The old 2-op FM (ratio 2.74, index 8) rang like a struck wire. A gong is a plate:
+  inharmonic partials with their own decays, and the brightness arrives AFTER the strike. FM4
+  additive with 0.5 · 1 · 1.52 · 2.37, decays 3-4 s, the filter closed at the hit and opened
+  by its own envelope over a second, feedback on op 4 for the air, a 6 s plate. The first
+  version (1 · 1.52 · 2.37 · 3.61) was «genuine, a small gong»; the sub partial and the longer
+  decays made it big.
+- **Accordion.** Two saws with chorus and vibrato are a saw with chorus. The accordion is the
+  musette: three reeds per note beating at 2-4 Hz (unison ×3 at ±10 ct), a narrow pulse for
+  the reed, a breath of air, the filter following the keyboard and a 5.5 Hz bellows tremolo —
+  no chorus, no vibrato.
+
+The lesson for the rest of the FM presets: measure the partials before tuning by ear; when the
+target has a known spectrum (bars, plates, reeds) the additive algorithm with per-operator
+decays gets there in one round, and FM proper is for sounds whose spectrum IS the sideband
+family (e-pianos, bells, brass).

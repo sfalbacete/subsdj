@@ -315,6 +315,13 @@ saved stops loading: the old bank comes back from the archive).
   not clean enough — **Marimba, Gong, Accordion** at least (FM needs very fine tuning to
   sound right; the method is the one of the percussion session: rendered WAV candidates,
   listened A/B). Then the rest of 1.4 (tag filters, audition without loading).
+- **Ear session (2026-10-31, `tools/render.mjs`):** five Marimba candidates measured and
+  heard — the lesson is in the preset's comment: a bar is additive (1×, 4×, 10×) and FM with
+  ratio 4 can only give 1 ± 4k; the old one had the 7× and 9× at 0 dB. Sergio: «M2 and M3 are
+  genuinely good, the rest are something else»; the longer-fundamental variant went in. Gong:
+  the additive plate with a blooming filter «sounds genuine, a small gong»; the sub partial and
+  the longer decays made it big. Accordion: the musette (three reeds beating, bellows tremolo,
+  no chorus, no vibrato) over the saw-with-chorus. Three presets re-levelled by the batch.
 
 ## Decisions
 
