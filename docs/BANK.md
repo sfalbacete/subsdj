@@ -330,7 +330,16 @@ saved stops loading: the old bank comes back from the archive).
   shimmer; Crystal Bell → sparkle ping over a pure 4× partial. A pattern in Sergio's picks:
   he chose the resonator variants (K5, T5) and the ones with a body (tube, tremolo) over the
   purest ones — the modal resonator is doing for bells what additive did for bars.
-  Percussion: a review of its own, later.
+- **Percussion ear session, first batch (2026-11-01, six presets, five candidates each):**
+  808 Kick → K5, a sustained sub-octave carrier under the body (algorithm 6: op 3 at ratio ½
+  with no decay), softer drop, longer decay; 909 Kick → N2, faster and deeper drop, sharper
+  click, tighter and dirtier; 808 Snare → S2, shorter body, whiter noise, more grit; 909 Snare
+  → R2, two tuned drum tones (ratios 1 and 1.8) + snappy noise through the band-pass, instead
+  of a triangle with a filter sweep; Closed Hat → H4, white noise + a little FM metal at
+  8.5 kHz, 60 ms; Open Hat → O3, more metal and air, a resonance at the high-pass corner.
+  A pattern in the picks: the tightest and shortest variants for kicks and snares, the airiest
+  for the hats — a drum lives in its first 50 ms. Only the Closed Hat needed re-levelling.
+  Second batch (Clap, Rimshot, Cowbell, Crash, Ride, Tom): rendered, waiting for the ear.
 
 ## Decisions
 

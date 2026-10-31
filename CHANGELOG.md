@@ -34,6 +34,13 @@ scenes, libraries, MIDI maps). The why behind each module is in
   sounded like nasal metal), the Gong an inharmonic plate with a sub partial that blooms after
   the strike and dies for ten seconds, the Accordion a musette (three reeds beating, a bellows
   tremolo, no chorus, no vibrato).
+- **The kit remade by ear, first six** (five candidates each, Sergio's picks): the **808 Kick**
+  gets a sub partial an octave below that sustains under the body (FM4 algorithm 6), a softer
+  drop and a longer decay; the **909 Kick** drops faster and deeper, tighter and dirtier; the
+  **808 Snare** has a shorter body, whiter noise and more grit; the **909 Snare** is two tuned
+  drum tones plus snappy noise through a band-pass, the 909 way; the **Closed Hat** is mostly
+  white noise with a little metal, high-passed at 8.5 kHz and very short; the **Open Hat** has
+  more metal and more air, with a resonance at the corner for the sizzle.
 
 ## [1.5.0] — 2026-10-29
 

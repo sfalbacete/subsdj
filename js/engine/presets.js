@@ -28,7 +28,7 @@ import { PARAMS, posToVal } from './params.js';
 // version of the old factory; 4: it clears the demo copies out of «★ Mine»; 5: the ear session
 // (Marimba, Gong, Accordion) and the leads' wheel vibrato; 6: the second ear session (DX Bass,
 // Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone.
-export const BANK_REV = 7;
+export const BANK_REV = 8;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -577,29 +577,36 @@ export const BANK = [
      Kick = sine with a pitch drop; snare = short tonal body + noise; cymbals = chaotic FM + high-passed
      noise. Almost all with Curve 1: a drumhead is a damped resonator and decays exponentially. ---------- */
   { cat: 'Percussion', presets: [
-    /* the «hit» is a BRIGHTNESS envelope: FM4 op 2 (ratio 1, 30 ms decay) gives the first 30 ms of
-       harmonics, op 3 (ratio ½, 20 ms) the sub-click; a short pitch blip and an exponential drop */
+    /* the «hit» is a BRIGHTNESS envelope: FM4 op 2 (ratio 1, 30 ms decay) modulates op 1 for the first 30 ms of
+       harmonics; alg 6 makes op 3 an independent carrier an octave BELOW (ratio ½) that sustains under the body = the
+       808's sub; a soft pitch blip (400 Hz in 50 ms) and a long exponential decay. Picked by ear (K5, 2026-11-01). */
     { name: '808 Kick', tags: ['kit', 'deep', 'short', 'classic'], use: 'hit',
       play: 'C3 (any key transposes it). Velocity is the hit.',
-      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '0',
-        fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.5, fm4D3: 0.02, fm4R4: 1, fm4L4: 0, fm4D4: 4,
-        pitchEnvAmt: 700, pitchEnvDec: 0.04, cutoff: 2500, envCurve: 1, a: 0, d: 0.55, s: 0.0, r: 0.3, dist: 0.3, master: 2.16 } },
-    /* 909: the click is triangle B + a breath of airy noise; the per-voice drive tightens the body */
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '6',
+        fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.9, fm4D2: 0.03, fm4R3: 0.5, fm4L3: 0.45, fm4D3: 4, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+        pitchEnvAmt: 400, pitchEnvDec: 0.05, cutoff: 1800, envCurve: 1, a: 0, d: 0.8, s: 0.0, r: 0.4, dist: 0.2, master: 2.16 } },
+    /* 909: the click is triangle B + a breath of airy noise; a fast and deep drop (1.4 kHz in 50 ms), the per-voice
+       drive and a short decay make it tight. Picked by ear (N2, 2026-11-01). */
     { name: '909 Kick', tags: ['kit', 'hard', 'short', 'techno', 'classic'], use: 'hit',
-      play: 'C3. Harder and longer than the 808.',
-      data: { waveA: 'sine', waveB: 'triangle', levelA: 0.8, levelB: 0.2, noise: 0.12, noiseColor: 0.5, pitchEnvAmt: 1000, pitchEnvDec: 0.07,
-        cutoff: 2200, filterDrive: 0.3, dist: 0.4, envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.3, amplitude: 1, master: 3.2 } },
-    /* two sines at 180 and 330 Hz (additive FM4 carriers) that die in ~100 ms + airy noise that lasts longer */
+      play: 'C3. Harder and tighter than the 808.',
+      data: { waveA: 'sine', waveB: 'triangle', levelA: 0.8, levelB: 0.2, noise: 0.2, noiseColor: 0.7, pitchEnvAmt: 1400, pitchEnvDec: 0.05,
+        cutoff: 2600, filterDrive: 0.3, dist: 0.5, envCurve: 1, a: 0, d: 0.3, s: 0.0, r: 0.2, amplitude: 1, master: 3.2 } },
+    /* two sines at 180 and 330 Hz (additive FM4 carriers) that die in ~80 ms + nearly white noise that lasts a
+       little longer; the snap is the short body. Picked by ear (S2, 2026-11-01). */
     { name: '808 Snare', tags: ['kit', 'short', 'classic'], use: 'hit',
       play: 'C3.',
       data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
-        fm4R1: 1.38, fm4L1: 1, fm4D1: 0.11, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 2.52, fm4L3: 0.6, fm4D3: 0.07, fm4R4: 1, fm4L4: 0, fm4D4: 4,
-        noise: 1, noiseColor: 0.7, pitchEnvAmt: 400, pitchEnvDec: 0.03, cutoff: 12000, reso: 1, envCurve: 1, a: 0, d: 0.3, s: 0.0, r: 0.15, dist: 0.1,
+        fm4R1: 1.38, fm4L1: 1, fm4D1: 0.08, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 2.52, fm4L3: 0.6, fm4D3: 0.05, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+        noise: 1, noiseColor: 0.9, pitchEnvAmt: 400, pitchEnvDec: 0.03, cutoff: 12000, reso: 1, envCurve: 1, a: 0, d: 0.22, s: 0.0, r: 0.12, dist: 0.2,
         reverbMix: 0.1, reverbSize: 0.8, master: 1.45 } },
+    /* the 909 way: two tuned drum tones (ratios 1 and 1.8, 80 and 50 ms) with a quick drop + snappy noise, all through
+       a band-pass (Morph 0.5) at 5 kHz. Picked by ear (R2, 2026-11-01). */
     { name: '909 Snare', tags: ['kit', 'hard', 'short', 'techno', 'classic'], use: 'hit',
       play: 'C3. Velocity is the hit.',
-      data: { noise: 0.85, waveA: 'triangle', levelA: 1, levelB: 0, pitchEnvAmt: 600, pitchEnvDec: 0.05, cutoff: 4500, morph: 0.55, reso: 3,
-        fenvMode: 'own', filterEnvAmt: 2500, fa: 0.001, fd: 0.12, fs: 0, fr: 0.1, envCurve: 1, a: 0, d: 0.16, s: 0, r: 0.12, dist: 0.15, master: 3.58 } },
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
+        fm4R1: 1, fm4L1: 1, fm4D1: 0.08, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 1.8, fm4L3: 0.5, fm4D3: 0.05, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+        noise: 0.9, noiseColor: 0.6, pitchEnvAmt: 300, pitchEnvDec: 0.03, cutoff: 5000, morph: 0.5, reso: 2,
+        envCurve: 1, a: 0, d: 0.2, s: 0, r: 0.12, dist: 0.2, master: 3.58 } },
     /* not one noise hit: three bursts 11 ms apart (Flam) and then the tail, all through a band-pass at 1.3 kHz */
     { name: '808 Clap', tags: ['kit', 'short', 'classic'], use: 'hit',
       play: 'C3.',
@@ -617,14 +624,17 @@ export const BANK = [
       data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
         fm4R1: 4.49, fm4L1: 1, fm4D1: 0.45, fm4R2: 1, fm4L2: 0, fm4D2: 4, fm4R3: 6.46, fm4L3: 1, fm4D3: 0.3, fm4R4: 1, fm4L4: 0, fm4D4: 4,
         filterDrive: 0.5, dist: 0.45, filterType: 'bp', cutoff: 1200, reso: 1.2, envCurve: 1, a: 0, d: 0.5, s: 0.0, r: 0.2, width: 0.2, amplitude: 1, master: 4 } },
-    /* FM with full feedback: the modulator goes chaotic = metallic noise; non-integer ratio + high-pass = hi-hat */
+    /* white noise + a little FM with full feedback (the modulator goes chaotic = metallic noise), high-passed at
+       8.5 kHz and very short: crisp. Picked by ear (H4, 2026-11-01). */
     { name: 'Closed Hat', tags: ['kit', 'metallic', 'short', 'classic'], use: 'hit',
       play: 'C3.',
-      data: { waveA: 'sine', levelA: 1, levelB: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1, cutoff: 6500, morph: 1, a: 0, d: 0.09, s: 0.0, r: 0.06, width: 0.2, master: 1.52 } },
+      data: { waveA: 'sine', levelA: 0.4, levelB: 0, fmRatio: 5.7, fmIndex: 3, fmFb: 1, noise: 1, noiseColor: 1, cutoff: 8500, morph: 1, reso: 1,
+        a: 0, d: 0.06, s: 0.0, r: 0.04, width: 0.2, master: 1.19 } },
+    /* more metal than the closed one, plus white air; the resonance at the high-pass corner is the sizzle. Picked by ear (O3, 2026-11-01). */
     { name: 'Open Hat', tags: ['kit', 'metallic', 'airy', 'classic'], use: 'hit',
       play: 'C3.',
-      data: { waveA: 'sine', levelA: 1, levelB: 0, fmRatio: 5.7, fmIndex: 5, fmFb: 1, noise: 0.3, noiseColor: 0.8, cutoff: 7000, morph: 1,
-        a: 0, d: 0.45, s: 0.0, r: 0.3, width: 0.25, master: 1.16 } },
+      data: { waveA: 'sine', levelA: 0.8, levelB: 0, fmRatio: 5.7, fmIndex: 4, fmFb: 1, noise: 0.6, noiseColor: 1, cutoff: 9000, morph: 1, reso: 2,
+        a: 0, d: 0.6, s: 0.0, r: 0.4, width: 0.3, master: 1.16 } },
     /* four additive carriers with non-integer ratios and full feedback on op 4 that decay in ~1 s, + airy noise, all high-passed */
     { name: '909 Crash', tags: ['kit', 'metallic', 'long', 'classic'], use: 'hit',
       play: 'C3.',
