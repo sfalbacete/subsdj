@@ -339,7 +339,8 @@ saved stops loading: the old bank comes back from the archive).
   8.5 kHz, 60 ms; Open Hat → O3, more metal and air, a resonance at the high-pass corner.
   A pattern in the picks: the tightest and shortest variants for kicks and snares, the airiest
   for the hats — a drum lives in its first 50 ms. Only the Closed Hat needed re-levelling.
-  Second batch (Clap, Rimshot, Cowbell, Crash, Ride, Tom): rendered, waiting for the ear.
+  Second batch (Clap, Rimshot, Cowbell, Crash, Ride, Tom), five candidates each, heard the same
+  day: Sergio kept the current six. The percussion review is closed.
 
 ## Decisions
 
