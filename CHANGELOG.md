@@ -26,7 +26,8 @@ scenes, libraries, MIDI maps). The why behind each module is in
   tine ping, stereo tremolo); **Glockenspiel** a steel bar (partials 1 · 2.76 · 5.4 · 8.93)
   through the bar resonator; **Tubular Bells** keep the √2 clang only in the strike over a
   long hum, with the resonator's shimmer; **Crystal Bell** a sparkle ping over a pure fourth
-  partial.
+  partial; **Vibraphone** an aluminium bar (1 · 4 · 10, four seconds of ring) with hard
+  mallets and the motor's tremolo.
 - **Marimba, Gong and Accordion remade by ear** (candidates rendered with the new
   `tools/render.mjs`, listened A/B): the Marimba is an additive bar (partials 1×, 4×, 10×
   with their own decays, a mallet thump; FM with ratio 4 could only give 3, 5, 7, 9… and

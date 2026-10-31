@@ -27,8 +27,8 @@ import { PARAMS, posToVal } from './params.js';
 // (or ⟲ Restore factory) replaces the untouched ones. 3: the sync recognises every historical
 // version of the old factory; 4: it clears the demo copies out of «★ Mine»; 5: the ear session
 // (Marimba, Gong, Accordion) and the leads' wheel vibrato; 6: the second ear session (DX Bass,
-// Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell).
-export const BANK_REV = 6;
+// Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone.
+export const BANK_REV = 7;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -260,10 +260,16 @@ export const BANK = [
       play: 'C1–C5, sustained chords in a big room. Wheel: opens the filter.',
       data: { waveA: 'sine', waveB: 'sine', octavesA: 2, octavesB: 3, detuneB: 4, levelA: 0.5, levelB: 0.5, cutoff: 7100,
         a: 0.05, d: 0.1, s: 1.0, r: 0.4, width: 0.4, reverbMix: 0.45, reverbSize: 3.5, ...WHEEL(0.3), master: 0.96 } },
-    { name: 'Vibraphone', tags: ['fm', 'metallic', 'soft', 'classic'], use: 'chord',
-      play: 'C3–C6; the tremolo is the motor. Wheel: opens the filter · M1: harder mallet.',
-      data: { waveA: 'sine', waveB: 'sine', levelA: 0.6, levelB: 0.4, fmRatio: 4, fmIndex: 1.2, keytrack: 0.6, ampLfoLvl: 0.4, ampLfoSpd: 4.5,
-        cutoff: 4000, a: 0.002, d: 1.2, s: 0, r: 0.9, width: 0.4, reverbMix: 0.28, ...WHEEL(0.3), ...MAC1('fm', 0.3), master: 0.59 } },
+    /* an aluminium bar, additive like the marimba (1 · 4 · 10) but long — the fundamental rings 4 s
+       (pedal up), the 4× 1.5 s, the 10× only in the strike — with hard mallets (the 4× and 10×
+       strong, a 50 ct tick) and the MOTOR: the amplitude tremolo at 4.5 Hz. The old 2-op FM with
+       ratio 4 had the marimba's flaw (ear session 2026-10-31, Sergio chose the hard mallets) */
+    { name: 'Vibraphone', tags: ['fm', 'metallic', 'bright', 'classic'], use: 'chord',
+      play: 'C3–C6, chords and lines; the tremolo is the motor, velocity the mallet. Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7',
+        fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 4, fm4L2: 0.6, fm4D2: 1.5, fm4R3: 10, fm4L3: 0.25, fm4D3: 0.25, fm4R4: 1, fm4L4: 0, fm4D4: 4,
+        fm4V2: 0.5, fm4V3: 0.7, pitchEnvAmt: 50, pitchEnvDec: 0.01, ampLfoLvl: 0.4, ampLfoSpd: 4.5, cutoff: 10000, envCurve: 1,
+        a: 0, d: 4, s: 0, r: 1.5, width: 0.4, reverbMix: 0.28, ...WHEEL(0.3), master: 0.92 } },
     /* a wooden bar is ADDITIVE, not FM: its partials sit at 1×, 4× and 10× (the tuned bar), and FM
        with ratio 4 can only give 1 ± 4k = 3, 5, 7, 9… — the old preset had the 7× and 9× as loud as
        the fundamental and sounded like nasal metal (measured; ear session 2026-10-31). FM4 in
