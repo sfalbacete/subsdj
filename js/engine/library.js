@@ -224,7 +224,9 @@ export class Library {
     // …and the A/B demo pairs that the pre-library import flattened into «★ Mine» as the user's own
     const demoCopy = it => it.origin === 'user' && it.type === 'preset' && !it.fav && secName(it) === SEC_MINE &&
       it.seed === 'user:' + it.name && DEMO_FP.has(fnv(canon(it.data)));
-    const gone = new Set(this.data.items.filter(it => this._legacyCopy(it, secName(it)) || demoCopy(it)).map(it => it.id));
+    const goneItems = this.data.items.filter(it => this._legacyCopy(it, secName(it)) || demoCopy(it)), gone = new Set(goneItems.map(it => it.id));
+    // how many of them come back with a DIFFERENT sound (the report of ⟲ Restore factory): the rest are re-seeded identical
+    const changed = goneItems.filter(it => { const f = it.type === 'preset' && this.factoryDataOf(it); return f && fnv(canon(f.data)) !== fnv(canon(it.data)); }).length;
     this.data.items = this.data.items.filter(it => !gone.has(it.id));
     // empty bank sections (old categories, the retired repo bank, the scenes) go; a user's empty section stays
     const bankSecs = new Set([...Object.values(LEGACY_FP).flatMap(v => v.s), ...BANK.map(c => c.cat), SEC_SCENES]);
@@ -235,7 +237,7 @@ export class Library {
     this.data.sections.sort((a, b) => rank(a) - rank(b));
     this.data.files = false;
     this.data.bankRev = BANK_REV;
-    return { removed: gone.size, added };
+    return { removed: gone.size, added, changed };
   }
   seedUser(map) { const m = map || loadUser(); return Object.keys(m).length ? this.seed('user', SEC_MINE, m) : 0; }
   async seedRepoFiles(fetchFn) {
@@ -261,7 +263,7 @@ export class Library {
   async restoreFactory(fetchFn) {
     const s = this.syncBank();
     const r = await this.seedRepoFiles(fetchFn);
-    return { n: s.added + r.n, replaced: s.removed, errors: r.errors };
+    return { n: s.added - s.removed + r.n, replaced: s.changed, errors: r.errors };   // n: what was missing; replaced: untouched copies whose sound changed
   }
 
   // ---------- export / import ----------
