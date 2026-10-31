@@ -322,6 +322,15 @@ saved stops loading: the old bank comes back from the archive).
   the additive plate with a blooming filter «sounds genuine, a small gong»; the sub partial and
   the longer decays made it big. Accordion: the musette (three reeds beating, bellows tremolo,
   no chorus, no vibrato) over the saw-with-chorus. Three presets re-levelled by the batch.
+- **Second ear round (2026-10-31, six presets, five candidates each):** DX Bass → the DX7
+  «Bass 1» structure (three modulators, FM only in the attack); Breath Flute → less air, chiff
+  at the attack, the Vocal «u» as the tube; Rhodes → FM4 pairs (bark that decays, tine ping)
+  with the suitcase tremolo; Glockenspiel → additive steel bar (1 · 2.76 · 5.4 · 8.93) through
+  the bar resonator; Tubular Bells → √2 clang only in the strike over a 0.5× hum, resonator
+  shimmer; Crystal Bell → sparkle ping over a pure 4× partial. A pattern in Sergio's picks:
+  he chose the resonator variants (K5, T5) and the ones with a body (tube, tremolo) over the
+  purest ones — the modal resonator is doing for bells what additive did for bars.
+  Percussion: a review of its own, later.
 
 ## Decisions
 

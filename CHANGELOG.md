@@ -19,6 +19,14 @@ scenes, libraries, MIDI maps). The why behind each module is in
 - **⟲ Restore factory brings the factory as it is now**: besides putting back what was
   deleted, it refreshes the untouched factory copies whose sound the bank has changed since
   (a library keeps copies; yours, renamed, moved, edited or ★ stay as they are).
+- **Six more presets remade by ear** (second round, Sergio's picks among five candidates
+  each): **DX Bass** is the DX7 «Bass 1» (body, click and growl modulators, FM only in the
+  first tenth of a second); **Breath Flute** has a third of the air, a chiff only at the
+  attack and the Vocal module as the tube; **Rhodes** is the suitcase (bark that settles, a
+  tine ping, stereo tremolo); **Glockenspiel** a steel bar (partials 1 · 2.76 · 5.4 · 8.93)
+  through the bar resonator; **Tubular Bells** keep the √2 clang only in the strike over a
+  long hum, with the resonator's shimmer; **Crystal Bell** a sparkle ping over a pure fourth
+  partial.
 - **Marimba, Gong and Accordion remade by ear** (candidates rendered with the new
   `tools/render.mjs`, listened A/B): the Marimba is an additive bar (partials 1×, 4×, 10×
   with their own decays, a mallet thump; FM with ratio 4 could only give 3, 5, 7, 9… and

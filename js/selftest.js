@@ -218,7 +218,8 @@ async function measurePreset(cat, p) {
       const ceiling = use === 'chord' ? -3 : -5;   // room for a fourth note / a tied note before the limiter
       const byLoud = S.master * Math.pow(10, (TARGET_LUFS - info.lufs) / 20), byPeak = S.master * Math.pow(10, (ceiling - info.peak) / 20);
       info.sugg = +Math.min(4, byLoud, byPeak).toFixed(2);
-      if (Math.abs(info.lufs - TARGET_LUFS) > 3 && Math.abs(info.sugg - S.master) / S.master > 0.06) problems.push(info.lufs + ' LUFS (−14 ± 3): Master ' + S.master + ' → ' + info.sugg);
+      // off target AND a different Master would help (≥ 1 dB: a peak-limited preset's peak moves ±0.5 dB between renders)
+      if (Math.abs(info.lufs - TARGET_LUFS) > 3 && Math.abs(info.sugg - S.master) / S.master > 0.12) problems.push(info.lufs + ' LUFS (−14 ± 3): Master ' + S.master + ' → ' + info.sugg);
       if (info.clip >= 3) problems.push('the limiter works on ' + info.clip + ' % of the sustain (peak ' + info.peak + ' dBFS)');
       // DC: mean of the last 400 ms of the sustain against the peak
       let s = 0; const i0 = Math.max(0, span - Math.round(0.4 * SR)); for (let i = i0; i < span; i++) s += L[i] + R[i];
