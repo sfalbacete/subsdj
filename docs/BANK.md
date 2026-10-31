@@ -306,8 +306,12 @@ saved stops loading: the old bank comes back from the archive).
   or ★ → kept; an old ★ copy identical to a new preset stays and the new one is not
   duplicated; the user's empty sections stay; a second load changes nothing) and on the
   1.3.0-compatibility fixture (translated AND synced).
-- Pending: **Sergio's ear** — prune or rework what does not earn its place; the candidate
-  merges above; then the rest of 1.4 (tag filters, audition without loading).
+- **Sergio's ear (2026-10-31, after 1.5.0):** the whole bank reviewed, nothing to prune — «a
+  sample we ship from the factory; whoever wants to explore makes their own». To refine
+  later, by ear and trial and error: the FM imitations that are far from what they name and
+  not clean enough — **Marimba, Gong, Accordion** at least (FM needs very fine tuning to
+  sound right; the method is the one of the percussion session: rendered WAV candidates,
+  listened A/B). Then the rest of 1.4 (tag filters, audition without loading).
 
 ## Decisions
 

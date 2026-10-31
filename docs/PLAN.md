@@ -24,7 +24,16 @@ what is already there, it does not go in. Order:
    and other languages (German) make the words longer on a fixed panel—. Before the new bank, so that
    the new presets are born in English (all of today's are going to go).
 6. **New bank (8)** ✔ (2026-10-26, its own plan in docs/BANK.md: 103 presets measured, 8 scenes;
-   pending Sergio's ear).
+   **1.5.0 published 2026-10-29**; Sergio's ear 2026-10-31: fine, nothing to prune; some FM
+   imitations — Marimba, Gong, Accordion — to refine by ear later).
+7. **What is left after 1.5.0** (see the quick view): 1.4 (the other half: tag filters, audition
+   without loading), 6.1/6.2 export (parked until a real need), 7.2 sound fingerprint (cheap now:
+   the factory batch already computes one per preset; what is missing is the stored reference and
+   the alarm), 7.4 format version; 7.3 is covered by the factory batch (every preset in its use:
+   voices die, chord under the ceiling) ✔. Candidates born from the bank: **amount modulation in
+   the matrix** (a source scaling another slot's amount: wheel → vibrato depth, aftertouch → LFO
+   depth, a macro → a modulation) and **refining the FM presets by ear**. Parts on demand: not
+   now — composition is not the direction (Sergio, 2026-10-31).
 Discarded by the criterion: 3.4, 3.5, 4.2, 4.3 and 5.5 (see «What we will NOT do»); 5.3 with no date.
 
 ## Roadmap 7.0 «the instrument» (proposed 2026-10-17 · pending agreement)
@@ -89,7 +98,7 @@ agreed way.
 | **7** | **Reliability** | | | |
 | 7.1 | Seeded randomness in offline renders ✔ | repeatable renders; and, along the way, key sync for 2-op FM — DONE 2026-10-20 | low-medium | — |
 | 7.2 | Sound fingerprint of the factory | no preset changes its sound without deciding it | medium | 7.1 |
-| 7.3 | Checks per category | no preset hangs voices or overshoots with chords | low | — |
+| 7.3 | Checks per category ✔ | no preset hangs voices or overshoots with chords — covered by the factory batch of 1.5.0 (every preset in its use: dry tail gone, peak ceiling per use) | low | — |
 | 7.4 | Format version | presets and libraries that never load wrong | low | — |
 | **8** | **New bank from scratch + es/en language** | only interesting, useful presets that people like and that surprise; synth and bank in Spanish and English | medium-high | 1.4 and whatever there is |
 
@@ -115,11 +124,12 @@ agreed way.
 - **Fold the limiter makeup (+1.71 dB) into the master headroom**: cosmetic, does not change a single
   sample.
 - **Granular**: parked since Roadmap 5.0 («for another time»).
-- **Parts on demand** (Sergio, 2026-10-26: not limited to 4, like adding musicians): agreed in
-  principle, left for a later version — it deserves a screen of its own to organise the parts,
-  their players and the mixer as they grow. Sketch: a cap of 8, «+ / −» parts, scenes save N,
-  the factory scenes stay at 4; CPU is the real limit (the shared voice budget), the fixed
-  panel the real work (strips at half width or a scrolling mixer).
+- **Parts on demand** (Sergio, 2026-10-26: not limited to 4, like adding musicians): left for a
+  later version with a screen of its own — and on 2026-10-31 set aside: it leads towards
+  composition (tracks, per-track sequencers) and the direction is sound design and generation;
+  only if an idea in that direction turns up. Sketch, if ever: a cap of 8, «+ / −» parts,
+  scenes save N, the factory scenes stay at 4; CPU is the real limit (the shared voice budget),
+  the fixed panel the real work (strips at half width or a scrolling mixer).
 - **Credits** on publishing: a line of acknowledgements in the README and, in the CHANGELOG, @tacowars
   wherever something inspired by his ideas goes in (it already appears that way in 1.1.0).
 
