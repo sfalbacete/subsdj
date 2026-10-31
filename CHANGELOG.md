@@ -6,6 +6,17 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased (will go into 1.6.0)
+
+- **Amount modulation in the matrix**: six new destinations, **Amount 1 … Amount 6** — a
+  slot adds its source to the amount of another slot, in the knob's own units. That is the
+  mod wheel every keyboard has: LFO → Pitch with a hair of depth, Wheel → Amount of that slot,
+  and the wheel dials the vibrato in; aftertouch → Amount of a filter LFO; Env → Amount (the
+  vibrato is wide at the attack and settles); a macro → three modulations at once. A slot whose
+  knob is at 0 but is fed by another is live (the Matrix no longer dims it). The leads of the
+  bank — Moog Lead, Breath Flute, Vox Lead, Fold Lead — now get their vibrato from the wheel.
+  A/B pair AMT 1-2 in the demo bank.
+
 ## [1.5.0] — 2026-10-29
 
 A new factory bank, thought out as a whole: fewer presets, every one of them with a job,

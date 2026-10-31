@@ -30,7 +30,7 @@ import { validateBank, coverage } from './engine/bankCheck.js';
 import { LEGACY_FP, migratePreset } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
-import { PARAMS, PRESET_BASE, valToPos, posToVal } from './engine/params.js';
+import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
@@ -3670,6 +3670,52 @@ export async function runSelfTest() {
       loadState(keep);
       console.log('macros: pitch at 0 / at 1 ' + f0.toFixed(1) + ' / ' + f1.toFixed(1) + ' Hz (expected ' + fExp.toFixed(1) + ') · amplitude ×' + q.toFixed(3) + ' · Macro 2 → cutoff tilt ×' + tw.toFixed(2));
       r = { name: NAME, peak: analyze(c1).peak, ok: !problems.length, problems };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+
+  {
+    // Amount modulation (2026-10-31): a slot whose destination is «Amount n» adds its source to
+    // slot n's amount, in the knob's units. (1) vel → Pitch at 0 and wheel → Amount 1 at 0.5:
+    // wheel 0 = the note, wheel 1 = +600 ct (vel 1 × 0.5 × 1200); (2) the modulator defined BEFORE
+    // its target (slot 1 → Amount 3) is wired all the same; (3) a slot pointing at itself does
+    // nothing; (4) env → Amount: the pitch offset follows the envelope (wide at the attack, a
+    // fifth of it in the sustain); (5) changing the target's destination live rewires without
+    // errors; (6) the matrix offers the six destinations.
+    body.appendChild(el('st-cat', 'Amount modulation'));
+    const NAME = 'amount modulation (wheel → Amount: +600 ct · modulator before its target · self = nothing · env → Amount follows the envelope · live rewire)';
+    const problems = [];
+    let r;
+    try {
+      const hzOf = (b, t0, t1) => { const d = b.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.floor(t1 * SR);
+        let n = 0; for (let i = i0 + 1; i < i1; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) n++; return n / 2 / ((i1 - i0) / SR); };
+      const render = async (st, wheel = 0) => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.2), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx); eng.setPerf('wheel', wheel); eng.noteOn('m', NOTE1); return ctx.startRendering(); };
+      const keep = snapshot(), f600 = NOTE1 * Math.pow(2, 0.5);
+      const sine = { waveA: 'sine', levelA: 1, levelB: 0, cutoff: 20000, reso: 0.7, a: 0.005, d: 0.05, s: 1, r: 0.05, width: 0, amplitude: 0.3, master: 0.4 };
+      const A = { ...sine, mx1src: 'vel', mx1dst: 'pitch', mx1amt: 0, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.5 };
+      const a0 = hzOf(await render(A, 0), 0.3, 1.1), a1 = hzOf(await render(A, 1), 0.3, 1.1);
+      if (!(Math.abs(a0 - NOTE1) < 2.5)) problems.push('wheel at 0 already moves the pitch (' + a0.toFixed(1) + ' Hz)');
+      if (!(Math.abs(a1 - f600) < 2.5)) problems.push('wheel → Amount 1 does not raise the pitch 600 ct (' + a1.toFixed(1) + ' Hz, expected ' + f600.toFixed(1) + ')');
+      const B = { ...sine, mx1src: 'wheel', mx1dst: 'amt3', mx1amt: 0.5, mx3src: 'vel', mx3dst: 'pitch', mx3amt: 0 };
+      const b1 = hzOf(await render(B, 1), 0.3, 1.1);
+      if (!(Math.abs(b1 - f600) < 2.5)) problems.push('a modulator defined before its target is not wired (' + b1.toFixed(1) + ' Hz)');
+      const C = { ...sine, mx1src: 'wheel', mx1dst: 'amt1', mx1amt: 0.5 };
+      const c1 = hzOf(await render(C, 1), 0.3, 1.1);
+      if (!(Math.abs(c1 - NOTE1) < 2.5)) problems.push('a slot modulating itself does something (' + c1.toFixed(1) + ' Hz)');
+      const D = { ...sine, a: 0.005, d: 0.3, s: 0.2, mx1src: 'vel', mx1dst: 'pitch', mx1amt: 0, mx2src: 'env', mx2dst: 'amt1', mx2amt: 0.5 };
+      const dB_ = await render(D, 0), dEarly = hzOf(dB_, 0.02, 0.08), dLate = hzOf(dB_, 0.8, 1.1), fLate = NOTE1 * Math.pow(2, 0.1);
+      if (!(Math.abs(dEarly - f600) < 6)) problems.push('env → Amount at the attack: ' + dEarly.toFixed(1) + ' Hz (expected ' + f600.toFixed(1) + ')');
+      if (!(Math.abs(dLate - fLate) < 2.5)) problems.push('env → Amount in the sustain: ' + dLate.toFixed(1) + ' Hz (expected ' + fLate.toFixed(1) + ')');
+      // live: the target changes destination (its gain node is rebuilt) and the modulator follows
+      loadState(A); part().noteOn('amt', NOTE1, 1);
+      CONTROLS.mx1dst.set('cutoff'); CONTROLS.mx1dst.set('pitch'); CONTROLS.mx2amt.set(0.3);
+      part().noteOff('amt');
+      const opts = [...document.querySelectorAll('#mxRows select')].flatMap(s => [...s.options].map(o => o.textContent));
+      for (let i = 1; i <= MX_SLOTS; i++) if (!opts.includes('Amount ' + i)) { problems.push('the matrix does not offer «Amount ' + i + '»'); break; }
+      console.log('amount modulation: wheel 0/1 ' + a0.toFixed(1) + ' / ' + a1.toFixed(1) + ' Hz · before target ' + b1.toFixed(1) + ' · self ' + c1.toFixed(1) + ' · env early/late ' + dEarly.toFixed(1) + ' / ' + dLate.toFixed(1));
+      loadState(keep);
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
   }

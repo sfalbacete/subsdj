@@ -2583,3 +2583,36 @@ resolved to `this._off`, the note-off helper; live the Conductor never scheduled
 Steps lane with values in twelfths × a pitch amount of 1 is an exact semitone sequencer
 (Steps Melody). (4) Scenes can reserve a part for the player (`keys`): seven of the eight
 do, and they are levelled by the peak of a 16 s offline render.
+
+## Amount modulation in the matrix (2026-10-31)
+
+What the bank found missing (BANK.md, criterion 5): a matrix source is a VALUE, so the wheel
+could offset the pitch but not dial the vibrato in, and nothing reached a modulation's depth.
+The fix is the smallest one that makes the matrix general: six destinations **Amount 1 …
+Amount 6**. A slot pointing at «Amount n» adds its source to slot n's amount, in the units of
+slot n's knob (±1): wheel → Amount of the vibrato slot is the mod wheel of every keyboard;
+aftertouch → Amount of a filter LFO; Env → Amount makes the vibrato wide at the attack and
+calm in the sustain; S&H → Amount gives each note its own depth; a macro → three Amounts is
+one knob over three modulations. Modulation of modulation: the DX7's «amplitude modulation
+sensitivity», the Eurorack VCA on a CV.
+
+**How it is wired** (`Voice.js`). Each slot is already a per-voice `GainNode` whose gain is
+`amount × span(destination)` with the source connected to it. For «Amount n» the destination
+params are simply `[mxSlots[n].gain.gain]`: the modulator's gain node feeds the target's gain
+AudioParam, which ADDS to its base value. The span of an «Amount n» destination is the span
+of slot n's own destination (`_mxSpan`, following chains, cycles = 1), so ±1 of the modulator
+equals ±1 of the target's knob. Two details: (1) `mxRewire(i)` chains — after wiring slot i it
+rewires every slot j whose destination is «Amount i», because a rewired slot has a NEW gain
+node and the modulators pointed at the old one; a `seen` set cuts the chains, so a modulator
+defined before its target (slot 1 → Amount 3) gets wired when slot 3 is, and cycles stop.
+(2) A slot pointing at its own amount is ignored. `deps.js`: a slot whose knob is at 0 but
+is fed by another slot is live (it used to be dimmed as «amount 0»), «Amount n» of a free
+slot is dimmed with its reason, and a self-pointing slot says why.
+
+**Measured** (check «amount modulation», with a sine and `hzOf` by zero crossings): vel →
+Pitch at 0 plus wheel → Amount 1 at 0.5: wheel 0 → 130.8 Hz, wheel 1 → 185.0 Hz (+600 ct
+exactly, vel 1 × 0.5 × 1200); the same with the modulator in slot 1 and the target in slot 3;
+a self-modulating slot → 130.8; Env → Amount with sustain 0.2: +600 ct at the attack, +120 ct
+in the sustain. A/B pair AMT 1-2 in the demo bank. In the bank, the four leads route the
+vibrato LFO to the pitch with a hair of depth (0.004–0.005) and the wheel to that slot's
+amount (0.03 = ±36 ct at full): wheel = vibrato depth and brightness.

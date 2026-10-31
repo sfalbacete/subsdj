@@ -802,7 +802,7 @@ export class Voice {
     const c = this.ctx.createConstantSource(); c.offset.value = val; c.start(this.t0);
     return this._mxConsts[src] = c;
   }
-  _mxDestParams(dst) {
+  _mxDestParams(dst, i = 0) {   // i: the slot asking (an «Amount i» from slot i is ignored)
     switch (dst) {
       case 'pitch':  return this.oscs.map(o => o.detune);
       case 'pw':     return this.oscs.map(o => o.pw);
@@ -827,10 +827,23 @@ export class Voice {
       // Outside [-1,1] the shaper saturates: the sweep stops at u / i.
       case 'vow':    this.ensureVocal(); this._vocGoDynamic(); (this.vocBqs || []).forEach(bq => Voice._rate(bq, 'a-rate')); return this.vocShapers || [];
     }
+    // Amount of another slot: the target slot's gain is an AudioParam like any other — the
+    // modulation ADDS to it (in the target's units: see _mxSpan). Only once that slot is wired
+    // (mxRewire chains the modulators of a slot after wiring it) and never to itself.
+    const amt = /^amt(\d)$/.exec(dst);
+    if (amt) { const n = +amt[1], t = n !== i && this.mxSlots[n]; return t ? [t.gain.gain] : []; }
     return [];
   }
-  mxRewire(i) {                 // (re)wires slot i reading the current state
-    if (this.disposed) return;
+  // The scale of a destination in engine units; for «Amount n» the one of slot n's own
+  // destination (so ±1 of the modulator = ±1 of the target's knob), following chains, cycles = 1
+  _mxSpan(dst, depth = 0) {
+    const amt = /^amt(\d)$/.exec(dst);
+    if (!amt) return MX_SPAN[dst] || 0;
+    return depth > MX_SLOTS ? 1 : this._mxSpan(this.S['mx' + amt[1] + 'dst'], depth + 1);
+  }
+  mxRewire(i, seen = new Set()) {   // (re)wires slot i reading the current state; `seen` cuts the chains
+    if (this.disposed || seen.has(i)) return;
+    seen.add(i);
     const old = this.mxSlots[i];
     if (old) {
       try { old.src.disconnect(old.gain); } catch (e) {}
@@ -838,18 +851,22 @@ export class Voice {
       this.mxSlots[i] = null;
     }
     const S = this.S, srcId = S['mx' + i + 'src'], dstId = S['mx' + i + 'dst'];
-    if (!srcId || srcId === 'off') return;
-    const src = this._mxSrcNode(srcId), params = this._mxDestParams(dstId);
-    if (!src || !params.length) return;
-    const gain = this.ctx.createGain();
-    gain.gain.value = (S['mx' + i + 'amt'] || 0) * (MX_SPAN[dstId] || 0);
-    src.connect(gain);
-    params.forEach(p => gain.connect(p));
-    this.mxSlots[i] = { src, gain, dst: dstId };
+    if (srcId && srcId !== 'off') {
+      const src = this._mxSrcNode(srcId), params = this._mxDestParams(dstId, i);
+      if (src && params.length) {
+        const gain = this.ctx.createGain();
+        gain.gain.value = (S['mx' + i + 'amt'] || 0) * this._mxSpan(dstId);
+        src.connect(gain);
+        params.forEach(p => gain.connect(p));
+        this.mxSlots[i] = { src, gain, dst: dstId };
+      }
+    }
+    // the slots that modulate THIS slot's amount pointed at the old gain node: rewire them
+    for (let j = 1; j <= MX_SLOTS; j++) if (j !== i && S['mx' + j + 'dst'] === 'amt' + i) this.mxRewire(j, seen);
   }
   mxSetAmt(i) {                 // only changes the slot's gain (cheap, live)
     const slot = this.mxSlots[i]; if (!slot || this.disposed) return;
-    slot.gain.gain.setTargetAtTime((this.S['mx' + i + 'amt'] || 0) * (MX_SPAN[slot.dst] || 0), this.ctx.currentTime, 0.02);
+    slot.gain.gain.setTargetAtTime((this.S['mx' + i + 'amt'] || 0) * this._mxSpan(slot.dst), this.ctx.currentTime, 0.02);
   }
 
   // ---------- live updates (called by the engine when knobs are turned) ----------

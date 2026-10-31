@@ -127,7 +127,8 @@ export const FEATURES = [
   { id: 'ws:1shot', label: 'wave sequence (1-shot)', test: d => eff(d, 'wsOn') === 'on' && eff(d, 'wsMode') === '1shot' },
   { id: 'swing', label: 'swing', test: d => eff(d, 'swing') > 0.5 },
   ...MX_SOURCES.filter(s => s.id !== 'off').map(s => ({ id: 'src:' + s.id, label: 'matrix source ' + s.label, test: d => usesSrc(d, s.id) })),
-  ...MX_DESTS.map(t => ({ id: 'dst:' + t.id, label: 'matrix destination ' + t.label, test: d => usesDst(d, t.id) })),
+  ...MX_DESTS.filter(t => !/^amt\d$/.test(t.id)).map(t => ({ id: 'dst:' + t.id, label: 'matrix destination ' + t.label, test: d => usesDst(d, t.id) })),
+  { id: 'dst:amt', label: 'matrix destination Amount of a slot', test: d => slots(d).some(s => /^amt\d$/.test(s.dst)) },   // the six count as one
 ];
 
 // { features: [{id, label, presets: [names]}], holes: [ids] }

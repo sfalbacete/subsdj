@@ -46,17 +46,21 @@ const dstWhy = (S, d) =>
   : d === 'drive' ? (S.filterDrive > 0 ? null : 'Drive: the Drive knob is at 0 and the signal doesn\'t go through the curve')
   : d === 'pitchA' ? (oscOn(S, 'A') ? null : 'Pitch A: oscillator A isn\'t sounding (Level A and Ring at 0)')
   : d === 'resMat' ? (S.resAmt > 0 ? null : 'Material: the Resonator\'s Mix is at 0')
+  : /^amt\d$/.test(d) ? (S['mx' + d.slice(3) + 'src'] !== 'off' ? null : 'Amount ' + d.slice(3) + ': that slot is free (source «—»)')
   : null;
-const slotOn = (S, i) => S['mx' + i + 'src'] !== 'off' && !!S['mx' + i + 'amt'] && !dstWhy(S, S['mx' + i + 'dst']);
+// another slot feeds this slot's amount: with the knob at 0 it still moves (the modulator sets the depth)
+const amtFed = (S, i) => { for (let j = 1; j <= MX_SLOTS; j++) if (j !== i && S['mx' + j + 'src'] !== 'off' && S['mx' + j + 'amt'] && S['mx' + j + 'dst'] === 'amt' + i) return true; return false; };
+const slotOn = (S, i) => S['mx' + i + 'src'] !== 'off' && (!!S['mx' + i + 'amt'] || amtFed(S, i)) && !dstWhy(S, S['mx' + i + 'dst']);
 const mxFrom = (S, src) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] === src && slotOn(S, i)) return true; return false; };
 const mxTo = (S, dst) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'dst'] === dst && slotOn(S, i)) return true; return false; };
 const slotWhy = (S, i, isAmt) => {
   if (S['mx' + i + 'src'] === 'off') return 'source «—»: the slot is free';
   if (S['mx' + i + 'src'] === 'acc' && !(S.seqOn === 'on' && /!/.test(S.seqPat || '')))
     return 'Accent: only the sequencer gives it, when on, on steps marked «!»';
+  if (S['mx' + i + 'dst'] === 'amt' + i) return 'Amount ' + i + ': a slot cannot modulate its own amount';
   const w = dstWhy(S, S['mx' + i + 'dst']);
   if (w) return w;
-  return !isAmt && !S['mx' + i + 'amt'] ? 'amount 0: the slot moves nothing' : null;   // the amount knob is the switch: it doesn't switch itself off
+  return !isAmt && !S['mx' + i + 'amt'] && !amtFed(S, i) ? 'amount 0: the slot moves nothing' : null;   // the amount knob is the switch: it doesn't switch itself off (unless another slot feeds it)
 };
 
 // --- shared conditions ----------------------------------------------------

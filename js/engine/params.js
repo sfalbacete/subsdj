@@ -307,6 +307,12 @@ export const MX_DESTS = [
   { id: 'drive',  label: 'Drive' },         // input gain of the curve (±1 = the knob's whole travel); needs Drive > 0
   { id: 'pitchA', label: 'Pitch A' },       // cents on oscillator A only
   { id: 'resMat', label: 'Material' },      // resonator: ±1 = from string to bar (each mode, its own cents)
+  // Amount modulation (2026-10-31): the slot adds its source to the AMOUNT of another slot, in
+  // the knob's units (±1): wheel → Amount of the vibrato slot = a real mod wheel; aftertouch →
+  // Amount of an LFO; env → the vibrato grows with the note; a macro → three modulations at once.
+  // Voice.js scales it by the target slot's own span; a slot pointing at itself does nothing.
+  { id: 'amt1', label: 'Amount 1' }, { id: 'amt2', label: 'Amount 2' }, { id: 'amt3', label: 'Amount 3' },
+  { id: 'amt4', label: 'Amount 4' }, { id: 'amt5', label: 'Amount 5' }, { id: 'amt6', label: 'Amount 6' },
 ];
 export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8,
   lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1 };   // drive and resMat: the voice scales them (per character / per mode)

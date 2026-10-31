@@ -76,6 +76,7 @@ agreed way.
 | 2.4 | More destinations in the matrix ✔ | mixer levels (vector), Drive, Pitch A, Material — DONE 2026-10-20 (Decay no: see below) | low | — |
 | 2.5 | Performance macros ✔ | one knob moves several destinations — DONE 2026-10-25 (two knobs at the foot of the Matrix) | low | — |
 | 2.6 | Touch response ✔ | velocity curve, bend range — DONE 2026-10-25 (keyboard bar) | low | — |
+| 2.7 | Amount modulation ✔ | a slot feeds another slot's amount: the real mod wheel, aftertouch and macros on modulation depths — DONE 2026-10-31 (destinations Amount 1-6; born from the bank) | low | — |
 | **3** | **New generators** | | | |
 | 3.1 | Drive with character: asymmetric and folded ✔ | soft/fold + Asym — DONE 2026-10-20 | low-medium | — |
 | 3.2 | Hard sync ✔ | the classic sync sweep — DONE 2026-10-25 (button in the Osc A header) | medium | 2.4 |

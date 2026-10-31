@@ -46,7 +46,10 @@ work — instead of reinventing it.
    not a depth: the wheel can offset the pitch, not scale the vibrato LFO, and no
    destination reaches an LFO depth, the echo or the reverb. Vibrato comes in by itself
    with `lfoFade` instead. Amount modulation (a source scaling another slot's amount) is
-   the capability the bank found missing: a candidate for the plan.
+   the capability the bank found missing: a candidate for the plan. *Done on 2026-10-31
+   (destinations «Amount 1-6»): the leads — Moog Lead, Breath Flute, Vox Lead, Fold Lead —
+   route the vibrato LFO to the pitch with a hair of depth and the wheel to that slot's
+   amount, so the wheel IS the vibrato depth (and still opens the filter).*
 6. **Loudness matched by measurement**: about −14 LUFS at the output in its intended use
    (one note, a three-note chord or a hit — the hit by its peak), with that use never
    reaching the limiter. All of them, not a sample of five.

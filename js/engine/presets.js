@@ -105,11 +105,13 @@ export const BANK = [
 
   /* ---------- Leads: C3-C6, one note at a time ---------- */
   { cat: 'Leads', presets: [
-    /* mono, legato glide, 24 dB, vibrato that comes in after half a second (lfoFade) */
-    { name: 'Moog Lead', tags: ['analog', 'warm', 'mono', 'classic'], use: 'note',
-      play: 'C3–C6, mono: overlapping notes glide; the vibrato fades in. Wheel: opens the filter · M1: drive.',
+    /* mono, legato glide, 24 dB; the vibrato LFO goes to the pitch through the matrix with a hair
+       of depth, and the WHEEL adds to that slot's amount: a real mod wheel (Amount modulation) */
+    { name: 'Moog Lead', tags: ['analog', 'warm', 'mono', 'classic', 'expressive'], use: 'note',
+      play: 'C3–C6, mono: overlapping notes glide. Wheel: vibrato depth and brightness · M1: drive.',
       data: { mode: 'mono', monoTrig: 'legato', glide: 0.07, waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 8, levelA: 0.7, levelB: 0.3,
-        cutoff: 1260, reso: 4, filterSlope: '24', filterDrive: 0.2, filterEnvAmt: 1500, freqLfoLvl: 9, freqLfoSpd: 5.5, lfoFade: 0.6,
+        cutoff: 1260, reso: 4, filterSlope: '24', filterDrive: 0.2, filterEnvAmt: 1500, freqLfoSpd: 5.5,
+        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03,
         a: 0.005, d: 0.2, s: 0.7, r: 0.2, dlyAmt: 0.25, width: 0.3, ...WHEEL(0.5), ...MAC1('drive', 0.7), master: 1.77 } },
     { name: 'PWM Lead', tags: ['analog', 'bright', 'wide', 'classic'], use: 'note',
       play: 'C3–C6; two pulses with the width moving slowly. Wheel: opens the filter · M1: narrows the pulse.',
@@ -126,26 +128,29 @@ export const BANK = [
         fenvMode: 'own', fa: 0.005, fd: 1.2, fs: 0.1, fr: 0.3, mx1src: 'env', mx1dst: 'pitchA', mx1amt: 1,
         a: 0.005, d: 0.9, s: 0.25, r: 0.3, reverbMix: 0.2, dlyAmt: 0.2, ...WHEEL(0.3), ...MAC1('pitchA', 0.6), master: 1.57 } },
     /* West Coast: a triangle through the wavefolder; velocity folds harder, the macro folds more */
-    { name: 'Fold Lead', tags: ['fold', 'bright', 'hard', 'mono'], use: 'note',
-      play: 'C3–C5, mono: play hard and the wave folds over. M1: fold amount · wheel: opens the filter.',
+    { name: 'Fold Lead', tags: ['fold', 'bright', 'hard', 'mono', 'expressive'], use: 'note',
+      play: 'C3–C5, mono: play hard and the wave folds over. M1: fold amount · wheel: vibrato depth and brightness.',
       data: { mode: 'mono', glide: 0.03, waveA: 'triangle', waveB: 'sine', octB: -1, levelA: 0.7, levelB: 0.3, filterDrive: 0.7, driveChar: 'fold', driveAsym: 0.3,
-        cutoff: 9000, reso: 0, freqLfoLvl: 8, freqLfoSpd: 5, lfoFade: 0.5, a: 0.02, d: 0.5, s: 0.9, r: 0.4, reverbMix: 0.2, dlyAmt: 0.2,
-        mx1src: 'vel', mx1dst: 'drive', mx1amt: 0.4, ...WHEEL(0.3), ...MAC1('drive', 0.8), master: 1.38 } },
+        cutoff: 9000, reso: 0, freqLfoSpd: 5, a: 0.02, d: 0.5, s: 0.9, r: 0.4, reverbMix: 0.2, dlyAmt: 0.2,
+        mx1src: 'vel', mx1dst: 'drive', mx1amt: 0.4, mx2src: 'lfoFreq', mx2dst: 'pitch', mx2amt: 0, mx3src: 'wheel', mx3dst: 'amt2', mx3amt: 0.03,
+        ...WHEEL(0.3), ...MAC1('drive', 0.8), master: 1.38 } },
     /* the Alpha Juno «hoover»: detuned saw + pulse an octave up, PWM, a pitch drop and chorus */
     { name: 'Hoover', tags: ['analog', 'dirty', 'wide', 'techno', 'classic'], use: 'note',
       play: 'C2–C4, chords too: every note dives in. Wheel: opens the filter · M1: pulse width.',
       data: { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.42, detuneA: -18, detuneB: 18, octavesB: 2, levelA: 0.5, levelB: 0.5,
         pwmLfoLvl: 0.25, pwmLfoSpd: 5, freqLfoLvl: 20, freqLfoSpd: 5.5, pitchEnvAmt: -700, pitchEnvDec: 0.18, cutoff: 2300, reso: 3,
         chAmt: 0.5, chSpd: 0.8, dist: 0.22, a: 0.01, d: 0.3, s: 0.75, r: 0.35, width: 0.5, reverbMix: 0.15, ...WHEEL(0.4), ...MAC1('pw', 0.5), master: 1.42 } },
-    { name: 'Breath Flute', tags: ['soft', 'airy', 'mono', 'classic'], use: 'note',
-      play: 'C4–C6, mono; the vibrato comes in late. Wheel: opens the filter · M1: more breath.',
-      data: { mode: 'mono', waveA: 'sine', waveB: 'triangle', levelA: 0.6, levelB: 0.4, noise: 0.12, noiseColor: 0.6, freqLfoLvl: 14, freqLfoSpd: 5.3, lfoFade: 0.5,
+    { name: 'Breath Flute', tags: ['soft', 'airy', 'mono', 'classic', 'expressive'], use: 'note',
+      play: 'C4–C6, mono. Wheel: vibrato depth and brightness · M1: more breath.',
+      data: { mode: 'mono', waveA: 'sine', waveB: 'triangle', levelA: 0.6, levelB: 0.4, noise: 0.12, noiseColor: 0.6, freqLfoSpd: 5.3,
+        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03,
         cutoff: 2890, a: 0.08, d: 0.1, s: 0.9, r: 0.2, reverbMix: 0.28, width: 0.2, ...WHEEL(0.3), ...MAC1('lvlNoise', 0.6), master: 1.16 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */
     { name: 'Vox Lead', tags: ['vocal', 'wavetable', 'expressive', 'mono'], use: 'note',
-      play: 'C3–C5, mono. Wheel: the vowel (u→i) · M1: effort (brighter glottis).',
+      play: 'C3–C5, mono. Wheel: the vowel (u→i) and the vibrato · M1: effort (brighter glottis).',
       data: { mode: 'mono', glide: 0.04, waveA: 'wavetable', wtSet: 'glottal', wtPos: 0.25, levelA: 1, levelB: 0,
-        vocAmt: 0.9, vocVowel: 0.45, vocQ: 0.55, vocLife: 0.4, vocBright: 0.7, freqLfoLvl: 10, freqLfoSpd: 5.2, lfoFade: 0.6,
+        vocAmt: 0.9, vocVowel: 0.45, vocQ: 0.55, vocLife: 0.4, vocBright: 0.7, freqLfoSpd: 5.2,
+        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.005, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03,
         cutoff: 5000, reso: 0.8, a: 0.05, d: 0.3, s: 0.85, r: 0.3, reverbMix: 0.25,
         mx6src: 'wheel', mx6dst: 'vow', mx6amt: 0.5, ...MAC1('wt', 0.6), master: 2.55 } },
     /* the filter jumps to a random value on every eighth (S&H on the clock) and the pan follows it */
