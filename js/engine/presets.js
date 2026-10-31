@@ -23,7 +23,11 @@
    ===================================================================== */
 import { PARAMS, posToVal } from './params.js';
 
-export const BANK_REV = 4;   // 3: the sync recognises every historical version of the old factory (2 took older copies for edited ones); 4: it also clears the demo copies out of «★ Mine»
+// Bump it with EVERY change to the bank's data: a library keeps copies, and only a new revision
+// (or ⟲ Restore factory) replaces the untouched ones. 3: the sync recognises every historical
+// version of the old factory; 4: it clears the demo copies out of «★ Mine»; 5: the ear session
+// (Marimba, Gong, Accordion) and the leads' wheel vibrato.
+export const BANK_REV = 5;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [

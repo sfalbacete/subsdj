@@ -169,7 +169,7 @@ export function initLibraryScreen() {
   });
   $('libSeed').addEventListener('click', async () => {
     const r = await library.restoreFactory();
-    msg((r.n ? 'Brought back ' + r.n + ' items from the factory and the repo.' : 'Nothing was missing from the factory.')
+    msg((r.n || r.replaced ? 'Factory brought up to date: ' + r.n + ' items in' + (r.replaced ? ', ' + r.replaced + ' untouched copies refreshed' : '') + '.' : 'The factory was already complete and up to date.')
         + (r.errors.length ? ' Could not read: ' + r.errors.join(', ') + '.' : ''));
   });
   document.addEventListener('library-changed', render);

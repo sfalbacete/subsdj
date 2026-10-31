@@ -1089,7 +1089,14 @@ export async function runSelfTest() {
     const lScenesSec = L.sectionByName(SEC_SCENES), scenes = lScenesSec ? L.items(lScenesSec.id) : [];
     if (f1.n !== REPO_SCENES.length || f2.n !== 0 || f1.errors.length || scenes.length !== REPO_SCENES.length || scenes.some(i => i.type !== 'scene'))   // the repo scenes (no repo bank since 1.5.0)
       problems.push('files: ' + f1.n + '/' + f2.n + ' errors ' + f1.errors.join(',') + ' scenes ' + scenes.length);
-    console.log('library: factory ' + nFactory + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length);
+    // ⟲ Restore factory also REFRESHES an untouched copy seeded with older content (the bank is
+    // tuned between revisions: Sergio heard the old Marimba after Ctrl+F5 and Restore, 2026-10-31)
+    const wp = L.presets().find(p => p.name === 'Warm Pad' && p.origin === 'factory');
+    wp.data = { ...wp.data, cutoff: 999 }; wp.seedFp = fnv(canon(wp.data));   // «seeded that way»: untouched, but older
+    const rf = await L.restoreFactory();
+    const wp2 = L.presets().find(p => p.name === 'Warm Pad' && p.origin === 'factory');
+    if (!(rf.replaced >= 1) || !wp2 || wp2.data.cutoff === 999 || L.kind(wp2) !== 'factory') problems.push('restore factory does not refresh an outdated untouched copy (replaced ' + rf.replaced + ')');
+    console.log('library: factory ' + nFactory + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length + ' · restore refreshed ' + rf.replaced);
     push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files)', peak: 0, ok: !problems.length, problems });
   }
   {

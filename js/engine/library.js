@@ -254,8 +254,15 @@ export class Library {
     this.save();
     return { n, errors };
   }
-  // «Restore factory»: code + repo bank + scenes; only what is missing
-  async restoreFactory(fetchFn) { const a = this.seedFactory(); const r = await this.seedRepoFiles(fetchFn); return { n: a + r.n, errors: r.errors }; }
+  // «Restore factory»: the factory AS IT IS NOW — what is missing comes back, and the untouched
+  // copies whose content the code has changed since (the bank is tuned between revisions) are
+  // replaced; what the user renamed, moved, edited or starred stays. The same as a revision
+  // change (syncBank), plus the repo scenes.
+  async restoreFactory(fetchFn) {
+    const s = this.syncBank();
+    const r = await this.seedRepoFiles(fetchFn);
+    return { n: s.added + r.n, replaced: s.removed, errors: r.errors };
+  }
 
   // ---------- export / import ----------
   exportData() { return { format: LIBRARY_FORMAT, date: new Date().toISOString(), sections: this.data.sections, items: this.data.items }; }

@@ -16,6 +16,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   knob is at 0 but is fed by another is live (the Matrix no longer dims it). The leads of the
   bank — Moog Lead, Breath Flute, Vox Lead, Fold Lead — now get their vibrato from the wheel.
   A/B pair AMT 1-2 in the demo bank.
+- **⟲ Restore factory brings the factory as it is now**: besides putting back what was
+  deleted, it refreshes the untouched factory copies whose sound the bank has changed since
+  (a library keeps copies; yours, renamed, moved, edited or ★ stay as they are).
 - **Marimba, Gong and Accordion remade by ear** (candidates rendered with the new
   `tools/render.mjs`, listened A/B): the Marimba is an additive bar (partials 1×, 4×, 10×
   with their own decays, a mallet thump; FM with ratio 4 could only give 3, 5, 7, 9… and
