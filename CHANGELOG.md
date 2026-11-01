@@ -8,6 +8,19 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased (will go into 1.6.0)
 
+- **The factory has a sound fingerprint** (`subsdj-fingerprints.json`): the selftest renders every
+  factory preset in its use and compares its spectrum with the one stored when the preset was
+  last tuned. Same settings and a different sound means the engine changed something nobody
+  decided to change, and the preset fails. A deliberate change renews its line with
+  `tools/bank-fp.mjs`. Nothing changes for the player: it is the alarm that keeps the bank
+  sounding the same across versions.
+- **Files and libraries say their format, and a newer one is never half read**: a library
+  written by a newer SubSDJ found in the browser is kept aside instead of being overwritten
+  (File ▾ → Export or Discard the unreadable copy); importing a file from a newer version is
+  refused with a message that says so, and a file whose presets carry settings this version
+  does not know says how many were left out. A library that could not be saved (storage full,
+  private window) is reported instead of silently lost, and the browser is asked to keep the
+  library when it runs out of space.
 - **Amount modulation in the matrix**: six new destinations, **Amount 1 … Amount 6** — a
   slot adds its source to the amount of another slot, in the knob's own units. That is the
   mod wheel every keyboard has: LFO → Pitch with a hair of depth, Wheel → Amount of that slot,

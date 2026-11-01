@@ -27,7 +27,7 @@ import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, BANK, META, BANK_REV, rootOf, factoryPreset, migrateV1 } from './engine/presets.js';
 import { validateBank, coverage } from './engine/bankCheck.js';
-import { LEGACY_FP, migratePreset } from './engine/legacy.js';
+import { LEGACY_FP, migratePreset, describeFormat, unreadableReason, KNOWN_FORMATS } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal } from './engine/params.js';
@@ -180,7 +180,7 @@ const fpDistance = (a, b) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) * (v
 // panel, the numbers for the ping (with the Master that would land it on TARGET) and the fingerprint.
 // SIM_MIN_DB: the closest pair allowed. First measurement (2026-10-26): median 16.8 dB, closest
 // 1.8 (Cathedral Pad / Supersaw Pad — the fingerprint is the spectral envelope, not the motion)
-const TARGET_LUFS = -14, HIT_PEAK_DB = -4, SIM_MIN_DB = 1.5;
+const TARGET_LUFS = -14, HIT_PEAK_DB = -4, SIM_MIN_DB = 1.5, FP_TOL = 0.1;   // FP_TOL: the fingerprint alarm (7.2), see the factory batch
 async function measurePreset(cat, p) {
   const name = p.name, problems = [], m = { ...p, cat }, use = p.use, root = rootOf(m);
   const badKeys = Object.keys(p.data).filter(k => !(k in CONTROLS));
@@ -1186,6 +1186,63 @@ export async function runSelfTest() {
       console.log('bank sync: ' + lib.items.length + ' old items → ' + L.items().length + ' (' + L.sections().length + ' sections)');
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     push({ name: 'bank sync: a 1.4 library follows the new bank, keeping what the user touched or starred', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Format version (7.4): everything SubSDJ writes says 'subsdj-<kind>-v<N>'. A stored library a
+    // NEWER SubSDJ wrote (or junk) is never overwritten: it is kept aside under key.unreadable, reported
+    // (unreadable.reason), can be exported raw and discarded, and a fresh library is seeded; a second
+    // load still reports it. Importing such a file throws and brings nothing in; a scene too. A file from
+    // a newer version with settings this one does not know: the cleaner counts what it drops (the UI
+    // says so). exportData carries the app version. A save that does not land is reported (onSaveError).
+    body.appendChild(el('st-cat', 'Format version'));
+    const problems = [];
+    try {
+      const mkStore = () => { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; }, m }; };
+      const store = mkStore(), KEY = 'subsdj.library.fmt';
+      const newer = { format: 'subsdj-library-v9', next: 1, sections: [{ id: 's1', name: 'Future' }], items: [{ id: 'p1', type: 'preset', name: 'Tomorrow', section: 's1', data: { cutoff: 1234, hyperdrive: 1 } }] };
+      store.setItem(KEY, JSON.stringify(newer));
+      const L = new Library({ key: KEY, storage: store });
+      const isNew = L.load();
+      if (!isNew) problems.push('a newer library was taken as readable');
+      if (!L.unreadable || !/newer SubSDJ/.test(L.unreadable.reason)) problems.push('unreadable not reported: ' + JSON.stringify(L.unreadable));
+      if (!(L.unreadableRaw() || '').includes('hyperdrive')) problems.push('the newer library was not kept aside as it was');
+      if (!L.presets().find(p => p.name === 'Warm Pad')) problems.push('no fresh library seeded beside it');
+      if ((store.getItem(KEY) || '').includes('hyperdrive')) problems.push('the newer library was overwritten');
+      const L2 = new Library({ key: KEY, storage: store }); L2.load();
+      if (!L2.unreadable) problems.push('a second load forgot the copy kept aside');
+      L2.discardUnreadable();
+      if (store.getItem(KEY + '.unreadable') !== null || L2.unreadable) problems.push('discard did not forget it');
+      // junk in the key (not JSON, not ours) is kept aside too, never overwritten
+      const s2 = mkStore(); s2.setItem(KEY, '{"hello":1}');
+      const L3 = new Library({ key: KEY, storage: s2 }); L3.load();
+      if (!L3.unreadable || !(L3.unreadableRaw() || '').includes('hello')) problems.push('junk in the key was not kept aside');
+      // importing a newer file: refused whole; an unknown kind: refused; nothing comes in
+      const n0 = L.items().length;
+      for (const [j, re] of [[newer, /newer SubSDJ/], [{ format: 'subsdj-fingerprints-v1', presets: { X: { cutoff: 1 } } }, /not a SubSDJ/], [{ format: 'subsdj-scene-v9', parts: [] }, /newer SubSDJ/]]) {
+        let msg = ''; try { L.importData(j); } catch (e) { msg = (e && e.message) || ''; }
+        if (!re.test(msg)) problems.push('import of ' + j.format + ' not refused as expected: «' + msg + '»');
+      }
+      if (L.items().length !== n0) problems.push('a refused import added items');
+      let sceneMsg = ''; try { applySceneJSON(null, { format: 'subsdj-scene-v9', parts: [] }); } catch (e) { sceneMsg = (e && e.message) || ''; }
+      if (!/newer SubSDJ/.test(sceneMsg)) problems.push('a newer scene is not refused with the right message: «' + sceneMsg + '»');
+      // a v2 file with settings we do not know: counted by the cleaner, the preset comes in without them
+      let dropped = 0;
+      const clean = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; dropped += Object.keys(d).length - Object.keys(c).length; return c; };
+      const v2 = { format: 'subsdj-library-v2', app: '9.0.0', sections: [{ id: 's1', name: 'Future' }], items: [{ id: 'p1', type: 'preset', name: 'Tomorrow', section: 's1', origin: 'user', data: { cutoff: 1234, hyperdrive: 1, warp: 2 } }] };
+      const ri = L.importData(v2, { clean });
+      const tm = L.presets().find(p => p.name === 'Tomorrow');
+      if (ri.n !== 1 || !tm || 'hyperdrive' in tm.data || tm.data.cutoff !== 1234 || dropped !== 2) problems.push('newer settings: added ' + ri.n + ', dropped ' + dropped + ', data ' + JSON.stringify(tm && tm.data));
+      const ex = L.exportData();
+      if (ex.app !== VERSION || !describeFormat(ex) || !describeFormat(ex).known) problems.push('export without the app version or a known format: ' + ex.app + ' ' + ex.format);
+      if (unreadableReason({ cutoff: 1 }) !== null || unreadableReason({ format: 'subsdj-presets-v2', presets: {} }) !== null) problems.push('a loose map or a v2 bank reported unreadable');
+      // a save that does not land is reported
+      const bad = mkStore(); bad.setItem = () => { throw new Error('QuotaExceededError'); };
+      const L4 = new Library({ key: KEY, storage: bad }); let told = 0; L4.onSaveError = () => told++;
+      L4.load();
+      if (!told || !L4.saveError) problems.push('a failed save was not reported (told ' + told + ')');
+      console.log('format: known ' + JSON.stringify(KNOWN_FORMATS) + ' · newer library kept aside ' + (L.unreadable ? L.unreadable.size : 0) + ' chars');
+    } catch (e) { problems.push('exception: ' + ((e && e.message) || e)); }
+    push({ name: 'format version: a newer library is kept aside, a newer file refused whole, unknown settings counted', peak: 0, ok: !problems.length, problems });
   }
   {
     // The 1.4 bank archive (subsdj-bank-1.4.json): a library file with the whole old bank —
@@ -4602,19 +4659,41 @@ export async function runSelfTest() {
   // and the dry tail after the release. The ping carries the Master that would land it on the
   // target: that is how the bank is tuned (node tools/run-selftest.mjs "selftest=1&batch=factory").
   // Then the spectral fingerprints of all of them: the closest pairs are logged — no two alike.
-  const prints = [];
+  // And the ALARM (7.2): subsdj-fingerprints.json keeps, per preset, the hash of its data and the
+  // fingerprint it rendered when the reference was taken. Same data and a fingerprint further than
+  // FP_TOL dB from the reference = the ENGINE changed the sound of a preset nobody touched (a refactor,
+  // a shared clock, a new default): the preset fails. A deliberate change (data hash differs, or a
+  // new preset) has no reference until it is renewed: BANK_OUT=x.json … + node tools/bank-fp.mjs x.json.
+  // FP_TOL 0.1 dB: the render-to-render distance measured on 2026-11-01 over the whole bank was
+  // 0.004 dB at most (seeded offline renders; the stored print is rounded to 0.01 dB; Chrome sums a
+  // node's inputs in a non-fixed order, ~1e-8) — 25× below the alarm, while any change of a law,
+  // a default or a module moves whole bands by dBs.
+  let ref = {};
+  try { ref = (await (await fetch('subsdj-fingerprints.json', { cache: 'no-store' })).json()).presets || {}; } catch (e) { /* no reference yet: every preset is reported as unreferenced */ }
+  const prints = [], noRef = []; let fpChecked = 0, fpMax = 0;
   for (const c of BANK) {
     body.appendChild(el('st-cat', c.cat));
     for (const p of c.presets) {
       const { row, info } = await measurePreset(c.cat, p);
+      const fpData = fnv(canon(p.data)), r = ref[p.name]; let fpd = null;
+      if (info && info.print) {
+        if (r && r.fp === fpData && Array.isArray(r.print) && r.print.length === info.print.length) {
+          fpd = fpDistance(info.print, r.print); fpChecked++; fpMax = Math.max(fpMax, fpd);
+          if (fpd > FP_TOL) { row.problems.push('the sound changed with the same data: ' + fpd.toFixed(2) + ' dB from the stored fingerprint (' + FP_TOL + ' allowed)'); row.ok = false; }
+        } else noRef.push(p.name);
+      }
       push(row);
       summary.textContent = ok + '/' + results.length;
       if (info && info.print) prints.push([p.name, info.print]);
       ping('bank=' + encodeURIComponent(p.name) + '&ok=' + (row.ok ? 1 : 0) +
            (info ? '&use=' + info.use + '&lufs=' + info.lufs + '&peak=' + info.peak + '&clip=' + info.clip + '&dc=' + (info.dc ?? '') + '&tail=' + (info.tail ?? '') + '&master=' + info.master + '&sugg=' + info.sugg : '') +
+           (info && info.print ? '&fp=' + fpData + '&print=' + info.print.map(v => v.toFixed(2)).join(',') + (fpd !== null ? '&fpd=' + fpd.toFixed(3) : '') : '') +
            (row.ok ? '' : '&why=' + encodeURIComponent(row.problems.join(' | '))));
     }
   }
+  console.log('fingerprint: ' + fpChecked + ' against the reference · max distance ' + fpMax.toFixed(3) + ' dB · ' + noRef.length + ' without one');
+  push({ name: 'fingerprint reference: every preset has one for its current data (alarm at ' + FP_TOL + ' dB, subsdj-fingerprints.json)', peak: 0, ok: !noRef.length,
+         problems: noRef.length ? ['no reference for the current data of ' + noRef.length + ': ' + noRef.slice(0, 8).join(', ') + (noRef.length > 8 ? '…' : '') + ' → BANK_OUT=x.json node tools/run-selftest.mjs "selftest=1&batch=factory" + node tools/bank-fp.mjs x.json'] : [] });
   {
     const pairs = [];
     for (let i = 0; i < prints.length; i++) for (let j = i + 1; j < prints.length; j++) pairs.push([fpDistance(prints[i][1], prints[j][1]), prints[i][0], prints[j][0]]);

@@ -104,8 +104,9 @@ for (const r of res) console.log('done:', JSON.stringify(r.done), 'in', r.secs.t
 for (const r of res) for (const p of r.demos)
   console.log('demo:', p.demo || ('ERROR ' + p.demo_error), '| diff', p.diff, '| peaks', p.peakA, p.peakB, p.bad ? '| BAD' : '');
 for (const r of res) for (const p of r.bank)
-  console.log('bank:', p.bank, '| use', p.use, '| lufs', p.lufs, '| peak', p.peak, '| clip', p.clip + '%', '| dc', p.dc, '| tail', p.tail, '| master', p.master, '→', p.sugg, p.why ? '| ' + p.why : '');
-// BANK_OUT=file.json → the per-preset measurements as JSON (tools/bank-level.mjs writes the suggested Masters into the bank)
+  console.log('bank:', p.bank, '| use', p.use, '| lufs', p.lufs, '| peak', p.peak, '| clip', p.clip + '%', '| dc', p.dc, '| tail', p.tail, '| master', p.master, '→', p.sugg, p.fpd !== undefined ? '| Δfp ' + p.fpd : '', p.why ? '| ' + p.why : '');
+// BANK_OUT=file.json → the per-preset measurements as JSON (tools/bank-level.mjs writes the suggested Masters into
+// the bank; tools/bank-fp.mjs renews the sound-fingerprint reference subsdj-fingerprints.json)
 if (process.env.BANK_OUT) { const all = res.flatMap(r => r.bank); fs.writeFileSync(process.env.BANK_OUT, JSON.stringify(all, null, 1)); console.log('bank measurements:', all.length, '→', process.env.BANK_OUT); }
 for (const r of res) for (const p of r.sim) console.log('sim:', p.sim, '| distance', p.dist);
 const fails = res.flatMap(r => r.fails || (r.hung ? ['(batch ' + batchName(r) + ') :: ' + r.lastNote] : []));

@@ -26,7 +26,8 @@
    the library-changed event).
    ===================================================================== */
 import { FACTORY, META, BANK, BANK_REV, factoryPreset, migrateV1, loadUser, LS_USER_KEYS } from './presets.js';
-import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP, DEMO_FP } from './legacy.js';
+import { LIBRARY_FORMAT, SCENE_FORMAT, migrateLibrary, migratePreset, migrateScene, LEGACY_FP, DEMO_FP, unreadableReason } from './legacy.js';
+import { VERSION } from '../version.js';
 
 export const LIB_KEY = 'subsdj.library.v2';
 const LIB_KEY_V1 = 'subsdj.biblioteca.v1';   // the one up to 1.3.0: read once and translated
@@ -58,8 +59,12 @@ export class Library {
     this.key = key; this.keyV1 = keyV1;
     this.storage = storage || (typeof localStorage !== 'undefined' ? localStorage : null);
     this.onChange = null;   // the UI hooks in here
+    this.onSaveError = null;   // …and here: a save that did not land (quota, private mode, blocked storage)
+    this.saveError = null;
+    this.unreadable = null;    // { reason, size }: a stored library this version cannot read, kept aside (7.4)
     this.data = null;
   }
+  get keyUnreadable() { return this.key + '.unreadable'; }
   empty() { return { format: LIBRARY_FORMAT, next: 1, files: false, sections: [], items: [] }; }
 
   // Reads from storage; if there is no library (or it is corrupt) it checks for one
@@ -67,10 +72,20 @@ export class Library {
   // the factory and the old user presets. A library from another bank revision is synced
   // with the code (syncBank). Returns whether it was new.
   // The repo files are seeded separately (seedRepoFiles: asynchronous).
+  // A stored library this version cannot read — written by a NEWER SubSDJ, or not a library at all —
+  // is never overwritten: it is moved aside (keyUnreadable) and reported (this.unreadable), the UI
+  // offers to export or discard it, and a fresh library is seeded (7.4: reject without destroying).
   load({ user, seed = true } = {}) {
-    const read = k => { try { return JSON.parse(this.storage && k ? this.storage.getItem(k) : null); } catch (e) { return null; } };
+    const raw = k => { try { return this.storage && k ? this.storage.getItem(k) : null; } catch (e) { return null; } };
+    const read = k => { try { return JSON.parse(raw(k)); } catch (e) { return null; } };
     let d = read(this.key), fromV1 = false;
     if (!isV2(d)) { const v1 = migrateLibrary(read(this.keyV1)); if (isV2(v1)) { d = v1; fromV1 = true; } }
+    if (!isV2(d)) {
+      const s = raw(this.key);
+      if (s && s !== 'null') { try { this.storage.setItem(this.keyUnreadable, s); this.storage.removeItem(this.key); } catch (e) { /* no persistence */ } }
+    }
+    const kept = raw(this.keyUnreadable);
+    this.unreadable = kept ? { reason: unreadableReason(read(this.keyUnreadable)) || 'not a readable SubSDJ library', size: kept.length } : null;
     const isNew = !isV2(d);
     this.data = isNew ? this.empty() : d;
     if (typeof this.data.next !== 'number') this.data.next = 1;
@@ -80,9 +95,12 @@ export class Library {
     return isNew;
   }
   save() {
-    try { if (this.storage) this.storage.setItem(this.key, JSON.stringify(this.data)); } catch (e) { /* no persistence */ }
+    try { if (this.storage) this.storage.setItem(this.key, JSON.stringify(this.data)); this.saveError = null; }
+    catch (e) { this.saveError = e; if (this.onSaveError) this.onSaveError(e); }   // the user must know: the next reload loses this
     if (this.onChange) this.onChange();
   }
+  unreadableRaw() { try { return this.storage ? this.storage.getItem(this.keyUnreadable) : null; } catch (e) { return null; } }
+  discardUnreadable() { try { if (this.storage) this.storage.removeItem(this.keyUnreadable); } catch (e) { /* no persistence */ } this.unreadable = null; }
   _id(prefix) { return prefix + (this.data.next++).toString(36); }
 
   // ---------- sections ----------
@@ -267,7 +285,7 @@ export class Library {
   }
 
   // ---------- export / import ----------
-  exportData() { return { format: LIBRARY_FORMAT, date: new Date().toISOString(), sections: this.data.sections, items: this.data.items }; }
+  exportData() { return { format: LIBRARY_FORMAT, app: VERSION, date: new Date().toISOString(), sections: this.data.sections, items: this.data.items }; }
   // Merges, never replaces. Accepts: a library (sections by NAME, items
   // with a new id; also those up to 1.3.0), a bank {format, presets:{}}
   // or a map {name: data} (into «Imported»), or a loose scene (into «Scenes»).
@@ -277,6 +295,7 @@ export class Library {
     if (!json || typeof json !== 'object') throw new Error('not a SubSDJ JSON');
     const cl = clean || (d => d);
     json = migrateLibrary(migrateScene(json));   // if it is from before, in Spanish
+    const why = unreadableReason(json); if (why) throw new Error(why);   // a newer format, or not ours: nothing comes in (7.4)
     if (isV2(json)) {
       const sectionMap = {};
       for (const s of json.sections) sectionMap[s.id] = this.ensureSection(s.name);

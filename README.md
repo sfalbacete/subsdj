@@ -68,7 +68,12 @@ share them: **File ▾ → Export library**, and on the other side **Import…**
 merges with whatever is there, it never replaces it). Libraries, presets and
 scenes saved with 1.3.0 or earlier load as they are. When the factory bank changes,
 your library follows it: the factory copies you never touched are replaced, and
-anything you renamed, moved, edited or starred stays where it is.
+anything you renamed, moved, edited or starred stays where it is. Your own presets
+keep their settings across versions (a setting that changed its meaning is converted
+on load, exactly). If this synth ever meets a library written by a newer version, it
+keeps it aside untouched (File ▾ → Export or Discard the unreadable copy) rather than
+overwrite it, and a file from a newer version is refused with a message, never half
+read.
 
 ## Browsers
 

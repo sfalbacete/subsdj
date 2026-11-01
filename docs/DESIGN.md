@@ -2645,3 +2645,63 @@ The lesson for the rest of the FM presets: measure the partials before tuning by
 target has a known spectrum (bars, plates, reeds) the additive algorithm with per-operator
 decays gets there in one round, and FM proper is for sounds whose spectrum IS the sideband
 family (e-pianos, bells, brass).
+
+
+## Sound fingerprint and format version (2026-11-01)
+
+Two small pieces of plan items 7.2 and 7.4, built together because they answer the same
+question Sergio asked: *what happens to the people who were using the synth when we update?*
+
+**What happens today, in order.** The code comes from GitHub Pages, so everyone runs the latest
+version (after the browser cache lets go of the old modules: Ctrl+F5). The library lives in
+their browser (localStorage of this origin) and is a copy: the factory, the repo scenes and
+the old user presets were *seeded* into it the first time, and from then on the user owns it.
+When the factory bank changes, `BANK_REV` goes up and `library.syncBank` runs once: the
+factory copies the user never touched (same name, same section, same content, no ★) leave and
+the new bank comes in, so untouched factory presets *do* update themselves; a copy the user
+edited, renamed, moved or starred stays as it is, with its old sound, and the new preset of the
+same name comes in beside it (the Presets screen marks the edited copy with ●, and ⟲ Restore
+factory brings the factory as it is now without touching what the user changed). Their own
+presets keep every setting: a key that changed its meaning is converted on load, exactly
+(cutoff 0..1 → Hz, Spanish → English, Mix → levels in `withPresetBase`), a setting a later
+version added is missing in the old preset and takes the default, and a setting the version
+does not know is dropped when the preset is loaded into the rack. The version number says how
+far that goes: Z and Y never change the sound of anything saved; X means something saved may.
+
+**What was missing.** Three holes, all of them «old code meets newer data», rare with Pages but
+cheap to close, and one silent loss:
+
+- The library in localStorage written by a NEWER SubSDJ (a local copy, a fork, a browser profile
+  that visited a newer deployment): `load()` did not recognise its format, took the key as
+  empty and **overwrote it** with a freshly seeded library. Now it is moved aside under
+  `subsdj.library.v2.unreadable`, reported (`library.unreadable.reason`), the preset bar says
+  so and File ▾ gets *Export unreadable copy* / *Discard unreadable copy*; a fresh library is
+  seeded beside it. Junk in the key (not JSON, not ours) is kept aside the same way.
+- Importing a file with a format this version does not know (a `subsdj-library-v3`) fell
+  through to the «loose map of presets» path and made junk items out of its top-level keys. Now
+  every file SubSDJ writes says `subsdj-<kind>-v<N>` (`legacy.KNOWN_FORMATS` has the kinds and
+  the highest N this version reads; the Spanish v1 kinds are translated as before) and
+  `unreadableReason` refuses a newer N whole, with «made by a newer SubSDJ: update the synth»,
+  and an unknown kind with «not a SubSDJ file». Scenes get the same message.
+- A newer file with settings this version does not know was imported with them silently
+  dropped. The cleaner now counts what it drops and the notice says «N settings this version
+  does not know were left out (file from SubSDJ 1.7.0)»: `exportData` carries `app`.
+- A save that did not land (quota, private window, blocked storage) was swallowed: the user kept
+  editing and lost everything at the next reload. `save()` now reports it (`onSaveError`, the
+  bar says «File ▾ → Export it»), and `navigator.storage.persist()` is asked for once so the
+  browser does not evict the library under storage pressure.
+
+**The fingerprint (7.2).** The factory batch already rendered every preset in its use and
+computed a spectral fingerprint (24 third-octave bands × 3 windows, dB, mean-centred) to find
+look-alikes. `subsdj-fingerprints.json` now stores, per preset, the hash of its data
+(`library.canon/fnv`, the same one the library uses for seeds) and that print. In the batch,
+a preset whose data hash matches the stored one is compared with its print: further than
+`FP_TOL` = 0.1 dB away and it fails — *the sound changed with the same data*, which is exactly
+what a refactor of Voice, a shared clock or a changed default would do without anyone noticing.
+A preset whose data changed (or a new one) has no valid reference and a summary row says so
+until it is renewed: `BANK_OUT=x.json node tools/run-selftest.mjs "selftest=1&batch=factory"`
+then `node tools/bank-fp.mjs x.json` (only the changed ones; `--all` rewrites every print).
+Measured on 2026-11-01: two renders of the whole bank are at most 0.004 dB apart (seeded offline
+renders; the stored print is rounded to 0.01 dB), 25× below the alarm. The script is the
+preset's own use rather than the «awkward» one the plan imagined: the batch that tunes the bank
+is the reference, and one render per preset keeps the batch at ~75 s.

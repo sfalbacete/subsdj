@@ -167,6 +167,26 @@ export function migrateScene(j) {
   });
 }
 
+// ---------- format version (7.4): what a file's «format» says before anything is read from it ----------
+// Everything SubSDJ writes carries 'subsdj-<kind>-v<N>'. The kinds this version reads and the
+// highest N it understands; the Spanish v1 kinds are translated above. A file with a higher N
+// was written by a NEWER SubSDJ: it is refused whole (never half loaded, never sounding like
+// something else) and the message says to update. An unknown kind is not a preset file at all.
+export const KNOWN_FORMATS = { library: 2, scene: 2, presets: 2, biblioteca: 1, escena: 1 };
+export function describeFormat(j) {
+  const f = j && typeof j === 'object' && (j.format || j.formato);
+  const m = typeof f === 'string' && /^subsdj-([a-z]+)-v(\d+)$/.exec(f);
+  if (!m) return null;                                   // no format line: a loose map of presets (or nothing)
+  const kind = m[1], v = +m[2], max = KNOWN_FORMATS[kind];
+  return { format: f, kind, v, known: max !== undefined && v <= max, newer: max !== undefined && v > max };
+}
+// The reason a file cannot be read, or null if it can (the UI shows it as it is)
+export function unreadableReason(j) {
+  const d = describeFormat(j);
+  if (!d || d.known) return null;
+  return d.newer ? 'made by a newer SubSDJ (' + d.format + '): update the synth to read it' : 'not a SubSDJ preset, library or scene file (' + d.format + ')';
+}
+
 // ---------- library: subsdj-biblioteca-v1 → subsdj-library-v2 ----------
 export const LIBRARY_FORMAT = 'subsdj-library-v2';
 const ORIGINS = { usuario: 'user', fabrica: 'factory', escena: 'scene' };   // 'v2', 'demos', 'import': unchanged

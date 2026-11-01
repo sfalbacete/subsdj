@@ -62,6 +62,15 @@ export function initPresetBank() {
 
   library.load();                                // first time: seeds the factory and the old user presets
   library.onChange = () => { if (!asPreset(curId)) curId = null; document.dispatchEvent(new CustomEvent('library-changed')); };
+  library.onSaveError = () => msg('Could not save the library (storage full or blocked): File ▾ → Export it to keep your changes.');
+  // a stored library this version cannot read was kept aside (7.4): export it or discard it, File ▾
+  const unrExp = document.getElementById('unrExpBtn'), unrDel = document.getElementById('unrDelBtn');
+  const showUnreadable = () => { const u = library.unreadable; if (unrExp) unrExp.hidden = !u; if (unrDel) unrDel.hidden = !u; return u; };
+  if (showUnreadable()) msg('A library this version cannot read was set aside (' + library.unreadable.reason + '): File ▾ → export or discard it.');
+  if (unrExp) unrExp.addEventListener('click', () => { const s = library.unreadableRaw(); if (s) download(new Blob([s], { type: 'application/json' }), 'subsdj-library-unreadable.json'); msg('Unreadable copy exported.'); });
+  if (unrDel) unrDel.addEventListener('click', () => { library.discardUnreadable(); showUnreadable(); msg('Unreadable copy discarded.'); });
+  // ask the browser not to evict the library under storage pressure (silent: a refusal changes nothing)
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* no storage API */ }
   const init = library.presets().find(it => it.name === 'Init');
   curId = init ? init.id : null;
   if (!library.data.files)                    // repo banks and scenes: by fetch, once
@@ -130,10 +139,13 @@ export function initPresetBank() {
     f.text().then(txt => {
       let data; try { data = JSON.parse(txt); } catch (e) { msg('That file is not valid JSON.'); return; }
       try {
-        const r = library.importData(data, { clean: cleanPreset });
-        msg(r.type === 'library' ? 'Library merged: ' + r.n + ' new items.'
+        let dropped = 0;   // settings this version does not know (a file from a newer one): said, not silent
+        const clean = d => { const c = cleanPreset(d); dropped += Object.keys(d).length - Object.keys(c).length; return c; };
+        const r = library.importData(data, { clean });
+        msg((r.type === 'library' ? 'Library merged: ' + r.n + ' new items.'
           : r.type === 'scene' ? (r.n ? 'Scene added to «Scenes».' : 'That scene was already there.')
-          : (r.n ? 'Imported ' + r.n + ' presets (into «Imported»).' : 'The file had no new presets.'));
+          : (r.n ? 'Imported ' + r.n + ' presets (into «Imported»).' : 'The file had no new presets.'))
+          + (dropped ? ' ' + dropped + ' settings this version does not know were left out' + (data.app ? ' (file from SubSDJ ' + data.app + ')' : '') + '.' : ''));
       } catch (err) { msg('Could not import: ' + (err.message || err)); }
       impFile.value = '';
     });

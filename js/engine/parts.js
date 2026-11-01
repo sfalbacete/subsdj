@@ -18,7 +18,7 @@ import { makeDefaultState, applyPreset, toControls, withPresetBase } from './sta
 import { Conductor } from './Conductor.js';
 import { PARAMS } from './params.js';
 import { factoryPreset } from './presets.js';
-import { SCENE_FORMAT, migrateScene } from './legacy.js';
+import { SCENE_FORMAT, migrateScene, unreadableReason } from './legacy.js';
 
 export { SCENE_FORMAT };   // 'subsdj-scene-v2' (the v1 ones, in Spanish, are translated by legacy.migrateScene)
 
@@ -112,7 +112,7 @@ export function sceneToJSON(sc) {
 // factory `preset` + `settings` (hand-written scenes, like the demo).
 export function applySceneJSON(sc, j) {
   j = migrateScene(j);   // those up to 1.3.0, in Spanish
-  if (!j || j.format !== SCENE_FORMAT) throw new Error('not a SubSDJ scene (' + SCENE_FORMAT + ')');
+  if (!j || j.format !== SCENE_FORMAT) throw new Error(unreadableReason(j) || 'not a SubSDJ scene (' + SCENE_FORMAT + ')');
   if (typeof j.name === 'string' && j.name) sc.name = j.name;
   const s = j.room || {};
   for (const k of ROOM_KEYS) if (k in s) sc.room.set(k, s[k]);

@@ -27,9 +27,10 @@ what is already there, it does not go in. Order:
    **1.5.0 published 2026-10-29**; Sergio's ear 2026-10-31: fine, nothing to prune; some FM
    imitations — Marimba, Gong, Accordion — to refine by ear later).
 7. **What is left after 1.5.0** (see the quick view): 1.4 (the other half: tag filters, audition
-   without loading), 6.1/6.2 export (parked until a real need), 7.2 sound fingerprint (cheap now:
-   the factory batch already computes one per preset; what is missing is the stored reference and
-   the alarm), 7.4 format version; 7.3 is covered by the factory batch (every preset in its use:
+   without loading), 6.1/6.2 export (parked until a real need), 7.2 sound fingerprint ✔ and 7.4 format
+   version ✔ (both 2026-11-01: the stored reference with its alarm; files from a newer version
+   refused whole and a newer stored library kept aside, DESIGN «Sound fingerprint and format
+   version»); 7.3 is covered by the factory batch (every preset in its use:
    voices die, chord under the ceiling) ✔. Candidates born from the bank: **amount modulation in
    the matrix** (a source scaling another slot's amount: wheel → vibrato depth, aftertouch → LFO
    depth, a macro → a modulation) and **refining the FM presets by ear**. Parts on demand: not
@@ -98,9 +99,9 @@ agreed way.
 | 6.2 | Export the sound to WAV | a clip ready for the DAW without recording in real time | low | — |
 | **7** | **Reliability** | | | |
 | 7.1 | Seeded randomness in offline renders ✔ | repeatable renders; and, along the way, key sync for 2-op FM — DONE 2026-10-20 | low-medium | — |
-| 7.2 | Sound fingerprint of the factory | no preset changes its sound without deciding it | medium | 7.1 |
+| 7.2 | Sound fingerprint of the factory ✔ | no preset changes its sound without deciding it — DONE 2026-11-01 (subsdj-fingerprints.json, alarm at 0.1 dB in the factory batch, tools/bank-fp.mjs renews) | medium | 7.1 |
 | 7.3 | Checks per category ✔ | no preset hangs voices or overshoots with chords — covered by the factory batch of 1.5.0 (every preset in its use: dry tail gone, peak ceiling per use) | low | — |
-| 7.4 | Format version | presets and libraries that never load wrong | low | — |
+| 7.4 | Format version ✔ | presets and libraries that never load wrong — DONE 2026-11-01 (a newer stored library kept aside with Export/Discard, newer files refused whole, unknown settings counted, failed saves reported, storage.persist) | low | — |
 | **8** | **New bank from scratch + es/en language** | only interesting, useful presets that people like and that surprise; synth and bank in Spanish and English | medium-high | 1.4 and whatever there is |
 
 ### Proposed order
@@ -497,7 +498,7 @@ the free phases come from a seeded generator when the engine is offline (live, t
 randomness). Repeatable renders: stricter checks and the fingerprint of 7.2.
 *Cost:* low-medium.
 
-**7.2 · Sound fingerprint of the factory** (optional). Each preset rendered with an awkward script
+**7.2 · Sound fingerprint of the factory** ✔ DONE 2026-11-01 (docs/DESIGN.md, «Sound fingerprint and format version»; the script is the preset's own use, not an awkward one: the reference is the batch that tunes the bank). (optional). Each preset rendered with an awkward script
 (notes off the block boundary, a glide, an early note-off) → a compact fingerprint (energy per band
 every 50 ms) in a JSON. With presets outside the constraints, it does NOT serve to protect the bank:
 it is an alarm for changes nobody was looking for during a refactor (the common clock, for example,
@@ -509,7 +510,7 @@ should not change the sound of anything). A deliberate change simply renews it
 are zero live voices; pads and strings with a 4-note chord under the ceiling (today «headroom»
 measures it for six). *Cost:* low.
 
-**7.4 · Format version.** Presets, library and scenes with their format number. A file in a format
+**7.4 · Format version.** ✔ DONE 2026-11-01 (docs/DESIGN.md, «Sound fingerprint and format version»). Presets, library and scenes with their format number. A file in a format
 that is not understood (newer, or an old one whose conversion is not worth it) is listed with Export
 and Delete, but is never half loaded or sounding like something else (reject without destroying).
 Cheap conversions (v1 → v2, Mix → levels) in an ordered table. Ask for persistent storage
