@@ -18,7 +18,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   and G5: pitch within ±1 cent, level within ±0.4 dB. The four blown presets re-levelled.
 - The preset searches (the header picker and the Presets screen) have an **×** that clears
   them, and the header picker shows the section with the preset, «Leads · Moog Lead» (it is
-  60 px wider; the Pan Pipe speaks at a soft velocity).
+  60 px wider; the Pan Pipe speaks at a soft velocity). Names of presets, sections and scenes
+  are capped at 24 characters (the header and the cards stay whole), and with Parts on the
+  header no longer wraps its buttons: the picker and the Save-as field give instead.
 
 ## [1.6.0] — 2026-11-01
 

@@ -6,7 +6,7 @@
    order. Save, delete, export and import act on the whole
    Library. Every model change emits library-changed; changing the current one
    without loading it (a part, saving), preset-marked. */
-import { library, SEC_MINE } from '../engine/library.js';
+import { library, SEC_MINE, MAX_NAME } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
 import { record, markSaved, isModified } from './history.js';
@@ -84,6 +84,7 @@ export function initPresetBank() {
   //   Save as  a NEW preset in «★ Mine» (or over the one with that name there), with the name
   //            in the field; it becomes the current preset.
   const saveBtn = document.getElementById('saveBtn'), saveAsBtn = document.getElementById('saveAsBtn'), inp = document.getElementById('presetName');
+  inp.maxLength = MAX_NAME;   // one limit for every name (library.MAX_NAME)
   const refreshSave = () => {
     const cur = currentPreset(), on = !!cur && isModified();
     saveBtn.disabled = !on;

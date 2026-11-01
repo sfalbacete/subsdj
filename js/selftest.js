@@ -48,7 +48,7 @@ import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing, record } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
-import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES, canon, fnv } from './engine/library.js';
+import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES, canon, fnv, MAX_NAME } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
@@ -1097,8 +1097,15 @@ export async function runSelfTest() {
     const rf = await L.restoreFactory();
     const wp2 = L.presets().find(p => p.name === 'Warm Pad' && p.origin === 'factory');
     if (!(rf.replaced >= 1) || !wp2 || wp2.data.cutoff === 999 || L.kind(wp2) !== 'factory') problems.push('restore factory does not refresh an outdated untouched copy (replaced ' + rf.replaced + ')');
-    console.log('library: factory ' + nFactory + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length + ' · restore refreshed ' + rf.replaced);
-    push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files)', peak: 0, ok: !problems.length, problems });
+    // names are cut to MAX_NAME (24) on add and on rename, presets and sections alike: longer ones broke
+    // the header (the picker shows «Section · Preset») and the cards (Sergio, 2026-11-01)
+    const sLong = L.createSection('S'.repeat(60)), pLong = L.add({ name: 'P'.repeat(60), section: sLong, data: {} });
+    if (L.section(sLong).name.length !== MAX_NAME || L.item(pLong).name.length !== MAX_NAME) problems.push('long names are not cut to ' + MAX_NAME + ' on add: section ' + L.section(sLong).name.length + ', preset ' + L.item(pLong).name.length);
+    L.rename(pLong, 'R'.repeat(60)); L.renameSection(sLong, 'T'.repeat(60));
+    if (L.section(sLong).name.length !== MAX_NAME || L.item(pLong).name.length !== MAX_NAME) problems.push('long names are not cut to ' + MAX_NAME + ' on rename');
+    if (MAX_NAME !== 24 || +document.getElementById('presetName').maxLength !== MAX_NAME) problems.push('the Save-as field does not share the limit (' + document.getElementById('presetName').maxLength + ')');
+    console.log('library: factory ' + nFactory + ' · repo ' + f1.n + ' · sections ' + L.sections().length + ' · items ' + L.items().length + ' · restore refreshed ' + rf.replaced + ' · names ≤ ' + MAX_NAME);
+    push({ name: 'library (seeding · delete/restore · sections · move · ★ · search · export/import · files · names ≤ ' + MAX_NAME + ')', peak: 0, ok: !problems.length, problems });
   }
   {
     // The factory bank (docs/BANK.md): metadata (unique short names, a play line, tags from the

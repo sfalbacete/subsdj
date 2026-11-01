@@ -6,7 +6,7 @@
    goes through engine/library.js, which announces with library-changed. Loading a
    preset takes the same path as the quick picker; a scene, the one of
    ⇧ Scene in the Arrangement module (it turns Parts on if needed). */
-import { library, normalize } from '../engine/library.js';
+import { library, normalize, MAX_NAME } from '../engine/library.js';
 import { BANK } from '../engine/presets.js';
 import { loadPresetId, currentPresetId, undoable } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
@@ -27,7 +27,7 @@ function btn(cls, text, title, onClick) {
 // Inline editing: the span becomes an input; Enter or blur save, Escape cancels.
 // keyboard.js ignores <input type=text>, so the piano doesn't steal the letters.
 function editInline(span, value, onCommit) {
-  const inp = document.createElement('input'); inp.type = 'text'; inp.value = value; inp.maxLength = 48; inp.className = 'pl-edit';
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = value; inp.maxLength = MAX_NAME; inp.className = 'pl-edit';
   let done = false;
   const finish = ok => { if (done) return; done = true; const v = inp.value.trim(); inp.replaceWith(span); if (ok && v && v !== value) onCommit(v); };
   inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });

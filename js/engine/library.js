@@ -36,7 +36,7 @@ export const SEC_MINE = '★ Mine', SEC_SCENES = 'Scenes', SEC_IMPORT = 'Importe
 // bank retired with the old factory (both live in subsdj-bank-1.4.json, File ▾ → Import).
 export const REPO_FILES = [];
 export const REPO_SCENES = ['night-ambient', 'dorian-dawn', 'hypnotic-techno', 'robot-choir', 'berlin-school', 'dub-session', 'kit-909', 'deep-space'];
-const MAX_NAME = 48;
+export const MAX_NAME = 24;   // presets, sections and scenes: longer names broke the header (the picker shows «Section · Preset») and the cards; the factory's longest is 17 (Sergio, 2026-11-01)
 
 // Canonical JSON (sorted keys, recursive): two equal contents give the same fingerprint
 export function canon(v) {

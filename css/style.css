@@ -159,6 +159,11 @@ h1{font-size:18px;margin:0;letter-spacing:2px;
 header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;
   background:var(--panel-face);border:1px solid var(--edge);border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
 header .sp{flex:1;}
+/* With Parts on the header is full at 1920: nothing wraps (buttons and segments keep one line) and
+   what gives is the preset picker and the Save-as field (down to 200 / 96 px), never a button */
+header .btn,header .seg,header nav,header #partsBar{white-space:nowrap;flex:none;}
+header #presetBar{flex:0 1 auto;min-width:0;}
+#presetBar #presetName{flex:0 1 150px;min-width:96px;}
 .badge{font-size:11px;color:var(--dim);}
 /* Status (audio · MIDI): two SVG icons with currentColor; the class sets the color (ui/status.js) */
 #status{display:inline-flex;align-items:center;gap:10px;}
@@ -249,7 +254,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 /* Quick preset picker (ui/presetPicker.js): button with the current one (same well as a select)
    and, when open, search box + categories on the left + list on the right */
-#presetPick{width:290px;display:flex;align-items:center;gap:6px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
+#presetPick{width:290px;flex:0 1 auto;min-width:200px;display:flex;align-items:center;gap:6px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;text-align:left;}
 #presetPickName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #presetPickName .pk-sec{color:var(--dim);}   /* «Leads · » before the name: the section, dimmer */
