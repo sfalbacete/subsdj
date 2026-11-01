@@ -165,7 +165,7 @@ export const BANK = [
        centred on the edge (hollow): the breathy puff of a pan pipe; every note is a new puff */
     { name: 'Pan Pipe', tags: ['airy', 'soft', 'short', 'world', 'string'], use: 'note',
       play: 'C4–C6, short notes: each one a new puff. Aftertouch: harder (up to the octave) · M1: the jet on the edge · wheel: opens the filter.',
-      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.4, excSpeed: 0.25, excNoise: 0.7,
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.5, excSpeed: 0.25, excNoise: 0.7,
         strBright: 0.3, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
         a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 1 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */

@@ -6,7 +6,15 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased (will go into 1.6.0)
+## [1.6.0] — 2026-11-01
+
+The String learns to be played, not only struck: a **bow** and a **breath** that keep feeding
+energy while the key is held, through the loop's own motion — the first continuous exciters,
+and with them the first sounds whose timbre answers to a gesture (aftertouch digs the bow in,
+or overblows the pipe to the octave). Around them: **amount modulation** in the Matrix (the mod
+wheel every keyboard has), three ear sessions over the bank (FM imitations, the kit), a
+**sound fingerprint** that keeps every factory preset sounding the same across versions, and
+**format versions** so that nothing saved is ever half read. Nine presets new or remade.
 
 - **A breath for the String**: the third click of the **bow** button turns the loop into a
   pipe blown by a jet. **Breath** is the pressure: little, only air through the pipe; enough,
