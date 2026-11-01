@@ -249,9 +249,18 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 /* Quick preset picker (ui/presetPicker.js): button with the current one (same well as a select)
    and, when open, search box + categories on the left + list on the right */
-#presetPick{width:230px;display:flex;align-items:center;gap:6px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
+#presetPick{width:290px;display:flex;align-items:center;gap:6px;background:var(--well);border:1px solid var(--edge);color:var(--ink);
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;text-align:left;}
 #presetPickName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#presetPickName .pk-sec{color:var(--dim);}   /* «Leads · » before the name: the section, dimmer */
+/* a search box with an × that clears it (shown while there is text) */
+.srch{position:relative;display:inline-flex;align-items:center;}
+.pp-top .srch{flex:1;}
+.srch input{padding-right:24px;width:100%;}
+.srch-x{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:16px;height:16px;padding:0;border:none;border-radius:50%;
+  background:var(--btn-face);color:var(--dim);font-size:13px;line-height:15px;cursor:pointer;display:none;}
+.srch.has .srch-x{display:block;}
+.srch-x:hover{color:var(--ink);background:var(--btn-face-hi);}
 #presetPick::after{content:"▾";flex:none;color:var(--dim);font-size:10px;}
 #presetPick:hover,#presetPick.on{border-color:var(--accent);color:var(--accent);}
 .ppop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:560px;display:flex;flex-direction:column;

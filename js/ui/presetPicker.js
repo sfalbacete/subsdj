@@ -24,9 +24,28 @@ let q = '', cat = ALL, hi = null, vis = [];   // hi: the highlighted one (↑ �
 const isOpen = () => !pop.hidden;
 function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
+// A search box with an × (markup: .srch > input + .srch-x): the × shows while there is text,
+// clears it, fires 'input' (the listeners filter) and gives the focus back. syncSearchClear:
+// after setting the value by code.
+export function bindSearchClear(input) {
+  const wrap = input.parentElement, x = wrap && wrap.querySelector('.srch-x');
+  if (!x) return () => {};
+  const sync = () => wrap.classList.toggle('has', !!input.value);
+  input.addEventListener('input', sync);
+  x.addEventListener('click', e => { e.stopPropagation(); input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); });
+  sync();
+  return sync;
+}
+let syncSearch = () => {};
+
 function label() {
   const it = currentPreset();
-  nameEl.textContent = it ? it.name : '—';
+  nameEl.textContent = '';
+  if (it) {   // «Leads · Moog Lead»: the section dimmer, the name as it is (Sergio, 2026-11-01)
+    const sec = library.section(it.section)?.name;
+    if (sec) nameEl.appendChild(mk('span', 'pk-sec', sec + ' · '));
+    nameEl.appendChild(document.createTextNode(it.name));
+  } else nameEl.textContent = '—';
   btn.title = (it ? it.name + ' · ' + (library.section(it.section)?.name || '') + '\n' : '') +
     'Choose a preset: search, filter by category, ↑ ↓ to audition (‹ › step through the whole library)';
 }
@@ -103,7 +122,7 @@ function move(d) {
 }
 
 function open() {
-  q = ''; search.value = ''; hi = null;
+  q = ''; search.value = ''; syncSearch(); hi = null;
   pop.hidden = false; btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
   list.scrollTop = 0; render(); paintHi(true);
   search.focus();
@@ -121,6 +140,7 @@ export function initPresetPicker() {
   btn.addEventListener('click', () => (isOpen() ? close() : open()));
   // The search box is an <input type=text>: keyboard.js plays no notes while typing
   search.addEventListener('input', () => { q = search.value; hi = null; list.scrollTop = 0; render(); });
+  syncSearch = bindSearchClear(search);
   search.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
     else if (e.key === 'PageDown' || e.key === 'PageUp') { e.preventDefault(); move(e.key === 'PageDown' ? 10 : -10); }

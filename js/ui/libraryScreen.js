@@ -10,6 +10,7 @@ import { library, normalize } from '../engine/library.js';
 import { BANK } from '../engine/presets.js';
 import { loadPresetId, currentPresetId, undoable } from './presetBank.js';
 import { loadScene, setPlaying, isPlaying } from './playerControls.js';
+import { bindSearchClear } from './presetPicker.js';
 
 const $ = id => document.getElementById(id);
 let list, msgEl, query = '', favOnly = false, dragId = null, playingId = null;   // playingId: the scene that is playing (only one)
@@ -161,6 +162,7 @@ export function initLibraryScreen() {
   list = $('presetList'); msgEl = $('libMsg');
   if (!list) return;
   $('libSearch').addEventListener('input', e => { query = e.target.value; render(); });
+  bindSearchClear($('libSearch'));
   $('libFavOnly').addEventListener('change', e => { favOnly = e.target.checked; render(); });
   $('libNewSec').addEventListener('click', () => {
     const id = library.createSection('New section');   // library-changed already repainted: now to name it

@@ -65,7 +65,7 @@
     <span class="menuWrap" id="presetPickWrap">
       <button class="pick" id="presetPick" type="button" aria-haspopup="dialog" aria-expanded="false"><span id="presetPickName">—</span></button>
       <div class="ppop" id="presetPop" role="dialog" aria-label="Choose a preset" hidden>
-        <div class="pp-top"><input type="text" id="ppSearch" placeholder="search presets…" autocomplete="off" spellcheck="false" maxlength="40"><span class="pp-count" id="ppCount"></span></div>
+        <div class="pp-top"><span class="srch"><input type="text" id="ppSearch" placeholder="search presets…" autocomplete="off" spellcheck="false" maxlength="40"><button type="button" class="srch-x" title="Clear the search" tabindex="-1">×</button></span><span class="pp-count" id="ppCount"></span></div>
         <div class="pp-main"><div class="pp-cats" id="ppCats"></div><div class="pp-list" id="ppList"></div></div>
         <div class="pp-foot"><span class="pp-keys">click or ↑ ↓ to audition · Enter picks · Esc closes</span><button class="btn" id="ppAll" type="button" title="The Presets screen: the whole library (sections, scenes, ★, rename, move), with your search">Browse all →</button></div>
       </div>
@@ -726,7 +726,7 @@
     <h2>Library</h2>
     <div class="help"><b>Your library of presets and scenes.</b> One click loads (a preset, into the part the instrument is editing; a scene turns Parts on) and the keyboard below is there to try it · ★ favorite: shows up in «★ Favorites» in the quick picker · ✎ renames in place · 🗑 deletes (factory items come back with ⟲ Restore factory) · drag a preset to another section or position · sections can be created, renamed, reordered (‹ ›) and deleted · search ignores accents and case. Save (into «★ Mine», or over the loaded preset if the name is the same) is in the header; Export (the whole library) and Import (library, bank or scene; it merges, it never replaces), in «File ▾». Everything lives in this browser (localStorage): export now and then.</div>
     <div class="lib-bar">
-      <input id="libSearch" type="text" placeholder="search…" maxlength="48" title="Filter by name (ignoring accents and case)">
+      <span class="srch"><input id="libSearch" type="text" placeholder="search…" maxlength="48" title="Filter by name (ignoring accents and case)"><button type="button" class="srch-x" title="Clear the search" tabindex="-1">×</button></span>
       <label class="chk" title="Only the ones marked with ★"><input type="checkbox" id="libFavOnly"> ★ favorites only</label>
       <button class="btn" id="libNewSec" title="Creates an empty section, ready to be named">+ Section</button>
       <button class="btn" id="libSeed" title="The factory as it is now: deleted presets and scenes come back to their section, untouched copies that the bank has since changed are refreshed; yours, renamed, moved, edited and ★ items are left alone">⟲ Restore factory</button>

@@ -2670,8 +2670,9 @@ export async function runSelfTest() {
     // a category leaves only its own and the counters say how many match in
     // each one; ↓ loads the next of the filtered list; Enter closes; after a click on the
     // list (the focus leaves the search box) the keyboard plays and Esc closes WITHOUT panic; and
-    // «Browse all» takes you to the Presets screen with the same search.
-    const NAME = 'preset selector (accent-insensitive search · categories · ↓ loads · Esc without panic · Browse all)';
+    // «Browse all» takes you to the Presets screen with the same search. The button shows
+    // «Section · Preset», and both search boxes have an × that shows while there is text and clears it.
+    const NAME = 'preset selector (accent-insensitive search · categories · ↓ loads · Esc without panic · Browse all · «Section · Preset» · × clears)';
     let r;
     try {
       const problems = [], keep = snapshot(), id0 = currentPresetId(), scr0 = currentScreen();
@@ -2723,13 +2724,27 @@ export async function runSelfTest() {
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
         if (!pop.hidden) problems.push('Enter does not close');
       }
-      // Browse all: to the Presets screen with the search
+      // the button: «Section · Preset»
+      { const cur = currentPreset(), nm = $('presetPickName').textContent, secName = cur && library.section(cur.section)?.name;
+        if (!cur || !nm.includes(cur.name) || (secName && !nm.startsWith(secName + ' · '))) problems.push('the button does not show «Section · Preset»: «' + nm + '»'); }
+      // the ×: shows while there is text, clears, the list is back to everything
       $('presetPick').click(); document.querySelector('#ppCats .pp-cat').click();
+      type('pad');
+      const xBtn = search.parentElement.querySelector('.srch-x');
+      if (!xBtn || getComputedStyle(xBtn).display === 'none') problems.push('the × does not show while there is text');
+      else {
+        xBtn.click();
+        if (search.value !== '' || ids().length !== library.presets().length || getComputedStyle(xBtn).display !== 'none') problems.push('the × does not clear the search («' + search.value + '», ' + ids().length + ' shown)');
+      }
+      // Browse all: to the Presets screen with the search
       type('pad');
       $('ppAll').click();
       if (currentScreen() !== 'presets') problems.push('«Browse all» does not go to Presets');
       if ($('libSearch').value !== 'pad') problems.push('the search does not travel («' + $('libSearch').value + '»)');
       if (!pop.hidden) problems.push('«Browse all» does not close the selector');
+      const lx = $('libSearch').parentElement.querySelector('.srch-x');
+      if (!lx || getComputedStyle(lx).display === 'none') problems.push('the Presets screen × does not show while there is text');
+      else { lx.click(); if ($('libSearch').value !== '') problems.push('the Presets screen × does not clear'); }
       $('libSearch').value = ''; $('libSearch').dispatchEvent(new Event('input'));
       showScreen(scr0);
       part().allNotesOff();

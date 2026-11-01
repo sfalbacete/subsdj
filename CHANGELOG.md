@@ -16,6 +16,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   half a semitone and the overblown octave is steady; the **Jet** knob is where the jet rests on
   the edge (hollow → fuller); little breath is air up to 0.1. Measured on held notes at C2, C4
   and G5: pitch within ±1 cent, level within ±0.4 dB. The four blown presets re-levelled.
+- The preset searches (the header picker and the Presets screen) have an **×** that clears
+  them, and the header picker shows the section with the preset, «Leads · Moog Lead» (it is
+  60 px wider; the Pan Pipe speaks at a soft velocity).
 
 ## [1.6.0] — 2026-11-01
 
