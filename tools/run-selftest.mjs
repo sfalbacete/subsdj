@@ -26,7 +26,10 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 let pings = [];
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
-  if (u.pathname.endsWith('selftest.ping')) { pings.push(Object.fromEntries(u.searchParams)); res.writeHead(204); return res.end(); }
+  if (u.pathname.endsWith('selftest.ping')) {   // pings of another run (a page left hanging earlier) are dropped
+    if (u.searchParams.get('run') === runToken) pings.push(Object.fromEntries(u.searchParams));
+    res.writeHead(204); return res.end();
+  }
   let p = decodeURIComponent(u.pathname); if (p === '/') p = '/index.html';
   fs.readFile(path.join(ROOT, p), (err, data) => {
     if (err) { res.writeHead(404); return res.end(); }
@@ -37,8 +40,9 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 
 // One batch in a fresh Chrome: returns what gets printed at the end
+let runToken = '';   // the token of the run in progress (the page echoes it in every ping)
 async function runBatch(qs) {
-  pings = [];
+  pings = []; runToken = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const profile = path.join(os.tmpdir(), 'subsdj-cdp-' + Date.now());
   fs.mkdirSync(profile, { recursive: true });
   spawn(CHROME, ['--headless=new', '--disable-gpu', '--remote-debugging-port=0', '--user-data-dir=' + profile,
@@ -65,7 +69,7 @@ async function runBatch(qs) {
   // a question to the page, with a time limit: a hung page doesn't answer (null)
   const ev = async expr => (await Promise.race([send('Runtime.evaluate', { expression: expr, returnByValue: true }), sleep(EV_MAX_MS).then(() => null)]))?.result?.value ?? null;
   await send('Runtime.enable'); await send('Page.enable');
-  await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + qs });
+  await send('Page.navigate', { url: (BASE || `http://127.0.0.1:${PORT}/`) + '?' + qs + '&run=' + runToken });
   const t0 = Date.now();
   let hung = false;
   while (Date.now() - t0 < BATCH_MAX_MS) {

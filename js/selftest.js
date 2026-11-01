@@ -110,7 +110,10 @@ function tiltW(buf, t0, t1) {
 
 // Telemetry for headless runs: every GET ends up in the http.server log
 // (even if it answers 404), so an external runner can read the results.
-const ping = q => { try { fetch('selftest.ping?' + q, { cache: 'no-store' }).catch(() => {}); } catch (e) {} };
+// ?run=TOKEN: the runner tags the run and the pings carry it back, so a page left hanging from an
+// earlier run (nine stray headless Chromes were found once) cannot end or pollute a later one
+const RUN_TOKEN = new URLSearchParams(location.search).get('run') || '';
+const ping = q => { try { fetch('selftest.ping?' + q + (RUN_TOKEN ? '&run=' + RUN_TOKEN : ''), { cache: 'no-store' }).catch(() => {}); } catch (e) {} };
 
 async function renderStress(state) {
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2), SR);
