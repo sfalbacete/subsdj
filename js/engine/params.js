@@ -223,6 +223,7 @@ export const PARAMS = {
   arpDiv:  { def: '1/16' },                         // musical division of the step (uses bpm)
   arpOct:  { def: '1' },                            // octaves of the pattern (1..3, button seg)
   arpGate: { def: 0.5, min: 0.05, max: 1 },         // length of each step (fraction)
+  arpLatch: { def: 'off' },                         // on: the chord keeps arpeggiating once every key is up (Hold)
   seqOn:     { def: 'off' },                        // off | on — step sequencer
   seqPat:    { def: '0 3 7 12 . 7 3 .' },           // phrase in semitones, '.'=rest (max 16 steps)
   seqDiv:    { def: '1/16' },                       // musical division of the step (uses bpm)

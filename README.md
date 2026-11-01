@@ -33,9 +33,13 @@ steps, effects, parts and generative music.
 - The **preset picker** in the header searches (ignoring accents and case) and
   filters by category; a click or `↑` `↓` loads to audition, `Enter` picks and
   closes, and **Browse all** opens the Presets screen.
-- **Save** updates the loaded preset with what is sounding (enabled once something
-  changed; `Ctrl+S`); **Save as** makes a new preset in «★ Mine» with the name in the
-  field (`Enter` there, or `Ctrl+Shift+S`).
+- The header's buttons are icons; hovering one tells you what it is at once.
+  **Save** (the floppy) updates the loaded preset with what is sounding (enabled once
+  something changed; `Ctrl+S`); **Save as** (the floppy with a pencil) opens a field
+  with the name and makes a new preset in «★ Mine» (`Enter` there, or `Ctrl+Shift+S`
+  twice). The theme is in the **File** menu.
+- The **clock** in the header holds the tempo (BPM) and the swing, which every part
+  shares: drag the number up or down (`Shift` = fine) or double-click to type it.
 - `Ctrl+Z` / `Ctrl+Y` undo and redo. The ● next to the preset name tells you
   something has changed, and **Compare** toggles between the saved preset and
   your edit.

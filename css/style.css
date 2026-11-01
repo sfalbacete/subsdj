@@ -155,16 +155,66 @@ h1{font-size:18px;margin:0;letter-spacing:2px;
   filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent) 40%,transparent));
   animation:logoFlow 10s ease-in-out infinite;}
 @keyframes logoFlow{50%{background-position:100% 0;filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent2) 55%,transparent));}}
-/* Header: a single fixed row — title, tabs, presets (with «File ▾»), buttons, theme and status */
-header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;
+/* Header: a single fixed row of GROUPS with air between them — brand, tabs, preset (‹ picker › ·
+   save · undo), clock, tools, parts, reset/panic and status. The buttons are icons (.hico), so
+   with Parts on there is room to spare at 1920: nothing wraps, and if anything had to give it would
+   be the preset picker (down to 200 px), never a button */
+header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:18px;padding:0 12px;
   background:var(--panel-face);border:1px solid var(--edge);border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
 header .sp{flex:1;}
-/* With Parts on the header is full at 1920: nothing wraps (buttons and segments keep one line) and
-   what gives is the preset picker and the Save-as field (down to 200 / 96 px), never a button */
 header .btn,header .seg,header nav,header #partsBar{white-space:nowrap;flex:none;}
 header #presetBar{flex:0 1 auto;min-width:0;}
-#presetBar #presetName{flex:0 1 150px;min-width:96px;}
+.hgrp{display:flex;align-items:center;gap:8px;flex:none;}   /* a group of the header: tight inside, air between groups */
+header #presetNav{flex:0 1 auto;min-width:0;}
+.brand{display:flex;align-items:baseline;gap:10px;flex:none;}
 .badge{font-size:11px;color:var(--dim);}
+/* Header icon buttons: a 16 px SVG in a .btn of the same 28 px height (32 wide; ‹ › square). The
+   stroke is currentColor, so hover, «on» (accent2) and disabled come from .btn as with text */
+.btn.hico{display:inline-flex;align-items:center;gap:3px;padding:5px 7px;line-height:0;}
+#prevBtn,#nextBtn{padding:5px;}
+.btn.hico svg{display:block;width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+#prevBtn svg,#nextBtn svg{stroke-width:1.8;}
+.btn.hico svg .f{fill:currentColor;stroke:none;}
+.btn.hico svg.caret{width:8px;height:8px;stroke-width:1.5;}
+#fileBtn{padding-right:8px;}
+/* Record: a red dot; recording, a stop square and the seconds (the only text in the bar) */
+#recBtn{color:var(--hot);}
+#recBtn .i-stop,#recBtn .rec-t{display:none;}
+#recBtn.rec .i-rec{display:none;}
+#recBtn.rec .i-stop{display:block;}
+#recBtn.rec .rec-t{display:inline;font-size:12px;line-height:16px;letter-spacing:.5px;}
+#recBtn.rec{gap:6px;padding-right:11px;}
+/* Save as: the name in a popover under its button (presetBank.js) */
+.pop{position:absolute;top:calc(100% + 6px);left:0;z-index:25;display:flex;align-items:center;gap:8px;padding:8px;
+  background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:var(--shadow-pop);}
+.pop[hidden]{display:none;}
+#saveAsPop #presetName{width:200px;}
+#presetName:focus{border-color:var(--accent);outline:none;}
+.pop-where{font-size:11px;color:var(--dim);white-space:nowrap;}
+.pop-where .star{color:var(--star);}
+/* Clock: BPM and swing, the GLOBAL timing (ui/clock.js). A well like a select with two numbers you
+   drag (vertical, like a knob) or type (double-click); the unit next to each one, dimmed */
+#clock{display:flex;align-items:stretch;flex:none;box-sizing:border-box;height:28px;background:var(--well);
+  border:1px solid var(--edge);border-radius:var(--r-btn);}
+.clk{display:flex;align-items:center;gap:5px;padding:0 12px;color:var(--ink);cursor:ns-resize;outline:none;
+  border-radius:var(--r-btn);touch-action:none;}
+.clk:first-child{padding-left:14px;}
+.clk:last-child{padding-right:14px;}
+.clk + .clk{border-left:1px solid var(--line);border-radius:0 var(--r-btn) var(--r-btn) 0;}
+.clk .val{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;}
+#clkBpm .val{min-width:3ch;}
+#clkSwing .val{min-width:3.6ch;}
+.clk .lab{font-size:11px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.clk:hover .val,.clk:focus-visible .val,.clk.drag .val{color:var(--accent);}
+.clk-in{width:3.6ch;padding:0;border:none;background:none;color:var(--accent);font:inherit;font-size:13px;font-weight:600;
+  font-variant-numeric:tabular-nums;text-align:right;outline:none;}
+/* Fast tooltip of the header's icons and clock (ui/tips.js): the same well as the «?» one;
+   the name in ink, the detail dimmed */
+#hdrTip{position:fixed;z-index:60;max-width:300px;background:var(--well);border:1px solid var(--edge);border-radius:8px;
+  padding:5px 9px;font-size:11px;line-height:1.4;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);
+  pointer-events:none;white-space:pre-line;}
+#hdrTip[hidden]{display:none;}
+#hdrTip b{color:var(--ink);font-weight:400;}
 /* Status (audio · MIDI): two SVG icons with currentColor; the class sets the color (ui/status.js) */
 #status{display:inline-flex;align-items:center;gap:10px;}
 #status .st{display:inline-flex;color:var(--dim);cursor:help;transition:color .2s;}
@@ -183,7 +233,6 @@ header #presetBar{flex:0 1 auto;min-width:0;}
 .btn:hover{border-color:var(--accent);color:var(--accent);}
 .btn:active{transform:translateY(1px);}
 .btn.rec{color:var(--hot);border-color:var(--hot);}
-.btn.nav{padding:5px 10px;font-size:15px;font-weight:700;}
 .btn.ico{padding:7px 11px;line-height:0;}   /* icon button (Wave Editor): the SVG measures what a 12 px line of text does */
 .row.we-bar{flex-wrap:nowrap;}   /* the Wave Editor, narrow since the String module came in: the bar on one row… */
 .we-bar .btn.ico{padding:7px 6px;min-width:0;flex:0 1 auto;}   /* …also at zoom < 1, where pixel rounding broke it: the icons give up 1 px */
@@ -196,7 +245,10 @@ header #presetBar{flex:0 1 auto;min-width:0;}
 select{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
   padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;cursor:pointer;}
 select:hover{border-color:var(--accent);color:var(--accent);}
-#themeSel{border-radius:var(--r-btn);padding:5px 12px;letter-spacing:.5px;}   /* in the header it sits between .btn: same pill */
+/* Theme: a row of the File menu with one button per theme (ui/theme.js reads them from the stylesheets) */
+.menu-row{display:flex;align-items:center;justify-content:space-between;gap:10px;height:28px;padding-left:13px;
+  font-size:12px;letter-spacing:.5px;color:var(--ink);}
+#themeSeg button{flex:none;padding:4px 10px;font-size:11px;}
 
 /* Parts: button + 1-4 selector in the header; Part Mixer; «room» tag */
 #partsBar{display:flex;align-items:center;gap:8px;}
@@ -248,8 +300,8 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #playerArr .ks .th{width:auto;}
 #playerArr .ks .val{width:30px;}
 #playerArr select{font-size:10px;padding:2px 4px;max-width:96px;}
-/* Presets in the header: ‹ picker › name Save «File ▾» */
-#presetBar{display:flex;align-items:center;gap:8px;}
+/* Presets in the header, three groups: ‹ picker ● › · save, save as, file · undo, redo, compare */
+#presetBar{display:flex;align-items:center;gap:16px;}
 #presetBar input{background:var(--well);border:1px solid var(--edge);color:var(--ink);width:150px;
   border-radius:var(--r-ctl);padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 /* Quick preset picker (ui/presetPicker.js): button with the current one (same well as a select)
@@ -296,11 +348,9 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 /* ● modified (ui/history.js): what is sounding is no longer the saved preset. Off, it is barely visible */
 #modDot{font-size:11px;line-height:1;color:var(--edge);margin:0 -4px;transition:color .15s;cursor:default;}
 #modDot.on{color:var(--accent2);}
-/* undo · redo · compare */
-#editBar{display:flex;align-items:center;gap:4px;margin-left:4px;}
 .btn:disabled{opacity:.35;cursor:default;pointer-events:none;}
 .menuWrap{position:relative;}
-.menu{position:absolute;top:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:4px;padding:6px;min-width:190px;
+.menu{position:absolute;top:calc(100% + 6px);left:0;z-index:25;display:flex;flex-direction:column;gap:4px;padding:6px;min-width:190px;
   background:var(--well);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:var(--shadow-pop);}
 .menu[hidden]{display:none;}
 .menu .btn{text-align:left;border-radius:var(--r-ctl);}
@@ -469,6 +519,31 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.tog button.active::before{background:var(--accent);box-shadow:0 0 5px var(--accent);}
 .panel.osc .seg.tog button.active::before{background:var(--accent2);box-shadow:0 0 5px var(--accent2);}
 .togc .fieldlab{margin-bottom:3px;}
+/* Toggle switch (on / off): a 2-button .seg (Off · On, in that order) drawn as a pill with a round
+   thumb. The buttons stay, so bindSeg, CONTROLS, MIDI learn and the presets don't notice: both
+   cover the whole switch and the INACTIVE one is on top, so a click always toggles. Off: the thumb
+   on the left, dimmed; on: on the right over the theme's accent (accent2 in the oscillator-colored
+   modules, like their LEDs). .swc = the switch with its label beside it (the label lights up with it) */
+.seg.sw{position:relative;display:block;width:28px;height:16px;flex:none;box-sizing:border-box;border:1px solid var(--edge);border-radius:999px;
+  background:var(--well);box-shadow:inset 0 1px 3px rgba(0,0,0,.55);overflow:visible;transition:background .15s,border-color .15s,box-shadow .15s;}
+.seg.sw::after{content:"";position:absolute;top:1px;left:1px;width:12px;height:12px;border-radius:50%;
+  background:var(--dim);box-shadow:0 1px 3px rgba(0,0,0,.5);transition:transform .15s ease,background .15s;pointer-events:none;}
+.seg.sw:has(button:last-child.active){background:var(--accent);border-color:var(--accent);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.3),0 0 8px color-mix(in srgb,var(--accent) 35%,transparent);}
+.panel.osc .seg.sw:has(button:last-child.active){background:var(--accent2);border-color:var(--accent2);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.3),0 0 8px color-mix(in srgb,var(--accent2) 35%,transparent);}
+.seg.sw:has(button:last-child.active)::after{transform:translateX(12px);background:var(--ink);}
+.seg.sw button,.seg.sw button + button,.panel:not(.osc) .seg.sw button{position:absolute;inset:0;opacity:0;margin:0;padding:0;border:0;
+  border-radius:999px;cursor:pointer;box-shadow:none;}
+.seg.sw button.active{pointer-events:none;}
+.swc{display:flex;align-items:center;gap:7px;}
+.swc .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);transition:color .15s;}
+.swc:has(.seg.sw button:last-child.active) .lab{color:var(--ink);}
+/* Arpeggiator / Sequencer: a 3 × 2 grid (Mode · switches · Direction / Division · Gate · Octaves)
+   beside the phrase editor; Steps sits with the phrase selectors (it is the phrase's length) */
+.as-grid{display:grid;grid-template-columns:auto auto auto;column-gap:10px;row-gap:12px;align-items:center;justify-items:center;align-self:flex-start;}
+.as-sws{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding:0 6px;}
+#seqLenCtl{margin-left:auto;flex:none;}
 .stepper{display:flex;align-items:center;gap:6px;}
 .stepper button{width:22px;height:22px;border-radius:5px;border:1px solid var(--edge);color:var(--ink);cursor:pointer;font-size:14px;line-height:1;
   background:var(--btn-face);
@@ -502,7 +577,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .lfoShape{cursor:pointer;}
 .lfoShape:hover{border-color:var(--accent2);}
 .noshape{color:var(--dim);border-style:dashed;}
-.lfo-foot,.mx-foot,.dly-foot,.arp-foot{gap:14px;margin-top:8px;align-items:center;}
+.lfo-foot,.mx-foot,.dly-foot{gap:14px;margin-top:8px;align-items:center;}
 .dly-foot{margin-top:2px;}   /* the Delay also lives in Sequencing, whose band is lower: it just fits */
 .lfo-foot .seg.tog{gap:2px;}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}

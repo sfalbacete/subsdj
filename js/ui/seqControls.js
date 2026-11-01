@@ -1,11 +1,23 @@
-/* SubSDJ · sequencer panel: segs, canvas step editor (edits the
-   string param seqPat), length stepper and mutual exclusion with the arp.
-   The phrase is offsets in semitones over the held key ('.' = rest). */
+/* SubSDJ · the Arpeggiator / Sequencer module: the Mode, the shared controls,
+   the canvas step editor (edits the string param seqPat), the length stepper and
+   the mutual exclusion of arp and seq. The phrase is offsets in semitones over the
+   held key ('.' = rest).
+   ONE MODULE, TWO ENGINES. Arp and Seq never run together (the engine gives the Seq
+   priority), so the module shows them as one: a Mode knob (Off · Arp · Seq) over the
+   real keys arpMode / seqOn, and Division, Gate and Latch as SHARED widgets that show
+   and write the active mode's own key (arpDiv or seqDiv…). The presets keep both
+   sets, as they always did: nothing is migrated. The Mode, the Direction and the shared
+   widgets are VIRTUAL controls in CONTROLS (registry.js: MIDI learn binds them, they are
+   never a preset key); the real keys keep the widgets as their `el` (label for undo,
+   target for deps) with learn: false. arpMode carries the arp's direction only while
+   the arp is on (off|up|down|updown|random): while it is off, the Direction knob keeps
+   the last one (lastDir) — touching it prepares the arp without switching it on. */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget, bindSelect } from './registry.js';
 import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
+import { attachKnob } from './knobs.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken } from '../engine/Seq.js';
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
@@ -50,10 +62,81 @@ export const SEQ_PATTERNS = [
   { grp: 'Classics', name: 'Axel F · Faltermeyer',     pat: '0 . . 3 . . 0 . 0 5 . 0 . -2 . .',   div: '1/16', bpm: 118 },
 ];
 
+// ---------- Mode and the shared controls ----------
+const DIRS = ['up', 'down', 'updown', 'random'];
+const MODES = ['off', 'arp', 'seq'];
+export const asModeOf = S => (S.seqOn === 'on' ? 'seq' : S.arpMode !== 'off' ? 'arp' : 'off');
+
+function bindArpSeq() {
+  const $ = id => document.getElementById(id);
+  const modeSeg = $('asModeSel'), dirSeg = $('arpDirSel'), divSeg = $('asDivSel'), latchSeg = $('asLatchSel'), gateKnob = $('asGateKnob');
+  if (!modeSeg || !dirSeg || !divSeg || !latchSeg || !gateKnob) return;
+  const modeCtl = modeSeg.closest('.ctl'), dirCtl = dirSeg.closest('.ctl'), divCtl = divSeg.closest('.ctl'), gateCtl = gateKnob.closest('.ctl'), latchCtl = $('asLatchCtl');
+  const KEYS = ['arpMode', 'seqOn', 'arpDiv', 'seqDiv', 'arpGate', 'seqGate', 'arpLatch', 'seqLatch'];
+  const val = {};
+  for (const k of KEYS) val[k] = PARAMS[k].def;
+  let lastDir = 'up';     // the arp's direction while it is off
+  let owner = 'arp';      // whose Division / Gate / Latch the shared widgets show: the active mode's, or the last one that was on
+  const mode = () => asModeOf(val);
+  const own = () => { const m = mode(); if (m !== 'off') owner = m; return owner; };
+  const mark = (seg, attr, v) => { for (const b of seg.querySelectorAll('button')) b.classList.toggle('active', b.dataset[attr] === v); };
+
+  let painting = true;    // the knob calls back on creation and on every repaint: only a hand on it writes
+  // its range is the same for both; the default (double click) is the active mode's own (Arp 0.5 · Seq 0.6)
+  const gateCfg = { min: PARAMS.seqGate.min, max: PARAMS.seqGate.max, get def() { return PARAMS[own() + 'Gate'].def; } };
+  const gate = attachKnob(gateKnob, gateCfg, v => { if (!painting) CONTROLS[own() + 'Gate'].set(v); });
+  const paint = () => {
+    const o = own();
+    painting = true;
+    mark(modeSeg, 'asm', mode());
+    mark(dirSeg, 'dir', val.arpMode !== 'off' ? val.arpMode : lastDir);
+    mark(divSeg, 'v', val[o + 'Div']);
+    mark(latchSeg, 'v', val[o + 'Latch']);
+    gate.set(val[o + 'Gate']);
+    painting = false;
+  };
+
+  // the REAL keys (presets, undo, the engine): their value, its write and a repaint
+  const opts = { arpMode: ['off', ...DIRS], seqOn: ['off', 'on'], arpDiv: ['1/4', '1/8', '1/16'], seqDiv: ['1/4', '1/8', '1/16'], arpLatch: ['off', 'on'], seqLatch: ['off', 'on'] };
+  const els = { arpMode: dirCtl, seqOn: modeCtl, arpDiv: divCtl, seqDiv: divCtl, arpGate: gateCtl, seqGate: gateCtl, arpLatch: latchCtl, seqLatch: latchCtl };
+  for (const k of KEYS) {
+    CONTROLS[k] = {
+      get: () => val[k],
+      set: v => {
+        if (opts[k] && !opts[k].includes(v)) return;                   // an unknown value: stays as it is (like a seg)
+        val[k] = v;
+        if (k === 'arpMode' && v !== 'off') lastDir = v;
+        applyTarget(k, v);
+        paint();
+      },
+      def: PARAMS[k].def, el: els[k], learn: false, ...(opts[k] ? { opts: opts[k] } : {}),
+    };
+  }
+
+  // the VIRTUAL controls (the widgets, for the hand and for MIDI learn): they write the real keys
+  const setMode = m => {
+    part().resume();
+    if (m === 'off') { CONTROLS.arpMode.set('off'); CONTROLS.seqOn.set('off'); }
+    else if (m === 'arp') { CONTROLS.seqOn.set('off'); CONTROLS.arpMode.set(lastDir); }
+    else if (m === 'seq') { CONTROLS.arpMode.set('off'); CONTROLS.seqOn.set('on'); }
+  };
+  const setDir = d => { if (!DIRS.includes(d)) return; lastDir = d; if (mode() === 'arp') CONTROLS.arpMode.set(d); else paint(); };
+  const shared = s => ({ get: () => val[own() + s], set: v => CONTROLS[own() + s].set(v) });
+  CONTROLS.asMode = { get: mode, set: setMode, def: 'off', el: modeCtl, opts: MODES, virtual: true };
+  CONTROLS.asDir = { get: () => (val.arpMode !== 'off' ? val.arpMode : lastDir), set: setDir, def: 'up', el: dirCtl, opts: DIRS, virtual: true };
+  CONTROLS.asDiv = { ...shared('Div'), def: PARAMS.seqDiv.def, el: divCtl, opts: opts.seqDiv, virtual: true };
+  CONTROLS.asGate = { ...shared('Gate'), def: PARAMS.seqGate.def, el: gateCtl, param: PARAMS.seqGate, virtual: true };
+  CONTROLS.asLatch = { ...shared('Latch'), def: 'off', el: latchCtl, opts: opts.seqLatch, virtual: true };
+
+  modeSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.asm)));
+  dirSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => setDir(b.dataset.dir)));
+  divSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { part().resume(); CONTROLS.asDiv.set(b.dataset.v); }));
+  latchSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { part().resume(); CONTROLS.asLatch.set(b.dataset.v); }));
+  for (const k of KEYS) CONTROLS[k].set(PARAMS[k].def);   // like a seg: the defaults reach the engine at startup
+}
+
 export function bindSeqControls() {
-  bindSeg('seqOnSel', 'seqon', 'seqOn', 'seqOn');
-  bindSeg('seqDivSel', 'sdiv', 'seqDiv', 'seqDiv');
-  bindSeg('seqLatchSel', 'slatch', 'seqLatch', 'seqLatch');
+  bindArpSeq();
   bindSeg('seqRetrigSel', 'sretrig', 'seqRetrig', 'seqRetrig');
 
   // seqPat: the canvas editor is its only widget. No `el`: outside MIDI learn

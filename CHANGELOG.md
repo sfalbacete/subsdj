@@ -6,6 +6,27 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased
+
+- **A lighter header.** Its buttons are icons now — save, save as, file, undo, redo, compare,
+  MIDI map, record, parts, reset and panic, drawn in the theme's color — each with a tooltip
+  that shows at once (name and shortcut). The Save-as name lives in a popover that opens with
+  the current name (Enter saves, Esc closes; Ctrl+Shift+S opens it and saves), and the theme
+  moved into the File menu. With Parts on, the header used to be full; now about 240 px are
+  left over.
+- **A clock in the header**: BPM and swing, the two global timing settings, out of the Delay
+  and Arpeggiator modules, where they looked like theirs although they drive everything in
+  tempo. Drag the number like a knob (Shift = fine), double-click to type it (Esc cancels),
+  arrows when focused; undo, MIDI learn and presets treat them as before.
+- **Arpeggiator / Sequencer, one module.** They never ran together — switching one on used
+  to switch the other off behind your back —, so now a **Mode** knob picks Off · Arp · Seq.
+  **Division**, **Gate** and **Latch** are shared: they show and set the active mode's own
+  values (each mode keeps its own, so every preset sounds the same). It is 94 px narrower
+  than the two modules were.
+- **The arpeggiator has Latch** (the Hold of hardware arpeggiators): the chord is every key you
+  pressed until your hands were off, and it keeps playing until you play another.
+- **Round toggle switches** for what is on or off: Latch, Retrig and the Wave Sequence's state.
+
 ## [1.6.1] — 2026-11-01
 
 - **The breath no longer breathes.** Sergio heard a fake vibrato on a held Breath Flute: a

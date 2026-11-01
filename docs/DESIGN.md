@@ -2835,3 +2835,56 @@ the jump stays under 50 cents and the octave arrives at 0.8 on the knob, steady.
 The lesson for the notebook: a high-pass inside a high-gain feedback loop is never free — its
 phase lead at the loop's slow modes can breed a slow oscillation, and its lead at the modes
 you tune can only be compensated at one of them. Put it where the loop does not go round.
+
+## A lighter header: icons and a clock (2026-11-01)
+
+Sergio, after time playing: the BPM looked like the Delay's and the swing like the Arpeggiator's,
+yet both drive everything in tempo; and the header, measured at 1920 with Parts on, had **0 px**
+left (the Save-as field was already giving up 33 px). He once took the icons out because icon +
+label on every button was redundant; an icon **alone**, with its name in a tooltip, is the other
+half of that decision. A canvas mock-up first (two variants for Parts and Reset; he chose
+layers over two quavers, and the circular arrow over an eraser, keeping Reset in the bar —
+Ctrl+Z undoes it), then the code.
+
+- **Icons**: inline SVG, 16 px, stroke 1.6, `currentColor`: the theme colors them, and hover,
+  «on» and disabled come from `.btn` as they did with text. 13 buttons of 32 × 28 (the same
+  height): the nine text buttons went from 575 px to about 300.
+- **The tooltip is the label**, so it cannot take a second: `ui/tips.js` shows its own at once.
+  The `title` stays the source (Save, Undo, Compare, the deps reason and the status keep writing
+  `.title`) and an observer moves it to `data-tip` as it appears, so the browser's never doubles
+  it. Only for the icons and the clock: the picker's rows (how to play each preset) keep the slow one.
+- **Save as** went into a popover (150 px) and the **theme** into the File menu (80 px): set once,
+  they did not earn the bar. With Parts on, about 240 px are free now.
+- **The clock** (`ui/clock.js`): BPM and swing as two numbers in one well. Dragged like a knob
+  (the same 200 px for the range), typed with a double-click (a tempo is often a number you
+  know: 128), arrows when focused. They register in CONTROLS like knobs, so presets, Reset, undo
+  (the gesture listener now covers the clock), MIDI learn and the deps dimming work unchanged.
+
+## Arpeggiator / Sequencer, one module (2026-11-01)
+
+Sergio, once BPM and swing were in the header: the two modules looked like one. They never ran
+together: the engine routes the keys to the Seq if it is on, else to the Arp, and a listener
+switched one off when the other came on — the «magic» he noticed. A mock-up on the real page
+first (the page served from the scratchpad with the merged markup, real CSS and JS, captured in
+three states and two themes); his calls: the title «Arpeggiator / Sequencer», a knob for the
+Mode, round toggle switches for what is on or off, smaller than the first try (28 × 16, the
+10 px label of the rest).
+
+- **Nothing migrated.** The presets keep arpMode / seqOn and both sets of Division, Gate and
+  Latch, as always. The Mode is a VIRTUAL control over arpMode / seqOn, and Division, Gate and
+  Latch are shared widgets that show and write the active mode's own key. Virtual controls
+  (registry.js: `virtual: true`) are in CONTROLS for MIDI learn and the Output display but are
+  never saved, reset or loaded; the real keys keep the widget as their `el` (the undo label, the
+  deps target) with `learn: false`, so MIDI learn binds the virtual one. A virtual control with a
+  continuous range brings it (`param`) for midimap.
+- **arpMode carries the direction only while the arp is on** (off | up | down | updown | random).
+  While it is off the Direction knob keeps the last one: touching it prepares the arp without
+  switching it on, as touching any dimmed control does.
+- **The arp's Latch** (arpLatch, new, off by default) is the gesture, not the keys held: every key
+  pressed since the hands were last off, even the ones let go meanwhile — the way a hardware Hold
+  builds a chord. Once every key is up it stays; the next key starts a new chord; a foreign
+  note-off (another part, an allNotesOff) touches nothing.
+- **The switch** is CSS over the same 2-button .seg (Off · On): both buttons cover the switch and
+  the inactive one is on top, so a click toggles and bindSeg, CONTROLS, MIDI learn and the presets
+  never notice; `:has(button:last-child.active)` draws it on. In the oscillator-colored modules
+  (.panel.osc) it lights in accent2, like their LEDs.

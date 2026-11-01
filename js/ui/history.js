@@ -158,10 +158,11 @@ function refresh() {
 export function initHistory() {
   ui = { undo: document.getElementById('undoBtn'), redo: document.getElementById('redoBtn'),
          cmp: document.getElementById('cmpBtn'), dot: document.getElementById('modDot') };
-  const main = document.getElementById('screens');
+  const main = document.getElementById('screens'), clock = document.getElementById('clock');
+  const inUI = t => main.contains(t) || !!(clock && clock.contains(t));   // the screens and the header's clock (BPM, swing)
   // Gestures: touching something on the screens (not the keyboard or the wheel: those are performance)
   document.addEventListener('pointerdown', e => {
-    if (!main.contains(e.target)) return;
+    if (!inUI(e.target)) return;
     if (open && open.sel && !open.sel.contains(e.target)) end();   // a selector that was opened and not used
     pointerDown = true; begin();
     const sel = e.target.closest('select');
@@ -171,7 +172,7 @@ export function initHistory() {
   document.addEventListener('change', e => { if (open && open.sel === e.target) later(); }, true);
   document.addEventListener('focusout', e => { if (open && open.sel === e.target) later(); }, true);
   document.addEventListener('keydown', e => {      // arrows on a slider, typing a pattern…
-    if (main.contains(e.target) && !(e.ctrlKey || e.metaKey)) { begin(); later(); }
+    if (inUI(e.target) && !(e.ctrlKey || e.metaKey)) { begin(); later(); }
   }, true);
   document.addEventListener('ctl-touch', () => { begin(); later(); });   // a MIDI controller
   document.addEventListener('param-change', () => {
@@ -188,7 +189,10 @@ export function initHistory() {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     if (e.code === 'KeyS') {
       e.preventDefault();   // never the browser's «save page»
-      if (e.shiftKey) { const inp = document.getElementById('presetName'); if (inp) { if (inp.value.trim()) document.getElementById('saveAsBtn')?.click(); else { inp.focus(); inp.select(); } } }
+      if (e.shiftKey) {                              // the first time opens the Save-as popover; with it open, saves
+        const pop = document.getElementById('saveAsPop');
+        document.getElementById(pop && !pop.hidden ? 'saveAsGo' : 'saveAsBtn')?.click();
+      }
       else { const b = document.getElementById('saveBtn'); if (b && !b.disabled) b.click(); }
       return;
     }

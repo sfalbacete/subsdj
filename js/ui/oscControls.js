@@ -124,9 +124,7 @@ export function bindOscControls() {
   document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // tempo-synced LFO
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: pitch shifter interval (a Room key)
   bindFreeze();
-  bindSeg('arpModeSel', 'arp', 'arpMode', 'arpMode');      // arpeggiator
-  bindSeg('arpDivSel', 'div', 'arpDiv', 'arpDiv');
-  bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');
+  bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');        // arpeggiator (its Mode, Direction, Division, Gate and Latch: ui/seqControls.js)
   bindLfoShapes();
 
   // Wavetable selector (the sets live in engine/wavetable.js)

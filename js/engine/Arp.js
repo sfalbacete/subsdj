@@ -10,6 +10,10 @@
    tempo sets the origin at its first note and the others (another Arp, a Seq, the
    conductor) line up. A key may arrive with its own instant («when», a
    player's): it joins the arpeggio from that step on, not before.
+   LATCH (arpLatch, the Hold of hardware arpeggiators): the chord is the
+   GESTURE — every key pressed since the hands were last off the keys, even
+   if some were let go meanwhile — and once every key is up it keeps playing;
+   the next key after that starts a new chord. Off, the arpeggio is the keys held.
    ===================================================================== */
 import { ctxRandom } from './nodes.js';
 import { clockOf, DIV_BEATS } from './Clock.js';
@@ -18,6 +22,8 @@ export class Arp {
   constructor(engine) {
     this.e = engine;
     this.held = [];          // {id, freq, vel, from} in press order (from: the instant it comes in)
+    this.gesture = [];       // every key of the chord being played (since the keys were last all up): what Latch keeps
+    this.latched = null;     // with Latch, the chord left sounding once every key is up
     this.idx = 0;
     this.timer = null;
     this.nextT = 0;
@@ -28,7 +34,12 @@ export class Arp {
   // Start running in tempo with the first step at t (or on the grid, if others are already running)
   _begin(t) { this.idx = 0; clockOf(this.e.ctx).begin(this, t, this._div(), this.e.bpm); }
   hold(id, freq, vel, when = null) {
-    if (!this.held.find(h => h.id === id)) this.held.push({ id, freq, vel, from: when === null ? 0 : when });
+    if (!this.held.length) { this.gesture = []; this.latched = null; }   // the first key after letting go: a new chord (replaces the latched one)
+    if (!this.held.find(h => h.id === id)) {
+      const h = { id, freq, vel, from: when === null ? 0 : when };
+      this.held.push(h);
+      if (!this.gesture.find(g => g.id === id)) this.gesture.push(h);
+    }
     if (!this.timer) {
       this._begin(when === null ? this.e.ctx.currentTime + 0.03 : when);
       this.timer = setInterval(() => this._tick(), 25);
@@ -36,10 +47,14 @@ export class Arp {
     }
   }
   unhold(id) {
+    if (!this.held.find(h => h.id === id)) return;   // an id we were not holding (another part's note-off, or after an allNotesOff): it touches nothing
     this.held = this.held.filter(h => h.id !== id);
+    if (!this.held.length) this.latched = this.e.S.arpLatch === 'on' && this.gesture.length ? this.gesture.slice() : null;
     this._maybeStop();
   }
-  _maybeStop() { if (this.timer && !this.held.length) { clearInterval(this.timer); this.timer = null; this._flushTie(); clockOf(this.e.ctx).leave(this); } }
+  // Latch switched off with no key down: the latched chord stops
+  unlatch() { if (!this.held.length) { this.latched = null; this._maybeStop(); } }
+  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this._flushTie(); clockOf(this.e.ctx).leave(this); } }
   // Note-off scheduled on the audio clock and emitted NOW, in order with the ons:
   // this way the engine knows whether two steps overlap because of the gate (in mono: legato or
   // retrigger), not because of how far ahead the scheduler runs. With gate 1 the note
@@ -47,12 +62,17 @@ export class Arp {
   _off(id, t, tie) { if (tie) this.tie = { id, t }; else this.e._directOff(id, t); }
   _flushTie() { const p = this.tie; if (p) { this.tie = null; this.e._directOff(p.id, p.t); } }
 
-  stop() { this.held = []; this._maybeStop(); this.e.allNotesOff(); }
+  stop() { this.held = []; this.gesture = []; this.latched = null; this._maybeStop(); this.e.allNotesOff(); }
 
+  // The notes the arpeggio plays: the keys held; with Latch, the whole gesture (and once every key is up, the latched chord)
+  _src() {
+    if (this.e.S.arpLatch !== 'on') return this.held;
+    return this.held.length ? this.gesture : (this.latched || []);
+  }
   // Sequence: held notes sorted by pitch, repeated across octaves
   _seq() {
     const oct = Math.max(1, Math.min(3, +this.e.S.arpOct || 1));
-    const base = this.held.filter(h => !(h.from > this.nextT + 1e-6)).sort((a, b) => a.freq - b.freq);   // the ones that have already come in
+    const base = this._src().filter(h => !(h.from > this.nextT + 1e-6)).sort((a, b) => a.freq - b.freq);   // the ones that have already come in
     const seq = [];
     for (let o = 0; o < oct; o++) base.forEach(h => seq.push({ freq: h.freq * (1 << o), vel: h.vel }));
     return seq;

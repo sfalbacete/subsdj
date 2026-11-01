@@ -7,7 +7,7 @@
    maintain. If the touched control is OFF (ui/deps.js), the top right says why; otherwise,
    what the chosen option means. What doesn't come from a gesture (loading a preset, changing part)
    doesn't clutter it: then it shows the preset name.
-   HEADER: the «File ▾» menu (Delete, Export, Import, SFZ: the same
+   HEADER: the «File ▾» menu (Theme, Delete, Export, Import, SFZ: the same
    buttons with their ids, just folded away) and #presetMsg as a floating notice
    (it no longer has a fixed spot in the row). */
 const $ = id => document.getElementById(id);

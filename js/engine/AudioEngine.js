@@ -638,6 +638,7 @@ export class AudioEngine {
       case 'master': if (this.ownsRoom) this.room.setMaster(value); else smooth(this.level.gain, value); break;   // Parts: the part's fader
       case 'mode': this.allNotesOff(); break;   // poly<->mono switch: cuts everything so no notes are left hanging
       case 'arpMode': if (value === 'off') this.arp.stop(); break;   // div/oct/gate are read live by the scheduler
+      case 'arpLatch': if (value === 'off') this.arp.unlatch(); break;   // with no key down, the latched chord stops
       case 'bendRange': if (this._bendNorm) this.setBend(this._bendNorm); break;   // a bend already moved gets rescaled
       case 'syncA': this._forVoices(v => v.setSync(value === 'on')); break;      // hard sync: also to the sounding notes
       case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;

@@ -21,7 +21,7 @@ export function undoable(el, text, fn) {
   u.addEventListener('click', e => { e.stopPropagation(); fn(); el.textContent = 'Restored.'; });
   el.appendChild(u);
 }
-export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS) c[k] = d[k]; return c; };   // drops unknown keys
+export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS && !CONTROLS[k].virtual) c[k] = d[k]; return c; };   // drops unknown keys (and virtual ones: they are no preset key)
 export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
 const asPreset = id => { const it = id && library.item(id); return it && it.type === 'preset' ? it : null; };
@@ -82,9 +82,19 @@ export function initPresetBank() {
   //   Save     updates the LOADED preset with what is sounding; enabled only when there is one
   //            and something changed (the same state as the ● and Compare). No name involved.
   //   Save as  a NEW preset in «★ Mine» (or over the one with that name there), with the name
-  //            in the field; it becomes the current preset.
+  //            in the field; it becomes the current preset. The field lives in a popover under
+  //            the button (the header has no room to waste): it opens with the current name
+  //            selected, Enter (or its Save) saves, Esc or a click outside closes it.
   const saveBtn = document.getElementById('saveBtn'), saveAsBtn = document.getElementById('saveAsBtn'), inp = document.getElementById('presetName');
+  const pop = document.getElementById('saveAsPop'), go = document.getElementById('saveAsGo');
   inp.maxLength = MAX_NAME;   // one limit for every name (library.MAX_NAME)
+  const openSaveAs = () => {
+    const cur = currentPreset();
+    inp.value = cur ? cur.name : '';
+    pop.hidden = false; saveAsBtn.classList.add('on');
+    inp.focus(); inp.select();
+  };
+  const closeSaveAs = () => { pop.hidden = true; saveAsBtn.classList.remove('on'); inp.blur(); };
   const refreshSave = () => {
     const cur = currentPreset(), on = !!cur && isModified();
     saveBtn.disabled = !on;
@@ -103,11 +113,14 @@ export function initPresetBank() {
     let id;
     if (target) { library.update(target.id, snapshot()); id = target.id; msg('Updated «' + name + '» in ' + SEC_MINE + '.'); }
     else { id = library.add({ name, section: library.ensureSection(SEC_MINE), data: snapshot() }); msg('Saved «' + name + '» in ' + SEC_MINE + ' (this browser).'); }
-    markPreset(id); inp.value = ''; inp.blur();
+    markPreset(id); inp.value = ''; closeSaveAs();
     markSaved();
   };
-  saveAsBtn.addEventListener('click', saveAs);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveAs(); } else if (e.key === 'Escape') { inp.value = ''; inp.blur(); } });
+  saveAsBtn.addEventListener('click', () => { if (pop.hidden) openSaveAs(); else closeSaveAs(); });
+  go.addEventListener('click', saveAs);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveAs(); } else if (e.key === 'Escape') { e.preventDefault(); closeSaveAs(); } });
+  document.addEventListener('pointerdown', e => { if (!pop.hidden && !e.target.closest('#saveAsWrap')) closeSaveAs(); });
+  document.addEventListener('escape-first', e => { if (!pop.hidden) { e.preventDefault(); closeSaveAs(); } });   // Esc closes it before being «panic»
   for (const ev of ['preset-loaded', 'preset-marked', 'library-changed', 'modified-changed']) document.addEventListener(ev, refreshSave);
   refreshSave();
   document.getElementById('delBtn').addEventListener('click', () => {

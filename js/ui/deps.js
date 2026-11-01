@@ -35,6 +35,8 @@ const has = (S, w) => waves(S).includes(w);
 // Parts: the Room keys (delay, reverb, bpm) belong to everyone — it is enough that ONE part uses them
 const anyPart = (S, f) => (sceneOn() ? getScene().parts.some(p => f(p.engine.S)) : f(S));
 const conductor = () => (sceneOn() ? getScene().conductor : null);
+// the Arpeggiator / Sequencer module's Mode (the same rule as ui/seqControls.js and the engine: the Seq wins)
+const asModeOf = S => (S.seqOn === 'on' ? 'seq' : S.arpMode !== 'off' ? 'arp' : 'off');
 
 // --- matrix ----------------------------------------------------------------
 // A destination that cannot move with the current settings (null = it can).
@@ -159,14 +161,18 @@ export const RULES = [
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'in Parts mode the Room\'s Fdbk rules (part mixer)' : null)],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'free' ? 'synced: the BPM division rules' : null)],
   ...live(['bpm'], bpmUsed, 'nothing runs in tempo: delay free or off, no arpeggiator or sequencers'),
-  ['seqNotes', S => (S.seqNotes === 'harmony' && !sceneOn() ? 'without Parts there is no scene harmony: degrees play in major from the key' : null)],
+  ['seqNotes', S => (asModeOf(S) !== 'seq' ? (asModeOf(S) === 'off' ? 'Mode Off' : 'Seq only: the Mode is on Arp')
+    : S.seqNotes === 'harmony' && !sceneOn() ? 'without Parts there is no scene harmony: degrees play in major from the key' : null)],
   ...live(['swing'], swingUsed, 'nothing in tempo to swing: no arpeggiator, sequencer, Steps or players'),
   ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE),
   ['shimInt', S => (!revLive(S) ? REV_IDLE() : S.shimAmt > 0 ? null : 'Shimmer at 0')],
 
   // ---------- Sequencing ----------
-  ...live(['arpDiv', 'arpOct', 'arpGate'], S => S.arpMode !== 'off', 'Mode Off'),
-  ...live(['seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', '#seqPatSel', '#seqCanvas', '.ctl:has(#seqLenNum)'], S => S.seqOn === 'on', 'State Off'),
+  // Arpeggiator / Sequencer, one module: Off dims all but the Mode; Arp, the Seq's half; Seq, the Arp's.
+  // The shared widgets are targeted through their virtual controls (asDiv…: ui/seqControls.js)
+  ...live(['asDiv', 'asGate', 'asLatch'], S => asModeOf(S) !== 'off', 'Mode Off'),
+  ...live(['asDir', '.ctl:has(#arpOctSel)'], S => asModeOf(S) === 'arp', S => (asModeOf(S) === 'off' ? 'Mode Off' : 'Arp only: the Mode is on Seq')),
+  ...live(['#seqRetrigCtl', '#seqPatSel', '#seqCanvas', '#seqLenCtl'], S => asModeOf(S) === 'seq', S => (asModeOf(S) === 'off' ? 'Mode Off' : 'Seq only: the Mode is on Arp')),
   ['sec:Wave Sequence', S => (has(S, 'wavetable') ? null : 'it only moves the Wavetable Morph: ' + NO('Wavetable'))],
   ...live(['wsDiv', 'wsMode', 'wsXf', '#wsCanvas', '.ctl:has(#wsLenNum)'], S => S.wsOn === 'on', 'State Off'),
   // scene (Parts): conductor state, not preset state
@@ -190,12 +196,12 @@ function apply(el, why) {
   const was = el.dataset.off;
   if (why) {
     if (was === why) return;
-    if (!('title0' in el.dataset)) el.dataset.title0 = el.getAttribute('title') || '';
+    if (!('title0' in el.dataset)) el.dataset.title0 = el.getAttribute('title') || el.dataset.tip || '';   // data-tip: the header's fast tooltip keeps it there (ui/tips.js)
     el.dataset.off = why; el.classList.add('dep-off');
     el.title = 'No effect: ' + why + (el.dataset.title0 ? '\n' + el.dataset.title0 : '');
   } else if (was !== undefined) {
     delete el.dataset.off; el.classList.remove('dep-off');
-    if (el.dataset.title0) el.title = el.dataset.title0; else el.removeAttribute('title');
+    if (el.dataset.title0) el.title = el.dataset.title0; else { el.removeAttribute('title'); delete el.dataset.tip; }
     delete el.dataset.title0;
     // back on softly: a one-shot animation (style.css .dep-on) instead of a cut
     el.classList.add('dep-on'); clearTimeout(el._depOnT); el._depOnT = setTimeout(() => el.classList.remove('dep-on'), 400);

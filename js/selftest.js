@@ -361,6 +361,34 @@ export async function runSelfTest() {
     push({ name: 'arpeggiator (×2 oct sequence)', peak: 0, ok: okA, problems: okA ? [] : ['seq: ' + seq] });
   }
   {
+    // arpeggiator Latch (2026-11-01, the Hold of hardware arps), no ctx: a live timer is faked so hold()
+    // does not start one. With Latch the chord is the GESTURE (every key since the hands were off, even
+    // the ones let go meanwhile) and it stays once every key is up; the next key starts a new chord;
+    // a foreign note-off touches nothing; switching Latch off with no key down lets it go. Without
+    // Latch the arpeggio is the keys held, and nothing stays.
+    const problems = [], freqs = a => a._seq().map(n => n.freq).join(',');
+    const a = new Arp({ S: { arpOct: '1', arpLatch: 'on' }, ctx: null });
+    a.timer = 1;
+    a.hold(1, 100, 1); a.hold(2, 200, 1); a.unhold(1);
+    if (freqs(a) !== '100,200') problems.push('latch: letting one key go drops it from the chord (' + freqs(a) + ')');
+    a.unhold(2);
+    if (freqs(a) !== '100,200' || !a.latched) problems.push('latch: the chord does not stay once every key is up (' + freqs(a) + ')');
+    a.unhold(99);
+    if (freqs(a) !== '100,200') problems.push('latch: a foreign note-off touched the latched chord');
+    a.hold(3, 300, 1);
+    if (freqs(a) !== '300') problems.push('latch: a new key does not start a new chord (' + freqs(a) + ')');
+    a.unhold(3);
+    a.timer = null; a.e.S.arpLatch = 'off'; a.unlatch();
+    if (a.latched || freqs(a) !== '') problems.push('latch off with no key down does not let the chord go');
+    const b = new Arp({ S: { arpOct: '1', arpLatch: 'off' }, ctx: null });
+    b.timer = 1;
+    b.hold(1, 100, 1); b.hold(2, 200, 1); b.unhold(1);
+    if (freqs(b) !== '200') problems.push('no latch: the arpeggio is not the keys held (' + freqs(b) + ')');
+    b.timer = null; b.unhold(2);
+    if (b.latched || freqs(b) !== '') problems.push('no latch: something stays after letting go');
+    push({ name: 'arpeggiator Latch (the gesture stays · a new key starts a new chord · off lets it go)', peak: 0, ok: !problems.length, problems });
+  }
+  {
     // Common clock (Roadmap 7.0 · 0.4). (1) The arithmetic: exact grid, a new BPM
     // does not move the current beat, the first one to join sets the origin and the others
     // go to the grid. (2) In real time (the Arp and the Seq run on a timer: they do not
@@ -653,6 +681,79 @@ export async function runSelfTest() {
     push({ name: 'screens (fixed panel · slots · memory · nothing clipped · preset list)', peak: 0, ok: !problems.length, problems });
   }
   {
+    // Header (2026-11-01): the buttons are ICONS with a fast tooltip of their own (ui/tips.js) and a
+    // clock holds BPM and swing (ui/clock.js). (1) Every icon button has its SVG, an aria-label and a
+    // tooltip text, and no title left (the browser's tooltip would show up as well). (2) Hovering
+    // shows #hdrTip at once with that text; a title written later (Save, Undo…) moves into it; leaving
+    // hides it. (3) ONE line with the Parts on, with room to spare. (4) The clock: what the controls
+    // set is shown and reaches the engine; typing (double-click + Enter) sets it, Esc cancels, the swing
+    // is typed in percent, out of range is clamped; BPM and swing are no longer knobs in the modules.
+    const NAME = 'header (icon buttons with a fast tooltip · one line with the Parts on · clock: BPM and swing set, typed, Esc cancels)';
+    const problems = [], wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const hdr = document.querySelector('header'), wasOn = isOn(), keepBpm = CONTROLS.bpm && CONTROLS.bpm.get(), keepSw = CONTROLS.swing && CONTROLS.swing.get();
+    const mid = document.getElementById('midiLearnBtn'), tip0 = mid && mid.dataset.tip;
+    try {
+      // (1) after a turn of the event loop: the observer moves a title that was JUST written (loading a
+      // preset rewrites Save's) in a microtask, and the previous check ends without yielding
+      await wait(0);
+      const icons = [...hdr.querySelectorAll('.btn.hico')];
+      if (icons.length < 13) problems.push('only ' + icons.length + ' icon buttons in the header (expected 13: ‹ › save, save as, file, undo, redo, compare, MIDI map, record, parts, reset, panic)');
+      for (const b of icons) {
+        const id = b.id || '?';
+        if (!b.querySelector('svg')) problems.push(id + ': no icon');
+        if (!b.getAttribute('aria-label')) problems.push(id + ': no aria-label');
+        if (b.hasAttribute('title')) problems.push(id + ': keeps a title (two tooltips)');
+        if (!(b.dataset.tip || '').trim()) problems.push(id + ': no tooltip text');
+        if (b.textContent.trim() && b.id !== 'recBtn') problems.push(id + ': still has text («' + b.textContent.trim() + '»)');
+      }
+      // (2) through the pointer's path
+      const tipEl = document.getElementById('hdrTip');
+      mid.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+      if (!tipEl || tipEl.hidden || !tipEl.textContent.startsWith('MIDI map')) problems.push('hovering MIDI map does not show its tooltip (' + (tipEl ? tipEl.textContent : 'no #hdrTip') + ')');
+      mid.title = 'Selftest: a title written later'; await wait(0);
+      if (mid.hasAttribute('title') || mid.dataset.tip !== 'Selftest: a title written later' || !(tipEl && tipEl.textContent.includes('written later'))) problems.push('a title written later does not move into the tooltip');
+      hdr.dispatchEvent(new PointerEvent('pointerleave'));
+      if (tipEl && !tipEl.hidden) problems.push('the tooltip does not hide when leaving the header');
+      // (3)
+      if (!wasOn) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      if (!isOn()) problems.push('the Parts do not turn on');
+      else {
+        const sp = hdr.querySelector('.sp');
+        if (hdr.scrollWidth > hdr.clientWidth + 1) problems.push('with the Parts on the header overflows (' + hdr.scrollWidth + ' in ' + hdr.clientWidth + ')');
+        if (!sp || sp.offsetWidth < hdr.clientWidth * 0.05) problems.push('with the Parts on there is no room left in the header (' + (sp ? sp.offsetWidth : '?') + ' px)');
+      }
+      // (4)
+      const cb = document.getElementById('clkBpm'), cs = document.getElementById('clkSwing'), shown = c => c.querySelector('.val').textContent;
+      if (document.querySelector('[data-knob="bpm"], [data-knob="swing"]')) problems.push('BPM / swing are still knobs in a module');
+      if (!cb || !cs || CONTROLS.bpm.el !== cb || CONTROLS.swing.el !== cs) problems.push('BPM / swing are not registered on the clock');
+      else {
+        CONTROLS.bpm.set(97); CONTROLS.swing.set(0.6);
+        if (shown(cb) !== '97' || shown(cs) !== '60%') problems.push('the clock does not show what is set (' + shown(cb) + ' · ' + shown(cs) + ')');
+        if (Math.abs(part().bpm - 97) > 1e-9) problems.push('the engine does not get the BPM (' + part().bpm + ')');
+        const type = (cell, text, key) => {
+          cell.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+          const f = cell.querySelector('input'); if (!f) return false;
+          f.value = text; f.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+          return true;
+        };
+        if (!type(cb, '133', 'Enter') || CONTROLS.bpm.get() !== 133) problems.push('typing 133 + Enter in the clock gives ' + CONTROLS.bpm.get());
+        type(cb, '150', 'Escape');
+        if (CONTROLS.bpm.get() !== 133 || cb.querySelector('input') || shown(cb) !== '133') problems.push('Esc does not cancel the typing (' + CONTROLS.bpm.get() + ' · «' + shown(cb) + '»)');
+        type(cs, '62', 'Enter');
+        if (Math.abs(CONTROLS.swing.get() - 0.62) > 1e-9) problems.push('typing 62 in the swing gives ' + CONTROLS.swing.get());
+        type(cb, '999', 'Enter');
+        if (CONTROLS.bpm.get() !== PARAMS.bpm.max) problems.push('a typed BPM out of range is not clamped (' + CONTROLS.bpm.get() + ')');
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (mid && tip0) mid.title = tip0;
+      if (keepBpm !== undefined) CONTROLS.bpm.set(keepBpm);
+      if (keepSw !== undefined) CONTROLS.swing.set(keepSw);
+      if (!wasOn && isOn()) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && isOn(); i++) await wait(100); }
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
     // Nothing clipped WITH THE PARTS (2026-10-25). The screens check looks with the
     // Parts off, and then the scene modules are empty or «off»: with them on,
     // the Player spilled into the Arrangement in all its modes and the Part Mixer cut off each
@@ -778,6 +879,52 @@ export async function runSelfTest() {
     if (getComputedStyle(fr).pointerEvents === 'none' || getComputedStyle(fr.querySelector('.knob')).pointerEvents === 'none') problems.push('a dimmed control cannot be touched');
     loadState(keep); refreshDeps();
     push({ name: 'dependencies: whatever does nothing is dimmed in place, with its reason (' + RULES.length + ' rules)', peak: 0, ok: !problems.length, problems: problems.slice(0, 14) });
+  }
+  {
+    // Arpeggiator / Sequencer, one module (2026-11-01): the Mode knob sets arpMode / seqOn; Division,
+    // Gate and Latch show and write the ACTIVE mode's own key (the other one stays); the Direction set
+    // while the arp is off waits for it; the virtual controls are never a preset key and the real ones
+    // leave MIDI learn to them; what the Mode leaves idle is dimmed; the switches toggle with a click
+    // (the inactive button is on top), the Wave Sequence's state too.
+    const NAME = 'Arpeggiator / Sequencer (Mode · shared Division, Gate, Latch write the active mode · virtual controls out of presets · dimming · switches)';
+    const problems = [], C = CONTROLS, keep = snapshot();
+    try {
+      loadState({});
+      if (C.asMode.get() !== 'off') problems.push('Reset: the Mode is not Off (' + C.asMode.get() + ')');
+      C.asDir.set('down'); C.asMode.set('arp');
+      if (C.arpMode.get() !== 'down' || C.seqOn.get() !== 'off') problems.push('Mode Arp: arpMode ' + C.arpMode.get() + ' · seqOn ' + C.seqOn.get() + ' (expected down · off)');
+      C.asGate.set(0.3); C.asDiv.set('1/8'); C.asLatch.set('on');
+      if (C.arpGate.get() !== 0.3 || C.arpDiv.get() !== '1/8' || C.arpLatch.get() !== 'on') problems.push('the shared controls do not write the arp\'s keys in Arp');
+      if (C.seqGate.get() !== PARAMS.seqGate.def || C.seqDiv.get() !== PARAMS.seqDiv.def || C.seqLatch.get() !== 'off') problems.push('writing the arp\'s keys touched the seq\'s');
+      C.asMode.set('seq');
+      if (C.arpMode.get() !== 'off' || C.seqOn.get() !== 'on') problems.push('Mode Seq: arpMode ' + C.arpMode.get() + ' · seqOn ' + C.seqOn.get());
+      if (C.asGate.get() !== PARAMS.seqGate.def || C.asDiv.get() !== PARAMS.seqDiv.def) problems.push('in Seq the shared controls do not show the seq\'s keys (' + C.asGate.get() + ' · ' + C.asDiv.get() + ')');
+      C.asDir.set('random');
+      if (C.arpMode.get() !== 'off') problems.push('the Direction switched the arp on while in Seq');
+      C.asMode.set('arp');
+      if (C.arpMode.get() !== 'random' || C.asGate.get() !== 0.3) problems.push('back in Arp: arpMode ' + C.arpMode.get() + ' · gate ' + C.asGate.get() + ' (expected random · 0.3)');
+      C.seqOn.set('on');                                            // a preset or a MIDI CC turning the seq on: the arp goes off
+      if (C.arpMode.get() !== 'off' || C.asMode.get() !== 'seq') problems.push('seqOn on does not switch the arp off (' + C.arpMode.get() + ')');
+      const snap = snapshot(), virt = Object.keys(C).filter(k => C[k].virtual);
+      if (virt.length < 5) problems.push('only ' + virt.length + ' virtual controls');
+      if (virt.some(k => k in snap)) problems.push('virtual controls in the snapshot: ' + virt.filter(k => k in snap).join(', '));
+      if (!('arpLatch' in snap)) problems.push('arpLatch is not a preset key');
+      if (['arpMode', 'seqOn', 'arpDiv', 'seqDiv', 'arpGate', 'seqGate', 'arpLatch', 'seqLatch'].some(k => C[k].learn !== false)) problems.push('a real key still takes the MIDI learn of its widget');
+      refreshDeps();
+      const off = what => (depTargets(what)[0] || {}).dataset?.off || null;
+      if (!(off('asDir') || '').includes('Arp only') || !(off('.ctl:has(#arpOctSel)') || '').includes('Arp only') || off('#seqCanvas')) problems.push('Seq: dimming (dir ' + off('asDir') + ' · canvas ' + off('#seqCanvas') + ')');
+      C.asMode.set('arp'); refreshDeps();
+      if (!(off('#seqCanvas') || '').includes('Seq only') || !(off('#seqRetrigCtl') || '').includes('Seq only') || off('asDir') || off('asGate')) problems.push('Arp: dimming (canvas ' + off('#seqCanvas') + ' · dir ' + off('asDir') + ' · gate ' + off('asGate') + ')');
+      // switches: the inactive button covers the switch, a click toggles
+      const latch = document.getElementById('asLatchSel'), ws = document.getElementById('wsOnSel');
+      C.asLatch.set('off');
+      latch.querySelector('button:not(.active)').click();
+      if (C.arpLatch.get() !== 'on') problems.push('clicking the Latch switch does not turn it on');
+      if (!ws || !ws.classList.contains('sw')) problems.push('the Wave Sequence\'s state is not a switch');
+      else { const w0 = C.wsOn.get(); ws.querySelector('button:not(.active)').click(); if (C.wsOn.get() === w0) problems.push('clicking the Wave Sequence switch does not toggle it'); C.wsOn.set(w0); }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { loadState(keep); refreshDeps(); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
     // FM4 algorithm graph (ui/fm4Graph.js): its table is a COPY of the
@@ -974,12 +1121,14 @@ export async function runSelfTest() {
   {
     // skin (10): theme selector. A theme is a `:root[data-theme="id"]` block
     // with --theme-name; the base :root is the default theme (--theme-id).
-    // theme.js reads the stylesheets to fill the <select>: adding a theme is adding
-    // CSS. A test theme is injected, chosen (via the API and via the <select>),
-    // and it checks that the computed token changes and the one theme.js serves to the
-    // canvases, that it is remembered and that it notifies (theme-changed); everything is restored.
+    // theme.js reads the stylesheets to fill the selector (one button per theme in the
+    // File menu): adding a theme is adding CSS. A test theme is injected, chosen (via
+    // the API and via its button), and it checks that the computed token changes and the
+    // one theme.js serves to the canvases, that it is remembered and that it notifies
+    // (theme-changed); everything is restored.
     const problems = [];
-    const html = document.documentElement, before = currentTheme(), sel = document.getElementById('themeSel');
+    const html = document.documentElement, before = currentTheme(), seg = document.getElementById('themeSeg');
+    const btns = () => seg ? [...seg.querySelectorAll('button[data-theme-id]')] : [];
     let savedLS = null; try { savedLS = localStorage.getItem('subsdj.theme.v1'); } catch { /* no persistence */ }
     const st = document.createElement('style');
     st.textContent = ':root[data-theme="st-prueba"]{--theme-name:"Prueba";--accent:rgb(18 52 86);}';
@@ -988,8 +1137,8 @@ export async function runSelfTest() {
       const themes = listThemes(), base = themes.find(t => t.base), test = themes.find(t => t.id === 'st-prueba');
       if (!base || !base.name) problems.push('no base theme (:root with --theme-id / --theme-name)');
       if (!test || test.name !== 'Prueba') problems.push('the injected theme does not show up in listThemes()');
-      if (!sel) problems.push('no <select id="themeSel">');
-      else if (sel.options.length < themes.length - 1) problems.push('the <select> has ' + sel.options.length + ' options for ' + (themes.length - 1) + ' themes');
+      if (!seg) problems.push('no theme selector (#themeSeg)');
+      else if (btns().length < themes.length - 1) problems.push('the selector has ' + btns().length + ' buttons for ' + (themes.length - 1) + ' themes');
       let fired = 0; const onT = e => { if (e.detail.theme === 'st-prueba') fired++; };
       document.addEventListener('theme-changed', onT);
       const accent0 = getComputedStyle(html).getPropertyValue('--accent').trim();
@@ -1001,12 +1150,18 @@ export async function runSelfTest() {
       if (!fired) problems.push('no theme-changed event');
       if (localStorage.getItem('subsdj.theme.v1') !== 'st-prueba') problems.push('not remembered');
       document.removeEventListener('theme-changed', onT);
-      if (sel && base) {                                  // through the user's path: choosing in the <select>
-        if (sel.value !== 'st-prueba') problems.push('the <select> does not reflect the theme (' + sel.value + ')');
-        sel.value = base.id; sel.dispatchEvent(new Event('change'));
-        if (html.dataset.theme) problems.push('choosing the base in the <select> leaves data-theme=' + html.dataset.theme);
-        if (getComputedStyle(html).getPropertyValue('--accent').trim() !== accent0) problems.push('the base does not restore --accent');
-        if (localStorage.getItem('subsdj.theme.v1') !== base.id) problems.push('the <select> does not remember the base');
+      if (seg && base) {                                  // through the user's path: its button in the File menu
+        const on = btns().filter(b => b.classList.contains('active')).map(b => b.dataset.themeId);
+        if (on.join() !== 'st-prueba') problems.push('the selector does not mark the theme (' + (on.join() || 'none') + ')');
+        const bb = btns().find(b => b.dataset.themeId === base.id);
+        if (!bb) problems.push('no button for the base theme');
+        else {
+          bb.click();
+          if (html.dataset.theme) problems.push('choosing the base leaves data-theme=' + html.dataset.theme);
+          if (getComputedStyle(html).getPropertyValue('--accent').trim() !== accent0) problems.push('the base does not restore --accent');
+          if (localStorage.getItem('subsdj.theme.v1') !== base.id) problems.push('the selector does not remember the base');
+          if (!bb.classList.contains('active')) problems.push('the base button is not marked');
+        }
       }
       setTheme('no-existe');
       if (html.dataset.theme) problems.push('an unknown id does not fall back to the base');
@@ -1014,7 +1169,7 @@ export async function runSelfTest() {
     st.remove();
     setTheme(before, { remember: false });
     try { if (savedLS === null) localStorage.removeItem('subsdj.theme.v1'); else localStorage.setItem('subsdj.theme.v1', savedLS); } catch { /* no persistence */ }
-    push({ name: 'skin: theme selector (stylesheets → <select>, computed and served token, memory, event)', peak: 0, ok: !problems.length, problems });
+    push({ name: 'skin: theme selector (stylesheets → buttons in the File menu, computed and served token, memory, event)', peak: 0, ok: !problems.length, problems });
   }
 
   {
@@ -2768,14 +2923,17 @@ export async function runSelfTest() {
   {
     // Save / Save as (2026-10-27): Save is enabled only with a preset loaded AND changed, and
     // updates that preset (a factory one becomes «modified»); Save as needs a name in the
-    // field and makes a new preset in «★ Mine», the current one from then on.
+    // field and makes a new preset in «★ Mine», the current one from then on. The field lives in a
+    // popover (2026-11-01): its button opens it with the current name, Esc closes it, saving too.
     body.appendChild(el('st-cat', 'Save bar'));
-    const NAME = 'Save / Save as (Save only when loaded and changed, updates it · Save as needs a name, goes to «★ Mine»)';
+    const NAME = 'Save / Save as (Save only when loaded and changed, updates it · Save as in a popover, needs a name, goes to «★ Mine»)';
     const problems = [], frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const hadMine = !!library.sectionByName(SEC_MINE);
     let r, warm = null, made = null;
     try {
       const g = id => document.getElementById(id), save = g('saveBtn'), saveAs = g('saveAsBtn'), inp = g('presetName'), keep = snapshot(), id0 = currentPresetId();
+      const pop = g('saveAsPop'), go = g('saveAsGo');
+      if (!pop || !go) throw new Error('no Save-as popover (#saveAsPop / #saveAsGo)');
       warm = library.presets().find(it => it.name === 'Warm Pad' && library.kind(it) === 'factory');
       if (!warm) throw new Error('no pristine Warm Pad to test with');
       loadPresetId(warm.id); await frames();
@@ -2783,13 +2941,23 @@ export async function runSelfTest() {
       record('selftest change', () => CONTROLS.cutoff.set(777)); await frames();
       if (save.disabled) problems.push('Save disabled after a change');
       const n0 = library.items().length;
-      inp.value = ''; saveAs.click();
+      saveAs.click();                                              // opens the popover, saves nothing
+      if (pop.hidden) problems.push('the Save-as button does not open its popover');
+      if (inp.value !== 'Warm Pad') problems.push('the popover does not start with the current name («' + inp.value + '»)');
+      if (library.items().length !== n0) problems.push('opening Save as saved something');
+      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      if (!pop.hidden) problems.push('Esc does not close the Save-as popover');
+      saveAs.click(); inp.value = ''; go.click();
       if (library.items().length !== n0 || currentPresetId() !== warm.id) problems.push('Save as without a name did something');
+      saveAs.click();                                              // closes it again (the button toggles)
+      if (!pop.hidden) problems.push('the Save-as button does not close its popover');
       save.click(); await frames();
       if (library.item(warm.id).data.cutoff !== 777) problems.push('Save did not update the loaded preset');
       if (library.kind(library.item(warm.id)) !== 'modified') problems.push('the saved factory preset is not «modified»');
       if (!save.disabled) problems.push('Save still enabled right after saving');
-      inp.value = 'Selftest save as'; saveAs.click(); await frames();
+      saveAs.click(); inp.value = 'Selftest save as';
+      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await frames();   // Enter in the field saves
+      if (!pop.hidden) problems.push('the popover stays open after saving');
       made = currentPreset();
       if (!made || made.name !== 'Selftest save as' || library.section(made.section)?.name !== SEC_MINE || made.data.cutoff !== 777) problems.push('Save as did not make the new preset in «★ Mine» (current: ' + (made && made.name) + ')');
       if (library.item(warm.id).name !== 'Warm Pad') problems.push('Save as touched the loaded preset');

@@ -12,7 +12,8 @@
    redefines whatever tokens it wants and introduces itself with `--theme-name:"Name"`;
    the base `:root` block IS the default theme (it declares --theme-id and
    --theme-name). Here the stylesheets (document.styleSheets) are read to fill
-   the <select>: adding a theme is adding a CSS block, without touching JS. The
+   the selector (one button per theme, in the File menu's «Theme» row): adding a
+   theme is adding a CSS block, without touching JS. The
    themes go on html (:root), not on body, because the composite faces
    (--seg-on, --thumb-face, keys…) resolve their var() where they are declared.
    `?theme=id` in the URL applies it without remembering it (screenshots, selftest); the
@@ -75,13 +76,20 @@ export function currentTheme() {
   return document.documentElement.dataset.theme || (listThemes().find(t => t.base) || { id: '' }).id;
 }
 
-function fillSelect(sel, themes) {       // options from the stylesheets; rebuilt if the list changed (a theme added later also gets in)
+// The selector: one button per theme (data-theme-id), from the stylesheets; rebuilt if the list
+// changed (a theme added later also gets in). The active one is marked like any .seg.
+function fillSeg(seg, themes) {
   const ids = themes.map(t => t.id).join('|');
-  if (sel.dataset.ids === ids) return;
-  sel.innerHTML = '';
-  for (const t of themes) sel.appendChild(new Option(t.name, t.id));
-  sel.dataset.ids = ids;
+  if (seg.dataset.ids === ids) return;
+  seg.textContent = '';
+  for (const t of themes) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.themeId = t.id; b.textContent = t.name;
+    seg.appendChild(b);
+  }
+  seg.dataset.ids = ids;
 }
+function markSeg(seg, id) { for (const b of seg.querySelectorAll('button')) b.classList.toggle('active', b.dataset.themeId === id); }
 
 export function setTheme(id, { remember = true } = {}) {
   const themes = listThemes(), t = themes.find(x => x.id === id) || themes.find(x => x.base);
@@ -89,16 +97,16 @@ export function setTheme(id, { remember = true } = {}) {
   if (t.base) delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t.id;
   cache.clear();
   if (remember) try { localStorage.setItem(LS_KEY, t.id); } catch { /* no persistence */ }
-  const sel = document.getElementById('themeSel'); if (sel) { fillSelect(sel, themes); sel.value = t.id; }
+  const seg = document.getElementById('themeSeg'); if (seg) { fillSeg(seg, themes); markSeg(seg, t.id); }
   document.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: t.id } }));
   window.dispatchEvent(new Event('resize'));   // the canvases redraw with the new tokens
 }
 
 export function initTheme() {
-  const sel = document.getElementById('themeSel');
-  if (sel) {
-    fillSelect(sel, listThemes());
-    sel.addEventListener('change', () => { setTheme(sel.value); sel.blur(); });   // no focus: the keys still belong to the piano
+  const seg = document.getElementById('themeSeg');
+  if (seg) {
+    fillSeg(seg, listThemes());
+    seg.addEventListener('click', e => { const b = e.target.closest('button[data-theme-id]'); if (b) setTheme(b.dataset.themeId); });
   }
   const fromUrl = new URLSearchParams(location.search).get('theme');
   let saved = null; try { saved = localStorage.getItem(LS_KEY); } catch { /* no persistence */ }

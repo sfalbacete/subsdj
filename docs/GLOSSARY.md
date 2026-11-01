@@ -32,7 +32,9 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Guardar · Archivo ▾ · Comparar | Save · File ▾ · Compare | |
 | Borrar preset · Exportar biblioteca · Importar… | Delete preset · Export library · Import… | |
 | Exportar SFZ · Acerca de SubSDJ… | Export SFZ · About SubSDJ… | |
-| Pánico · Grabar · Partes · Reset · MIDI map | Panic · Record · Parts · Reset · MIDI map | |
+| Pánico · Grabar · Partes · Reset · MIDI map | Panic · Record · Parts · Reset · MIDI map | icons since 2026-11-01: the word is the aria-label and the tooltip |
+| Reloj: tempo · swing | Clock: Tempo · Swing (bpm · swing) | in the header since 2026-11-01 |
+| Tema | Theme | a row of the File menu |
 | nombre del preset… · buscar… | preset name… · search… | |
 | Navegar todos → | Browse all → | |
 | clic o ↑ ↓ prueban · Intro elige · Esc cierra | click or ↑ ↓ to audition · Enter picks · Esc closes | |
@@ -55,7 +57,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Dist · Flanger · Chorus · Delay · Reverb | (same) | |
 | Cinta | Tape | |
 | Espacio | Stereo | ⚑ it only has Width; alternative: Space |
-| Arpegiador · Secuenciador | Arpeggiator · Sequencer | |
+| Arpegiador / Secuenciador | Arpeggiator / Sequencer | one module since 2026-11-01 |
 | Tabla · secuencia | Wave Sequence | as on the Wavestation |
 | Armonía · Pasos · Jugador · Arreglo | Harmony · Steps · Player · Arrangement | |
 | Biblioteca | Library | |
@@ -94,11 +96,10 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | LFOs | forma · level · speed · sync: libre · fade · fase: global/voz · deriva | shape · level · speed · sync: free · fade · phase: global/voice · drift |
 | LFOs | Trémolo · formas sin/tri/saw/sqr/S&H/deriva | Tremolo · sin/tri/saw/sqr/S&H/drift |
 | Matrix | macro 1 · macro 2 | macro 1 · macro 2 |
-| Delay | Time · BPM · Damp · Wow · libre · Sync · realim. · satur. | Time · BPM · Damp · Wow · free · Sync · fdbk · sat |
+| Delay | Time · Damp · Wow · libre · Sync · realim. · satur. | Time · Damp · Wow · free · Sync · fdbk · sat |
 | Reverb | tipo · Intervalo · ❄ Freeze | type · Interval · ❄ Freeze |
 | Tape | Saturación · Wow | Saturation · Wow |
-| Arpeggiator | Modo · División · Octavas · Gate · swing | Mode · Division · Octaves · Gate · swing |
-| Sequencer | estado · latch · retrig · Pasos · semitonos · grados | state · latch · retrig · Steps · semitones · degrees |
+| Arpeggiator / Sequencer | Modo (Off · Arp · Seq) · División · Gate · Latch · Dirección · Octavas · Retrig · Pasos · semitonos · grados | Mode (Off · Arp · Seq) · Division · Gate · Latch · Direction · Octaves · Retrig · Steps · semitones · degrees |
 | Wave Sequence | modo · Loop · 1shot · Fundido | mode · Loop · 1shot · Xfade |
 | Mod Env | normal · bucle · disparo · Curva | normal · loop · trigger · Curve |
 | Part Mixer | Nivel · Pan · Delay · Reverb · M · Máster · Realim. · Eco→Rev | Level · Pan · Delay · Reverb · M · Master · Fdbk · Echo→Rev |

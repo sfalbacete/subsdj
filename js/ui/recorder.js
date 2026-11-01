@@ -48,14 +48,17 @@ function startRec(btn) {
   chunksL = []; chunksR = [];
   recording = true; t0 = performance.now();
   node.port.postMessage('start');
-  btn.classList.add('rec'); btn.textContent = 'Stop · 0 s';
-  timer = setInterval(() => { btn.textContent = 'Stop · ' + Math.round((performance.now() - t0) / 1000) + ' s'; }, 500);
+  // the button is an icon: recording, it shows the stop square and the seconds (CSS #recBtn.rec)
+  const secs = btn.querySelector('.rec-t');
+  btn.classList.add('rec'); btn.title = 'Stop recording and download the WAV'; if (secs) secs.textContent = '0 s';
+  timer = setInterval(() => { if (secs) secs.textContent = Math.round((performance.now() - t0) / 1000) + ' s'; }, 500);
 }
 
 function stopRec(btn) {
   node.port.postMessage('stop');
   recording = false; clearInterval(timer);
-  btn.classList.remove('rec'); btn.textContent = 'Record';
+  btn.classList.remove('rec'); btn.title = 'Record: the output to a WAV file';
+  const secs = btn.querySelector('.rec-t'); if (secs) secs.textContent = '';
   const blob = encodeWav(chunksL, chunksR, part().ctx.sampleRate);
   const d = new Date(), p = x => String(x).padStart(2, '0');
   download(blob, `subsdj-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`);

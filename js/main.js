@@ -34,6 +34,8 @@ import { initDisplay } from './ui/display.js';
 import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
 import { initHistory } from './ui/history.js';
+import { initClock } from './ui/clock.js';
+import { initTips } from './ui/tips.js';
 import { setStatus, isStatus } from './ui/status.js';
 import { VERSION } from './version.js';
 
@@ -45,6 +47,7 @@ initSplash();         // welcome window (demoscene; already in the HTML, coverin
 for (const id of ['aboutBtn', 'verBadge', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «About»: the same window
 bindMatrixControls(); // generates the matrix rows (creates their .knob: ALWAYS before bindKnobs)
 bindKnobs();          // knobs for almost everything (log/fmt live in the knob)
+initClock();          // the header's clock: BPM and swing (registered like knobs, before the presets load)
 bindSliders();        // sliders ONLY in the ADSR: an envelope is drawn, not turned
 bindOscControls();
 bindSeqControls();   // sequencer (before initMidiMap/initPresetBank: CONTROLS already populated)
@@ -65,6 +68,7 @@ initScreens();       // Design / Sequencing / Presets tabs (one fixed panel each
 initActivity();      // activity LEDs (after the binders: reads engine.S already populated)
 initWaveEditor();    // editor of the «user» table (its own state, outside CONTROLS)
 initHelp();          // «?» tooltips per module (the texts no longer take up surface)
+initTips();          // the header's icons and clock: their own tooltip, at once (the title moves to data-tip)
 initPartsControls(); // Parts mode: selector in the header + Part Mixer (after help: it tags the h2s)
 initPlayerControls(); // the scene's harmony + players (listens to scene-changed / part-changed)
 initDisplay();       // Output display (last parameter touched), File menu and bank notices

@@ -47,8 +47,7 @@ const PANELS = {
   'Reverb':          S => S.reverbMix > 0,
   'Tape':            S => S.tapeSat > 0 || S.tapeWow > 0,
   'Stereo':          S => S.width > 0 || dstUsed(S, 'pan'),
-  'Arpeggiator':     S => S.arpMode !== 'off',
-  'Sequencer':       S => S.seqOn === 'on',
+  'Arpeggiator / Sequencer': S => S.arpMode !== 'off' || S.seqOn === 'on',
 };
 // (What does NOTHING with the current settings is dimmed in ui/deps.js.)
 

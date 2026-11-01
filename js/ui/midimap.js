@@ -103,7 +103,7 @@ export function applyCC(cc, x) {
     st.last = x;
     return true;
   }
-  const ctl = CONTROLS[b.id], p = PARAMS[b.id];
+  const ctl = CONTROLS[b.id], p = (ctl && ctl.param) || PARAMS[b.id];   // a virtual control brings the range of the keys it writes
   if (!ctl) return true;                       // dead id: consume without breaking
   if (ctl.opts) { ctl.set(zoneOf(ctl.opts, x)); flash(ctl.el); return true; }
   if (!p || p.min == null) return true;
@@ -174,6 +174,7 @@ function syncUI() {   // CCnn badges on the bound controls + pickup checkbox
 // ---------- learn mode (captures clicks on the controls) ----------
 function findIn(reg, target) {
   for (const k in reg) {
+    if (reg[k].learn === false) continue;   // its widget belongs to a virtual control (registry.js)
     const el = reg[k].el;
     if (el && (el === target || el.contains(target))) return k;
   }
@@ -189,7 +190,7 @@ function setLearn(on) {
   if (bar) bar.hidden = !on;
   armLearn(null);
   if (on) {
-    for (const k in CONTROLS) if (CONTROLS[k].el) CONTROLS[k].el.classList.add('mappable');
+    for (const k in CONTROLS) if (CONTROLS[k].el && CONTROLS[k].learn !== false) CONTROLS[k].el.classList.add('mappable');
     for (const k in ACTIONS) if (ACTIONS[k].el) ACTIONS[k].el.classList.add('mappable');
     syncUI();
     msg(device ? 'device: ' + device : 'no MIDI device — connect one to bind knobs');
