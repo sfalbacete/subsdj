@@ -8,6 +8,14 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased (will go into 1.6.0)
 
+- **A breath for the String**: the third click of the **bow** button turns the loop into a
+  pipe blown by a jet. **Breath** is the pressure: little, only air through the pipe; enough,
+  the note; a lot, the jet saturates and lines up with the second mode — the octave, the
+  overblow (aftertouch → Bow pressure and press to overblow, as a flautist does). **Jet** is
+  where the jet rests on the edge (centred, odd harmonics, hollow; offset, all of them) and
+  **Air** the noise in the breath; Decay is how long the pipe rings once the air stops.
+  **Breath Flute** is a real pipe now; new **Pan Pipe**, **Bottle** and **Overblown Drone**.
+  A/B pairs BREATH 1-6 in the demo bank.
 - **A bow for the String**: the String module has a **bow** button. Off, every note is a
   pluck, as always. On, a bow keeps feeding energy while the key is held, through the
   string's own motion — the hair sticks to the string, drags it and lets it slip once per

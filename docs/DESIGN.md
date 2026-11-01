@@ -2769,3 +2769,41 @@ Section, Bowed Glass, Bowed Metal remade (BANK_REV 9), rendered for Sergio's ear
 (a saturating curve with the jet's own delay) in place of the friction table, breath noise ∝
 pressure, and the same Pressure / Speed / Noise knobs: pressure = breath, speed = the jet's
 length (which harmonic it locks to: the overblow), noise = air.
+
+
+## The exciter, second half: the breath (2026-11-01)
+
+The same loop, blown. Cook's flute as in STK is the skeleton: the bore is a delay line open at
+both ends (no inversion over the round trip, like the pluck's loop), the returning wave goes
+through the loop's losses — Bright, Stiffness, and the open end's reflection = min(0.9, the
+Decay gain): a pipe cannot ring like a string — and is DC-blocked; the jet feels the breath
+minus half of that wave (the embouchure), travels its own length and hits the edge, x − x³
+clamped: the jet deflects one way or the other and saturates, so what it feeds the bore depends
+on the bore's own pressure (the feedback), on where it rests on the edge (the DC of x) and on
+the delay (the phase it arrives with). That last point is the whole instrument, and STK leaves
+it as a fixed ratio. Here the jet's travel is **tied to the breath**: a harder breath is a faster
+jet, a shorter time to the edge — ½ of the bore up to the reference breath (the fundamental in
+phase: the note in tune), then 0.5 / breath down to ¼ (the second mode in phase: the octave).
+So Pressure does what it does on a flute: little, the jet never reaches the slope and only
+the air goes through the pipe; enough, the fundamental locks; pushing, the note goes sharp
+(+16 cents at 0.6); past the jump (≈ 0.65), a clean, stable octave, slightly flat. The jet's
+injection is capped at 1.3 × the reference: beyond it the regime went chaotic (0.8 a mess, 0.9
+the octave, 1 a mess). The **Jet** knob is where the jet rests on the edge, 0 … 0.35: centred,
+x − x³ is odd and only the odd harmonics come out (hollow, a closed pipe); offset, all of them;
+beyond 0.35 the slope is too low (0.375 overblew by itself, 0.5 died). **Air** is white noise
+into the bore ∝ breath, the puff of the first instant is the bite. The output is scaled by
+(1 − reflection) so the level does not follow Decay; a long Decay still brightens the loop
+(Bright's pole is computed against T60) and a 3 s bore at Pressure 0.5 overblows by itself —
+the Overblown Drone sits there on purpose.
+
+**Two measurements that mattered.** (1) The first scan came out 20-60 cents sharp everywhere:
+the DC blocker inside the bore (a one-pole at 0.995) LEADS by ~8° at C4, and a lead in a loop
+is a shorter loop. R = 0.999 and its phase delay paid back in the line like the lowpass's:
+−0.1 … +1 cents from C3 to C5. (2) With the jet's travel clamped to 0.6 below the reference,
+the note was +30 cents at low breath; clamped at ½ it is in tune down to the threshold.
+
+Checks («blown pipe»): sustains, ±8 ct C3-C5, little breath ≥ 20 dB below the note, a lot
+overblows (the strongest partial at 1200 ± 60 cents), aftertouch → Bow pressure takes it from
+the fundamental to the octave, the edge moves the 2nd harmonic ≥ 4 dB, the landing follows the
+attack. Pairs BREATH 1-6. Presets: Breath Flute remade (the Vocal «u» as a tube is gone: the
+tube is the loop), Pan Pipe, Bottle, Overblown Drone (BANK_REV 10).

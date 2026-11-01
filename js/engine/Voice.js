@@ -323,7 +323,7 @@ export class Voice {
     const c = COST;
     const osc = o => {
       const copies = (o.wave === 'supersaw' ? 7 : (+S.uniVoices || 1)) * Math.max(1, o.octaves || 1);
-      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : o.wave === 'string' ? (S.excMode === 'bow' ? c.bow : c.string) : c.copy;
+      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : o.wave === 'string' ? (S.excMode === 'bow' || S.excMode === 'breath' ? c.bow : c.string) : c.copy;
       return copies * w;
     };
     let k = c.base + osc(S.oscA) * (S.syncA === 'on' ? c.syncMul : 1) + osc(S.oscB);

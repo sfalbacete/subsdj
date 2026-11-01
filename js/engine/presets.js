@@ -28,8 +28,9 @@ import { PARAMS, posToVal } from './params.js';
 // version of the old factory; 4: it clears the demo copies out of «★ Mine»; 5: the ear session
 // (Marimba, Gong, Accordion) and the leads' wheel vibrato; 6: the second ear session (DX Bass,
 // Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone; 8: the kit by
-// ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade).
-export const BANK_REV = 9;
+// ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade);
+// 10: the blown pipe (Breath Flute remade, Pan Pipe, Bottle, Overblown Drone).
+export const BANK_REV = 10;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -149,15 +150,24 @@ export const BANK = [
       data: { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.42, detuneA: -18, detuneB: 18, octavesB: 2, levelA: 0.5, levelB: 0.5,
         pwmLfoLvl: 0.25, pwmLfoSpd: 5, freqLfoLvl: 20, freqLfoSpd: 5.5, pitchEnvAmt: -700, pitchEnvDec: 0.18, cutoff: 2300, reso: 3,
         chAmt: 0.5, chSpd: 0.8, dist: 0.22, a: 0.01, d: 0.3, s: 0.75, r: 0.35, width: 0.5, reverbMix: 0.15, ...WHEEL(0.4), ...MAC1('pw', 0.5), master: 1.42 } },
-    /* a sine and a triangle with a breath of air that peaks at the attack (the chiff: the own filter
-       envelope feeds the noise level) and the TUBE — the Vocal module as a hollow «u» formant. The
-       old one had three times the air and no tube (ear session 2026-10-31) */
-    { name: 'Breath Flute', tags: ['soft', 'airy', 'mono', 'classic', 'expressive', 'vocal'], use: 'note',
-      play: 'C4–C6, mono; the chiff is in the attack. Wheel: vibrato depth and brightness · M1: more breath.',
-      data: { mode: 'mono', waveA: 'sine', waveB: 'triangle', levelA: 0.55, levelB: 0.45, noise: 0.05, noiseColor: 0.5, freqLfoSpd: 5.3,
-        fenvMode: 'own', fa: 0.005, fd: 0.15, fs: 0.2, fr: 0.2, vocAmt: 0.3, vocVowel: 0.1, vocQ: 0.6, vocBright: 0.3,
-        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03, mx3src: 'env', mx3dst: 'lvlNoise', mx3amt: 0.08,
-        cutoff: 3200, keytrack: 0.5, a: 0.07, d: 0.1, s: 0.9, r: 0.2, reverbMix: 0.25, width: 0.2, ...WHEEL(0.3), ...MAC1('lvlNoise', 0.6), master: 1.48 } },
+    /* a REAL pipe (the String's exciter, breath, 2026-11-01): the loop as a bore blown by a jet — the
+       chiff is the puff of the landing, the air is in the breath, the tube is the loop itself; aftertouch
+       pushes the breath and the pipe OVERBLOWS to the octave. Before it was a sine and a triangle with
+       noise and the Vocal «u» as the tube (ear session 2026-10-31). */
+    { name: 'Breath Flute', tags: ['soft', 'airy', 'mono', 'classic', 'expressive', 'string'], use: 'note',
+      play: 'C4–C6, mono: legato notes slide. Aftertouch: more breath, up to the octave · wheel: vibrato · M1: the jet on the edge (fuller).',
+      data: { mode: 'mono', monoTrig: 'legato', glide: 0.03, waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'breath', excPress: 0.5, excSpeed: 0.55, excNoise: 0.35,
+        strBright: 0.5, strDecay: 0.25, cutoff: 9000, reso: 0.7, freqLfoSpd: 5.3,
+        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03, mx3src: 'at', mx3dst: 'excPress', mx3amt: 0.4,
+        a: 0.06, d: 0.1, s: 1, r: 0.2, envCurve: 0.3, reverbType: 'hall', reverbMix: 0.25, reverbSize: 2.5, reverbDamp: 0.4, width: 0.2,
+        ...WHEEL(0.3), ...MAC1('excSpeed', 0.4), master: 1 } },
+    /* the same pipe an octave up, short (it empties in 150 ms), blown with a lot of air and the jet
+       centred on the edge (hollow): the breathy puff of a pan pipe; every note is a new puff */
+    { name: 'Pan Pipe', tags: ['airy', 'soft', 'short', 'world', 'string'], use: 'note',
+      play: 'C4–C6, short notes: each one a new puff. Aftertouch: harder (up to the octave) · M1: the jet on the edge · wheel: opens the filter.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.4, excSpeed: 0.25, excNoise: 0.7,
+        strBright: 0.3, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
+        a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 1 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */
     { name: 'Vox Lead', tags: ['vocal', 'wavetable', 'expressive', 'mono'], use: 'note',
       play: 'C3–C5, mono. Wheel: the vowel (u→i) and the vibrato · M1: effort (brighter glottis).',
@@ -529,6 +539,15 @@ export const BANK = [
         cutoff: 9000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5, lfoPhase: 'voice', mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.5, mxDriftSpd: 0.05,
         a: 0.5, d: 1, s: 1, r: 4, envCurve: 0.3, width: 0.5, reverbType: 'plate', reverbMix: 0.45, reverbSize: 6, reverbDamp: 0.3, reverbPre: 0.03,
         ...WHEEL(0.3), ...MAC1('resMat', -0.5), master: 1.68 } },
+    /* the pipe OVERBLOWN and left ringing: a long bore (Decay 3 s, dark), the breath beyond the jump so it
+       sits on the octave, an octave down, the air in it; aftertouch EASES the breath and the drone falls
+       back to the fundamental; the drift sways the pan and a plate makes it a hall of tubes */
+    { name: 'Overblown Drone', tags: ['airy', 'drone', 'slow', 'dark', 'chords', 'cinematic', 'string'], use: 'chord',
+      play: 'C2–C4, hold: the pipes fill in two seconds. Aftertouch: eases the breath, down to the fundamental · wheel: opens the filter · M1: more air (the jet).',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: -1, excMode: 'breath', excPress: 0.8, excSpeed: 0.4, excNoise: 0.35,
+        strBright: 0.3, strDecay: 3, cutoff: 3000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: -0.45, lfoPhase: 'voice', mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.5, mxDriftSpd: 0.05,
+        a: 1.5, d: 1, s: 1, r: 4, envCurve: 0.3, width: 0.5, reverbType: 'plate', reverbMix: 0.45, reverbSize: 8, reverbDamp: 0.4, reverbPre: 0.03,
+        ...WHEEL(0.3), ...MAC1('excSpeed', 0.5), master: 0.58 } },
   ] },
 
   /* ---------- Motion: the sequencer, the arpeggiator, Steps and the looping envelope do the playing ---------- */
@@ -723,6 +742,14 @@ export const BANK = [
 
   /* ---------- FX & Textures ---------- */
   { cat: 'FX & Textures', presets: [
+    /* blowing across a bottle: the pipe darkened by the FILTER (a dark loop does not speak: at Bright 0.25 the
+       pipe sat 16 dB under the threshold, measured), a modest breath, the jet centred (hollow, odd harmonics)
+       and a lot of air */
+    { name: 'Bottle', tags: ['airy', 'dark', 'soft', 'world', 'string'], use: 'note',
+      play: 'C3–C5: blow across the bottle — little tone, much air. Aftertouch: harder · M1: a little more breath · wheel: opens the filter.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'breath', excPress: 0.42, excSpeed: 0.1, excNoise: 0.8,
+        strBright: 0.5, strDecay: 0.3, cutoff: 1500, reso: 1, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.4,
+        a: 0.1, d: 0.2, s: 1, r: 0.3, envCurve: 0.3, reverbMix: 0.25, reverbSize: 1.5, width: 0.2, ...WHEEL(0.3), ...MAC1('excPress', 0.25), master: 1.5 } },
     /* the Mod env in TRIGGER mode: six seconds up (pitch an octave, filter, noise) and down again, whatever the key does */
     { name: 'Riser', tags: ['noise', 'evolving', 'long', 'cinematic'], use: 'note', root: 48,
       play: 'Hold one key (C2–C3): it climbs for six seconds and falls. Wheel: opens the filter.',

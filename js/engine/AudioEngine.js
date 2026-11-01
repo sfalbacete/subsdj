@@ -70,7 +70,7 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // matrix source ← 
 // The ?v=N breaks the browser's heuristic cache: BUMP IT when worklet code
 // changes (otherwise the browser may pair new modules with an old processor
 // and the new parameters arrive undefined -> crash when creating voices).
-const WK_V = '?v=17';  // v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
+const WK_V = '?v=18';  // v18: the breath (a jet into the bore); v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;

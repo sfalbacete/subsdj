@@ -1545,6 +1545,73 @@ export async function runSelfTest() {
   }
 
   {
+    // Blown pipe (the String's exciter, breath, 2026-11-01): the loop as a bore blown by a jet — see
+    // pulse-processor _blown. Through the engine, at C4 unless said: (1) it SUSTAINS at the reference
+    // breath (0.5): the level between 0.9 and 1.4 s within 3 dB of 0.4-0.9 s; (2) the pitch locks to
+    // the note within ±8 cents at C3, C4 and C5 (the DC blocker's lead is paid back in the line);
+    // (3) little breath (0.1) is air: ≥ 20 dB below the note; (4) a lot (0.9) OVERBLOWS: the strongest
+    // partial sits at the octave (1200 ± 60 cents); (5) aftertouch → Bow pressure 0.5 over a 0.45
+    // breath takes the pipe from the fundamental to the octave through the real path; (6) the Jet
+    // knob (where the jet rests on the edge) changes the 2nd harmonic by ≥ 4 dB between 0 and 1;
+    // (7) the breath lands over the Amp Env's attack: with a = 0.6 the level at 0.2-0.4 s is ≥ 12 dB
+    // below the sustain.
+    body.appendChild(el('st-cat', 'Blown pipe'));
+    const NAME = 'blown pipe (sustains · tuning ±8 ct C3-C5 · little breath is air · a lot overblows to the octave · aftertouch overblows · the edge colours · lands over the attack)';
+    let r;
+    try {
+      const problems = [], keep = snapshot(), log = [];
+      const BASE = { waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'breath', excPress: 0.5, excSpeed: 0.5, excNoise: 0.2, strBright: 0.6, strDecay: 0.3, strPos: 0.12,
+                     cutoff: 20000, reso: 0.7, a: 0.05, d: 0.05, s: 1, r: 0.3, amplitude: 0.3, master: 0.4 };
+      const render = async (st, f, { vel = 1, secs = 1.6, perf = null } = {}) => {
+        loadState({ ...BASE, ...st });
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+        if (perf) eng.setPerf(perf[0], perf[1]);
+        eng.noteOn('w', f, vel);
+        return (await ctx.startRendering()).getChannelData(0);
+      };
+      const rmsDb = (d, t0, t1) => { const i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)); let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return 10 * Math.log10(s / Math.max(1, i1 - i0) + 1e-20); };
+      const magAt = (d, f, i0, n) => { const w = 2 * Math.PI * f / SR, cr = Math.cos(w), ci = Math.sin(w); let re = 0, im = 0, pr = 1, pi = 0;
+        for (let i = 0; i < n; i++) { const x = d[i0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1))); re += x * pr; im -= x * pi; const t = pr * cr - pi * ci; pi = pr * ci + pi * cr; pr = t; } return Math.hypot(re, im); };
+      const peak = (d, f, i0, n, span) => { let best = -1, bc = 0;   // cents of the strongest partial around f (span wide: the octave shows as ~1200)
+        for (let c = -span; c <= span; c += 4) { const m = magAt(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        for (let c = bc - 4; c <= bc + 4; c += 0.5) { const m = magAt(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        return bc; };
+      const f4 = 261.63, i0 = Math.round(0.4 * SR), n = 32768;
+      // (1) sustains
+      const mid = await render({}, f4);
+      const sA = rmsDb(mid, 0.4, 0.9), sB = rmsDb(mid, 0.9, 1.4);
+      if (!(Math.abs(sA - sB) < 3)) problems.push('does not sustain: ' + sA.toFixed(1) + ' → ' + sB.toFixed(1) + ' dB');
+      log.push('sustain ' + sA.toFixed(1) + ' / ' + sB.toFixed(1) + ' dB');
+      // (2) tuning
+      for (const [nm, f] of [['C3', 130.81], ['C4', f4], ['C5', 523.25]]) {
+        const d = nm === 'C4' ? mid : await render({}, f), c = peak(d, f, i0, n, 60);
+        log.push(nm + ' ' + c.toFixed(1) + ' ct');
+        if (!(Math.abs(c) <= 8)) problems.push(nm + ': ' + c.toFixed(1) + ' cents off');
+      }
+      // (3) air · (4) overblow
+      const air = rmsDb(await render({ excPress: 0.1 }, f4), 0.4, 1.4), note = rmsDb(mid, 0.4, 1.4);
+      if (!(note - air >= 20)) problems.push('little breath is not just air: ' + air.toFixed(1) + ' against ' + note.toFixed(1) + ' dB');
+      const ob = peak(await render({ excPress: 0.9 }, f4), f4, i0, n, 1300);
+      if (!(Math.abs(ob - 1200) <= 60)) problems.push('a lot of breath does not overblow: the strongest partial at ' + ob.toFixed(0) + ' cents (expected ~1200)');
+      // (5) aftertouch → Bow pressure: from the fundamental to the octave
+      const mxP = { excPress: 0.45, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5 };
+      const at0 = peak(await render(mxP, f4, { perf: ['at', 0] }), f4, i0, n, 1300), at1 = peak(await render(mxP, f4, { perf: ['at', 1] }), f4, i0, n, 1300);
+      if (!(Math.abs(at0) <= 60 && Math.abs(at1 - 1200) <= 60)) problems.push('aftertouch → Bow pressure does not overblow: ' + at0.toFixed(0) + ' → ' + at1.toFixed(0) + ' cents');
+      // (6) the edge
+      const h2 = d => 20 * Math.log10(magAt(d, 2 * f4, i0, n) / Math.max(1e-12, magAt(d, f4, i0, n)));
+      const j0 = h2(await render({ excSpeed: 0 }, f4)), j1 = h2(await render({ excSpeed: 1 }, f4));
+      if (!(Math.abs(j1 - j0) >= 4)) problems.push('the edge barely colours: 2nd harmonic ' + j0.toFixed(1) + ' / ' + j1.toFixed(1) + ' dB');
+      // (7) the landing
+      const slow = await render({ a: 0.6 }, f4), dSlow = rmsDb(slow, 0.9, 1.4) - rmsDb(slow, 0.2, 0.4);
+      if (!(dSlow >= 12)) problems.push('the breath does not land over the attack: a 0.6 → ' + dSlow.toFixed(1) + ' dB');
+      loadState(keep);
+      console.log('breath: ' + log.join(' · ') + ' · air ' + (note - air).toFixed(1) + ' dB below · overblow ' + ob.toFixed(0) + ' ct · aftertouch ' + at0.toFixed(0) + ' → ' + at1.toFixed(0) + ' ct · edge h2 ' + j0.toFixed(1) + '/' + j1.toFixed(1) + ' · landing ' + dSlow.toFixed(1));
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+  {
     // Bowed string (the String's exciter, 2026-11-01): the same loop, bowed — see pulse-processor
     // _bowed. Through the engine, at C3 unless said: (1) it SUSTAINS: the level between 0.9 and
     // 1.4 s is within 3 dB of the one between 0.4 and 0.9 s (a pluck drops ~9 dB there); (2) the

@@ -347,6 +347,11 @@ saved stops loading: the old bank comes back from the archive).
   string, bar resonator, a plate) — and **Bowed Metal** is really bowed now (heavy bow an
   octave down through the prepared-piano resonator; aftertouch lightens it). BANK_REV 9.
   Sergio, the same day: «suena muy bien».
+- **The breath (2026-11-01):** the pipe brought **Pan Pipe** (an octave up, short, much air,
+  the jet centred), **Bottle** (dark, little breath, hollow, air) and **Overblown Drone** (a
+  long dark bore blown past the jump, aftertouch eases it down to the fundamental), and
+  **Breath Flute** is a real pipe now (it was a sine, a triangle, noise and the Vocal «u»).
+  BANK_REV 10; rendered for Sergio's ear.
 
 ## Decisions
 

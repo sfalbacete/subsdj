@@ -36,11 +36,12 @@
    simulated with a delay loop one period long. See _string. Params
    strBright / strDecay / strPos / strStiff; the velocity arrives in
    processorOptions.vel (fixed per note: the force of the pluck).
-   EXCITER (2026-11-01): processorOptions.exc = 'pluck' (the above) or 'bow':
-   the same string BOWED — a continuous excitation through the string's own
-   motion (see _bowed). Params excPress / excSpeed / excNoise; the bow lands
+   EXCITER (2026-11-01): processorOptions.exc = 'pluck' (the above), 'bow' —
+   the same string BOWED, a continuous excitation through the string's own
+   motion (see _bowed) — or 'breath': the loop as a BORE blown by a jet (see
+   _blown). Params excPress / excSpeed / excNoise; the bow (the breath) lands
    over processorOptions.excAtk seconds and comes off when the message
-   {lift: t, rel} arrives (the note's release): the string then decays by itself.
+   {lift: t, rel} arrives (the note's release): the loop then decays by itself.
    HARD SYNC (Roadmap 7.0 · 3.2): with syncRatio > 0 this oscillator (A) is
    the SLAVE of B: it restarts its cycle on every cycle of B. See _synced.
    slave = cents that move ONLY the slave (the matrix «Pitch A»): the sync
@@ -96,6 +97,17 @@ const BOW_VEL = [0.03, 0.3];   // Speed 0..1 → bow velocity, in the loop's vel
 const BOW_OUT = 2.2;           // output gain: Pressure 0.5 · Speed 0.5 ≈ the level of the pluck (measured 2026-11-01)
 const BOW_NOISE = 0.6;         // Noise 1 → up to ±60 % of the bow velocity as slow noise: scratch, the hair's grain
 const BOW_BITE = 0.5;          // the landing: white noise into the loop ∝ (1 − contact) · bow speed — the first grip seeds the stick-slip at once (without it a mid bow took ~1 s to build up; measured 2026-11-01)
+// EXCITER · BREATH (see _blown): a jet into the bore, after Cook's flute (STK) with the jet's travel tied to the breath
+const BR_PRESS = [0.1, 2.0];   // Pressure 0..1 → breath, relative to the reference (1 = the note in tune): below ~0.3 only air, towards 1 the octave (overblow)
+const BR_EDGE = [0, 0.35];     // Speed («Jet») 0..1 → where the jet rests against the edge: centred = odd harmonics (hollow), offset = all of them (beyond 0.35 the slope of x − x³ is too low: measured, 0.375 overblew and 0.5 died)
+const BR_JET_RATIO = [0.25, 0.5];  // the jet's travel as a fraction of the bore: ½ up to the reference breath (the fundamental in phase: in tune), then 0.5 / breath down to ¼ (the octave in phase: the overblow)
+const BR_DC_R = 0.999;         // the DC blocker in the bore (its phase lead is compensated in the line: measured +20-30 cents sharp at 0.995 without it)
+const BR_JET_REFL = 0.5;       // how much of the bore's returning wave deflects the jet (the embouchure)
+const BR_INJ = [1, 1.3];       // what the jet feeds into the bore: × breath, capped (beyond the cap the regime went chaotic: 0.8 a mess, 0.9 the octave, 1 a mess)
+const BR_END_MAX = 0.9;        // the open end reflects min(this, the Decay gain): a pipe cannot ring like a string
+const BR_NOISE = 0.5;          // Noise 1 → white noise into the bore, × breath: the air
+const BR_OUT = 0.45;           // output gain at end reflection 0.9 (scaled by (1 − reflection): the level does not follow Decay)
+const BR_BITE = 0.5;           // the puff of the first instant: noise ∝ (1 − contact) · breath
 const STR_EXC_RMS = 0.5;       // the pick is normalized to this level: velocity sets the color, the VCA the volume
 
 // Super Saw detune offsets (JP-8000 curve, per Adam Szabo's analysis).
@@ -190,7 +202,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     this.pend = null;   // sync: pending PolyBLEP residual for the next sample, per copy
     this.vel = typeof o.vel === 'number' ? o.vel : 1;   // string: force of the pluck (bow: its speed)
     this.str = null;    // string: the state of each string (one per copy), created in the first block
-    this.exc = o.exc === 'bow' ? 'bow' : 'pluck';         // string: how it is set in motion (fixed per note)
+    this.exc = o.exc === 'bow' ? 'bow' : o.exc === 'breath' ? 'breath' : 'pluck';   // string: how it is set in motion (fixed per note)
     this.excAtk = typeof o.excAtk === 'number' ? Math.max(0, o.excAtk) : 0;   // bow: seconds for the bow to land (the Amp Env's attack)
     this.lift = null; this.liftRel = 0.05;                // bow: when the note was released and how long the bow takes to come off
     this.stopped = false;
@@ -253,6 +265,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     if (type === 'string') {
       if (this.tBirth === null) this.tBirth = currentTime;   // the bow's envelope counts from the note start (t0) or from here
       if (this.exc === 'bow') this._bowed(ch, N, params, fs, uv, lvl, uniMul);
+      else if (this.exc === 'breath') this._blown(ch, N, params, fs, uv, lvl, uniMul);
       else this._string(ch, N, params, fs, uv, lvl, uniMul);
     } else if (syncR > 0 && SYNC_TYPES.has(type) && !(type === 'sine' && params.fmIndex[0] > 0)) {
       this._synced(ch, N, params, fs, f0 * syncR, uv, lvl, uniMul);
@@ -622,6 +635,108 @@ class PulseProcessor extends AudioWorkletProcessor {
       }
     }
   }
+  // The exciter's envelope over a block (linear inside it): contact rises from 0 over excAtk from
+  // the note start (the landing, on0/don alone) and, from the lift, falls over liftRel (e0/de).
+  _excEnv(N) {
+    const sr = sampleRate;
+    const tN = this.t0 !== null ? Math.max(this.t0, this.tBirth) : this.tBirth;
+    const onAt = t => (this.excAtk > 0 ? Math.min(1, Math.max(0, (t - tN) / this.excAtk)) : 1);
+    const envAt = t => {
+      let e = onAt(t);
+      if (this.lift !== null && t >= this.lift) e *= Math.max(0, 1 - (t - this.lift) / this.liftRel);
+      return e < 0 ? 0 : e;
+    };
+    const e0 = envAt(currentTime), on0 = onAt(currentTime);
+    return { e0, de: (envAt(currentTime + N / sr) - e0) / N, on0, don: (onAt(currentTime + N / sr) - on0) / N };
+  }
+  // ---------- EXCITER · BREATH (continuous excitation, 2026-11-01) ----------
+  // The loop as a BORE, open at both ends (no inversion over the round trip: the same sign as the
+  // pluck's loop), blown by a JET — Cook's flute as in STK. Each sample: the wave coming back along
+  // the bore goes through the loop's losses (Bright, Stiffness, and the open end's reflection =
+  // min(0.9, the Decay gain): a pipe cannot ring like a string) and is DC-blocked; the jet feels
+  // the breath minus half of it (the embouchure), travels its own length (Speed = the jet's length
+  // as a fraction of the bore: which register it favours) and hits the edge: x − x³, clamped —
+  // the jet deflects one way or the other and saturates, so the energy it feeds depends on the
+  // bore's own pressure (the feedback), the breath (its DC: where on the curve it works) and the
+  // delay (the phase it arrives with). Little breath: the jet never reaches the slope, only air;
+  // enough: the fundamental locks (the jet arrives in phase once per round trip); a lot: the curve
+  // saturates and the jet's delay lines up with the SECOND mode — the octave, the overblow. Noise
+  // = white noise ∝ breath (the air); the puff of the first instant is BR_BITE. Breath follows
+  // the note like the bow: lands over the Amp Env's attack, stops at the lift (the pipe empties
+  // in a few round trips). Mono legato keeps blowing and follows the Glide.
+  _blown(ch, N, params, fs, uv, lvl, uniMul) {
+    const sr = sampleRate, M = STR_LEN - 1, TWO_PI = Math.PI * 2;
+    const bright = params.strBright[0], decay = params.strDecay[0], stiff = params.strStiff[0];
+    const pr = params.excPress ? params.excPress[0] : 0.5, sp = params.excSpeed ? params.excSpeed[0] : 0.5, nzA = params.excNoise ? params.excNoise[0] : 0;
+    const press = pr < 0 ? 0 : pr > 1 ? 1 : pr, jet = sp < 0 ? 0 : sp > 1 ? 1 : sp;
+    const { e0, de, on0, don } = this._excEnv(N);
+    const breathFull = (BR_PRESS[0] + (BR_PRESS[1] - BR_PRESS[0]) * press) * (0.5 + 0.5 * this.vel);
+    const edge = BR_EDGE[0] + (BR_EDGE[1] - BR_EDGE[0]) * jet;
+    // the jet's travel this block: the harder the breath, the faster the jet, the shorter its time to the edge
+    let ratio = 0.5 / Math.max(0.05, breathFull * e0);
+    if (ratio > BR_JET_RATIO[1]) ratio = BR_JET_RATIO[1]; else if (ratio < BR_JET_RATIO[0]) ratio = BR_JET_RATIO[0];
+    const nzK = BR_NOISE * nzA;
+    if (!this.str) this.str = [];
+    for (let k = 0; k < this.octaves; k++) {
+      for (let j = 0; j < uv; j++) {
+        const idx = k * 7 + j;
+        let f = fs * (1 << k) * uniMul(j);
+        if (!(f > 0)) continue;
+        let P = sr / f;
+        if (P < 8) continue;
+        if (P > STR_LEN - 8) { P = STR_LEN - 8; f = sr / P; }
+        let st = this.str[idx];
+        if (!st) st = this.str[idx] = { lb: new Float32Array(STR_LEN), sb: new Float32Array(STR_LEN), wl: 0, ws: 0, apX: 0, apY: 0, lp: 0, dx: new Float64Array(4), dy: new Float64Array(4), dcx: 0, dcy: 0, ox: 0, oy: 0 };
+        // the loop's losses and the tuning, as in _string (the whole round trip)
+        const w0 = TWO_PI * f / sr, sw = Math.sin(w0), cw = Math.cos(w0);
+        const T60 = decay * Math.pow(261.63 / f, STR_DECAY_TRACK);
+        const r = STR_BRIGHT[0] * Math.pow(STR_BRIGHT[1] / STR_BRIGHT[0], bright);
+        const h = Math.min(STR_HREF, Math.floor(0.45 * sr / f));
+        let b1 = 0;
+        if (h >= 2 && r < 1) {
+          const R = Math.pow(10, -(60 / (T60 * f)) * (1 / r - 1) / 20), q = 1 - R * R, C = cw - R * R * Math.cos(h * w0);
+          const disc = C * C - q * q;
+          b1 = disc > 0 && C > 0 ? Math.min(0.9999, (C - Math.sqrt(disc)) / q) : 0.9999;
+        }
+        const a = 1 - b1;
+        const lpMag = a / Math.hypot(1 - b1 * cw, b1 * sw), lpDel = Math.atan2(b1 * sw, 1 - b1 * cw) / w0;
+        const dd = Math.pow(STR_DISP, stiff);
+        let c = (1 - dd) / (1 + dd);
+        const cMin = (1 - P / 8) / (1 + P / 8); if (c < cMin) c = cMin;
+        const disp = c < -1e-4;
+        const dispDel = disp ? 4 * (w0 - 2 * Math.atan(c * sw / (1 + c * cw))) / w0 : 0;
+        const dcDel = -(Math.atan2(sw, 1 - cw) - Math.atan2(BR_DC_R * sw, 1 - BR_DC_R * cw)) / w0;   // the DC blocker LEADS: a negative delay, paid back in the line
+        const rest = P - lpDel - dispDel - dcDel;
+        const Ni = Math.max(1, Math.floor(rest - 0.5)), D = rest - Ni;
+        const t = Math.tan(w0 * (1 - D) / 2), eta = t / (sw - t * cw);
+        const endRefl = Math.min(BR_END_MAX, Math.pow(10, -3 / (T60 * f)) / lpMag);
+        const outK = BR_OUT * lvl * (1 - endRefl) / (1 - BR_END_MAX);
+        const Nj = Math.max(1, ratio * P), j0 = Math.floor(Nj), fr = Nj - j0;   // the jet's travel, fractional
+        const lb = st.lb, sb = st.sb, dx = st.dx, dy = st.dy, biteK = BR_BITE * breathFull;
+        let wl = st.wl, ws = st.ws, apX = st.apX, apY = st.apY, lp = st.lp, dcx = st.dcx, dcy = st.dcy, ox = st.ox, oy = st.oy, e = e0, on = on0;
+        for (let i = 0; i < N; i++) {
+          const xl = lb[(wl - Ni) & M];
+          const ap = eta * xl + apX - eta * apY; apX = xl; apY = ap;
+          lp += a * (ap - lp);
+          let v = lp;
+          if (disp) for (let m = 0; m < 4; m++) { const y = c * v + dx[m] - c * dy[m]; dx[m] = v; dy[m] = y; v = y; }
+          v *= endRefl;
+          const temp = v - dcx + BR_DC_R * dcy; dcx = v; dcy = temp;        // the bore's wave, DC-blocked
+          const breath = breathFull * e;
+          const r0 = (ws - j0) & M, pd = sb[r0] + (sb[(r0 - 1) & M] - sb[r0]) * fr;   // the deflection the jet carried Nj samples ago
+          sb[ws] = edge - BR_JET_REFL * temp; ws = (ws + 1) & M;
+          let jt = pd - pd * pd * pd; if (jt > 1) jt = 1; else if (jt < -1) jt = -1;   // the edge: the jet's deflection saturates
+          const air = (this.rnd() * 2 - 1) * (nzK * breath + (on < 1 ? biteK * (1 - on) : 0));   // the air, and the puff of the first instant
+          const y = jt * BR_INJ[0] * (breath < BR_INJ[1] ? breath : BR_INJ[1]) + temp + air;
+          lb[wl] = y; wl = (wl + 1) & M;
+          const o = y - ox + 0.995 * oy; ox = y; oy = o;                   // out, DC-blocked
+          ch[i] += o * outK;
+          e += de; on += don;
+        }
+        st.wl = wl; st.ws = ws; st.apX = apX; st.apY = apY; st.lp = lp; st.dcx = dcx; st.dcy = dcy; st.ox = ox; st.oy = oy;
+      }
+    }
+  }
   // ---------- EXCITER · BOW (continuous excitation, 2026-11-01) ----------
   // The same string, BOWED instead of plucked: a digital waveguide in TWO segments that meet at
   // the bow. Position = the fraction of the string on the bridge side (2 % = sul ponticello,
@@ -652,16 +767,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     const bright = params.strBright[0], decay = params.strDecay[0], pos = params.strPos[0], stiff = params.strStiff[0];
     const pr = params.excPress ? params.excPress[0] : 0.5, sp = params.excSpeed ? params.excSpeed[0] : 0.5, nzA = params.excNoise ? params.excNoise[0] : 0;
     const press = pr < 0 ? 0 : pr > 1 ? 1 : pr, speed = sp < 0 ? 0 : sp > 1 ? 1 : sp;
-    // the bow's envelope over this block (linear inside it): lands over excAtk from the note start, comes off over liftRel from the lift
-    const tN = this.t0 !== null ? Math.max(this.t0, this.tBirth) : this.tBirth;
-    const onAt = t => (this.excAtk > 0 ? Math.min(1, Math.max(0, (t - tN) / this.excAtk)) : 1);   // the landing alone
-    const envAt = t => {
-      let e = onAt(t);
-      if (this.lift !== null && t >= this.lift) e *= Math.max(0, 1 - (t - this.lift) / this.liftRel);
-      return e < 0 ? 0 : e;
-    };
-    const e0 = envAt(currentTime), de = (envAt(currentTime + N / sr) - e0) / N;
-    const on0 = onAt(currentTime), don = (onAt(currentTime + N / sr) - on0) / N;
+    const { e0, de, on0, don } = this._excEnv(N);   // the bow's envelope over this block (linear inside it): lands over excAtk from the note start, comes off over liftRel from the lift
     let slope = BOW_SLOPE_CURVE[0][1];
     for (let q = 1; q < BOW_SLOPE_CURVE.length; q++) { const [p0, s0] = BOW_SLOPE_CURVE[q - 1], [p1, s1] = BOW_SLOPE_CURVE[q]; if (press <= p1) { slope = s0 + (s1 - s0) * (press - p0) / (p1 - p0); break; } }
     const vBowFull = (BOW_VEL[0] + (BOW_VEL[1] - BOW_VEL[0]) * speed) * (0.4 + 0.6 * this.vel);

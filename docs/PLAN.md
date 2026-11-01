@@ -38,8 +38,10 @@ what is already there, it does not go in. Order:
 8. **The continuous exciter** (agreed 2026-10-31, after the ear sessions): ✔ **bow** 2026-11-01
    (DESIGN «The exciter: a bowed string»): the String bowed inside its own loop, Pressure /
    Speed / Noise in the module, Bow pressure and Bow speed in the Matrix, contact following
-   the Amp Env; Cello, String Section, Bowed Glass, Bowed Metal remade. Next: the **breath**
-   (a jet into a tube: flute, pipes, overblowing), then the rest of 1.4.
+   the Amp Env; Cello, String Section, Bowed Glass, Bowed Metal remade. ✔ **breath** 2026-11-01
+   (the same loop as a bore blown by a jet, the jet's travel tied to the breath so that pressure
+   overblows; Breath Flute remade, Pan Pipe, Bottle, Overblown Drone). The exciter is complete;
+   next the rest of 1.4.
 Discarded by the criterion: 3.4, 3.5, 4.2, 4.3 and 5.5 (see «What we will NOT do»); 5.3 with no date.
 
 ## Roadmap 7.0 «the instrument» (proposed 2026-10-17 · pending agreement)

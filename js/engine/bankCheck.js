@@ -96,6 +96,7 @@ export const FEATURES = [
   { id: 'vocAtk', label: 'consonant bite', test: d => eff(d, 'vocAmt') > 0 && eff(d, 'vocAtk') > 0 },
   { id: 'vocLife', label: 'formant drift (Life)', test: d => eff(d, 'vocAmt') > 0 && eff(d, 'vocLife') > 0 },
   { id: 'exciter:bow', label: 'bowed string (exciter)', test: d => (d.waveA === 'string' || d.waveB === 'string') && eff(d, 'excMode') === 'bow' },
+  { id: 'exciter:breath', label: 'blown pipe (exciter)', test: d => (d.waveA === 'string' || d.waveB === 'string') && eff(d, 'excMode') === 'breath' },
   { id: 'resonator', label: 'modal resonator', test: d => eff(d, 'resAmt') > 0 },
   { id: 'dist', label: 'distortion', test: d => eff(d, 'dist') > 0 },
   { id: 'flanger', label: 'flanger', test: d => eff(d, 'flAmt') > 0 },

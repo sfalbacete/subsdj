@@ -75,10 +75,10 @@ export const PARAMS = {
   // energy while the key is held (through the string's own motion: see worklets/pulse-processor
   // _bowed). Pressure and Speed are matrix destinations: aftertouch, wheel, expression, an LFO
   // or the envelope play the bow. Contact follows the Amp Env's attack and release.
-  excMode:  { def: 'pluck' },                                               // 'pluck' | 'bow' (the breath is next); structure: per note
-  excPress: { def: 0.5, min: 0, max: 1 },                                   // bow pressure: light = thin, the upper partials · heavy = the fundamental takes over
-  excSpeed: { def: 0.5, min: 0, max: 1 },                                   // bow speed = the level (the key velocity scales it)
-  excNoise: { def: 0.1, min: 0, max: 1 },                                   // scratch: slow noise on the bow speed
+  excMode:  { def: 'pluck' },                                               // 'pluck' | 'bow' | 'breath'; structure: per note
+  excPress: { def: 0.5, min: 0, max: 1 },                                   // bow pressure (light = thin, the upper partials · heavy = the fundamental takes over) / breath (little = air · a lot = the octave)
+  excSpeed: { def: 0.5, min: 0, max: 1 },                                   // bow speed = the level (the key velocity scales it) / the jet's length (which register it favours)
+  excNoise: { def: 0.1, min: 0, max: 1 },                                   // scratch: slow noise on the bow speed / the air in the breath
   fm4R1: { def: 1, min: 0.25, max: 12 }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },

@@ -75,14 +75,26 @@ function bindSync() {
 }
 
 // String's exciter (2026-11-01): a button in the module header that cycles the modes
-// (pluck → bow; the breath will join the ring). Off = pluck; the text names the mode when on.
-const EXC_MODES = ['pluck', 'bow'];
+// (pluck → bow → breath). Off = pluck; the text names the mode when on, and the three mini
+// knobs are relabelled for it (Speed is the bow's speed or the jet's length; Noise the scratch or the air).
+const EXC_MODES = ['pluck', 'bow', 'breath'];
+const EXC_LABELS = {
+  bow:    { excPress: ['Pressure', 'Bow pressure: light, the bow lets go easily (thin, the upper partials); around 0.7 hollow; heavy, the fundamental takes over (dark, fat)'],
+            excSpeed: ['Speed', 'Bow speed = the level of the bowed note (the key velocity scales it)'],
+            excNoise: ['Noise', 'Scratch: slow noise on the bow speed, the grain of the hair'] },
+  breath: { excPress: ['Breath', 'Breath: little, only air; enough, the note; a lot, the octave (overblow). Aftertouch → Bow pressure overblows'],
+            excSpeed: ['Jet', 'The jet\'s length as a fraction of the bore: which register it favours (short, the fundamental; long, the octave comes sooner)'],
+            excNoise: ['Air', 'The air in the breath: white noise with the pressure'] },
+};
+EXC_LABELS.pluck = EXC_LABELS.bow;
 function bindExc() {
   const b = document.getElementById('excModeBtn'); if (!b) return;
   const set = v => {
     if (!EXC_MODES.includes(v)) v = 'pluck';
     b.dataset.cur = v; b.textContent = v === 'pluck' ? 'bow' : v;
     b.classList.toggle('active', v !== 'pluck'); b.setAttribute('aria-pressed', String(v !== 'pluck'));
+    for (const k in EXC_LABELS[v]) { const kn = document.querySelector('.knob[data-knob="' + k + '"]'); if (!kn) continue;
+      const lab = kn.parentElement.querySelector('.lab'); if (lab) lab.textContent = EXC_LABELS[v][k][0]; kn.title = EXC_LABELS[v][k][1]; }
     applyTarget('excMode', v);
   };
   b.addEventListener('click', e => { e.stopPropagation(); part().resume(); set(EXC_MODES[(EXC_MODES.indexOf(b.dataset.cur) + 1) % EXC_MODES.length]); });
