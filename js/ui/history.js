@@ -50,7 +50,7 @@ function labelOf(keys) {
   const k = keys[0], el = CONTROLS[k] && CONTROLS[k].el;
   if (!el) return k;
   const ctl = el.closest('.ctl') || el;
-  const lab = (ctl.dataset.lab || ctl.querySelector('.lab')?.textContent || el.title || k).trim();
+  const lab = (ctl.dataset.lab || ctl.querySelector('.lab')?.textContent || el.title || el.dataset.title0 || k).trim();   // title0: dimmed (ui/deps.js)
   const h2 = el.closest('.panel')?.querySelector('h2');
   const sec = h2 ? [...h2.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() : '';
   return sec ? sec + ' · ' + lab : lab;

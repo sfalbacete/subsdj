@@ -52,7 +52,7 @@ function describe(el) {
   const sec = textOf(panel.querySelector('h2'));
   const row = el.closest('[data-name]');                                  // row of a bank (LFO PWM…)
   const lab = el.dataset.lab || el.querySelector(':scope > .lab, .head .lab')?.textContent
-           || el.parentElement?.querySelector(':scope > .lab, :scope > .fieldlab')?.textContent || el.title || '';   // .fieldlab: switches with LED (voice, trigger)
+           || el.parentElement?.querySelector(':scope > .lab, :scope > .fieldlab')?.textContent || el.title || el.dataset.title0 || '';   // .fieldlab: switches with LED (voice, trigger) · title0: a dimmed control's title (ui/deps.js)
   let val = '', det = '';
   if (el.matches('.seg')) { const b = el.querySelector('button.active'); if (b) ({ val, det } = segValue(b)); }
   else if (el.matches('select')) val = el.selectedOptions[0]?.textContent || '';

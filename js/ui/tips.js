@@ -44,7 +44,8 @@ export function initTips() {
   new MutationObserver(ms => { for (const m of ms) adopt(m.target); })
     .observe(header, { attributes: true, attributeFilter: ['title'], subtree: true });
   header.addEventListener('pointerover', e => {
-    const el = e.target.closest(SEL);
+    let el = e.target.closest(SEL);
+    if (el && el.closest('[data-off]')) el = null;   // dimmed (the clock, with nothing in tempo): ui/enablers.js's tooltip says why
     if (el === over) return;
     over = el;
     if (el) show(el); else hide();

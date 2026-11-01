@@ -6,7 +6,13 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased
+## [1.7.0] — 2026-11-01
+
+The instrument gets easier to read and to play in time: the header turns into icons and makes
+room for a **clock** (BPM and swing, which drive everything in tempo), the arpeggiator and the
+sequencer become **one module** with a Mode knob — and the arpeggiator gets its **Latch** —, and
+whatever is dimmed now tells you at once **what turns it on**, pulsing the controls that would.
+Nothing saved changes: presets, scenes, libraries and MIDI maps load and sound as before.
 
 - **A lighter header.** Its buttons are icons now — save, save as, file, undo, redo, compare,
   MIDI map, record, parts, reset and panic, drawn in the theme's color — each with a tooltip
@@ -26,6 +32,13 @@ scenes, libraries, MIDI maps). The why behind each module is in
 - **The arpeggiator has Latch** (the Hold of hardware arpeggiators): the chord is every key you
   pressed until your hands were off, and it keeps playing until you play another.
 - **Round toggle switches** for what is on or off: Latch, Retrig and the Wave Sequence's state.
+- **Who turns it on.** With the pointer on something dimmed, the reason shows at once, and the
+  control (or controls) that would turn it on pulse with a soft ring for as long as you stay —
+  several triggers, all of them; one on another screen makes that screen's tab pulse. Dimmed
+  controls can still be set, as before: you can prepare them before switching them on.
+- **The tooltips grow with the instrument** (the «?» help, the header's, the dimmed controls'):
+  they used to stay at 100 % while the instrument is scaled to the window — 130 % on a 4K at
+  150 % —, so they read small beside it. A touch larger too.
 
 ## [1.6.1] — 2026-11-01
 

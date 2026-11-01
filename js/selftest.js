@@ -927,6 +927,62 @@ export async function runSelfTest() {
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
+    // Who turns it on (2026-11-01, ui/enablers.js). (1) Coverage: in a handful of states, EVERY dimmed
+    // element says what turns it on, and every enabler is a real control (a typo in a key would point
+    // at nothing and nothing would pulse). (2) The pointer's path: over the delay's Time with Amount at 0,
+    // the reason shows at once (#depTip), Amount gets one ring right around it, the dimmed element keeps
+    // no title (the browser's tooltip would double it) and gets it back when it comes alive. (3) Another
+    // screen: over the Wave Sequence (no Wavetable) on Sequencing, the Design tab is the one that pulses.
+    const NAME = 'who turns it on (every dimmed control names its enablers · they exist · the reason and the rings on hover · another screen: its tab)';
+    const problems = [], C = CONTROLS, keep = snapshot(), scr0 = currentScreen();
+    const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const hover = el => { const r = el.getBoundingClientRect(), x = r.left + Math.min(30, r.width / 2), y = r.top + Math.min(30, r.height / 2);
+      document.body.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+      el.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: x, clientY: y })); };
+    const unhover = () => document.body.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+    try {
+      const STATES = [['Reset', () => {}], ['Seq', () => C.asMode.set('seq')], ['Arp', () => C.asMode.set('arp')],
+        ['Square with an LFO and matrix slots', () => { C.waveA.set('square'); C.cutLfoLvl.set(500); C.mx1src.set('lfoCut'); C.mx2src.set('vel'); C.mx2dst.set('drive'); C.mx2amt.set(0.5); }],
+        ['Sine, FM4 on B', () => { C.waveA.set('sine'); C.waveB.set('fm4'); C.levelB.set(0.5); C.fm4L2.set(0); }],
+        ['Mono, delay synced, reverb', () => { C.mode.set('mono'); C.dlyAmt.set(0.3); C.dlySync.set('1/4'); C.reverbMix.set(0.3); }]];
+      for (const [label, setup] of STATES) {
+        loadState({}); setup(); refreshDeps();
+        for (const el of document.querySelectorAll('[data-off]')) {
+          const who = el.id || el.dataset.lab || el.querySelector?.('.lab')?.textContent || el.className;
+          if (!el._depBy || !el._depBy.length) { problems.push(label + ': «' + who + '» is dimmed and names nothing that turns it on'); continue; }
+          for (const t of el._depBy) if (!depTargets(t).length) problems.push(label + ': «' + who + '» names an enabler that does not exist: ' + t);
+        }
+      }
+      for (const [what, , by] of RULES) {   // the fixed lists, checked even if their target is not dimmed now
+        if (Array.isArray(by)) for (const t of by) if (!/data-key|#derivaSel/.test(t) && !depTargets(t).length) problems.push('rule «' + what + '»: enabler «' + t + '» does not exist');
+        if (by === undefined) problems.push('rule «' + what + '» names no enabler');
+      }
+      // (2) the delay's Time with Amount at 0, on Design
+      loadState({}); refreshDeps(); showScreen('design'); await frames();
+      const time = CONTROLS.dlyTime.el, amt = CONTROLS.dlyAmt.el, frz = document.getElementById('freezeBtn');
+      hover(time);
+      const tip = document.getElementById('depTip'), rings = [...document.querySelectorAll('.dep-ring')];
+      if (!tip || tip.hidden || !/Amount at 0/.test(tip.textContent) || !/Turns on with Amount/.test(tip.textContent)) problems.push('hovering the delay\'s Time: the tooltip says «' + (tip ? tip.textContent : 'no #depTip') + '»');
+      const ra = amt.getBoundingClientRect(), rr = rings[0] && rings[0].getBoundingClientRect();
+      if (rings.length !== 1 || !rr || Math.abs(rr.left + 4 - ra.left) > 2 || Math.abs(rr.top + 4 - ra.top) > 2) problems.push('the ring is not around Amount (' + rings.length + ' rings)');
+      unhover();
+      if (document.querySelector('.dep-ring') || !tip.hidden) problems.push('leaving the dimmed control does not take the rings and the tooltip away');
+      if (!frz || frz.hasAttribute('title') || !(frz.dataset.title0 || '').startsWith('Freeze')) problems.push('a dimmed control keeps its title, or loses it (Freeze)');
+      C.reverbMix.set(0.3); refreshDeps();
+      if (!frz.getAttribute('title') || !frz.getAttribute('title').startsWith('Freeze')) problems.push('Freeze does not get its title back when it comes alive');
+      // (3) another screen
+      loadState({}); refreshDeps(); showScreen('sequencing'); await frames();
+      const wsPanel = document.getElementById('wsOnSel').closest('.panel');
+      hover(wsPanel.querySelector('.hrow') || wsPanel);
+      const tab = document.querySelector('#screenTabs button[data-screen="design"]').getBoundingClientRect(), r3 = [...document.querySelectorAll('.dep-ring')];
+      if (!r3.some(d => Math.abs(d.getBoundingClientRect().left + 4 - tab.left) < 2)) problems.push('over the Wave Sequence, the Design tab does not pulse');
+      if (!/on the Design screen/.test(document.getElementById('depTip').textContent)) problems.push('the tooltip does not say the Design screen');
+      unhover();
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { unhover(); loadState(keep); refreshDeps(); showScreen(scr0); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems: problems.slice(0, 12) });
+  }
+  {
     // FM4 algorithm graph (ui/fm4Graph.js): its table is a COPY of the
     // worklet's (a worklet cannot be imported from the page) — if they
     // drift apart, the drawing would lie about the sound. And the layout reads as

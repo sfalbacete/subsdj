@@ -2888,3 +2888,30 @@ Mode, round toggle switches for what is on or off, smaller than the first try (2
   the inactive one is on top, so a click toggles and bindSeg, CONTROLS, MIDI learn and the presets
   never notice; `:has(button:last-child.active)` draws it on. In the oscillator-colored modules
   (.panel.osc) it lights in accent2, like their LEDs.
+
+## Who turns it on (2026-11-01)
+
+Sergio asked whether the dimmed controls should be locked, not just grey. Turned down, for three
+reasons: preparing a setting before switching on what activates it is how the instrument is
+played (the delay's time before its Amount, the phrase before the Seq: switching on first lets
+the sound in half set); the rules come from reading the engine, and a wrong one would make a
+control unreachable instead of just grey; and a hardware knob bound to a locked control would
+either move it anyway or go dead without a word. What locking was after — knowing why something
+does nothing, and what to touch — is answered better by pointing at the cause.
+
+- **Every rule names its enablers** (its third element, `ui/deps.js`): keys, sections or
+  selectors like its target, a list or a function of the state when they depend on the reason
+  (A's phase: its wave, or Sync). A wave condition points at both wave selectors and at the level
+  of an oscillator that isn't sounding — B's wave alone would not turn on P.Width while B is
+  silent. The selftest walks a handful of states and fails if anything dimmed names nothing, or
+  names something that does not exist.
+- **Over a dimmed control** (`ui/enablers.js`): its tooltip at once (why · «Turns on with …» in
+  the accent · its own title, dimmer) and a breathing ring on each enabler while the pointer
+  stays. The rings are fixed overlays in the body, not styles on the controls: a dimmed
+  section's opacity would fade them (B's wave sits inside the dimmed Osc B) and the screen tabs'
+  overflow would clip them. An enabler on another screen is not visible: its screen's tab pulses
+  and the tooltip says which. The names are read from the DOM (section · label), as the Output
+  display does; the section goes before each one unless they all live in the dimmed control's
+  section, so «Mixer · Osc B» never reads as the oscillator.
+- **A dimmed control keeps no title** while it is dimmed (it goes to data-title0 and comes back
+  when it is alive): the browser's tooltip would come up a second later over ours.

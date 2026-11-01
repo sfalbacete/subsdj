@@ -210,11 +210,31 @@ header #presetNav{flex:0 1 auto;min-width:0;}
   font-variant-numeric:tabular-nums;text-align:right;outline:none;}
 /* Fast tooltip of the header's icons and clock (ui/tips.js): the same well as the «?» one;
    the name in ink, the detail dimmed */
-#hdrTip{position:fixed;z-index:60;max-width:300px;background:var(--well);border:1px solid var(--edge);border-radius:8px;
-  padding:5px 9px;font-size:11px;line-height:1.4;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);
+/* The three tooltips (header, dimmed, «?») live in the body, OUTSIDE the scaled instrument (ui/frame.js):
+   they grow with it through --ui-zoom (130 % on a 4K at 150 %), or they would read small beside it */
+#hdrTip,#depTip,#helpTip{--tz:var(--ui-zoom,1);}
+#hdrTip{position:fixed;z-index:60;max-width:calc(330px * var(--tz));background:var(--well);border:1px solid var(--edge);border-radius:calc(8px * var(--tz));
+  padding:calc(6px * var(--tz)) calc(10px * var(--tz));font-size:calc(12px * var(--tz));line-height:1.4;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);
   pointer-events:none;white-space:pre-line;}
 #hdrTip[hidden]{display:none;}
 #hdrTip b{color:var(--ink);font-weight:400;}
+/* Who turns it on (ui/enablers.js): over a dimmed control, its tooltip — why (the name in ink), what
+   turns it on (in the accent, like the rings) and its own title, dimmer — and a breathing ring on each
+   enabler: a fixed overlay, so neither a dimmed section's opacity nor a container's overflow touches it */
+#depTip{position:fixed;z-index:60;max-width:calc(380px * var(--tz));background:var(--well);border:1px solid var(--edge);border-radius:calc(8px * var(--tz));
+  padding:calc(7px * var(--tz)) calc(11px * var(--tz));font-size:calc(12px * var(--tz));line-height:1.5;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
+#depTip[hidden]{display:none;}
+#depTip b{color:var(--ink);font-weight:400;}
+#depTip .en{color:var(--accent);font-weight:600;}
+#depTip .own{margin-top:calc(4px * var(--tz));padding-top:calc(4px * var(--tz));border-top:1px solid var(--edge);font-size:calc(11px * var(--tz));}
+.dep-ring{position:fixed;z-index:55;pointer-events:none;border-radius:12px;animation:depRing 1.4s ease-in-out infinite;}
+.dep-ring.pill{border-radius:999px;}
+@keyframes depRing{
+  0%,100%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--accent) 45%,transparent),0 0 6px 0 color-mix(in srgb,var(--accent) 18%,transparent);
+    background:color-mix(in srgb,var(--accent) 3%,transparent);}
+  50%{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 95%,transparent),0 0 18px 5px color-mix(in srgb,var(--accent) 40%,transparent);
+    background:color-mix(in srgb,var(--accent) 9%,transparent);}
+}
 /* Status (audio · MIDI): two SVG icons with currentColor; the class sets the color (ui/status.js) */
 #status{display:inline-flex;align-items:center;gap:10px;}
 #status .st{display:inline-flex;color:var(--dim);cursor:help;transition:color .2s;}
@@ -726,8 +746,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   border:1px solid var(--edge);color:var(--dim);font-size:9px;font-weight:600;
   display:inline-flex;align-items:center;justify-content:center;cursor:help;text-transform:none;}
 .qmark:hover{color:var(--accent);border-color:var(--accent);}
-#helpTip{position:fixed;z-index:60;max-width:280px;background:var(--well);border:1px solid var(--edge);
-  border-radius:8px;padding:8px 10px;font-size:10px;line-height:1.5;color:var(--dim);
+#helpTip{position:fixed;z-index:60;max-width:calc(330px * var(--tz));background:var(--well);border:1px solid var(--edge);
+  border-radius:calc(8px * var(--tz));padding:calc(9px * var(--tz)) calc(12px * var(--tz));font-size:calc(11.5px * var(--tz));line-height:1.55;color:var(--dim);
   box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
 #helpTip b{color:var(--ink);}
 

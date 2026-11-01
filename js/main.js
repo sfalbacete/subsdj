@@ -36,6 +36,7 @@ import { initLibraryScreen } from './ui/libraryScreen.js';
 import { initHistory } from './ui/history.js';
 import { initClock } from './ui/clock.js';
 import { initTips } from './ui/tips.js';
+import { initEnablers } from './ui/enablers.js';
 import { setStatus, isStatus } from './ui/status.js';
 import { VERSION } from './version.js';
 
@@ -73,6 +74,7 @@ initPartsControls(); // Parts mode: selector in the header + Part Mixer (after h
 initPlayerControls(); // the scene's harmony + players (listens to scene-changed / part-changed)
 initDisplay();       // Output display (last parameter touched), File menu and bank notices
 initDeps();          // dims (still touchable) what does nothing with the current settings, with its reason
+initEnablers();      // over a dimmed control: the reason at once, and what turns it on pulses
 initHistory();       // undo / redo by gestures (Ctrl+Z · Ctrl+Y) and compare with the saved preset
 
 // <select>s drop focus after a choice: otherwise the QWERTY piano keys

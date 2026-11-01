@@ -31,6 +31,7 @@ export function initFrame() {
   const fit = () => {
     zoom = Math.max(MIN_ZOOM, Math.min(innerWidth / FRAME_W, innerHeight / FRAME_H));
     inst.style.zoom = zoom;
+    document.documentElement.style.setProperty('--ui-zoom', zoom.toFixed(4));   // the tooltips live outside #inst: they scale with this (style.css)
     document.documentElement.classList.toggle('frame-scroll', zoom * FRAME_W > innerWidth + 0.5 || zoom * FRAME_H > innerHeight + 0.5);
   };
   addEventListener('resize', fit);   // registered before the canvases: when they redraw, the zoom is already the new one
