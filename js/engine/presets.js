@@ -162,12 +162,13 @@ export const BANK = [
         a: 0.06, d: 0.1, s: 1, r: 0.2, envCurve: 0.3, reverbType: 'hall', reverbMix: 0.25, reverbSize: 2.5, reverbDamp: 0.4, width: 0.2,
         ...WHEEL(0.3), ...MAC1('excSpeed', 0.4), master: 0.35 } },
     /* the same pipe an octave up, short (it empties in 150 ms), blown with a lot of air and the jet
-       centred on the edge (hollow): the breathy puff of a pan pipe; every note is a new puff */
+       centred on the edge (hollow): the breathy puff of a pan pipe; every note is a new puff. Bright
+       0.45 and a breath past the middle so that it still speaks at a soft velocity (at 0.3 it did not) */
     { name: 'Pan Pipe', tags: ['airy', 'soft', 'short', 'world', 'string'], use: 'note',
       play: 'C4–C6, short notes: each one a new puff. Aftertouch: harder (up to the octave) · M1: the jet on the edge · wheel: opens the filter.',
-      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.5, excSpeed: 0.25, excNoise: 0.7,
-        strBright: 0.3, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
-        a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 0.65 } },
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.55, excSpeed: 0.25, excNoise: 0.7,
+        strBright: 0.45, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
+        a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 0.3 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */
     { name: 'Vox Lead', tags: ['vocal', 'wavetable', 'expressive', 'mono'], use: 'note',
       play: 'C3–C5, mono. Wheel: the vowel (u→i) and the vibrato · M1: effort (brighter glottis).',
