@@ -345,8 +345,8 @@ saved stops loading: the old bank comes back from the archive).
   legato glide, string body, wheel vibrato, aftertouch digs the bow in), **String Section**
   (three bows per note, slow landing, ensemble, hall) and **Bowed Glass** (light bow, stiff
   string, bar resonator, a plate) — and **Bowed Metal** is really bowed now (heavy bow an
-  octave down through the prepared-piano resonator; aftertouch lightens it). BANK_REV 9;
-  rendered for Sergio's ear, pending his verdict.
+  octave down through the prepared-piano resonator; aftertouch lightens it). BANK_REV 9.
+  Sergio, the same day: «suena muy bien».
 
 ## Decisions
 
