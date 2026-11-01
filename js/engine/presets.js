@@ -160,14 +160,14 @@ export const BANK = [
         strBright: 0.5, strDecay: 0.25, cutoff: 9000, reso: 0.7, freqLfoSpd: 5.3,
         mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.03, mx3src: 'at', mx3dst: 'excPress', mx3amt: 0.4,
         a: 0.06, d: 0.1, s: 1, r: 0.2, envCurve: 0.3, reverbType: 'hall', reverbMix: 0.25, reverbSize: 2.5, reverbDamp: 0.4, width: 0.2,
-        ...WHEEL(0.3), ...MAC1('excSpeed', 0.4), master: 1 } },
+        ...WHEEL(0.3), ...MAC1('excSpeed', 0.4), master: 0.35 } },
     /* the same pipe an octave up, short (it empties in 150 ms), blown with a lot of air and the jet
        centred on the edge (hollow): the breathy puff of a pan pipe; every note is a new puff */
     { name: 'Pan Pipe', tags: ['airy', 'soft', 'short', 'world', 'string'], use: 'note',
       play: 'C4–C6, short notes: each one a new puff. Aftertouch: harder (up to the octave) · M1: the jet on the edge · wheel: opens the filter.',
       data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.5, excSpeed: 0.25, excNoise: 0.7,
         strBright: 0.3, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
-        a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 1 } },
+        a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 0.65 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */
     { name: 'Vox Lead', tags: ['vocal', 'wavetable', 'expressive', 'mono'], use: 'note',
       play: 'C3–C5, mono. Wheel: the vowel (u→i) and the vibrato · M1: effort (brighter glottis).',
@@ -547,7 +547,7 @@ export const BANK = [
       data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: -1, excMode: 'breath', excPress: 0.8, excSpeed: 0.4, excNoise: 0.35,
         strBright: 0.3, strDecay: 3, cutoff: 3000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: -0.45, lfoPhase: 'voice', mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.5, mxDriftSpd: 0.05,
         a: 1.5, d: 1, s: 1, r: 4, envCurve: 0.3, width: 0.5, reverbType: 'plate', reverbMix: 0.45, reverbSize: 8, reverbDamp: 0.4, reverbPre: 0.03,
-        ...WHEEL(0.3), ...MAC1('excSpeed', 0.5), master: 0.58 } },
+        ...WHEEL(0.3), ...MAC1('excSpeed', 0.5), master: 0.24 } },
   ] },
 
   /* ---------- Motion: the sequencer, the arpeggiator, Steps and the looping envelope do the playing ---------- */
@@ -749,7 +749,7 @@ export const BANK = [
       play: 'C3–C5: blow across the bottle — little tone, much air. Aftertouch: harder · M1: a little more breath · wheel: opens the filter.',
       data: { waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'breath', excPress: 0.42, excSpeed: 0.1, excNoise: 0.8,
         strBright: 0.5, strDecay: 0.3, cutoff: 1500, reso: 1, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.4,
-        a: 0.1, d: 0.2, s: 1, r: 0.3, envCurve: 0.3, reverbMix: 0.25, reverbSize: 1.5, width: 0.2, ...WHEEL(0.3), ...MAC1('excPress', 0.25), master: 1.5 } },
+        a: 0.1, d: 0.2, s: 1, r: 0.3, envCurve: 0.3, reverbMix: 0.25, reverbSize: 1.5, width: 0.2, ...WHEEL(0.3), ...MAC1('excPress', 0.25), master: 0.46 } },
     /* the Mod env in TRIGGER mode: six seconds up (pitch an octave, filter, noise) and down again, whatever the key does */
     { name: 'Riser', tags: ['noise', 'evolving', 'long', 'cinematic'], use: 'note', root: 48,
       play: 'Hold one key (C2–C3): it climbs for six seconds and falls. Wheel: opens the filter.',

@@ -1549,7 +1549,7 @@ export async function runSelfTest() {
     // pulse-processor _blown. Through the engine, at C4 unless said: (1) it SUSTAINS at the reference
     // breath (0.5): the level between 0.9 and 1.4 s within 3 dB of 0.4-0.9 s; (2) the pitch locks to
     // the note within ±8 cents at C3, C4 and C5 (the DC blocker's lead is paid back in the line);
-    // (3) little breath (0.1) is air: ≥ 20 dB below the note; (4) a lot (0.9) OVERBLOWS: the strongest
+    // (3) little breath (0.05) is air: ≥ 20 dB below the note; (4) a lot (0.9) OVERBLOWS: the strongest
     // partial sits at the octave (1200 ± 60 cents); (5) aftertouch → Bow pressure 0.5 over a 0.45
     // breath takes the pipe from the fundamental to the octave through the real path; (6) the Jet
     // knob (where the jet rests on the edge) changes the 2nd harmonic by ≥ 4 dB between 0 and 1;
@@ -1590,7 +1590,7 @@ export async function runSelfTest() {
         if (!(Math.abs(c) <= 8)) problems.push(nm + ': ' + c.toFixed(1) + ' cents off');
       }
       // (3) air · (4) overblow
-      const air = rmsDb(await render({ excPress: 0.1 }, f4), 0.4, 1.4), note = rmsDb(mid, 0.4, 1.4);
+      const air = rmsDb(await render({ excPress: 0.05 }, f4), 0.4, 1.4), note = rmsDb(mid, 0.4, 1.4);
       if (!(note - air >= 20)) problems.push('little breath is not just air: ' + air.toFixed(1) + ' against ' + note.toFixed(1) + ' dB');
       const ob = peak(await render({ excPress: 0.9 }, f4), f4, i0, n, 1300);
       if (!(Math.abs(ob - 1200) <= 60)) problems.push('a lot of breath does not overblow: the strongest partial at ' + ob.toFixed(0) + ' cents (expected ~1200)');

@@ -98,16 +98,19 @@ const BOW_OUT = 2.2;           // output gain: Pressure 0.5 · Speed 0.5 ≈ the
 const BOW_NOISE = 0.6;         // Noise 1 → up to ±60 % of the bow velocity as slow noise: scratch, the hair's grain
 const BOW_BITE = 0.5;          // the landing: white noise into the loop ∝ (1 − contact) · bow speed — the first grip seeds the stick-slip at once (without it a mid bow took ~1 s to build up; measured 2026-11-01)
 // EXCITER · BREATH (see _blown): a jet into the bore, after Cook's flute (STK) with the jet's travel tied to the breath
-const BR_PRESS = [0.1, 2.0];   // Pressure 0..1 → breath, relative to the reference (1 = the note in tune): below ~0.3 only air, towards 1 the octave (overblow)
-const BR_EDGE = [0, 0.35];     // Speed («Jet») 0..1 → where the jet rests against the edge: centred = odd harmonics (hollow), offset = all of them (beyond 0.35 the slope of x − x³ is too low: measured, 0.375 overblew and 0.5 died)
-const BR_JET_RATIO = [0.25, 0.5];  // the jet's travel as a fraction of the bore: ½ up to the reference breath (the fundamental in phase: in tune), then 0.5 / breath down to ¼ (the octave in phase: the overblow)
-const BR_DC_R = 0.999;         // the DC blocker in the bore (its phase lead is compensated in the line: measured +20-30 cents sharp at 0.995 without it)
+const BR_PRESS = [0, 2.0];   // Pressure 0..1 → breath, relative to the reference (1 = the note in tune): below ~0.3 only air, towards 1 the octave (overblow)
+const BR_EDGE = [0, 1.0];      // Speed («Jet») 0..1 → where the jet rests against the edge (the sigmoid's operating point): centred = odd harmonics only (hollow), up the slope = the even ones come in (2nd harmonic −61 → −28 dB at C4; an asymmetric deflection did nothing: the jet at half the bore cancels its own even harmonics)     // Speed («Jet») 0..1 → where the jet rests against the edge: centred = odd harmonics (hollow), offset = all of them (beyond 0.35 the slope of x − x³ is too low: measured, 0.375 overblew and 0.5 died)
+const BR_JET_RATIO = [0.25, 0.5];  // the jet's travel as a fraction of the bore: ½ up to BR_JET_REF × the reference breath (the fundamental in phase: in tune), then shortening down to ¼ (the octave in phase: the overblow)
+const BR_JET_POW = 1.6;        // how fast the jet shortens past the reference: 1 = with the breath; 1.6 = the octave (¼) is reached at 1.78 × the reference
+const BR_JET_REF = 1.15;       // the plateau reaches past the knob's middle (breath 1.05): at exactly ½ the note sits in tune; at 0.476 it ran +8 cents sharp with the pitch wandering
+const BR_DC_R = 0.999;         // the DC blocker (corner 7.6 Hz) sits in the JET's branch only, never in the bore's loop: inside the loop (gain 0.9) its slow lead bred a 19 Hz breathing (sidebands ±19 Hz at −15 dB, pitch ±12 cents — Sergio heard a fake vibrato), and a fast corner (f0/3) killed the breathing but misaligned the 2nd mode (its lead is only compensable at one frequency) and with it the overblow. In the jet's branch the slow loop gain is 0.9 − 0.37 < 1: no breathing, and the bore's own DC (bounded: the jet's offset × 10) rides along and is blocked at the output. Its lead at f0 is paid back in the jet's travel
 const BR_JET_REFL = 0.5;       // how much of the bore's returning wave deflects the jet (the embouchure)
 const BR_INJ = [1, 1.3];       // what the jet feeds into the bore: × breath, capped (beyond the cap the regime went chaotic: 0.8 a mess, 0.9 the octave, 1 a mess)
 const BR_END_MAX = 0.9;        // the open end reflects min(this, the Decay gain): a pipe cannot ring like a string
 const BR_NOISE = 0.5;          // Noise 1 → white noise into the bore, × breath: the air
-const BR_OUT = 0.45;           // output gain at end reflection 0.9 (scaled by (1 − reflection): the level does not follow Decay)
+const BR_OUT = 0.3;           // output gain at end reflection 0.9 (scaled by (1 − reflection): the level does not follow Decay)
 const BR_BITE = 0.5;           // the puff of the first instant: noise ∝ (1 − contact) · breath
+const BR_SIGMOID = 1;          // 1 = tanh at the edge; 0 = Cook's x − x³ clamped
 const STR_EXC_RMS = 0.5;       // the pick is normalized to this level: velocity sets the color, the VCA the volume
 
 // Super Saw detune offsets (JP-8000 curve, per Adam Szabo's analysis).
@@ -673,7 +676,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     const breathFull = (BR_PRESS[0] + (BR_PRESS[1] - BR_PRESS[0]) * press) * (0.5 + 0.5 * this.vel);
     const edge = BR_EDGE[0] + (BR_EDGE[1] - BR_EDGE[0]) * jet;
     // the jet's travel this block: the harder the breath, the faster the jet, the shorter its time to the edge
-    let ratio = 0.5 / Math.max(0.05, breathFull * e0);
+    let ratio = 0.5 * Math.pow(BR_JET_REF / Math.max(0.05, breathFull * e0), BR_JET_POW);   // ½ up to the reference, then shortening fast (the sharpening before the jump stays short)
     if (ratio > BR_JET_RATIO[1]) ratio = BR_JET_RATIO[1]; else if (ratio < BR_JET_RATIO[0]) ratio = BR_JET_RATIO[0];
     const nzK = BR_NOISE * nzA;
     if (!this.str) this.str = [];
@@ -705,13 +708,13 @@ class PulseProcessor extends AudioWorkletProcessor {
         const cMin = (1 - P / 8) / (1 + P / 8); if (c < cMin) c = cMin;
         const disp = c < -1e-4;
         const dispDel = disp ? 4 * (w0 - 2 * Math.atan(c * sw / (1 + c * cw))) / w0 : 0;
-        const dcDel = -(Math.atan2(sw, 1 - cw) - Math.atan2(BR_DC_R * sw, 1 - BR_DC_R * cw)) / w0;   // the DC blocker LEADS: a negative delay, paid back in the line
-        const rest = P - lpDel - dispDel - dcDel;
+        const dcR = BR_DC_R, dcDel = -(Math.atan2(sw, 1 - cw) - Math.atan2(dcR * sw, 1 - dcR * cw)) / w0;   // the jet's DC blocker LEADS: a negative delay, paid back in the jet's travel
+        const rest = P - lpDel - dispDel;
         const Ni = Math.max(1, Math.floor(rest - 0.5)), D = rest - Ni;
         const t = Math.tan(w0 * (1 - D) / 2), eta = t / (sw - t * cw);
         const endRefl = Math.min(BR_END_MAX, Math.pow(10, -3 / (T60 * f)) / lpMag);
         const outK = BR_OUT * lvl * (1 - endRefl) / (1 - BR_END_MAX);
-        const Nj = Math.max(1, ratio * P), j0 = Math.floor(Nj), fr = Nj - j0;   // the jet's travel, fractional
+        const Nj = Math.max(1, ratio * P - dcDel), j0 = Math.floor(Nj), fr = Nj - j0;   // the jet's travel, fractional (+ the blocker's lead)
         const lb = st.lb, sb = st.sb, dx = st.dx, dy = st.dy, biteK = BR_BITE * breathFull;
         let wl = st.wl, ws = st.ws, apX = st.apX, apY = st.apY, lp = st.lp, dcx = st.dcx, dcy = st.dcy, ox = st.ox, oy = st.oy, e = e0, on = on0;
         for (let i = 0; i < N; i++) {
@@ -721,11 +724,12 @@ class PulseProcessor extends AudioWorkletProcessor {
           let v = lp;
           if (disp) for (let m = 0; m < 4; m++) { const y = c * v + dx[m] - c * dy[m]; dx[m] = v; dy[m] = y; v = y; }
           v *= endRefl;
-          const temp = v - dcx + BR_DC_R * dcy; dcx = v; dcy = temp;        // the bore's wave, DC-blocked
+          const temp = v;                                                  // the bore's wave, its DC riding along
+          const jf = v - dcx + dcR * dcy; dcx = v; dcy = jf;                 // what the jet feels: the same wave without its DC
           const breath = breathFull * e;
           const r0 = (ws - j0) & M, pd = sb[r0] + (sb[(r0 - 1) & M] - sb[r0]) * fr;   // the deflection the jet carried Nj samples ago
-          sb[ws] = edge - BR_JET_REFL * temp; ws = (ws + 1) & M;
-          let jt = pd - pd * pd * pd; if (jt > 1) jt = 1; else if (jt < -1) jt = -1;   // the edge: the jet's deflection saturates
+          sb[ws] = edge - BR_JET_REFL * jf; ws = (ws + 1) & M;
+          const jt = BR_SIGMOID ? Math.tanh(pd) : Math.max(-1, Math.min(1, pd - pd * pd * pd));   // the edge: the jet's deflection saturates (a sigmoid; Cook's cubic folds back beyond 0.58 and bred chaos at mid breath)
           const air = (this.rnd() * 2 - 1) * (nzK * breath + (on < 1 ? biteK * (1 - on) : 0));   // the air, and the puff of the first instant
           const y = jt * BR_INJ[0] * (breath < BR_INJ[1] ? breath : BR_INJ[1]) + temp + air;
           lb[wl] = y; wl = (wl + 1) & M;

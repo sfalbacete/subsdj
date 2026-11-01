@@ -6,6 +6,17 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## [1.6.1] — 2026-11-01
+
+- **The breath no longer breathes.** Sergio heard a fake vibrato on a held Breath Flute: a
+  19 Hz breathing (sidebands ±19 Hz at −15 dB, the pitch wandering ±12 cents). The DC blocker
+  inside the bore's loop bred it; it now sits in the jet's branch only. With it: the jet's edge
+  is a sigmoid (tanh) instead of Cook's folding cubic, which bred chaos at mid breath; the jet
+  shortens faster past the reference breath, so the sharpening before the jump stays under
+  half a semitone and the overblown octave is steady; the **Jet** knob is where the jet rests on
+  the edge (hollow → fuller); little breath is air up to 0.1. Measured on held notes at C2, C4
+  and G5: pitch within ±1 cent, level within ±0.4 dB. The four blown presets re-levelled.
+
 ## [1.6.0] — 2026-11-01
 
 The String learns to be played, not only struck: a **bow** and a **breath** that keep feeding

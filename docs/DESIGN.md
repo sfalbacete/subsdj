@@ -2807,3 +2807,31 @@ overblows (the strongest partial at 1200 ± 60 cents), aftertouch → Bow pressu
 the fundamental to the octave, the edge moves the 2nd harmonic ≥ 4 dB, the landing follows the
 attack. Pairs BREATH 1-6. Presets: Breath Flute remade (the Vocal «u» as a tube is gone: the
 tube is the loop), Pan Pipe, Bottle, Overblown Drone (BANK_REV 10).
+
+
+## The breath, debugged by ear (1.6.1, 2026-11-01)
+
+Sergio, an hour after 1.6.0: «hay una especie de vibrato/vibración, un poco artificial y
+tirando a molesta» on a held Breath Flute, not the vibrato LFO. Measured (a held C4, the RMS
+envelope every 5 ms and its spectrum; the pitch every 50 ms): a 19 Hz breathing, 20-50 % peak
+to peak, sidebands at f0 ± 19 Hz at −15 dB, the pitch wandering ±12 cents; at G5, ±41 Hz.
+
+**The cause** was the DC blocker inside the bore's loop. A one-pole high-pass at 7.6 Hz lets a
+19 Hz component through at 0.93 and leads it in phase; in a loop of gain 0.9 with a
+nonlinearity that is enough for a slow limit cycle. Raising its corner to f0/3 killed the
+breathing but misaligned the second mode (a lead can only be paid back at one frequency) and
+with it the overblow; removing it left the DC to shift the operating point. **The fix**: the
+blocker sits in the jet's branch only — what the jet feels is DC-free, the bore's own DC rides
+along (bounded: the jet's offset × 10) and is blocked at the output; the slow loop gain through
+the jet is 0.9 − 0.37 < 1, so nothing breathes, and the blocker's lead is paid back in the
+jet's travel. Two more things came out of the same session: Cook's x − x³ folds back beyond
+0.58 and bred chaos at mid breath (±18-50 cents) once the blocker moved — a tanh sigmoid at the
+edge keeps every regime steady (±0.0 cents at C4, G5; the overblown octave within ±0.1); and
+with the jet at half the bore an asymmetric deflection adds no even harmonics (the jet cancels
+its own), so the Jet knob is the jet's rest point on the edge, 0 … 1 (2nd harmonic −61 → −28 dB).
+The jet now shortens as (reference / breath)^1.6 past the reference, so the sharpening before
+the jump stays under 50 cents and the octave arrives at 0.8 on the knob, steady.
+
+The lesson for the notebook: a high-pass inside a high-gain feedback loop is never free — its
+phase lead at the loop's slow modes can breed a slow oscillation, and its lead at the modes
+you tune can only be compensated at one of them. Put it where the loop does not go round.
