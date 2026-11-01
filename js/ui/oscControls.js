@@ -74,8 +74,24 @@ function bindSync() {
   set(PARAMS.syncA.def);
 }
 
+// String's exciter (2026-11-01): a button in the module header that cycles the modes
+// (pluck → bow; the breath will join the ring). Off = pluck; the text names the mode when on.
+const EXC_MODES = ['pluck', 'bow'];
+function bindExc() {
+  const b = document.getElementById('excModeBtn'); if (!b) return;
+  const set = v => {
+    if (!EXC_MODES.includes(v)) v = 'pluck';
+    b.dataset.cur = v; b.textContent = v === 'pluck' ? 'bow' : v;
+    b.classList.toggle('active', v !== 'pluck'); b.setAttribute('aria-pressed', String(v !== 'pluck'));
+    applyTarget('excMode', v);
+  };
+  b.addEventListener('click', e => { e.stopPropagation(); part().resume(); set(EXC_MODES[(EXC_MODES.indexOf(b.dataset.cur) + 1) % EXC_MODES.length]); });
+  CONTROLS.excMode = { get: () => b.dataset.cur, set, def: PARAMS.excMode.def, el: b, opts: EXC_MODES };
+  set(PARAMS.excMode.def);
+}
+
 export function bindOscControls() {
-  bindSync();
+  bindSync(); bindExc();
   bindSeg('waveA', 'w', 'waveA', 'oscA.wave');
   bindSeg('waveB', 'w', 'waveB', 'oscB.wave');
   bindSeg('modeSel', 'mode', 'mode', 'mode');              // Poly / Mono

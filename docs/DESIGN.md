@@ -2705,3 +2705,67 @@ Measured on 2026-11-01: two renders of the whole bank are at most 0.004 dB apart
 renders; the stored print is rounded to 0.01 dB), 25× below the alarm. The script is the
 preset's own use rather than the «awkward» one the plan imagined: the batch that tunes the bank
 is the reference, and one render per preset keeps the batch at ~75 s.
+
+
+## The exciter: a bowed string (2026-11-01)
+
+Everything SubSDJ had was a strike: energy at the start (the pick, the hit, the FM4
+decays) or an oscillator through an envelope. Sustained noise into the resonator is wind over
+a body — linear, no pitch lock, no regime. Roadmap 7.0's «new generators» and the agreed order
+after 1.5.0 put a *continuous exciter* next: energy fed in through the body's own motion, a
+nonlinearity plus feedback, which is what makes a bowed string or a blown pipe answer to a
+GESTURE with its timbre and not only its level. Sergio: «lo que mejore cualidades y
+expresividad». The bow came first; the breath is next.
+
+**The model.** The String already lived inside the oscillator worklet as a Karplus-Strong loop
+one period long (the fractional allpass, the Bright lowpass, the Stiffness allpasses, the Decay
+gain), which is where a bow has to go: a loop with exact sample delays cannot be closed in the
+WebAudio graph. `_bowed` is the same loop split in two at the bow point — Smith's digital
+waveguide bowed string. Position is the fraction of the string on the bridge side: that segment
+is a pure integer delay with an inverting end; the long one carries the losses and the
+fractional tuning, so the total is sr/f and the pitch is measured within a couple of cents of
+the pluck's (C2 +5, C3 −1, C5 +1; the friction pulls a little, as on a real string). At the
+junction: vh = the two incoming velocity waves; Δv = v_bow − vh; the friction passes a fraction
+f(Δv) ∈ [0, 1] of Δv — STK's bow table, ((|Δv + 0.001|·slope) + 0.75)⁻⁴ clamped — ~1 when
+stuck and falling fast once it slips, and that velocity goes out both ways. Stick, drag, slip,
+once per round trip: Helmholtz motion locked to the loop. The output is the wave travelling
+towards the bridge through a one-pole at f0: the bow's velocity is a pulse train (flat up to
+1/β), the bridge FORCE is its integral, a sawtooth — measured h2…h5 at +2, −9, −13, −16 dB, and
+without the integrator +6, −2, −4, −5 (nasal). Pressure is the table's slope = how wide the
+stick region is, read in units of the bow speed so that Speed only scales the motion and
+Pressure alone sets the regime (before normalising, a slow bow behaved like a heavy one and the
+level followed Speed at ×0.4 only): 0.8 (light: it lets go easily, thin), 0.64 at the middle of
+the knob (the classic bow, a sawtooth), 0.065 (heavy: it sticks most of the period and the
+fundamental takes over; below 0.03 the string chokes). The knob is a curve: between the two
+regimes (slope 0.3-0.55) the motion settles slowly, ~6 dB over a second, and the knob crosses
+that zone between 0.5 and 0.7 so that neither the default nor the heavy end sit in it (a scan
+of thirteen pressures, 2026-11-01). The landing also seeds the loop with white noise ∝ (1 −
+contact) · speed, the bite of the first grip: without it a mid bow took a second to build up.
+Measured at C3: harmonics
+2-8 move 10 dB RMS from mid to heavy, around 0.7 the 2nd harmonic cancels (stick and slip even
+out: hollow). Speed is the bow velocity, 0.03 … 0.3 in velocity-wave units, scaled by the key
+velocity; Noise is slow noise on it, the grain of the hair. The bow point colours as it should:
+sul ponticello (4 %) keeps 10 dB more upper partials than sul tasto (40 %).
+
+**The envelope is the note's.** Contact and speed rise from 0 over the Amp Env's attack (the bow
+lands: contact first, √e, then speed — 0 is a bite, 0.3 s a swell) and, when the note is
+released, the Voice posts `{lift, rel}` and they fall over the release: the bow comes off and
+the string rings on by Decay (measured: with r 1 the string is still at −24 dB half a second
+after the lift). No Onset or Lift knobs: the ADSR already says it, and the String module had no
+room for them. That was the layout decision: the agreed «scroll body» layout waits; the bow is
+a button in the String title and three mini knobs (Pressure, Speed, Noise) in a row under the
+four — the panel grew 0 px in width and the band 0 px in height.
+
+**Playing it.** Bow pressure and Bow speed are Matrix destinations (±1 = the whole knob): the
+aftertouch → pressure of the Cello is the note that swells and digs in, expression → speed the
+dynamics, an LFO → pressure a bow tremolo, a macro → both. Mono legato keeps the same bow and
+slides with Glide: a finger on the string. Checks («bowed string»): sustains within 3 dB over a
+second, tuning ±6 ct C2–C6, the bow point ≥ 8 dB, the three pressures all sustain within 8 dB
+and heavy is another regime (≥ 6 dB RMS on h2-8), the landing follows the attack, aftertouch →
+pressure and expression → speed through the real path. Pairs BOW 1-6. Presets: Cello, String
+Section, Bowed Glass, Bowed Metal remade (BANK_REV 9), rendered for Sergio's ear.
+
+**What the breath will share.** The same two-segment loop with an open end, a jet nonlinearity
+(a saturating curve with the jet's own delay) in place of the friction table, breath noise ∝
+pressure, and the same Pressure / Speed / Noise knobs: pressure = breath, speed = the jet's
+length (which harmonic it locks to: the overblow), noise = air.

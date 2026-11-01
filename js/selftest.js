@@ -1545,6 +1545,84 @@ export async function runSelfTest() {
   }
 
   {
+    // Bowed string (the String's exciter, 2026-11-01): the same loop, bowed — see pulse-processor
+    // _bowed. Through the engine, at C3 unless said: (1) it SUSTAINS: the level between 0.9 and
+    // 1.4 s is within 3 dB of the one between 0.4 and 0.9 s (a pluck drops ~9 dB there); (2) the
+    // pitch locks to the note within ±6 cents at C2, C4 and C6 (the two-segment loop is tuned like
+    // the pluck's; the friction pulls a few cents, as on a real string); (3) the bow point colours:
+    // sul ponticello (Position 4 %) keeps ≥ 8 dB more upper partials (h6-30 against h1-3) than sul
+    // tasto (40 %); (4) Pressure is a regime, not a volume: light (0.1), mid (0.5) and heavy (1)
+    // all sustain within 12 dB of each other (heavy is the loudest: the fundamental), and heavy is another regime — its harmonics 2-8 sit
+    // ≥ 6 dB RMS away from the mid bow's (the fundamental takes over: measured 10 dB); (5) the bow
+    // LANDS over the Amp Env's attack: with a = 0.6 the level at 0.2-0.4 s is ≥ 12 dB below the
+    // sustain, with a = 0.05 within 6 dB; (6) the Matrix plays it: aftertouch → Bow pressure 0.5
+    // from a light bow changes the sound (level + colour ≥ 2 dB) and expression → Bow speed −0.8
+    // lowers the level ≥ 6 dB.
+    body.appendChild(el('st-cat', 'Bowed string'));
+    const NAME = 'bowed string (sustains · tuning ±6 ct C2-C6 · the bow point colours · pressure is a regime · lands over the attack · aftertouch → pressure · expression → speed)';
+    let r;
+    try {
+      const problems = [], keep = snapshot(), log = [];
+      const BASE = { waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'bow', excPress: 0.5, excSpeed: 0.5, excNoise: 0.1, strBright: 0.5, strDecay: 3, strPos: 0.12,
+                     cutoff: 20000, reso: 0.7, a: 0.05, d: 0.05, s: 1, r: 0.3, amplitude: 0.3, master: 0.4 };
+      const render = async (st, f, { vel = 1, secs = 1.6, perf = null } = {}) => {
+        loadState({ ...BASE, ...st });
+        const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+        if (perf) eng.setPerf(perf[0], perf[1]);
+        eng.noteOn('b', f, vel);
+        return (await ctx.startRendering()).getChannelData(0);
+      };
+      const rmsDb = (d, t0, t1) => { const i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)); let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return 10 * Math.log10(s / Math.max(1, i1 - i0) + 1e-20); };
+      const magAt = (d, f, i0, n) => { const w = 2 * Math.PI * f / SR, cr = Math.cos(w), ci = Math.sin(w); let re = 0, im = 0, pr = 1, pi = 0;
+        for (let i = 0; i < n; i++) { const x = d[i0 + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1))); re += x * pr; im -= x * pi; const t = pr * cr - pi * ci; pi = pr * ci + pi * cr; pr = t; } return Math.hypot(re, im); };
+      const cents = (d, f, i0, n) => { let best = -1, bc = 0;
+        for (let c = -60; c <= 60; c += 4) { const m = magAt(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        for (let c = bc - 4; c <= bc + 4; c += 0.5) { const m = magAt(d, f * Math.pow(2, c / 1200), i0, n); if (m > best) { best = m; bc = c; } }
+        return bc; };
+      const hiLo = (d, f, i0, n) => { let lo = 0, hi = 0; for (let h = 1; h <= 3; h++) lo += magAt(d, h * f, i0, n) ** 2; for (let h = 6; h <= 30; h++) hi += magAt(d, h * f, i0, n) ** 2; return 10 * Math.log10(hi / Math.max(1e-20, lo)); };
+      const f3 = 130.81, i0 = Math.round(0.4 * SR), n = 32768;
+      // (1) sustains
+      const mid = await render({}, f3);
+      const sA = rmsDb(mid, 0.4, 0.9), sB = rmsDb(mid, 0.9, 1.4);
+      if (!(Math.abs(sA - sB) < 3)) problems.push('does not sustain: ' + sA.toFixed(1) + ' → ' + sB.toFixed(1) + ' dB');
+      log.push('sustain ' + sA.toFixed(1) + ' / ' + sB.toFixed(1) + ' dB');
+      // (2) tuning
+      for (const [nm, f] of [['C2', 65.406], ['C4', 261.63], ['C6', 1046.5]]) {
+        const d = await render({}, f), c = cents(d, f, i0, n);
+        log.push(nm + ' ' + c.toFixed(1) + ' ct');
+        if (!(Math.abs(c) <= 6)) problems.push(nm + ': ' + c.toFixed(1) + ' cents off');
+      }
+      // (3) the bow point
+      const pont = hiLo(await render({ strPos: 0.04 }, f3), f3, i0, n), tasto = hiLo(await render({ strPos: 0.4 }, f3), f3, i0, n);
+      if (!(pont - tasto >= 8)) problems.push('the bow point barely colours: ponticello ' + pont.toFixed(1) + ' / tasto ' + tasto.toFixed(1) + ' dB');
+      // (4) pressure
+      const light = await render({ excPress: 0.1 }, f3), heavy = await render({ excPress: 1 }, f3);
+      const lL = rmsDb(light, 0.4, 1.4), lM = rmsDb(mid, 0.4, 1.4), lH = rmsDb(heavy, 0.4, 1.4);
+      if (!(Math.abs(lL - lM) < 12 && Math.abs(lH - lM) < 12)) problems.push('a pressure does not sustain: light ' + lL.toFixed(1) + ' · mid ' + lM.toFixed(1) + ' · heavy ' + lH.toFixed(1) + ' dB');
+      const harm = d => { const m1 = magAt(d, f3, i0, n); return [2, 3, 4, 5, 6, 8].map(h => 20 * Math.log10(magAt(d, h * f3, i0, n) / Math.max(1e-12, m1))); };
+      const hM = harm(mid), hH = harm(heavy), dH = Math.sqrt(hH.reduce((s, v, i) => s + (v - hM[i]) ** 2, 0) / hH.length);
+      if (!(dH >= 6)) problems.push('heavy pressure does not change the regime: harmonics ' + dH.toFixed(1) + ' dB RMS from the mid bow');
+      // (5) the bow lands over the attack
+      const slow = await render({ a: 0.6 }, f3);
+      const dSlow = rmsDb(slow, 0.9, 1.4) - rmsDb(slow, 0.2, 0.4), dFast = rmsDb(mid, 0.9, 1.4) - rmsDb(mid, 0.2, 0.4);
+      if (!(dSlow >= 12 && dFast <= 6)) problems.push('the landing does not follow the attack: a 0.6 → ' + dSlow.toFixed(1) + ' dB, a 0.05 → ' + dFast.toFixed(1) + ' dB');
+      // (6) the matrix
+      const mxP = { excPress: 0.1, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5 };
+      const at0 = await render(mxP, f3, { perf: ['at', 0] }), at1 = await render(mxP, f3, { perf: ['at', 1] });
+      const dAt = Math.abs(hiLo(at1, f3, i0, n) - hiLo(at0, f3, i0, n)) + Math.abs(rmsDb(at1, 0.4, 1.4) - rmsDb(at0, 0.4, 1.4));
+      if (!(dAt >= 2)) problems.push('aftertouch → Bow pressure changes nothing (' + dAt.toFixed(1) + ' dB)');
+      const mxS = { mx1src: 'expr', mx1dst: 'excSpeed', mx1amt: -0.8 };
+      const ex0 = await render(mxS, f3, { perf: ['expr', 0] }), ex1 = await render(mxS, f3, { perf: ['expr', 1] });
+      const dEx = rmsDb(ex0, 0.4, 1.4) - rmsDb(ex1, 0.4, 1.4);
+      if (!(dEx >= 6)) problems.push('expression → Bow speed does not lower the level (' + dEx.toFixed(1) + ' dB)');
+      loadState(keep);
+      console.log('bow: ' + log.join(' · ') + ' · ponticello/tasto ' + pont.toFixed(1) + '/' + tasto.toFixed(1) + ' · pressure light/mid/heavy ' + lL.toFixed(1) + '/' + lM.toFixed(1) + '/' + lH.toFixed(1) + ' dB, heavy regime Δ ' + dH.toFixed(1) + ' · landing ' + dSlow.toFixed(1) + '/' + dFast.toFixed(1) + ' · at ' + dAt.toFixed(1) + ' · expr ' + dEx.toFixed(1));
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
+  }
+  {
     // String (Roadmap 7.0 · 3.3: extended Karplus-Strong), through the engine (the whole voice,
     // with the filter open): (1) tuning: the peak of the fundamental (DFT with Hann,
     // fine sweep) within ±2 cents of the note from C2 to C6, with and without Stiffness — the fractional

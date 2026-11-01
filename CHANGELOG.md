@@ -8,6 +8,19 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased (will go into 1.6.0)
 
+- **A bow for the String**: the String module has a **bow** button. Off, every note is a
+  pluck, as always. On, a bow keeps feeding energy while the key is held, through the
+  string's own motion — the hair sticks to the string, drags it and lets it slip once per
+  round trip, so the tone locks to the note and lives as long as you hold it. **Pressure**
+  (light: thin, the upper partials; heavy: the fundamental takes over), **Speed** (the level;
+  velocity scales it) and **Noise** (the grain of the hair) are the new knobs; Position is the
+  bow point (near the bridge, nasal; in the middle, soft); Bright, Decay and Stiffness still
+  shape the string. The bow lands over the Amp Env's attack and comes off over its release,
+  and the string rings on by Decay. In the Matrix, **Bow pressure** and **Bow speed** are
+  destinations: aftertouch → pressure is the bowed note that swells and bites, expression →
+  speed the dynamics, an LFO → pressure a tremolo of the bow. New factory presets **Cello**,
+  **String Section** and **Bowed Glass**; **Bowed Metal** is really bowed now. A/B pairs
+  BOW 1-6 in the demo bank. The breath (a jet into a tube) is next.
 - **The factory has a sound fingerprint** (`subsdj-fingerprints.json`): the selftest renders every
   factory preset in its use and compares its spectrum with the one stored when the preset was
   last tuned. Same settings and a different sound means the engine changed something nobody

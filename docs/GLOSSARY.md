@@ -81,7 +81,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Mixer | Ring M. · Ruido · Color · Spread · Drift · P.Width | Ring Mod · Noise · Color · Spread · Drift · P.Width |
 | Unison | Voces | Voices |
 | FM4 | Algoritmo · ratio · nivel · decay · vel | Algorithm · ratio · level · decay · vel |
-| String | Brillo · Decay · Posición · Rigidez | Bright · Decay · Position · Stiffness |
+| String | Brillo · Decay · Posición · Rigidez · arco: Presión · Velocidad · Ruido | Bright · Decay · Position · Stiffness · bow: Pressure · Speed · Noise |
 | Vocal | Vocal (selector) · Tamaño · Q · Vida · Brillo · Golpe | Vowel · Size · Q · Life ⚑ · Bright · Bite ⚑ |
 | Resonator | Mezcla · Material (cuerda ↔ barra) · Decay · Brillo | Mix · Material (string ↔ bar) · Decay · Bright |
 | Filter | Reso · Tipo · pendiente · carácter: suave · plegado | Reso · Type · slope · character: soft · fold |
@@ -124,7 +124,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Deriva (voz) · Rueda (CC1) · Aftertouch · Expresión (CC11) · Macro 1-2 | Drift (voice) · Wheel (CC1) · Aftertouch · Expression (CC11) · Macro 1-2 |
 | Pitch · Pulse width · Cutoff · Resonancia · Amplitud · Pan | Pitch · Pulse width · Cutoff · Resonance · Amplitude · Pan |
 | Wavetable · Vocal · FM índice · Nivel A · Nivel B · Nivel Ring · Nivel ruido | Wavetable · Vowel · FM index · Level A · Level B · Level Ring · Level Noise |
-| Drive · Pitch A · Material | Drive · Pitch A · Material |
+| Drive · Pitch A · Material · Presión de arco · Velocidad de arco | Drive · Pitch A · Material · Bow pressure · Bow speed |
 
 ## Harmony: notes and scales
 

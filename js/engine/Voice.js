@@ -91,6 +91,7 @@ const COST = {
   drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: what the fold adds (4x oversampling; measured 2026-10-20, Asym adds nothing)
   vocDyn: 0.26,       // Vocal made dynamic by Bite: 10 WaveShapers (biquads still k-rate)
   vocMx: 0.8,         // Vocal moved by the matrix: WaveShapers + a-rate biquads (measured on «Madrigal»)
+  bow: 0.02,          // a bowed copy: two lines, the friction table and the noise per sample (estimate)
   string: 0.01,       // each copy in String: the line, two filters and, with Stiffness, four allpasses (×1.2-1.8 a saw; measured 2026-10-25)
   syncMul: 2,         // A with Sync: each copy ×1.3-1.9 (saw-square) and ×1.4 on sine (measured 2026-10-25)
 };
@@ -322,7 +323,7 @@ export class Voice {
     const c = COST;
     const osc = o => {
       const copies = (o.wave === 'supersaw' ? 7 : (+S.uniVoices || 1)) * Math.max(1, o.octaves || 1);
-      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : o.wave === 'string' ? c.string : c.copy;
+      const w = o.wave === 'sine' ? (S.fmIndex > 0 ? c.sineFm : c.sine) : o.wave === 'fm4' ? c.fm4 : o.wave === 'string' ? (S.excMode === 'bow' ? c.bow : c.string) : c.copy;
       return copies * w;
     };
     let k = c.base + osc(S.oscA) * (S.syncA === 'on' ? c.syncMul : 1) + osc(S.oscB);
@@ -344,7 +345,7 @@ export class Voice {
         t0: t,                                 // note start: the per-operator envelopes (FM4) count from here
         seed: (this.rnd() * 4294967296) >>> 0,  // seed of the worklet's randomness (free phases, drift): repeatable offline
         ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // A: its ghost master (sync) starts at B's phase
-        ...(cfg.wave === 'string' ? { vel: this.vel } : {}),   // the string: the strength of the pluck colors the plectrum
+        ...(cfg.wave === 'string' ? { vel: this.vel, exc: this.S.excMode, excAtk: +this.S.a || 0 } : {}),   // the string: the strength of the pluck colors the plectrum; the exciter and how long the bow takes to land
         // mip tables (cloned by the options postMessage, ~290 KB per node: 0.3 ms)
         ...(cfg.wave === 'wavetable' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
@@ -822,6 +823,9 @@ export class Voice {
       case 'pitchA': return [this.oscs[0].slave || this.oscs[0].detune];   // only A, and only as SLAVE: the sync sweep doesn't move the master
       case 'drive':  this.ensureDrive(); return [this.dvMod];    // input gain of the curve (audible with Drive > 0)
       case 'resMat': this.ensureReson(); return this._resMatMods();
+      // the bow (String in Bow mode): the worklet's k-rate params; on a plucked string they exist and do nothing
+      case 'excPress': return this.oscs.map(o => o.strP && o.strP.excPress).filter(Boolean);
+      case 'excSpeed': return this.oscs.map(o => o.strP && o.strP.excSpeed).filter(Boolean);
       // vocal: the slot adds its signal at the INPUT of the WaveShapers (next
       // to the knob's ConstantSource) — connect() accepts nodes just like params.
       // Outside [-1,1] the shaper saturates: the sweep stops at u / i.
@@ -1037,6 +1041,8 @@ export class Voice {
     const now = this.ctx.currentTime;
     const t = at !== null ? Math.max(now, at + this.lag) : now;   // arp/Seq/players schedule the note-off on the audio clock
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
+    // the bow comes off the string over the release (String in Bow mode): the string rings on by itself
+    this.oscs.forEach(o => { if (o.strP && o.strP.excPress) { try { o.node.port.postMessage({ lift: t, rel }); } catch (e) {} } });
     // Release with the knob's curve, anchoring the CURRENT value. Key: if you release mid-ramp
     // (e.g. the decay of a pluck with sustain 0), a bare cancelScheduledValues erases the
     // target ramp and the parameter stays stuck at the LAST event (the attack peak)

@@ -71,6 +71,14 @@ export const PARAMS = {
   strDecay:  { def: 3, min: 0.05, max: 30, log: true, fmt: secFmt },        // T60 of the fundamental at C4 (higher notes, less)
   strPos:    { def: 0.12, min: 0.02, max: 0.5, fmt: v => Math.round(v * 100) + ' %' },   // where it is plucked: % of the string (50 = the center)
   strStiff:  { def: 0, min: 0, max: 1 },                                    // stiffness: stretched harmonics (piano, bell)
+  // EXCITER (2026-11-01): how the String is set in motion — the pick, or a BOW that keeps feeding
+  // energy while the key is held (through the string's own motion: see worklets/pulse-processor
+  // _bowed). Pressure and Speed are matrix destinations: aftertouch, wheel, expression, an LFO
+  // or the envelope play the bow. Contact follows the Amp Env's attack and release.
+  excMode:  { def: 'pluck' },                                               // 'pluck' | 'bow' (the breath is next); structure: per note
+  excPress: { def: 0.5, min: 0, max: 1 },                                   // bow pressure: light = thin, the upper partials · heavy = the fundamental takes over
+  excSpeed: { def: 0.5, min: 0, max: 1 },                                   // bow speed = the level (the key velocity scales it)
+  excNoise: { def: 0.1, min: 0, max: 1 },                                   // scratch: slow noise on the bow speed
   fm4R1: { def: 1, min: 0.25, max: 12 }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
   fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
@@ -248,7 +256,8 @@ export const PARAMS = {
    The cutoff is modulated through the filter's DETUNE (cents ⇒ exponential, symmetric
    octaves): mathematically unable to cross 0 Hz — the lesson of the
    cutLFO (presets that went silent) guaranteed by construction. */
-export const STR_KEYS = ['strBright', 'strDecay', 'strPos', 'strStiff'];   // the worklet's params have the same names
+export const EXC_KEYS = ['excPress', 'excSpeed', 'excNoise'];   // the bow's knobs (worklet params of the same name; excMode is per note)
+export const STR_KEYS = ['strBright', 'strDecay', 'strPos', 'strStiff', ...EXC_KEYS];   // the worklet's params have the same names
 export const FM4_KEYS = ['fm4Alg', 'fm4R1', 'fm4L1', 'fm4D1', 'fm4R2', 'fm4L2', 'fm4D2', 'fm4R3', 'fm4L3', 'fm4D3', 'fm4R4', 'fm4L4', 'fm4D4'];
 
 export const MX_SLOTS = 6;
@@ -307,6 +316,10 @@ export const MX_DESTS = [
   { id: 'drive',  label: 'Drive' },         // input gain of the curve (±1 = the knob's whole travel); needs Drive > 0
   { id: 'pitchA', label: 'Pitch A' },       // cents on oscillator A only
   { id: 'resMat', label: 'Material' },      // resonator: ±1 = from string to bar (each mode, its own cents)
+  // Exciter (2026-11-01): the bow's pressure and speed (String in Bow mode): ±1 = the knob's whole travel;
+  // aftertouch → Pressure is the bowed note that swells and bites, expression → Speed the dynamics
+  { id: 'excPress', label: 'Bow pressure' },
+  { id: 'excSpeed', label: 'Bow speed' },
   // Amount modulation (2026-10-31): the slot adds its source to the AMOUNT of another slot, in
   // the knob's units (±1): wheel → Amount of the vibrato slot = a real mod wheel; aftertouch →
   // Amount of an LFO; env → the vibrato grows with the note; a macro → three modulations at once.
@@ -315,7 +328,7 @@ export const MX_DESTS = [
   { id: 'amt4', label: 'Amount 4' }, { id: 'amt5', label: 'Amount 5' }, { id: 'amt6', label: 'Amount 6' },
 ];
 export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8,
-  lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1 };   // drive and resMat: the voice scales them (per character / per mode)
+  lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1, excPress: 1, excSpeed: 1 };   // drive and resMat: the voice scales them (per character / per mode)
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };

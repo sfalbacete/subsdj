@@ -109,6 +109,7 @@ export const RULES = [
   ['sec:FM4', S => (has(S, 'fm4') ? null : NO('FM4'))],
   ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i, 'fm4V' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' at level 0: it neither sounds nor modulates')),
   ['sec:String', S => (has(S, 'string') ? null : NO('String'))],
+  ...live(['excPress', 'excSpeed', 'excNoise'], S => S.excMode === 'bow', 'Pluck: the pick sets the string going; Pressure, Speed and Noise belong to the Bow'),
   ['sec:Wavetable', S => (has(S, 'wavetable') ? null : NO('Wavetable'))],
   ['sec:Wave Editor', S => (!has(S, 'wavetable') ? NO('Wavetable')
     : S.wtSet !== 'user' ? 'draws the «user» table: pick it in Wavetable' : null)],

@@ -35,6 +35,11 @@ what is already there, it does not go in. Order:
    the matrix** (a source scaling another slot's amount: wheel → vibrato depth, aftertouch → LFO
    depth, a macro → a modulation) and **refining the FM presets by ear**. Parts on demand: not
    now — composition is not the direction (Sergio, 2026-10-31).
+8. **The continuous exciter** (agreed 2026-10-31, after the ear sessions): ✔ **bow** 2026-11-01
+   (DESIGN «The exciter: a bowed string»): the String bowed inside its own loop, Pressure /
+   Speed / Noise in the module, Bow pressure and Bow speed in the Matrix, contact following
+   the Amp Env; Cello, String Section, Bowed Glass, Bowed Metal remade. Next: the **breath**
+   (a jet into a tube: flute, pipes, overblowing), then the rest of 1.4.
 Discarded by the criterion: 3.4, 3.5, 4.2, 4.3 and 5.5 (see «What we will NOT do»); 5.3 with no date.
 
 ## Roadmap 7.0 «the instrument» (proposed 2026-10-17 · pending agreement)

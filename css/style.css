@@ -364,6 +364,13 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   --knob-line:6px;--knob-line-top:2px;--knob-arc:2px;--knob-arc-gap:1px;--knob-shadow:0 2px 4px rgba(0,0,0,.5);}
 .ks .val{font-size:9px;min-height:0;width:46px;white-space:nowrap;overflow:hidden;}
 .ks .th{width:34px;}
+/* mini knob with its own label under it (the String's bow column, beside the 2×2 grid): a column control at a third of the size */
+.km-col{display:flex;flex-direction:column;gap:3px;align-items:center;}
+.ctl.km{width:46px;gap:1px;}
+.ctl.km .knob{width:26px;height:26px;--knob-disc-inset:2px;--knob-edge-w:1px;--knob-ring-r:5px;--knob-dot:3px;--knob-dot-top:4px;
+  --knob-line:6px;--knob-line-top:2px;--knob-arc:2px;--knob-arc-gap:1px;--knob-shadow:0 2px 4px rgba(0,0,0,.5);}
+.ctl.km .lab,.ctl.km .val{font-size:9px;}
+.ctl.km .val{min-height:10px;}
 
 .slider{display:flex;flex-direction:column;gap:4px;width:100%;}
 .slider .head{display:flex;justify-content:space-between;font-size:10px;}

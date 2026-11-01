@@ -27,8 +27,9 @@ import { PARAMS, posToVal } from './params.js';
 // (or ⟲ Restore factory) replaces the untouched ones. 3: the sync recognises every historical
 // version of the old factory; 4: it clears the demo copies out of «★ Mine»; 5: the ear session
 // (Marimba, Gong, Accordion) and the leads' wheel vibrato; 6: the second ear session (DX Bass,
-// Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone.
-export const BANK_REV = 8;
+// Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone; 8: the kit by
+// ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade).
+export const BANK_REV = 9;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -220,9 +221,27 @@ export const BANK = [
       data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, levelA: 0.5, levelB: 0.5, cutoff: 2500, reso: 1,
         filterEnvAmt: 2500, fenvMode: 'own', fa: 0.001, fd: 0.08, fs: 0, fr: 0.1, a: 0.001, d: 0.18, s: 0, r: 0.12, envCurve: 0.8,
         chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, width: 0.4, reverbMix: 0.3, reverbSize: 2, ...WHEEL(0.3), master: 1.15 } },
+    /* the BOWED string (the String's exciter, 2026-11-01): the loop bowed at 10 % with a mid pressure, a body
+       of string modes from the resonator, the vibrato dialled in by the wheel (LFO → Pitch, its amount fed by
+       the wheel) and the bow pressure under the aftertouch. One voice: legato notes glide like a finger. */
+    { name: 'Cello', tags: ['string', 'warm', 'mono', 'expressive', 'orchestral'], use: 'note',
+      play: 'C2–C5, mono: overlapping notes glide. Velocity = bow speed · aftertouch digs the bow in · wheel: vibrato · M1: a faster bow.',
+      data: { mode: 'mono', monoTrig: 'legato', glide: 0.06, waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'bow', excPress: 0.5, excSpeed: 0.55, excNoise: 0.15,
+        strBright: 0.45, strDecay: 4, strPos: 0.1, strStiff: 0.05, resAmt: 0.3, resMat: 0, resDecay: 0.35, resBright: 0.5,
+        cutoff: 5000, reso: 1, keytrack: 0.3, freqLfoSpd: 5.2,
+        mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.025, mx3src: 'at', mx3dst: 'excPress', mx3amt: 0.4,
+        a: 0.12, d: 0.3, s: 1, r: 0.35, envCurve: 0.3, reverbType: 'hall', reverbMix: 0.22, reverbSize: 2.2, reverbDamp: 0.4, width: 0.2,
+        ...WHEEL(0.3), ...MAC1('excSpeed', 0.4), master: 2.34 } },
+    /* a section: three bowed strings per note (unison ±12 ct), the bows landing over a third of a second,
+       a string body, ensemble chorus and a hall */
+    { name: 'String Section', tags: ['string', 'warm', 'wide', 'chords', 'orchestral'], use: 'chord',
+      play: 'C2–C5 chords, slow: the bows land over a third of a second. Aftertouch digs in · wheel: brighter · M1: a faster bow.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'bow', excPress: 0.45, excSpeed: 0.5, excNoise: 0.2, uniVoices: '3', uniDetune: 12,
+        strBright: 0.5, strDecay: 4, strPos: 0.12, strStiff: 0.05, resAmt: 0.25, resMat: 0, resDecay: 0.3, resBright: 0.5,
+        cutoff: 4000, reso: 0.7, keytrack: 0.3, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.35,
+        a: 0.35, d: 0.5, s: 1, r: 0.6, envCurve: 0.3, chMode: 'ensemble', chAmt: 0.3, chSpd: 0.4,
+        reverbType: 'hall', reverbMix: 0.3, reverbSize: 3, reverbDamp: 0.4, width: 0.6, ...WHEEL(0.4), ...MAC1('excSpeed', 0.3), master: 0.66 } },
   ] },
-
-  /* ---------- Keys: keyboard instruments ---------- */
   { cat: 'Keys', presets: [
     /* two FM pairs: the body (2→1, ratio 1) whose «bark» decays over a second, and a tine ping (4→3,
        ratio 7) of 100 ms — both opened by velocity — through a stereo tremolo at 4.5 Hz: the suitcase
@@ -481,13 +500,17 @@ export const BANK = [
       data: { waveA: 'sine', levelA: 1, levelB: 0, noise: 1, noiseColor: 0.2, resAmt: 1, resMat: 1, resDecay: 0.85, resBright: 0.45, cutoff: 9000, reso: 0.7, lfoPhase: 'voice',
         mx1src: 'drift', mx1dst: 'pan', mx1amt: 0.6, mxDriftSpd: 0.05, a: 1.5, d: 2, s: 1, r: 12, envCurve: 0.3, width: 0.3,
         reverbType: 'plate', reverbMix: 0.5, reverbSize: 10, reverbDamp: 0.3, reverbPre: 0.04, ...WHEEL(0.3), ...MAC1('resMat', -0.5), master: 0.49 } },
-    /* a saw through a resonator halfway between string and bar (inharmonic like a prepared piano): humming metal */
-    { name: 'Bowed Metal', tags: ['resonator', 'metallic', 'dark', 'chords', 'cinematic'], use: 'chord',
-      play: 'C2–C4 slow chords. M1: material (towards a bar) · wheel: opens the filter.',
-      data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octB: -1, levelA: 0.6, levelB: 0.4, noise: 0.25, noiseColor: -0.2,
-        resAmt: 0.75, resMat: 0.55, resDecay: 0.6, resBright: 0.6, filterDrive: 0.25, cutoff: 2500, reso: 1, filterSlope: '24',
+    /* really bowed now (the String's exciter, 2026-11-01; it was a saw through the same resonator): the string
+       an octave down under a HEAVY bow (the fundamental takes over) and a little stiffness, two strings per
+       note, through a resonator halfway between string and bar (inharmonic like a prepared piano) and the
+       drive: humming metal. Aftertouch LIGHTENS the bow and the upper partials come out. */
+    { name: 'Bowed Metal', tags: ['string', 'resonator', 'metallic', 'dark', 'chords', 'cinematic'], use: 'chord',
+      play: 'C2–C4 slow chords; the bows land in a second. Aftertouch: a lighter bow (the partials come out) · M1: material (towards a bar) · wheel: opens the filter.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: -1, excMode: 'bow', excPress: 0.85, excSpeed: 0.5, excNoise: 0.3, uniVoices: '2', uniDetune: 9,
+        strBright: 0.4, strDecay: 5, strPos: 0.08, strStiff: 0.35, resAmt: 0.75, resMat: 0.55, resDecay: 0.6, resBright: 0.6,
+        filterDrive: 0.25, cutoff: 2500, reso: 1, filterSlope: '24', mx1src: 'at', mx1dst: 'excPress', mx1amt: -0.5,
         a: 0.8, d: 1.5, s: 0.9, r: 6, envCurve: 0.3, width: 0.5, chMode: 'ensemble', chAmt: 0.2, chSpd: 0.3,
-        reverbType: 'plate', reverbMix: 0.4, reverbSize: 7, reverbDamp: 0.4, ...WHEEL(0.3), ...MAC1('resMat', 0.5), master: 2.79 } },
+        reverbType: 'plate', reverbMix: 0.4, reverbSize: 7, reverbDamp: 0.4, ...WHEEL(0.3), ...MAC1('resMat', 0.5), master: 2.29 } },
     /* FM pad with a half-note echo, slow autopan and shimmer at the FIFTH: the tail turns into a dense
        choir; the LFOs run ONCE per note (an 11 s swell of the filter, one pass of the pan) and stay */
     { name: 'Interstellar', tags: ['fm', 'glassy', 'long', 'evolving', 'cinematic'], use: 'chord',
@@ -495,6 +518,17 @@ export const BANK = [
       data: { waveA: 'sine', waveB: 'sine', levelA: 0.55, levelB: 0.45, fmRatio: 3.5, fmIndex: 2.5, detuneB: 5, cutoff: 3500, cutLfoLvl: 1200, cutLfoSpd: 0.09, lfoPhase: 'once',
         a: 0.8, d: 0.8, s: 0.8, r: 3, dlyAmt: 0.45, dlySync: '1/2', bpm: 84, panLfoLvl: 0.6, panLfoSpd: 0.07, width: 0.5,
         reverbType: 'plate', reverbMix: 0.45, reverbSize: 8, shimAmt: 0.5, shimInt: '+7', ...WHEEL(0.3), ...MAC1('fm', 0.4), master: 0.62 } },
+    /* the bowed string with a GLASS body: a light bow near the bridge (the upper partials sing) on an almost
+       plain string — bowing a STIFF string detunes it and chokes it (measured: +20 / −29 cents at Stiffness 0.9) —
+       and the glass is the BAR resonator: its inharmonic modes (1 · 2.76 · 5.4 …) ring with the string's
+       harmonics; the bow lands in half a second and a plate makes it a room of glass */
+    { name: 'Bowed Glass', tags: ['string', 'resonator', 'glassy', 'slow', 'chords', 'cinematic'], use: 'chord',
+      play: 'C3–C6 slow chords; hold and let the partials bloom. Aftertouch presses the bow (darker) · wheel: opens the filter · M1: material towards a string.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'bow', excPress: 0.3, excSpeed: 0.45, excNoise: 0.15,
+        strBright: 0.7, strDecay: 6, strPos: 0.06, strStiff: 0.15, resAmt: 0.5, resMat: 1, resDecay: 0.75, resBright: 0.7,
+        cutoff: 9000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5, lfoPhase: 'voice', mx2src: 'drift', mx2dst: 'pan', mx2amt: 0.5, mxDriftSpd: 0.05,
+        a: 0.5, d: 1, s: 1, r: 4, envCurve: 0.3, width: 0.5, reverbType: 'plate', reverbMix: 0.45, reverbSize: 6, reverbDamp: 0.3, reverbPre: 0.03,
+        ...WHEEL(0.3), ...MAC1('resMat', -0.5), master: 1.68 } },
   ] },
 
   /* ---------- Motion: the sequencer, the arpeggiator, Steps and the looping envelope do the playing ---------- */

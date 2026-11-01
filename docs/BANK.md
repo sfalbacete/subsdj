@@ -341,6 +341,12 @@ saved stops loading: the old bank comes back from the archive).
   for the hats — a drum lives in its first 50 ms. Only the Closed Hat needed re-levelling.
   Second batch (Clap, Rimshot, Cowbell, Crash, Ride, Tom), five candidates each, heard the same
   day: Sergio kept the current six. The percussion review is closed.
+- **The bow (2026-11-01):** the String's exciter brought three presets — **Cello** (mono,
+  legato glide, string body, wheel vibrato, aftertouch digs the bow in), **String Section**
+  (three bows per note, slow landing, ensemble, hall) and **Bowed Glass** (light bow, stiff
+  string, bar resonator, a plate) — and **Bowed Metal** is really bowed now (heavy bow an
+  octave down through the prepared-piano resonator; aftertouch lightens it). BANK_REV 9;
+  rendered for Sergio's ear, pending his verdict.
 
 ## Decisions
 

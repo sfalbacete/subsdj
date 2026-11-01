@@ -36,6 +36,11 @@
    simulated with a delay loop one period long. See _string. Params
    strBright / strDecay / strPos / strStiff; the velocity arrives in
    processorOptions.vel (fixed per note: the force of the pluck).
+   EXCITER (2026-11-01): processorOptions.exc = 'pluck' (the above) or 'bow':
+   the same string BOWED — a continuous excitation through the string's own
+   motion (see _bowed). Params excPress / excSpeed / excNoise; the bow lands
+   over processorOptions.excAtk seconds and comes off when the message
+   {lift: t, rel} arrives (the note's release): the string then decays by itself.
    HARD SYNC (Roadmap 7.0 · 3.2): with syncRatio > 0 this oscillator (A) is
    the SLAVE of B: it restarts its cycle on every cycle of B. See _synced.
    slave = cents that move ONLY the slave (the matrix «Pitch A»): the sync
@@ -78,6 +83,19 @@ const STR_VEL_OCT = [0.5, 6];   // velocity 0..1 → cutoff of the pick (two pol
 const STR_DECAY_TRACK = 0.5;   // Decay is C4's; an octave higher lasts ×0.71 (high strings die out sooner)
 const STR_DISP = 19;           // Stiffness 0..1 → DC delay of each dispersion allpass, from 1 to 19 samples (log: the
                                // stretching grows very fast at the end; this way 0.5 is already a piano and 1 a bell)
+// EXCITER · BOW (see _bowed): the friction table is STK's bow table
+const BOW_OFFSET = 0.001;      // asymmetry of the table (a hair: the bow is never exactly centred)
+// Pressure 0..1 → slope of the table = how wide the STICK region is, in units of the bow speed (a curve, knob → slope):
+// 0.8 = light (slips easily: thin, the upper partials) · 0.64 at the middle = the classic bow (a sawtooth, 1/n) ·
+// 0.28 … 0.065 = heavy (sticks most of the period: the fundamental takes over, dark and fat). Between the two
+// regimes (slope 0.3-0.55) the motion settles slowly, ~6 dB over a second: the knob crosses that zone between
+// 0.5 and 0.7 so that neither the default nor the heavy end sit in it (scan of 2026-11-01). Below 0.03 it chokes.
+const BOW_SLOPE_CURVE = [[0, 0.8], [0.5, 0.64], [0.7, 0.28], [1, 0.065]];
+const BOW_OUT_LP = 1;          // output one-pole at f0 × this (0 = the raw velocity wave): the bridge FORCE is the velocity wave integrated — a sawtooth, 1/n — while the bow's velocity is a pulse train (flat up to 1/β)
+const BOW_VEL = [0.03, 0.3];   // Speed 0..1 → bow velocity, in the loop's velocity-wave units (the level of the note)
+const BOW_OUT = 2.2;           // output gain: Pressure 0.5 · Speed 0.5 ≈ the level of the pluck (measured 2026-11-01)
+const BOW_NOISE = 0.6;         // Noise 1 → up to ±60 % of the bow velocity as slow noise: scratch, the hair's grain
+const BOW_BITE = 0.5;          // the landing: white noise into the loop ∝ (1 − contact) · bow speed — the first grip seeds the stick-slip at once (without it a mid bow took ~1 s to build up; measured 2026-11-01)
 const STR_EXC_RMS = 0.5;       // the pick is normalized to this level: velocity sets the color, the VCA the volume
 
 // Super Saw detune offsets (JP-8000 curve, per Adam Szabo's analysis).
@@ -126,6 +144,9 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'strDecay',  defaultValue: 3,   minValue: 0.05,  maxValue: 30,    automationRate: 'k-rate' },   // string: T60 of the fundamental at C4 (s)
       { name: 'strPos',    defaultValue: 0.12,minValue: 0.02,  maxValue: 0.5,   automationRate: 'k-rate' },   // string: pluck point (0.5 = the center)
       { name: 'strStiff',  defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // string: stiffness (stretched harmonics)
+      { name: 'excPress',  defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: bow pressure
+      { name: 'excSpeed',  defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: bow speed
+      { name: 'excNoise',  defaultValue: 0.1, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: scratch
       ...[1, 2, 3, 4].flatMap(n => [
         { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 12,  automationRate: 'k-rate' },
         { name: 'fm4L' + n, defaultValue: 0.5, minValue: 0,     maxValue: 1,   automationRate: 'k-rate' },
@@ -167,8 +188,11 @@ class PulseProcessor extends AudioWorkletProcessor {
     }
     this.gph = (typeof o.gphase === 'number') ? (o.gphase % 1 + 1) % 1 : 0;   // master's ghost phase (sync): starts where B does
     this.pend = null;   // sync: pending PolyBLEP residual for the next sample, per copy
-    this.vel = typeof o.vel === 'number' ? o.vel : 1;   // string: force of the pluck
+    this.vel = typeof o.vel === 'number' ? o.vel : 1;   // string: force of the pluck (bow: its speed)
     this.str = null;    // string: the state of each string (one per copy), created in the first block
+    this.exc = o.exc === 'bow' ? 'bow' : 'pluck';         // string: how it is set in motion (fixed per note)
+    this.excAtk = typeof o.excAtk === 'number' ? Math.max(0, o.excAtk) : 0;   // bow: seconds for the bow to land (the Amp Env's attack)
+    this.lift = null; this.liftRel = 0.05;                // bow: when the note was released and how long the bow takes to come off
     this.stopped = false;
     this.t = 0;         // seconds since the node was born (fallback: if the Voice does not send t0)
     // t0: instant (audio clock) at which the note STARTS — the VCA opens there. The
@@ -185,7 +209,10 @@ class PulseProcessor extends AudioWorkletProcessor {
     this.tBirth = null;
     this.driftZ = 0;    // state of the drift random walk (independent per oscillator)
     this.wt = (this.type === 'wavetable' && o.wt && o.wt.frames) ? o.wt : null;
-    this.port.onmessage = (e) => { if (e.data === 'stop') this.stopped = true; };
+    this.port.onmessage = (e) => {
+      if (e.data === 'stop') this.stopped = true;
+      else if (e.data && typeof e.data === 'object' && typeof e.data.lift === 'number') { this.lift = e.data.lift; this.liftRel = Math.max(0.005, +e.data.rel || 0.05); }
+    };
   }
 
   process(inputs, outputs, params) {
@@ -224,7 +251,9 @@ class PulseProcessor extends AudioWorkletProcessor {
       : Math.pow(2, ((2 * j / (uv - 1) - 1) * uniCt) / 1200);
 
     if (type === 'string') {
-      this._string(ch, N, params, fs, uv, lvl, uniMul);
+      if (this.tBirth === null) this.tBirth = currentTime;   // the bow's envelope counts from the note start (t0) or from here
+      if (this.exc === 'bow') this._bowed(ch, N, params, fs, uv, lvl, uniMul);
+      else this._string(ch, N, params, fs, uv, lvl, uniMul);
     } else if (syncR > 0 && SYNC_TYPES.has(type) && !(type === 'sine' && params.fmIndex[0] > 0)) {
       this._synced(ch, N, params, fs, f0 * syncR, uv, lvl, uniMul);
     } else if (type === 'supersaw') {
@@ -590,6 +619,115 @@ class PulseProcessor extends AudioWorkletProcessor {
           ch[i] += y * lvl;
         }
         st.w = w; st.ei = ei; st.apX = apX; st.apY = apY; st.lp = lp;
+      }
+    }
+  }
+  // ---------- EXCITER · BOW (continuous excitation, 2026-11-01) ----------
+  // The same string, BOWED instead of plucked: a digital waveguide in TWO segments that meet at
+  // the bow. Position = the fraction of the string on the bridge side (2 % = sul ponticello,
+  // 50 % = the middle): that segment is a pure integer delay with an inverting end; the other
+  // (the long one) carries the loop's losses — the Bright lowpass, the Stiffness allpasses, the
+  // Decay gain — and the fractional tuning, exactly as _string does for the whole loop (one
+  // application per round trip either way; the pitch is Pshort + Plong = sr/f, measured within
+  // the same cents as the pluck). At the junction the bow feeds energy in THROUGH the string's
+  // own motion (McIntyre & Woodhouse; the table is STK's): vh = the two incoming velocity waves;
+  // Δv = v_bow − vh; the friction passes a fraction f(Δv) ∈ [0, 1] of Δv — ~1 when STUCK (|Δv|
+  // small: the string travels with the hair) and falling fast once it SLIPS — and that velocity
+  // goes out both ways. The string sticks, is dragged, slips back once per round trip: the
+  // stick-slip locks to the string's length (Helmholtz motion: a sawtooth of velocity at the bow)
+  // and the pitch is the loop's. Pressure sets the table's slope = how wide the stick region is:
+  // light = the bow lets go easily (thin, the upper partials); around 0.7 the stick and slip
+  // phases even out (hollow: the 2nd harmonic cancels); heavy = it sticks most of the period
+  // and the fundamental takes over (dark, fat, a hair of grit at the very top). Measured
+  // 2026-11-01 at C3: harmonics 2-8 move 10 dB RMS from mid to heavy, the pitch < 2 cents. Speed
+  // = the bow velocity = the level (the key velocity scales it): the table reads Δv in units of
+  // the bow speed, so a slow bow is a quiet bow with the same regime, not a stuck one (as it
+  // was before normalising: the level followed the speed at only ×0.4). Noise
+  // = slow noise on the bow velocity: the grain of the hair. Contact and speed follow the NOTE:
+  // they rise from 0 over the Amp Env's attack (the bow lands: contact first, √e, then speed) and,
+  // when the note is released ('lift'), fall over its release — the bow comes off and the string
+  // rings on by itself, by Decay. With Mono legato the same bow follows the Glide.
+  _bowed(ch, N, params, fs, uv, lvl, uniMul) {
+    const sr = sampleRate, M = STR_LEN - 1, TWO_PI = Math.PI * 2;
+    const bright = params.strBright[0], decay = params.strDecay[0], pos = params.strPos[0], stiff = params.strStiff[0];
+    const pr = params.excPress ? params.excPress[0] : 0.5, sp = params.excSpeed ? params.excSpeed[0] : 0.5, nzA = params.excNoise ? params.excNoise[0] : 0;
+    const press = pr < 0 ? 0 : pr > 1 ? 1 : pr, speed = sp < 0 ? 0 : sp > 1 ? 1 : sp;
+    // the bow's envelope over this block (linear inside it): lands over excAtk from the note start, comes off over liftRel from the lift
+    const tN = this.t0 !== null ? Math.max(this.t0, this.tBirth) : this.tBirth;
+    const onAt = t => (this.excAtk > 0 ? Math.min(1, Math.max(0, (t - tN) / this.excAtk)) : 1);   // the landing alone
+    const envAt = t => {
+      let e = onAt(t);
+      if (this.lift !== null && t >= this.lift) e *= Math.max(0, 1 - (t - this.lift) / this.liftRel);
+      return e < 0 ? 0 : e;
+    };
+    const e0 = envAt(currentTime), de = (envAt(currentTime + N / sr) - e0) / N;
+    const on0 = onAt(currentTime), don = (onAt(currentTime + N / sr) - on0) / N;
+    let slope = BOW_SLOPE_CURVE[0][1];
+    for (let q = 1; q < BOW_SLOPE_CURVE.length; q++) { const [p0, s0] = BOW_SLOPE_CURVE[q - 1], [p1, s1] = BOW_SLOPE_CURVE[q]; if (press <= p1) { slope = s0 + (s1 - s0) * (press - p0) / (p1 - p0); break; } }
+    const vBowFull = (BOW_VEL[0] + (BOW_VEL[1] - BOW_VEL[0]) * speed) * (0.4 + 0.6 * this.vel);
+    const nzK = BOW_NOISE * nzA * 4;   // the one-pole noise below has ~¼ of the white amplitude
+    if (!this.str) this.str = [];
+    for (let k = 0; k < this.octaves; k++) {
+      for (let j = 0; j < uv; j++) {
+        const idx = k * 7 + j;
+        let f = fs * (1 << k) * uniMul(j);
+        if (!(f > 0)) continue;
+        let P = sr / f;
+        if (P < 8) continue;                             // above ~6 kHz the two segments do not fit: silence, not alias
+        if (P > STR_LEN - 8) { P = STR_LEN - 8; f = sr / P; }
+        let st = this.str[idx];
+        if (!st) st = this.str[idx] = { sb: new Float32Array(STR_LEN), lb: new Float32Array(STR_LEN), ws: 0, wl: 0, apX: 0, apY: 0, lp: 0, dx: new Float64Array(4), dy: new Float64Array(4), nz: 0, yi: 0 };
+        const ai = BOW_OUT_LP > 0 ? 1 - Math.exp(-TWO_PI * f * BOW_OUT_LP / sr) : 1, gi = BOW_OUT_LP > 0 ? Math.sqrt(1 + 1 / (BOW_OUT_LP * BOW_OUT_LP)) : 1;
+        // the loop's losses and the tuning, as in _string (they live in the long segment)
+        const w0 = TWO_PI * f / sr, sw = Math.sin(w0), cw = Math.cos(w0);
+        const T60 = decay * Math.pow(261.63 / f, STR_DECAY_TRACK);
+        const r = STR_BRIGHT[0] * Math.pow(STR_BRIGHT[1] / STR_BRIGHT[0], bright);
+        const h = Math.min(STR_HREF, Math.floor(0.45 * sr / f));
+        let b1 = 0;
+        if (h >= 2 && r < 1) {
+          const R = Math.pow(10, -(60 / (T60 * f)) * (1 / r - 1) / 20), q = 1 - R * R, C = cw - R * R * Math.cos(h * w0);
+          const disc = C * C - q * q;
+          b1 = disc > 0 && C > 0 ? Math.min(0.9999, (C - Math.sqrt(disc)) / q) : 0.9999;
+        }
+        const a = 1 - b1;
+        const lpMag = a / Math.hypot(1 - b1 * cw, b1 * sw), lpDel = Math.atan2(b1 * sw, 1 - b1 * cw) / w0;
+        const Ps = Math.max(2, Math.round(pos * P));      // the short segment (bridge side): an integer delay, the bow point
+        const Pl = P - Ps;                                // the long one: losses, dispersion and the fractional tuning
+        const dd = Math.pow(STR_DISP, stiff);
+        let c = (1 - dd) / (1 + dd);
+        const cMin = (1 - Pl / 8) / (1 + Pl / 8); if (c < cMin) c = cMin;
+        const disp = c < -1e-4;
+        const dispDel = disp ? 4 * (w0 - 2 * Math.atan(c * sw / (1 + c * cw))) / w0 : 0;
+        const rest = Pl - lpDel - dispDel;
+        const Ni = Math.max(1, Math.floor(rest - 0.5)), D = rest - Ni;
+        const t = Math.tan(w0 * (1 - D) / 2), eta = t / (sw - t * cw);
+        const g = Math.min(0.9995, Math.pow(10, -3 / (T60 * f)) / lpMag);
+        const sb = st.sb, lb = st.lb, dx = st.dx, dy = st.dy;
+        let ws = st.ws, wl = st.wl, apX = st.apX, apY = st.apY, lp = st.lp, nz = st.nz, yi = st.yi, e = e0, on = on0;
+        const biteK = BOW_BITE * vBowFull;
+        for (let i = 0; i < N; i++) {
+          // what comes back along the long segment: through the losses, inverted at its end
+          const xl = lb[(wl - Ni) & M];
+          const ap = eta * xl + apX - eta * apY; apX = xl; apY = ap;
+          lp += a * (ap - lp);
+          let v = lp;
+          if (disp) for (let m = 0; m < 4; m++) { const y = c * v + dx[m] - c * dy[m]; dx[m] = v; dy[m] = y; v = y; }
+          const fromLong = -g * v;
+          const fromShort = -sb[(ws - Ps) & M];          // back from the bridge side, inverted
+          // the bow: contact √e, speed e, the grain of the hair, the friction table
+          nz += 0.05 * ((this.rnd() * 2 - 1) - nz);
+          const dv = vBowFull * e * (1 + nzK * nz) - (fromLong + fromShort);
+          let s = (dv / vBowFull + BOW_OFFSET) * slope; s = Math.abs(s) + 0.75; s = s * s; s = 1 / (s * s); if (s > 1) s = 1;
+          const nv = dv * s * (e < 1 ? Math.sqrt(e) : 1);
+          const bite = on < 1 ? (this.rnd() * 2 - 1) * biteK * (1 - on) : 0;   // the bite of the landing
+          lb[wl] = fromShort + nv + bite; wl = (wl + 1) & M;    // out along the long segment
+          const toBridge = fromLong + nv;                // out towards the bridge: what the body receives
+          sb[ws] = toBridge; ws = (ws + 1) & M;
+          yi += ai * (toBridge - yi);                    // the bridge: what the body receives (BOW_OUT_LP)
+          ch[i] += yi * gi * BOW_OUT * lvl;
+          e += de; on += don;
+        }
+        st.ws = ws; st.wl = wl; st.apX = apX; st.apY = apY; st.lp = lp; st.nz = nz; st.yi = yi;
       }
     }
   }
