@@ -15,7 +15,7 @@ import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
 import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
-import { currentPreset, markPreset, markPresetByName } from './presetBank.js';
+import { currentPreset, markPreset, markPresetByName, initItem, initData } from './presetBank.js';
 
 const ROOM_PANELS = ['Delay', 'Reverb', 'Tape'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
@@ -138,10 +138,12 @@ async function toggle(btn) {
   }
   if (!part().ready) return;
   btn.disabled = true;
-  try { await enableScene(); } finally { btn.disabled = false; }
+  try { await enableScene(initData()); } finally { btn.disabled = false; }   // the other parts are born with Init (the blank page)
   buildStrips(); setUI(true); syncControls(part().S);
-  const cur = currentPreset(), p0 = getScene().parts[0];      // part 1 inherits the sound (and its preset name)
-  if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; refreshNames(); }
+  const cur = currentPreset(), sc = getScene(), p0 = sc.parts[0], init = initItem();   // part 1 inherits the sound (and its preset name)
+  if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; }
+  if (init) for (const p of sc.parts.slice(1)) { p.presetVal = init.id; p.presetName = init.name; }
+  refreshNames();
   const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts: part 1 takes over the current sound';
 }
 

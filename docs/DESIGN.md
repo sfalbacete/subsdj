@@ -3011,3 +3011,15 @@ Yamaha's. The FM4 grew instead, in layers, after a mock-up of the panel was appr
   with the eight drawn: that popover IS the fm4Alg .seg (bindSeg, the display, MIDI and undo see a
   normal selector); its buttons say their label through data-txt, because their SVG has text. The
   Source band was full to the pixel: the new panel takes 409 px where the old one took 407.
+
+## Init is the start (2026-11-02)
+
+Init used to be {} — the engine's neutral, the gate envelope (2 ms · 1 · 20 ms) — and the synth
+marked it as the current preset at startup without loading it: they were the same thing. When Init
+got a gentle Amp Env (Sergio: 155 ms · 354 ms · 0.65 · 1.57 s), that broke: the picker said «Init»
+while the neutral sounded, and Reset went to a state that was not Init. Sergio could not fit the
+two together, and he was right: a person should see ONE start. So Init is it: the synth loads it at
+startup (after the history is up, so it is «saved» and no undo step), Reset goes back to it (one
+undo step, marked as the current preset) and the parts that Parts adds are born with it. The
+engine's neutral stays where it belongs, as the base presets are written on (loadState starts
+from it). It is the library's Init: saving over it makes it your own starting point.

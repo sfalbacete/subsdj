@@ -45,7 +45,7 @@ import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip, velocityLayers } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
-import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId, currentPreset, markPreset, libraryExport } from './ui/presetBank.js';
+import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId, currentPreset, markPreset, libraryExport, initItem } from './ui/presetBank.js';
 import { userPhrases, mergePhrases, reloadPhrases, PHRASE_LS } from './ui/phraseBank.js';
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing, record } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
@@ -3076,6 +3076,27 @@ export async function runSelfTest() {
       r = { name: NAME, peak: 0, ok: !problems.length, problems };
     } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
     push(r);
+  }
+  {
+    // Init is the blank page (2026-11-02): the synth starts on it and Reset goes back to it — the
+    // library's Init loaded, marked as the current preset, «saved» (no ●) and ONE undo step; still the
+    // neutral but for its envelope (B off, filter open). The parts Parts adds are born with it (enableScene).
+    const NAME = 'Init is the start (Reset loads Init: marked, saved, one undo step · B off, filter open)';
+    const problems = [], keep = snapshot(), id0 = currentPresetId();
+    try {
+      const it = initItem();
+      if (!it) throw new Error('no Init in the library');
+      CONTROLS.cutoff.set(900); CONTROLS.levelB.set(0.5);
+      const d0 = historyDepth().undo;
+      document.getElementById('resetBtn').click();
+      if (Math.abs(CONTROLS.a.get() - it.data.a) > 1e-9 || Math.abs(CONTROLS.r.get() - it.data.r) > 1e-9) problems.push('Reset does not load Init\'s envelope (A ' + CONTROLS.a.get() + ' · R ' + CONTROLS.r.get() + ')');
+      if (CONTROLS.levelB.get() !== PARAMS.levelB.def || CONTROLS.cutoff.get() !== PARAMS.cutoff.def || CONTROLS.detuneB.get() !== PARAMS.detuneB.def) problems.push('Init is not the blank page (B ' + CONTROLS.levelB.get() + ' · cutoff ' + CONTROLS.cutoff.get() + ')');
+      if (currentPresetId() !== it.id) problems.push('after Reset the current preset is not Init');
+      if (isModified()) problems.push('● is lit right after Reset');
+      if (historyDepth().undo !== d0 + 1) problems.push('Reset is not one undo step (' + (historyDepth().undo - d0) + ')');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { if (id0) loadPresetId(id0); loadState(keep); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
 
   {

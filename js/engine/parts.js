@@ -137,11 +137,12 @@ export function applySceneJSON(sc, j) {
 // Turns on Parts mode on the single engine's context. Part 1
 // inherits the sound that was there (and the Room, its settings); the single engine is
 // muted and stays alive to come back to.
-export async function enableScene() {
+// born: the preset the other parts are born with (the UI passes Init, the blank page; {} = the neutral)
+export async function enableScene(born = {}) {
   if (scene) return scene;
   if (!single.ready) throw new Error('the audio is not ready yet');
   const S = single.S;
-  scene = await createScene(single.ctx, [toControls(S)],
+  scene = await createScene(single.ctx, Array.from({ length: N_PARTS }, (_, i) => (i ? born : toControls(S))),
     { roomS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
   single.allNotesOff(); router.clear();
   single.room.setMaster(0);

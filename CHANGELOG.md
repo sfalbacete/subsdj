@@ -53,7 +53,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   exactly as before — the new controls start where the old operator was.
 - **Init** (Basics) starts with a gentle Amp Env — 155 ms · 354 ms · 0.65 · 1.57 s — instead of the
   gate, and at the level of the rest of the bank; it is still oscillator A alone with the filter open.
-  The Reset button keeps the gate (2 ms · 1 · 20 ms): the neutral for designing a hit.
+  And it is THE start: the synth opens on it (it used to show Init while sounding the neutral), Reset
+  goes back to it, and the parts that Parts adds are born with it. Save over Init and that is your
+  own starting point.
 
 ## [1.7.0] — 2026-11-01
 

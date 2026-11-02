@@ -53,8 +53,9 @@ export const BANK = [
     // Init = Reset with a gentle Amp Env (Sergio, 2026-11-02: the gate's 2 ms / 1 / 20 ms is the
     // designer's neutral, not a sound to start playing from). A non-empty preset goes on top of
     // PRESET_BASE, so the base's other keys are written back to their neutral defaults here: B off,
-    // filter open and flat — still the blank page — at the bank's level. The Reset button keeps the gate.
-    { name: 'Init', tags: [], use: 'note', play: 'Oscillator A alone, filter open, a gentle envelope — the blank page.',
+    // filter open and flat — still the blank page — at the bank's level. It IS the start: the synth loads it
+    // at startup, Reset goes back to it and Parts gives it to the parts it adds (ui/presetBank.js initItem).
+    { name: 'Init', tags: [], use: 'note', play: 'Oscillator A alone, filter open, a gentle envelope — the blank page: the synth starts here and Reset comes back here.',
       data: { ...Object.fromEntries(Object.keys(PRESET_BASE).map(k => [k, PARAMS[k].def])), a: 0.155, d: 0.354, s: 0.65, r: 1.57, master: 1.33 } },   // master: levelled like the bank (−14 LUFS)
   ] },
 

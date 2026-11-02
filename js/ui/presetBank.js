@@ -28,6 +28,21 @@ export function libraryExport() { const j = library.exportData(), ph = userPhras
 export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS && !CONTROLS[k].virtual) c[k] = d[k]; return c; };   // drops unknown keys (and virtual ones: they are no preset key)
 export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
+// INIT IS THE BLANK PAGE (Sergio, 2026-11-02): the synth starts on it, Reset goes back to it and the
+// parts that Parts adds are born with it — the one «start» a person sees. The engine's neutral
+// (PARAMS defaults: the gate envelope) stays the base presets are written on, never a state shown
+// as «Init». It is the library's Init, so saving over it makes it your own starting point; if it was
+// deleted, the neutral is what is left.
+export const initItem = () => library.presets().find(it => it.origin === 'factory' && it.name === 'Init') || library.presets().find(it => it.name === 'Init') || null;
+export const initData = () => { const it = initItem(); return it ? it.data : {}; };
+// at startup (main.js, once the history is up): Init loaded, marked and «saved» — not an undo step
+export function startWithInit() {
+  const it = initItem();
+  loadState(it ? it.data : {});
+  markPreset(it ? it.id : null);
+  markSaved();
+}
+
 const asPreset = id => { const it = id && library.item(id); return it && it.type === 'preset' ? it : null; };
 export const currentPreset = () => asPreset(curId);
 export const currentPresetId = () => currentPreset() ? curId : null;
@@ -75,8 +90,7 @@ export function initPresetBank() {
   if (unrDel) unrDel.addEventListener('click', () => { library.discardUnreadable(); showUnreadable(); msg('Unreadable copy discarded.'); });
   // ask the browser not to evict the library under storage pressure (silent: a refusal changes nothing)
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* no storage API */ }
-  const init = library.presets().find(it => it.name === 'Init');
-  curId = init ? init.id : null;
+  curId = initItem()?.id || null;   // loaded at the end of the startup (startWithInit, main.js)
   if (!library.data.files)                    // repo banks and scenes: by fetch, once
     ready = library.seedRepoFiles().then(r => { if (r.n) msg('Library: brought in ' + r.n + ' presets and scenes from the repo.'); });
 
@@ -142,7 +156,13 @@ export function initPresetBank() {
     msg('Library copied to a file; starting again from the factory…');
     setTimeout(() => { library.wipe(); location.reload(); }, 600);   // the download has started by then
   });
-  document.getElementById('resetBtn').addEventListener('click', () => { record('Reset', () => loadState({}), { saved: true }); msg('Default values.'); });
+  // Reset = back to Init (one undo step); in Parts it is the part being edited, which takes Init's name
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    const it = initItem();
+    record('Reset', () => loadState(it ? it.data : {}), { saved: true });
+    if (it) { markPreset(it.id); document.dispatchEvent(new CustomEvent('preset-loaded', { detail: { name: it.name, value: it.id } })); }
+    msg(it ? 'Back to Init.' : 'Default values.');
+  });
 
   // ---- export / import the whole Library (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {

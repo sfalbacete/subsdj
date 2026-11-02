@@ -13,7 +13,7 @@ import { bindStepsControls } from './ui/stepsControls.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
-import { initPresetBank } from './ui/presetBank.js';
+import { startWithInit, initPresetBank } from './ui/presetBank.js';
 import { initPresetPicker } from './ui/presetPicker.js';
 import { initRecorder } from './ui/recorder.js';
 import { initSfzExport } from './ui/sfzExport.js';
@@ -76,6 +76,7 @@ initDisplay();       // Output display (last parameter touched), File menu and b
 initDeps();          // dims (still touchable) what does nothing with the current settings, with its reason
 initEnablers();      // over a dimmed control: the reason at once, and what turns it on pulses
 initHistory();       // undo / redo by gestures (Ctrl+Z · Ctrl+Y) and compare with the saved preset
+startWithInit();     // the synth starts ON Init, the blank page (loaded and «saved»: Compare and ● work from the first touch)
 
 // <select>s drop focus after a choice: otherwise the QWERTY piano keys
 // keep browsing the dropdown by first letter and change the selection.
