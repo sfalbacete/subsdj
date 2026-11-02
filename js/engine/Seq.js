@@ -60,6 +60,43 @@ export const stepToken = st => !st ? '.'
 
 export const stepFreq = (rootFreq, off) => rootFreq * Math.pow(2, off / 12);
 
+// ---------- units: semitones ↔ degrees (2026-11-02) ----------
+// The scale of a units setting: null for semitones; 'harmony' converts as major (the scene's scale
+// depends on the key you hold, so there is nothing fixed to convert to: major is its fallback too).
+export const scaleOfNotes = n => (!n || n === 'semitones' ? null : n === 'harmony' ? SCALES.major : SCALES[n] || SCALES.major);
+// Degree j (0 = the key) → semitones above the key, the same arithmetic Seq.semis uses with the key as tonic
+export function fromDegrees(j, I) {
+  const len = I.length, oct = Math.floor(j / len), idx = j - oct * len;
+  return 12 * oct + I[idx] - I[0];
+}
+// Semitones above the key → the nearest degree (a tie goes to the lower one); exact = it was in the scale
+export function toDegrees(s, I) {
+  const len = I.length, o = Math.floor(s / 12);
+  let best = 0, bd = Infinity;
+  for (let j = (o - 1) * len; j <= (o + 1) * len + len; j++) {
+    const d = Math.abs(fromDegrees(j, I) - s);
+    if (d < bd) { bd = d; best = j; }
+  }
+  return { deg: best, exact: bd === 0 };
+}
+// A pattern written in `from` units, rewritten in `to` units so that the MELODY stays: semitones →
+// a scale = degrees (what is outside the scale goes to the nearest degree: `moved` counts them);
+// a scale → semitones = exact; scale → scale = the same degrees (the phrase moves to the new mode,
+// which is what degrees are for). Accents, ties, slides and repeats stay; rests too.
+export function convertPattern(str, from, to) {
+  const A = scaleOfNotes(from), B = scaleOfNotes(to);
+  let moved = 0;
+  if ((A && B) || (!A && !B)) return { pat: String(str || ''), moved };
+  const out = parsePattern(str).map(st => {
+    if (!st) return '.';
+    let off;
+    if (!A) { const r = toDegrees(st.off, B); off = r.deg; if (!r.exact) moved++; }
+    else off = fromDegrees(st.off, A);
+    return stepToken({ ...st, off: Math.max(SEQ_OFF_MIN, Math.min(SEQ_OFF_MAX, off)) });
+  });
+  return { pat: out.join(' '), moved };
+}
+
 export class Seq {
   constructor(engine) {
     this.e = engine;

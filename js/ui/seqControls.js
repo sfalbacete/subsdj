@@ -18,7 +18,9 @@ import { CONTROLS, applyTarget, bindSelect } from './registry.js';
 import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { attachKnob } from './knobs.js';
-import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken } from '../engine/Seq.js';
+import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern } from '../engine/Seq.js';
+
+const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };   // the header's floating notice
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
 
@@ -149,8 +151,22 @@ export function bindSeqControls() {
   CONTROLS.seqPat.set(PARAMS.seqPat.def);
 
   const notes = document.getElementById('seqNotesSel');   // notes by degree (5.2)
-  if (notes) bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'degrees · harmony' },
-    ...Object.keys(SCALES).map(k => ({ id: k, label: 'degrees · ' + k }))]);
+  if (notes) {
+    // Changing the units BY HAND rewrites the phrase so that it keeps its melody (Seq.convertPattern):
+    // semitones → a scale turns it into degrees (notes outside the scale go to the nearest one), back
+    // to semitones is exact, and scale → scale keeps the degrees (the phrase moves to the new mode).
+    // A preset, the undo or a MIDI CC set the units as they are, without converting (they carry their phrase).
+    // Registered BEFORE bindSelect and in the capture phase: it sees the units still unchanged.
+    let notesNow = PARAMS.seqNotes.def;
+    document.addEventListener('param-change', e => { if (e.detail.target === 'seqNotes') notesNow = e.detail.value; });
+    notes.addEventListener('change', () => {
+      const r = convertPattern(CONTROLS.seqPat.get(), notesNow, notes.value);
+      if (r.pat !== CONTROLS.seqPat.get()) CONTROLS.seqPat.set(r.pat);
+      if (r.moved) say(r.moved + (r.moved > 1 ? ' notes' : ' note') + ' outside the scale moved to the nearest degree');
+    }, true);
+    bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'degrees · harmony' },
+      ...Object.keys(SCALES).map(k => ({ id: k, label: 'degrees · ' + k }))]);
+  }
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
   initSeqPatterns();
@@ -184,7 +200,11 @@ function initSeqPatterns() {
     part().resume();
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
-    if (p.notes && CONTROLS.seqNotes.get() === 'semitones') CONTROLS.seqNotes.set(p.notes);   // a phrase by degrees needs a scale
+    // each phrase brings its units: one by degrees needs a scale (the one you have on, if any: degrees
+    // travel between scales; else its own) and one in semitones sets semitones back — read as degrees
+    // it would be another melody
+    if (p.notes) { if (CONTROLS.seqNotes.get() === 'semitones') CONTROLS.seqNotes.set(p.notes); }
+    else if (CONTROLS.seqNotes.get() !== 'semitones') CONTROLS.seqNotes.set('semitones');
     if (p.bpm) CONTROLS.bpm.set(p.bpm);       // the classics land on their tempo
   });
   document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });

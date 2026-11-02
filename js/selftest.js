@@ -22,7 +22,7 @@ const HR = Math.pow(10, HEADROOM_DB / 20);   // fixed master headroom (1.1.0): t
 import { Arp } from './engine/Arp.js';
 import { Clock, clockOf } from './engine/Clock.js';
 import { Steps, cycleBars } from './engine/Steps.js';
-import { Seq, parsePattern, stepFreq, stepToken } from './engine/Seq.js';
+import { Seq, parsePattern, stepFreq, stepToken, convertPattern, toDegrees, fromDegrees } from './engine/Seq.js';
 import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, BANK, META, BANK_REV, rootOf, factoryPreset, migrateV1 } from './engine/presets.js';
@@ -484,6 +484,24 @@ export async function runSelfTest() {
     push({ name: 'sequencer (root/latch/retrig)', peak: 0, ok: !problems.length, problems });
   }
   {
+    // units semitones ↔ degrees (2026-11-02): converting keeps the melody (what is outside the scale goes
+    // to the nearest degree, a tie to the lower one), the way back is exact, scale → scale keeps the
+    // degrees, accents/ties/slides/repeats and rests stay; and the arithmetic matches Seq.semis.
+    const problems = [], I = SCALES.major;
+    const c1 = convertPattern('0 3 7 12 . 7! 3/ .', 'semitones', 'minor');
+    if (c1.pat !== '0 2 4 7 . 4! 2/ .' || c1.moved) problems.push('semitones → minor: «' + c1.pat + '» moved ' + c1.moved);
+    const c2 = convertPattern(c1.pat, 'minor', 'semitones');
+    if (c2.pat !== '0 3 7 12 . 7! 3/ .') problems.push('minor → semitones not exact: «' + c2.pat + '»');
+    const c3 = convertPattern('0 3 7 12', 'semitones', 'major');
+    if (c3.pat !== '0 1 4 7' || c3.moved !== 1) problems.push('semitones → major (Eb between D and E → D): «' + c3.pat + '» moved ' + c3.moved);
+    if (convertPattern('0 2 4 7', 'major', 'dorian').pat !== '0 2 4 7') problems.push('scale → scale does not keep the degrees');
+    if (convertPattern('-1 -3x2 12~', 'semitones', 'major').pat !== '-1 -2x2 7~') problems.push('negative / suffixed: «' + convertPattern('-1 -3x2 12~', 'semitones', 'major').pat + '»');
+    for (let j = -14; j <= 24; j++) if (toDegrees(fromDegrees(j, I), I).deg !== j) { problems.push('degree ' + j + ' does not round-trip'); break; }
+    const q = new Seq({ S: { seqNotes: 'major' }, ctx: null });
+    for (let j = -7; j <= 14; j++) if (q.semis(j, 261.63) !== fromDegrees(j, I)) { problems.push('fromDegrees ≠ Seq.semis at ' + j); break; }
+    push({ name: 'sequencer units (semitones ↔ degrees keeps the melody · back exact · scale → scale = a new mode)', peak: 0, ok: !problems.length, problems });
+  }
+  {
     // step marker: selection by the audio clock and pruning of expired steps
     const q = new Seq({ S: {}, ctx: { currentTime: 1.0 } });
     q.timer = 1;
@@ -922,6 +940,34 @@ export async function runSelfTest() {
       if (C.arpLatch.get() !== 'on') problems.push('clicking the Latch switch does not turn it on');
       if (!ws || !ws.classList.contains('sw')) problems.push('the Wave Sequence\'s state is not a switch');
       else { const w0 = C.wsOn.get(); ws.querySelector('button:not(.active)').click(); if (C.wsOn.get() === w0) problems.push('clicking the Wave Sequence switch does not toggle it'); C.wsOn.set(w0); }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { loadState(keep); refreshDeps(); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // The units combo by hand (2026-11-02): it rewrites the phrase so the melody stays (and scale → scale
+    // keeps the degrees); a programmatic set (a preset, undo, MIDI) does not convert; a factory phrase
+    // brings its units (semitones sets semitones back; one by degrees keeps the scale you have on).
+    const NAME = 'sequencer units by hand (the combo rewrites the phrase · a set from a preset does not · each factory phrase brings its units)';
+    const problems = [], C = CONTROLS, keep = snapshot();
+    try {
+      loadState({}); C.seqNotes.set('semitones'); C.seqPat.set('0 3 7 12');
+      const sel = document.getElementById('seqNotesSel'), ps = document.getElementById('seqPatSel');
+      const pick = v => { sel.value = v; sel.dispatchEvent(new Event('change')); };
+      const got = () => C.seqPat.get() + ' [' + C.seqNotes.get() + ']';
+      pick('minor');
+      if (got() !== '0 2 4 7 [minor]') problems.push('semitones → minor by hand: ' + got());
+      pick('dorian');
+      if (got() !== '0 2 4 7 [dorian]') problems.push('minor → dorian by hand: ' + got());
+      pick('semitones');
+      if (got() !== '0 3 7 12 [semitones]') problems.push('dorian → semitones by hand: ' + got());
+      C.seqNotes.set('major');
+      if (C.seqPat.get() !== '0 3 7 12') problems.push('a programmatic set converted the phrase: ' + got());
+      const choose = name => { const i = SEQ_PATTERNS.findIndex(p => p.name === name); ps.value = String(i); ps.dispatchEvent(new Event('change')); };
+      choose('Acid Bass');
+      if (C.seqNotes.get() !== 'semitones') problems.push('a factory phrase in semitones does not set semitones back (' + C.seqNotes.get() + ')');
+      C.seqNotes.set('dorian'); choose('Scale Arpeggio');
+      if (C.seqNotes.get() !== 'dorian') problems.push('a factory phrase by degrees changed the scale you had on (' + C.seqNotes.get() + ')');
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally { loadState(keep); refreshDeps(); }
     push({ name: NAME, peak: 0, ok: !problems.length, problems });

@@ -6,6 +6,15 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased
+
+- **The sequencer's units keep the melody.** The selector next to the phrases used to change only
+  what the numbers meant, so picking a scale turned a phrase into another melody. Now, picking a
+  scale from semitones rewrites the phrase in degrees keeping its melody (notes outside the scale
+  go to the nearest degree, and the notice says how many); from one scale to another the degrees
+  stay, so the same phrase moves to the new mode; back to semitones it comes back exact. Each phrase
+  in the list brings its units: one in semitones sets semitones back.
+
 ## [1.7.0] — 2026-11-01
 
 The instrument gets easier to read and to play in time: the header turns into icons and makes
