@@ -34,14 +34,14 @@ export function bindStepsControls() {
     initLen(i, row);
   }
   const rs = document.getElementById('stResetSel');
-  if (rs) bindSelect(rs, 'stReset', [{ id: 'play', label: 'on play' }, { id: 'never', label: 'never' },
-    ...['1 bar', '2 bars', '4 bars', '8 bars'].map(d => ({ id: d, label: 'every ' + d }))]);
+  if (rs) bindSelect(rs, 'stReset', [{ id: 'play', label: 'On play' }, { id: 'never', label: 'Never' },
+    ...['1 bar', '2 bars', '4 bars', '8 bars'].map(d => ({ id: d, label: 'Every ' + d }))]);
   const cyc = document.getElementById('stCycle');
   const upd = () => {
     if (!cyc) return;
     const used = [...part().steps.usedLanes()].sort();
     const b = cycleBars(part().S, used.length ? used : [1, 2, 3, 4]);
-    cyc.textContent = (used.length ? 'lanes ' + used.join(' · ') + ': ' : 'all four: ') + 'the full cycle lasts ' + fmtBars(b);
+    cyc.textContent = (used.length ? 'Lanes ' + used.join(' · ') + ': ' : 'All four: ') + 'the full cycle lasts ' + fmtBars(b);
   };
   document.addEventListener('param-change', e => { if (/^st|^mx\d/.test(e.detail.target)) upd(); });
   for (const ev of ['part-changed', 'preset-loaded', 'scene-loaded']) document.addEventListener(ev, upd);

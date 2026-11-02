@@ -597,6 +597,12 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .lfoShape{cursor:pointer;}
 .lfoShape:hover{border-color:var(--accent2);}
 .noshape{color:var(--dim);border-style:dashed;}
+/* Label case (2026-11-02): every label AND option text on the panel follows --lab-case — Carbon shows
+   them as written («Capitalized»), Classic in UPPERCASE —: option buttons (segs, rotaries, LED and round
+   switches), row names, LFO shapes, the buttons and badges of a module, the meter's «Lim», the touch
+   selector. Names (presets, parts, phrases) and messages stay as they are. */
+.panel .seg button,.panel .rn,.lfoShape,.noshape,.panel .btn,.panel .badge,.panel .chk,#mtLed,#kbTouch button{
+  text-transform:var(--lab-case);}
 .lfo-foot,.mx-foot,.dly-foot{gap:14px;margin-top:8px;align-items:center;}
 .dly-foot{margin-top:2px;}   /* the Delay also lives in Sequencing, whose band is lower: it just fits */
 .lfo-foot .seg.tog{gap:2px;}

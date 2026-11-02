@@ -34,7 +34,7 @@ export function bindSeg(segId, key, name, target, num = false) {
 // LFO waveform button: cycles sin→tri→saw→sqr→S&H→drift on each click
 // (S&H = random steps at the LFO's speed; drift = smooth, slow random).
 const SHAPES = ['sine', 'triangle', 'sawtooth', 'square', 'sh', 'drift'];
-const SHAPE_LABEL = { sine: 'sin', triangle: 'tri', sawtooth: 'saw', square: 'sqr', sh: 'S&H', drift: 'drift' };
+const SHAPE_LABEL = { sine: 'Sin', triangle: 'Tri', sawtooth: 'Saw', square: 'Sqr', sh: 'S&H', drift: 'Drift' };
 function bindLfoShapes() {
   document.querySelectorAll('.lfoShape').forEach(btn => {
     const name = btn.dataset.shape;
@@ -91,7 +91,7 @@ function bindExc() {
   const b = document.getElementById('excModeBtn'); if (!b) return;
   const set = v => {
     if (!EXC_MODES.includes(v)) v = 'pluck';
-    b.dataset.cur = v; b.textContent = v === 'pluck' ? 'bow' : v;
+    b.dataset.cur = v; b.textContent = v === 'pluck' ? 'Bow' : v.charAt(0).toUpperCase() + v.slice(1);
     b.classList.toggle('active', v !== 'pluck'); b.setAttribute('aria-pressed', String(v !== 'pluck'));
     for (const k in EXC_LABELS[v]) { const kn = document.querySelector('.knob[data-knob="' + k + '"]'); if (!kn) continue;
       const lab = kn.parentElement.querySelector('.lab'); if (lab) lab.textContent = EXC_LABELS[v][k][0]; kn.title = EXC_LABELS[v][k][1]; }
@@ -119,8 +119,8 @@ export function bindOscControls() {
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algorithm (who modulates whom)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: no. of copies per oscillator
   const ph = document.getElementById('lfoPhaseSel');   // LFOs: phase global / per voice (Weyl) / retrig / once (Roadmap 7.0 · 2.2)
-  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'global' }, { id: 'voice', label: 'per voice' }, { id: 'retrig', label: 'retrig' }, { id: 'once', label: 'once' }]);
-  const divs = [{ id: 'free', label: 'free' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
+  if (ph) bindSelect(ph, 'lfoPhase', [{ id: 'global', label: 'Global' }, { id: 'voice', label: 'Per voice' }, { id: 'retrig', label: 'Retrig' }, { id: 'once', label: 'Once' }]);
+  const divs = [{ id: 'free', label: 'Free' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
   document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // tempo-synced LFO
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: pitch shifter interval (a Room key)
   bindFreeze();
@@ -130,7 +130,7 @@ export function bindOscControls() {
   // Wavetable selector (the sets live in engine/wavetable.js)
   const wtSel = document.getElementById('wtSetSel');
   if (wtSel) {
-    for (const n of Object.keys(WT_SETS)) wtSel.add(new Option(n, n));
+    for (const n of Object.keys(WT_SETS)) wtSel.add(new Option(n.charAt(0).toUpperCase() + n.slice(1), n));   // the label capitalized, the id as it is
     wtSel.addEventListener('change', () => { part().resume(); applyTarget('wtSet', wtSel.value); });
     CONTROLS.wtSet = {
       get: () => wtSel.value,

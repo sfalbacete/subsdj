@@ -1128,6 +1128,34 @@ export async function runSelfTest() {
     push({ name: 'activity LEDs (every section listed has its LED, buttons in a title or not)', peak: 0, ok: !problems.length, problems });
   }
   {
+    // Label case (2026-11-02): every label and option on the panel is written «Capitalized» (Carbon shows
+    // it as written) and Classic puts all of them in UPPERCASE through --lab-case; and since uppercase is
+    // wider, Classic must clip nothing either (the screens check looks at the default theme only: the
+    // uppercase «FOLLOW AMP ENV» once pushed the Voice band 15 px out).
+    const problems = new Set(), before = currentTheme(), scr0 = currentScreen();
+    const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const SEL = '.panel .lab, .panel .fieldlab, .panel .th, .panel .rn, .panel .h2tog, .panel .seg button, .lfoShape, .noshape, #kbTouch button';
+    const own = el => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim();
+    const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
+    try {
+      for (const s of SCREENS) {
+        showScreen(s); await frames();
+        for (const el of document.querySelectorAll(SEL)) { const t = own(el); if (el.offsetParent && /^[a-z]/.test(t)) problems.add(s + ': «' + t + '» starts in lowercase'); }
+      }
+      setTheme('clasico', { remember: false });
+      for (const s of SCREENS) {
+        showScreen(s); await frames();
+        for (const el of document.querySelectorAll(SEL)) { const t = own(el); if (el.offsetParent && /[a-z]/.test(t) && getComputedStyle(el).textTransform !== 'uppercase') problems.add('Classic, ' + s + ': «' + t + '» is not in uppercase'); }
+        for (const b of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .band'))
+          if (over(b)) problems.add('Classic, ' + s + ': band ' + (b.id || '?') + ' clips (' + b.scrollWidth + ' in ' + b.clientWidth + ')');
+        for (const p of document.querySelectorAll('.screen[data-screen-body="' + s + '"] .panel'))
+          if (p.offsetParent && !/auto|scroll/.test(getComputedStyle(p).overflow) && over(p)) problems.add('Classic, ' + s + ': a module spills out (' + (p.querySelector('h2')?.textContent || p.id) + ')');
+      }
+    } catch (e2) { problems.add('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { setTheme(before, { remember: false }); showScreen(scr0); }
+    push({ name: 'label case (Capitalized as written · UPPERCASE in Classic · Classic clips nothing either)', peak: 0, ok: !problems.size, problems: [...problems].slice(0, 10) });
+  }
+  {
     // Who turns it on (2026-11-01, ui/enablers.js). (1) Coverage: in a handful of states, EVERY dimmed
     // element says what turns it on, and every enabler is a real control (a typo in a key would point
     // at nothing and nothing would pulse). (2) The pointer's path: over the delay's Time with Amount at 0,

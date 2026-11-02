@@ -32,6 +32,10 @@ scenes, libraries, MIDI maps). The why behind each module is in
   its lowest note — C-E-G in major with «0 3 4» plays C, F and G major —, so the chord changes quality
   as it climbs. Ties, slides, accents and repeats work voice by voice; with Latch the whole chord stays.
 - Panic (and Esc) now also stops a latched arpeggio: the arpeggiator's Latch used to survive it.
+- **One case for every label.** Carbon writes every label and option with a capital first letter
+  («Latch», «Soft», «Free», «Ratio»…; some were lowercase), and Classic puts all of them in
+  uppercase — option buttons, row names, LFO shapes and module buttons used to escape it. The filter
+  envelope's «Follow Amp Env» is now «Amp Env» (next to «Times»), so Classic's uppercase fits.
 
 ## [1.7.0] — 2026-11-01
 

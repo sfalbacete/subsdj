@@ -169,8 +169,8 @@ export function bindSeqControls() {
       if (r.pat !== CONTROLS.seqPat.get()) CONTROLS.seqPat.set(r.pat);
       if (r.moved) say(r.moved + (r.moved > 1 ? ' notes' : ' note') + ' outside the scale moved to the nearest degree');
     }, true);
-    bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'semitones' }, { id: 'harmony', label: 'degrees · harmony' },
-      ...Object.keys(SCALES).map(k => ({ id: k, label: 'degrees · ' + k }))]);
+    bindSelect(notes, 'seqNotes', [{ id: 'semitones', label: 'Semitones' }, { id: 'harmony', label: 'Degrees · harmony' },
+      ...Object.keys(SCALES).map(k => ({ id: k, label: 'Degrees · ' + k }))]);
   }
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();

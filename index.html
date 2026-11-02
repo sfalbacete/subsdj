@@ -119,8 +119,8 @@
   <!-- Clock: tempo and swing, GLOBAL (Room keys: with Parts on they belong to every part).
        Drag up / down (Shift = fine) · double-click to type · arrows when focused -->
   <div id="clock" role="group" aria-label="Clock: tempo and swing">
-    <div class="clk" id="clkBpm" data-lab="Tempo" tabindex="0" role="spinbutton" aria-label="Tempo in BPM" title="Tempo (BPM): drag up or down (Shift = fine), double-click to type. It drives the arpeggiator, the sequencers, the Steps, the synced delay and LFOs and the players"><span class="val"></span><span class="lab">bpm</span></div>
-    <div class="clk" id="clkSwing" data-lab="Swing" tabindex="0" role="spinbutton" aria-label="Swing in percent" title="Swing: in each pair of eighths or sixteenths the second one arrives late (50 % straight, 67 % triplet, 75 % dotted); quarters and triplets don't swing. Drag, or double-click to type"><span class="val"></span><span class="lab">swing</span></div>
+    <div class="clk" id="clkBpm" data-lab="Tempo" tabindex="0" role="spinbutton" aria-label="Tempo in BPM" title="Tempo (BPM): drag up or down (Shift = fine), double-click to type. It drives the arpeggiator, the sequencers, the Steps, the synced delay and LFOs and the players"><span class="val"></span><span class="lab">BPM</span></div>
+    <div class="clk" id="clkSwing" data-lab="Swing" tabindex="0" role="spinbutton" aria-label="Swing in percent" title="Swing: in each pair of eighths or sixteenths the second one arrives late (50 % straight, 67 % triplet, 75 % dotted); quarters and triplets don't swing. Drag, or double-click to type"><span class="val"></span><span class="lab">Swing</span></div>
   </div>
   <span class="hgrp">
     <button id="midiLearnBtn" class="btn hico" title="MIDI map: bind hardware knobs (CC) to the controls on screen" aria-label="MIDI map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2v12M8 2v12M12 2v12"/><rect class="f" x="1.8" y="8.7" width="4.4" height="2.6" rx=".8"/><rect class="f" x="5.8" y="3.9" width="4.4" height="2.6" rx=".8"/><rect class="f" x="9.8" y="6.9" width="4.4" height="2.6" rx=".8"/></svg></button>
@@ -152,7 +152,7 @@
 <!-- BAND 1 · SOURCE: the oscillators and their engines (those that don't apply to the chosen wave are dimmed IN PLACE) -->
 <div class="band" id="bandSource">
   <div class="panel osc">
-    <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Hard sync: A restarts its cycle with every cycle of B. B sets the note (it can sit at level 0: it keeps time without sounding) and A's pitch becomes TIMBRE: sweep «Pitch A» from the matrix (Filter env, LFO, Steps, wheel, macro) for the classic screaming sync lead">sync</button></h2>
+    <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Hard sync: A restarts its cycle with every cycle of B. B sets the note (it can sit at level 0: it keeps time without sounding) and A's pitch becomes TIMBRE: sweep «Pitch A» from the matrix (Filter env, LFO, Steps, wheel, macro) for the classic screaming sync lead">Sync</button></h2>
     <div class="hrow">
       <div class="ctl rotc"><div class="seg rot waves" id="waveA">
         <button data-w="sawtooth" title="Sawtooth"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/></svg></button>
@@ -250,7 +250,7 @@
         <button data-alg="7" data-cap="1+2+3+4" title="Additive: all four sound; with feedback, 4 turns into a saw">8</button>
       </div><div class="lab">Algorithm</div><div class="fm4g" id="fm4Graph"></div></div>
       <div class="tbl fm4ops">
-        <span></span><span class="th">ratio</span><span class="th">level</span><span class="th">decay</span><span class="th" title="Velocity sensitivity: how much the level scales with how hard the note is played">vel</span>
+        <span></span><span class="th">Ratio</span><span class="th">Level</span><span class="th">Decay</span><span class="th" title="Velocity sensitivity: how much the level scales with how hard the note is played">Vel</span>
         <span class="rn">Op 1</span>
         <div class="ctl ks" data-lab="Op 1 · ratio"><div class="knob" data-knob="fm4R1"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Op 1 · level"><div class="knob" data-knob="fm4L1"><div class="ind"></div></div><div class="val"></div></div>
@@ -276,7 +276,7 @@
     <div class="help"><b>4-operator FM</b> («FM4» wave on Osc A/B; the module dims if neither uses it). An algorithm is a graph of who modulates whom, and under the selector it is drawn the Yamaha way: the <b>carriers</b> (what you hear) at the bottom, on the output line; each <b>modulator</b> above the operator it modulates, joined by its wire; the loop over op 4 is the feedback (it lights up with the FM module's Feedback). Each operator: Ratio = multiple of the note (integer = harmonic, non-integer = bell), Level = how much it modulates (or how loud it is, if it is a carrier), Decay = its level falls as e^(−t/decay); at full (∞) it stays constant. The DX7 recipe: a modulator with a short decay = a bright attack that fades. <b>Vel</b> = velocity sensitivity (the DX7's «key velocity sensitivity»): the operator level is multiplied by 1 − vel + vel·velocity; at 0 it doesn't matter how hard you play, at 1 it is proportional. On a CARRIER that is volume; on a MODULATOR the level is the modulation index, so playing harder opens up harmonics: the timbre follows your touch, which in subtractive synthesis only the filter can do. You need a MIDI keyboard (the computer keyboard always sends velocity 1). The FM module's Feedback feeds back op 4.</div>
   </div>
   <div class="panel osc">
-    <h2>String<button type="button" class="h2tog" id="excModeBtn" aria-pressed="false" title="Exciter: how the loop is set in motion — click to cycle. Off = the pick (every note is a pluck). bow = a bow keeps feeding energy while the key is held, through the string's own motion. breath = the loop is a pipe blown by a jet: little breath is air, enough is the note, a lot overblows to the octave. Pressure, Speed/Jet and Noise/Air below; «Bow pressure» / «Bow speed» as Matrix destinations (aftertouch, wheel, expression, an LFO). The bow or the breath lands over the Amp Env's attack and stops over its release.">bow</button></h2>
+    <h2>String<button type="button" class="h2tog" id="excModeBtn" aria-pressed="false" title="Exciter: how the loop is set in motion — click to cycle. Off = the pick (every note is a pluck). bow = a bow keeps feeding energy while the key is held, through the string's own motion. breath = the loop is a pipe blown by a jet: little breath is air, enough is the note, a lot overblows to the octave. Pressure, Speed/Jet and Noise/Air below; «Bow pressure» / «Bow speed» as Matrix destinations (aftertouch, wheel, expression, an LFO). The bow or the breath lands over the Amp Env's attack and stops over its release.">Bow</button></h2>
     <div class="hrow" style="align-items:flex-start;gap:6px">
     <div class="g" style="--c:2">
       <div class="ctl"><div class="knob" data-knob="strBright"><div class="ind"></div></div><div class="lab">Bright</div><div class="val"></div></div>
@@ -351,16 +351,16 @@
         <button data-ftype="bp" title="Band-pass: LP and HP in series at the same cutoff (the resonance is shared between both slopes)">BP</button>
         <button data-ftype="notch" title="Notch: LP + HP in parallel at gain 1 — an exact zero at the cutoff; slope doesn't apply">Notch</button>
       </div><div class="lab">Type</div></div>
-      <div class="togc"><div class="fieldlab">slope</div><div class="seg tog" id="filterSlopeSel"><button data-slope="12">12 dB</button><button data-slope="24">24 dB</button></div></div>
+      <div class="togc"><div class="fieldlab">Slope</div><div class="seg tog" id="filterSlopeSel"><button data-slope="12">12 dB</button><button data-slope="24">24 dB</button></div></div>
     </div>
     <div class="hrow narrow">
       <div class="ctl"><div class="knob" data-knob="morph"><div class="ind"></div></div><div class="lab">Low ↔ Hi</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="keytrack"><div class="ind"></div></div><div class="lab">Keytrack</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="filterDrive"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="driveAsym"><div class="ind"></div></div><div class="lab">Asym</div><div class="val"></div></div>
-      <div class="togc"><div class="fieldlab">character</div><div class="seg tog" id="driveCharSel">
-        <button data-dchar="soft" title="tanh saturation: compresses and rounds off; with Asym, even harmonics (tube)">soft</button>
-        <button data-dchar="fold" title="Sine wavefolding (West Coast): as Drive goes up the wave folds over itself and the brightness rises and falls">fold</button>
+      <div class="togc"><div class="fieldlab">Character</div><div class="seg tog" id="driveCharSel">
+        <button data-dchar="soft" title="tanh saturation: compresses and rounds off; with Asym, even harmonics (tube)">Soft</button>
+        <button data-dchar="fold" title="Sine wavefolding (West Coast): as Drive goes up the wave folds over itself and the brightness rises and falls">Fold</button>
       </div></div>
     </div>
     <div class="help"><b>Per-voice filter.</b> Cutoff with a logarithmic travel · Reso in dB. <b>Type</b>: LP↔HP (Low↔Hi blends low-pass and high-pass in parallel), BP (LP and HP in series: band-pass) or Notch (LP + HP in parallel at gain 1: an exact zero at the cutoff; the morph at 50 % already is that notch, at −6 dB). Keytrack: the cutoff follows the pitch of the note (1 = 1:1) · 24 dB = two stages in cascade, creamier (not for Notch). Type and slope are structure: they apply from the next note. <b>Drive</b> saturates BEFORE the filter, per voice, with two characters: <b>soft</b> (tanh: compresses and rounds off) or <b>fold</b> (West Coast synthesis: as Drive goes up the wave folds over itself and harmonics appear, rise and fall again — a sweep no filter can do; move it with an LFO or an envelope from the matrix, destination «Drive»). <b>Asym</b> shifts the working point of the curve: EVEN harmonics come out (the «bent» body of a tube or a kick drum); on fold it is the wavefolder's symmetry — at full, only even harmonics: you hear the octave. Silence in gives exact silence out, and the DC the bias creates is filtered out (5 Hz). Its LFOs are the Cutoff and Reso rows in the LFO bank; its envelope, «Filter Env».</div>
@@ -369,9 +369,9 @@
     <h2>Filter Env</h2>
     <div class="hrow" style="align-items:flex-end">
       <div class="vcol" style="margin-right:6px">
-        <div class="togc"><div class="fieldlab">times</div><div class="seg tog" id="fenvModeSel">
-          <button data-fenv="link" title="Follows the amplitude ADSR: same A/D/S/R times as «Amp Env»">follow Amp Env</button>
-          <button data-fenv="own" title="Its own A/D/S/R times: the faders here">own</button>
+        <div class="togc"><div class="fieldlab">Times</div><div class="seg tog" id="fenvModeSel">
+          <button data-fenv="link" title="Amp Env: it follows the amplitude ADSR — the same A/D/S/R times as «Amp Env»">Amp Env</button>
+          <button data-fenv="own" title="Its own A/D/S/R times: the faders here">Own</button>
         </div></div>
         <div class="ctl"><div class="knob" data-knob="filterEnvAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       </div>
@@ -380,7 +380,7 @@
       <div class="slider fader"><input type="range" id="s_fs"><span class="lab">S</span><span class="val" id="v_fs"></span></div>
       <div class="slider fader"><input type="range" id="s_fr"><span class="lab">R</span><span class="val" id="v_fr"></span></div>
     </div>
-    <div class="help"><b>Filter envelope.</b> Amount in Hz over the cutoff (± = opens or closes). «Follow Amp Env» takes the times of the amplitude envelope; «own» uses the A/D/S/R faders here. The peak scales with velocity (MIDI). The «Amp Env» graph draws it dashed.</div>
+    <div class="help"><b>Filter envelope.</b> Amount in Hz over the cutoff (± = opens or closes). «Amp Env» takes the times of the amplitude envelope; «Own» uses the A/D/S/R faders here. The peak scales with velocity (MIDI). The «Amp Env» graph draws it dashed.</div>
   </div>
   <div class="panel">
     <h2>Amp Env</h2>
@@ -391,9 +391,9 @@
       <div class="slider fader"><input type="range" id="s_s"><span class="lab">S</span><span class="val" id="v_s"></span></div>
       <div class="slider fader"><input type="range" id="s_r"><span class="lab">R</span><span class="val" id="v_r"></span></div>
       <div class="vcol" style="margin-left:10px;gap:3px;align-items:flex-start">
-        <span class="th">curve</span>
+        <span class="th">Curve</span>
         <div class="ctl ks" data-lab="Curve (linear ↔ RC)"><div class="knob" data-knob="envCurve"><div class="ind"></div></div><div class="val"></div></div>
-        <span class="th">flam: hits · gap</span>
+        <span class="th">Flam: hits · gap</span>
         <div class="ctl ks" data-lab="Flam · hits"><div class="knob" data-knob="hits"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Flam · gap"><div class="knob" data-knob="hitGap"><div class="ind"></div></div><div class="val"></div></div>
       </div>
@@ -403,11 +403,11 @@
   <div class="panel">
     <h2>Voice · Master</h2>
     <div class="g" style="--c:4">
-      <div class="togc" style="align-self:center"><div class="fieldlab">voice</div><div class="seg tog" id="modeSel"><button data-mode="poly">Poly</button><button data-mode="mono" title="Mono: a single voice, last-note priority">Mono</button></div></div>
+      <div class="togc" style="align-self:center"><div class="fieldlab">Voice</div><div class="seg tog" id="modeSel"><button data-mode="poly">Poly</button><button data-mode="mono" title="Mono: a single voice, last-note priority">Mono</button></div></div>
       <div class="ctl"><div class="knob" data-knob="glide"><div class="ind"></div></div><div class="lab">Glide</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pitchEnvAmt"><div class="ind"></div></div><div class="lab">P.Env Amt</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="pitchEnvDec"><div class="ind"></div></div><div class="lab">P.Env Dec</div><div class="val"></div></div>
-      <div class="togc" style="align-self:center"><div class="fieldlab">trigger</div><div class="seg tog" id="monoTrigSel"><button data-trig="legato" title="Legato: a note that arrives while another is held slides the voice without retriggering (303 glide, trills)">Legato</button><button data-trig="retrig" title="Retrig: every note retriggers envelopes, pitch env and FM4 operators, even when it overlaps the previous one">Retrig</button></div></div>
+      <div class="togc" style="align-self:center"><div class="fieldlab">Trigger</div><div class="seg tog" id="monoTrigSel"><button data-trig="legato" title="Legato: a note that arrives while another is held slides the voice without retriggering (303 glide, trills)">Legato</button><button data-trig="retrig" title="Retrig: every note retriggers envelopes, pitch env and FM4 operators, even when it overlaps the previous one">Retrig</button></div></div>
       <div class="ctl"><div class="knob" data-knob="freqCents"><div class="ind"></div></div><div class="lab">±Cents</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="amplitude"><div class="ind"></div></div><div class="lab">Amplitude</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="master"><div class="ind"></div></div><div class="lab">Master</div><div class="val"></div></div>
@@ -421,7 +421,7 @@
       <div class="vizrow"><canvas id="scope"></canvas><canvas id="spectrum"></canvas>
         <div class="meter" id="meter" title="Output meter: L and R peaks of what comes out (−48 to 0 dBFS; yellow from −12, red from −1, where the limiter ceiling is; the tick, the peak from 1 s ago). The violet bar is the limiter's gain reduction (full = 12 dB). Below, the highest recent peak in dBFS">
           <div class="mt-bars"><div class="mt-ch"><i></i><b></b></div><div class="mt-ch"><i></i><b></b></div><div class="mt-gr"><i></i></div></div>
-          <div class="mt-foot"><span id="mtPk">−∞</span><button type="button" id="mtLed" title="Lights up when the limiter works and stays lit: click to clear it">lim</button></div>
+          <div class="mt-foot"><span id="mtPk">−∞</span><button type="button" id="mtLed" title="Lights up when the limiter works and stays lit: click to clear it">Lim</button></div>
         </div>
       </div>
       <div class="help"><b>Output.</b> The instrument's display: the last parameter you touched (with the mouse or a MIDI knob) and, in large type, its value; on the line above, what the chosen option means or, if it is doing nothing right now (dimmed), why. When you load a preset, its name. Whatever doesn't fit shrinks its type and, if even that fails, scrolls slowly back and forth, like a synth LCD. Below, the oscilloscope and spectrum of what plays on the master (all parts) and the <b>meter</b>: L and R peaks of what comes out (yellow from −12 dBFS, red from −1, the limiter ceiling), the limiter's reduction in violet and the <b>lim</b> LED, which stays lit once the limiter has worked (click to clear it). Healthy headroom: peaks below −1 and the LED off; if it lights up, the sound is being compressed (lower the preset's Master or the parts' Level).</div>
@@ -434,7 +434,7 @@
   <div class="panel">
     <h2>LFOs</h2>
     <div class="tbl lfo-bank">
-      <span></span><span class="th">shape</span><span class="th">level</span><span class="th">speed</span><span class="th">sync</span>
+      <span></span><span class="th">Shape</span><span class="th">Level</span><span class="th">Speed</span><span class="th">Sync</span>
       <div class="lfo-row" data-lfo="pwm" data-name="PWM"><span class="rn">PWM</span><button class="lfoShape" data-shape="pwmLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="pwmLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="pwmLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="pwmLfoSync" title="Sync: free (Speed in Hz) or a division of the BPM — the cycle lands on the common clock grid (bar = one bar · . = dotted · T = triplet)"></select></div>
@@ -450,14 +450,14 @@
       <div class="lfo-row" data-lfo="freq" data-name="Vibrato"><span class="rn">Vibrato</span><button class="lfoShape" data-shape="freqLfoShape"></button>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="freqLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="freqLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="freqLfoSync" title="Sync: free (Speed in Hz) or a division of the BPM — the cycle lands on the common clock grid (bar = one bar · . = dotted · T = triplet)"></select></div>
-      <div class="lfo-row" data-lfo="pan" data-name="Pan"><span class="rn">Pan</span><span class="noshape" title="Autopan is always a sine">sin</span>
+      <div class="lfo-row" data-lfo="pan" data-name="Pan"><span class="rn">Pan</span><span class="noshape" title="Autopan is always a sine">Sin</span>
         <div class="ctl ks" data-lab="Level"><div class="knob" data-knob="panLfoLvl"><div class="ind"></div></div><div class="val"></div></div>
         <div class="ctl ks" data-lab="Speed"><div class="knob" data-knob="panLfoSpd"><div class="ind"></div></div><div class="val"></div></div><select class="lfoSync" data-sync="panLfoSync" title="Sync: free (Speed in Hz) or a division of the BPM — the cycle lands on the common clock grid (bar = one bar · . = dotted · T = triplet)"></select></div>
     </div>
     <div class="hrow lfo-foot">
-      <div class="ctl ks" data-lab="Fade (vibrato and PWM)"><span class="th">fade</span><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="val"></div></div>
-      <div class="ctl ks" data-lab="LFO phase"><span class="th">phase</span><select id="lfoPhaseSel" title="Phase of the cutoff, reso, vibrato, PWM and pan LFOs (applies per note): global = one LFO per engine, the chord breathes as a block · per voice = each voice at a different phase · retrig = each note starts them at phase 0 · once = one cycle from the note, then they stay"></select></div>
-      <div class="ctl ks" data-lab="Drift (voice) · speed"><span class="th">drift</span><div class="knob" data-knob="mxDriftSpd"><div class="ind"></div></div><div class="val"></div></div>
+      <div class="ctl ks" data-lab="Fade (vibrato and PWM)"><span class="th">Fade</span><div class="knob" data-knob="lfoFade"><div class="ind"></div></div><div class="val"></div></div>
+      <div class="ctl ks" data-lab="LFO phase"><span class="th">Phase</span><select id="lfoPhaseSel" title="Phase of the cutoff, reso, vibrato, PWM and pan LFOs (applies per note): global = one LFO per engine, the chord breathes as a block · per voice = each voice at a different phase · retrig = each note starts them at phase 0 · once = one cycle from the note, then they stay"></select></div>
+      <div class="ctl ks" data-lab="Drift (voice) · speed"><span class="th">Drift</span><div class="knob" data-knob="mxDriftSpd"><div class="ind"></div></div><div class="val"></div></div>
     </div>
     <div class="help"><b>LFO bank</b>: one row per LFO, like the strips of a mixer (same column = same control). Click to cycle the shape (sin/tri/saw/sqr/S&amp;H/drift; S&amp;H = random steps at the LFO rate, drift = smooth random). Fixed destinations: <b>PWM</b> → pulse width of oscillators on «Square» (the row dims if there are none) · <b>Cutoff</b> → cutoff in Hz (for exponential modulation, in octaves, use the matrix: «LFO cutoff» → «Cutoff») · <b>Reso</b> → dB over the Q of the last stage · <b>Tremolo</b> → gain (organs, vibraphones) · <b>Vibrato</b> → pitch · <b>Pan</b> → autopan per voice. Speeds are logarithmic from 0.005 Hz (one cycle every 200 s: at that scale the LFO no longer «oscillates», it drifts). In the matrix the LFOs come in RAW as sources (their Level doesn't apply). <b>Fade</b>: vibrato and PWM ramp in after each note, like a player would (0 = immediate; up to 20 s). <b>Sync</b>: «free» = Speed in Hz; a division (4 bars … 1/32; «.» = dotted, T = triplet) = the LFO runs IN TEMPO: its rate comes from the BPM and its cycle starts on the common clock grid (the one the arpeggiator, sequencer and conductor use), also when the BPM changes. <b>Phase</b> (applies per note): «global» = one LFO per engine, the chord breathes as a block; «per voice» = each voice starts its cutoff/reso/vibrato/PWM/pan LFOs at a different phase (a Weyl sequence k·φ: deterministic and well spread; the first voice sounds as always); «retrig» = each note starts them at phase 0 (the LFO tied to the note: every pluck moves the same); «once» = a single cycle from the note, then they stay at its end — an LFO acting as an envelope (S&amp;H and drift have no end: they behave as retrig). The tremolo is always global. <b>Drift</b> = rate of the matrix source «Drift (voice)» (0.05 Hz = one sway every 20 s).</div>
   </div>
@@ -465,8 +465,8 @@
     <h2>Matrix</h2>
     <div id="mxRows"></div>
     <div class="hrow mx-foot">
-      <div class="ctl ks" data-lab="Macro 1" title="Macro 1: the «Macro 1» source in the matrix. Saved with the preset; with several slots on «Macro 1», one control moves several destinations, each by its own amount. MIDI map binds it to a hardware knob"><span class="th">macro 1</span><div class="knob" data-knob="macro1"><div class="ind"></div></div><div class="val"></div></div>
-      <div class="ctl ks" data-lab="Macro 2" title="Macro 2: the «Macro 2» source in the matrix (like Macro 1)"><span class="th">macro 2</span><div class="knob" data-knob="macro2"><div class="ind"></div></div><div class="val"></div></div>
+      <div class="ctl ks" data-lab="Macro 1" title="Macro 1: the «Macro 1» source in the matrix. Saved with the preset; with several slots on «Macro 1», one control moves several destinations, each by its own amount. MIDI map binds it to a hardware knob"><span class="th">Macro 1</span><div class="knob" data-knob="macro1"><div class="ind"></div></div><div class="val"></div></div>
+      <div class="ctl ks" data-lab="Macro 2" title="Macro 2: the «Macro 2» source in the matrix (like Macro 1)"><span class="th">Macro 2</span><div class="knob" data-knob="macro2"><div class="ind"></div></div><div class="val"></div></div>
     </div>
     <div class="help"><b>Modulation matrix:</b> source → destination × amount (±, double-click = 0). LFOs come in <b>raw</b> (their Level doesn't apply) · Cutoff is modulated in octaves: it never reaches 0 Hz · S&amp;H = a random value fixed per note · «Filter env» is the filter envelope (0..1×velocity) · <b>«Drift (voice)»</b> = a slow walk of EACH voice's own (rate: «drift» in the LFO bank): on cutoff, pan or wavetable, every note of the chord evolves on its own. <b>Wheel / Aftertouch / Expression</b> = PERFORMANCE sources (0..1, 0 = at rest): the wheel under the keyboard or CC1, the MIDI keyboard's pressure and the CC11 pedal — the pad gets played during the note (Wheel → Cutoff at 0.5 opens two octaves; Expression → Amplitude at −1 silences it when pressed). They are not saved with the preset: they are gestures. <b>Levels A, B, Ring and Noise</b> = the mixer: a slow LFO to «Level A» at −0.5 and to «Level B» at +0.5 (levels at 0.5) blends one wave into the other (vector synthesis); a level pushed below 0 flips its phase and sounds again. <b>Drive</b> moves the input gain of the saturation (±1 = the whole knob; needs Drive > 0): with the «fold» character, a sweep of folds. <b>Pitch A</b> = oscillator A only. <b>Material</b> retunes the Resonator's modes from string to bar (their weights follow the knob's). <b>Macro 1 and 2</b> = the knobs below (0..1), which ARE saved with the preset: put the same macro on several slots and a single control opens the filter, raises the drive and the resonance all at once, each destination by its slot's amount (with MIDI map, from a hardware knob).</div>
   </div>
@@ -499,12 +499,12 @@
         <div class="ctl"><div class="knob" data-knob="dlyDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="dlyWow"><div class="ind"></div></div><div class="lab">Wow</div><div class="val"></div></div>
         <div class="ctl rotc"><div class="seg rot" id="dlySyncSel">
-          <button data-sync="free" title="Free: the Time knob rules">free</button><button data-sync="1/8" title="Eighth note">1/8</button><button data-sync="1/8." title="Dotted eighth">1/8·</button><button data-sync="1/4" title="Quarter note">1/4</button><button data-sync="1/4." title="Dotted quarter">1/4·</button><button data-sync="1/2" title="Half note">1/2</button>
+          <button data-sync="free" title="Free: the Time knob rules">Free</button><button data-sync="1/8" title="Eighth note">1/8</button><button data-sync="1/8." title="Dotted eighth">1/8·</button><button data-sync="1/4" title="Quarter note">1/4</button><button data-sync="1/4." title="Dotted quarter">1/4·</button><button data-sync="1/2" title="Half note">1/2</button>
         </div><div class="lab">Sync</div></div>
       </div>
       <div class="hrow dly-foot">
-        <div class="ctl ks" data-lab="Feedback" title="Feedback: how many repeats. Above 100 % each echo comes back louder than the last and the delay RUNS AWAY: it grows until the saturation holds it and keeps ringing on its own (move Time for the dub siren; lower it to let it die)"><span class="th">fdbk</span><div class="knob" data-knob="dlyFb"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Echo saturation" title="Tape saturation inside the loop: every repeat comes out more compressed and dirtier (at 0, the usual clean echoes). Above 90 % feedback it kicks in by itself, so the echo can never blow up"><span class="th">sat</span><div class="knob" data-knob="dlySat"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Feedback" title="Feedback: how many repeats. Above 100 % each echo comes back louder than the last and the delay RUNS AWAY: it grows until the saturation holds it and keeps ringing on its own (move Time for the dub siren; lower it to let it die)"><span class="th">Fdbk</span><div class="knob" data-knob="dlyFb"><div class="ind"></div></div><div class="val"></div></div>
+        <div class="ctl ks" data-lab="Echo saturation" title="Tape saturation inside the loop: every repeat comes out more compressed and dirtier (at 0, the usual clean echoes). Above 90 % feedback it kicks in by itself, so the echo can never blow up"><span class="th">Sat</span><div class="knob" data-knob="dlySat"><div class="ind"></div></div><div class="val"></div></div>
       </div>
       <div class="help"><b>Ping-pong delay</b> (the echoes bounce L↔R). <b>Amount</b> = how much goes into the echo; <b>fdbk</b> = how many repeats (they used to be tied to Amount; presets from back then sound the same). Above <b>100 %</b> each echo comes back louder than the last and the delay <b>runs away</b>: it grows until the tape saturation in the loop holds it and it keeps ringing on its own, as in dub — move Time while it runs away and the pitch slides (the siren); lower the feedback and it dies away. Bound to a knob with MIDI map, you can play it live. <b>sat</b> = tape inside the loop: each repeat more compressed and dirtier (at 0, clean; above 90 % feedback it kicks in by itself, so it never blows up). Time up to 4 s (logarithmic). Synced to a division, the Time knob is ignored and the echo follows the BPM of the clock in the header. <b>Damp</b> = a filter INSIDE the loop: each repeat loses treble (and some bass), like tape or BBDs — at 0 it is exactly transparent. <b>Wow</b> detunes each repeat a hair (slow modulation of the time, different in L and R): the echo gets wider. In <b>Parts</b> mode: Amount is this part's SEND; Time/Damp/Wow and the sync belong to the shared room (and so does the clock's BPM).</div>
     </div>
@@ -517,7 +517,7 @@
         <div class="ctl"><div class="knob" data-knob="reverbSize"><div class="ind"></div></div><div class="lab">Size</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="reverbDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="reverbPre"><div class="ind"></div></div><div class="lab">Predelay</div><div class="val"></div></div>
-        <div class="togc"><div class="fieldlab">type</div><div class="seg tog" id="reverbTypeSel">
+        <div class="togc"><div class="fieldlab">Type</div><div class="seg tog" id="reverbTypeSel">
           <button data-rt="hall" title="Hall (IR): convolution with a noise IR generated in code">Hall</button>
           <button data-rt="plate" title="Algorithmic plate (Dattorro, the Lexicon 224 lineage): the density grows over time and the tank is modulated">Plate</button>
         </div></div>
@@ -563,7 +563,7 @@
        so the presets keep both. Arp-only: Direction, Octaves. Seq-only: Retrig, the phrase, Steps.
        ui/seqControls.js · whatever the Mode leaves idle is dimmed in place (ui/deps.js). -->
   <div class="panel" id="arpSeq">
-    <h2>Arpeggiator / Sequencer<button type="button" class="h2tog rec" id="seqRecBtn" aria-pressed="false" title="Rec: step recording of the phrase — every key you play (QWERTY, the screen or MIDI) writes the next step instead of transposing; 0 is the C of the octave you start in. Space = rest · Backspace = back · Enter, Esc or rec again = done. A chord struck at once is one step (its lowest note); on a scale, each note goes to its nearest degree. One undo step">rec</button><button type="button" class="h2tog" id="asLockBtn" aria-pressed="false" title="Lock: changing preset (or Reset) leaves this whole module as it is — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own">lock</button></h2>
+    <h2>Arpeggiator / Sequencer<button type="button" class="h2tog rec" id="seqRecBtn" aria-pressed="false" title="Rec: step recording of the phrase — every key you play (QWERTY, the screen or MIDI) writes the next step instead of transposing; 0 is the C of the octave you start in. Space = rest · Backspace = back · Enter, Esc or rec again = done. A chord struck at once is one step (its lowest note); on a scale, each note goes to its nearest degree. One undo step">Rec</button><button type="button" class="h2tog" id="asLockBtn" aria-pressed="false" title="Lock: changing preset (or Reset) leaves this whole module as it is — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own">Lock</button></h2>
     <div class="hrow seqlay">
       <div class="as-grid">
         <div class="ctl rotc"><div class="seg rot" id="asModeSel"><button data-asm="off" title="Off: the keys play as they are">Off</button><button data-asm="arp" title="Arpeggiator: the keys you hold, one after another">Arp</button><button data-asm="seq" title="Sequencer: the key you hold is the root that transposes the phrase">Seq</button></div><div class="lab">Mode</div></div>
@@ -589,8 +589,8 @@
     <div class="hrow seqlay">
       <div class="vcol" style="align-items:flex-start">
         <div class="hrow" style="gap:12px">
-          <div class="togc"><div class="fieldlab">state</div><div class="seg sw" id="wsOnSel"><button data-wson="off">Off</button><button data-wson="on">On</button></div></div>
-          <div class="togc"><div class="fieldlab">mode</div><div class="seg tog" id="wsModeSel"><button data-wsmode="loop">Loop</button><button data-wsmode="1shot">1shot</button></div></div>
+          <div class="togc"><div class="fieldlab">State</div><div class="seg sw" id="wsOnSel"><button data-wson="off">Off</button><button data-wson="on">On</button></div></div>
+          <div class="togc"><div class="fieldlab">Mode</div><div class="seg tog" id="wsModeSel"><button data-wsmode="loop">Loop</button><button data-wsmode="1shot">1shot</button></div></div>
         </div>
         <div class="hrow">
           <div class="ctl rotc"><div class="seg rot" id="wsDivSel"><button data-wsdiv="1/4" title="Quarter notes">1/4</button><button data-wsdiv="1/8" title="Eighth notes">1/8</button><button data-wsdiv="1/16" title="Sixteenth notes">1/16</button></div><div class="lab">Division</div></div>
@@ -610,10 +610,10 @@
     <h2>Mod Env</h2>
     <div class="hrow" style="align-items:flex-end">
       <div class="vcol" style="margin-right:6px">
-        <div class="togc"><div class="fieldlab">mode</div><div class="seg tog" id="envmModeSel">
-          <button data-envm="normal" title="ADSR: rises, falls to the sustain while held and releases with the note">normal</button>
-          <button data-envm="loop" title="Attack and decay repeated for as long as the note lasts: an envelope-shaped LFO that starts with it (sustain doesn't count)">loop</button>
-          <button data-envm="trigger" title="Ignores the note-off: full attack, decay and release even if the note lasts 20 ms (percussion)">trigger</button>
+        <div class="togc"><div class="fieldlab">Mode</div><div class="seg tog" id="envmModeSel">
+          <button data-envm="normal" title="ADSR: rises, falls to the sustain while held and releases with the note">Normal</button>
+          <button data-envm="loop" title="Attack and decay repeated for as long as the note lasts: an envelope-shaped LFO that starts with it (sustain doesn't count)">Loop</button>
+          <button data-envm="trigger" title="Ignores the note-off: full attack, decay and release even if the note lasts 20 ms (percussion)">Trigger</button>
         </div></div>
         <div class="ctl"><div class="knob" data-knob="envmCurve"><div class="ind"></div></div><div class="lab">Curve</div><div class="val"></div></div>
       </div>
@@ -641,7 +641,7 @@
       <div class="vcol" style="align-items:stretch">
         <div class="row" style="gap:8px;align-items:center">
           <button id="playBtn" class="btn" style="min-width:92px">▶ Play</button>
-          <span id="harmInfo" class="badge">stopped</span>
+          <span id="harmInfo" class="badge">Stopped</span>
         </div>
         <div class="fieldlab">Root · Scale</div>
         <div class="row" style="gap:6px;flex-wrap:nowrap"><select id="harmRoot" title="Tonic"></select><select id="harmScale" title="Scale"></select></div>
@@ -667,11 +667,11 @@
   <div class="panel" id="stepsPanel">
     <h2>Steps</h2>
     <div class="hrow ps-head">
-      <span class="fieldlab">reset</span><select id="stResetSel" title="Reset of the four lanes: on play (the first note after silence is step 0) · never (they follow the common clock even when you stop) · every N bars"></select>
+      <span class="fieldlab">Reset</span><select id="stResetSel" title="Reset of the four lanes: on play (the first note after silence is step 0) · never (they follow the common clock even when you stop) · every N bars"></select>
       <span class="note" id="stCycle"></span>
     </div>
     <div class="tbl ps-grid">
-      <span></span><span class="th">steps · drag to draw</span><span class="th">len</span><span class="th">div</span><span class="th">smooth</span><span class="th">rot</span><span class="th">drift</span>
+      <span></span><span class="th">Steps · drag to draw</span><span class="th">Len</span><span class="th">Div</span><span class="th">Smooth</span><span class="th">Rot</span><span class="th">Drift</span>
       <div class="ps-row" data-lane="1"><span class="rn">1</span><canvas class="ps-canvas" title="Steps 1: drag to draw (up +1, down −1; near the middle, 0)"></canvas>
         <div class="stepper"><button data-stlen="-">−</button><span class="num">16</span><button data-stlen="+">+</button></div>
         <select class="ps-div" title="Division: how long each step lasts (T = triplet; 1 bar = one bar)"></select>
@@ -718,7 +718,7 @@
   <div class="panel parts-off" id="arrange">
     <h2>Arrangement</h2>
     <div class="hrow" id="arrKnobs"></div>
-    <div class="hrow arr-part"><span class="fieldlab" id="arrPartWho" title="The arrangement of the part the rack is editing: enters = minimum energy for it to play; Drift = a parameter of its preset that wanders slowly, and amt, how much">part 1</span><div class="hrow" id="playerArr"></div></div>
+    <div class="hrow arr-part"><span class="fieldlab" id="arrPartWho" title="The arrangement of the part the rack is editing: enters = minimum energy for it to play; Drift = a parameter of its preset that wanders slowly, and amt, how much">Part 1</span><div class="hrow" id="playerArr"></div></div>
     <div class="badge" id="arrInfo" style="margin-top:6px">—</div>
     <div class="row" style="gap:6px;margin-top:8px">
       <button class="btn" id="sceneExp" title="Download the whole scene (presets, mix, room, harmony, players, arrangement, seed) as JSON">⇩ Scene</button>
@@ -726,7 +726,7 @@
       <button class="btn" id="sceneLast" title="Bring back the last scene: it saves itself every few seconds and on closing">↺ Last</button>
       <input type="file" id="sceneFile" accept="application/json,.json" style="display:none">
     </div>
-    <div class="help"><b>Scene arrangement</b> — the form on a scale of minutes. Energy = the center and Sway = the depth of a cosine swell of Cycle bars (rises, peaks halfway, falls): each part comes in when the energy passes its threshold; energy also scales velocity, pulse probability and melody density. Open = how much energy opens (or closes) the filter of every part (±1 octave at full). Surprise = one-bar silences scattered at random. <b>«part N» row</b> (the part the instrument is editing): <b>enters</b> = minimum energy for it to play (0 = always); <b>Drift</b> = a parameter of its preset that wanders slowly around its value, <b>amt</b> = how much. All deterministic with the seed. <b>Scene</b> = room + harmony + arrangement + players + the 4 presets with their mix: ⇩ exports, ⇧ imports, ↺ brings back the last one (autosaved).</div>
+    <div class="help"><b>Scene arrangement</b> — the form on a scale of minutes. Energy = the center and Sway = the depth of a cosine swell of Cycle bars (rises, peaks halfway, falls): each part comes in when the energy passes its threshold; energy also scales velocity, pulse probability and melody density. Open = how much energy opens (or closes) the filter of every part (±1 octave at full). Surprise = one-bar silences scattered at random. <b>«Part N» row</b> (the part the instrument is editing): <b>Enters</b> = minimum energy for it to play (0 = always); <b>Drift</b> = a parameter of its preset that wanders slowly around its value, <b>Amt</b> = how much. All deterministic with the seed. <b>Scene</b> = room + harmony + arrangement + players + the 4 presets with their mix: ⇩ exports, ⇧ imports, ↺ brings back the last one (autosaved).</div>
   </div>
 </div>
 
@@ -740,7 +740,7 @@
     <div class="help"><b>Your library of presets and scenes.</b> One click loads (a preset, into the part the instrument is editing; a scene turns Parts on) and the keyboard below is there to try it · ★ favorite: shows up in «★ Favorites» in the quick picker · ✎ renames in place · 🗑 deletes (factory items come back with ⟲ Restore factory) · drag a preset to another section or position · sections can be created, renamed, reordered (‹ ›) and deleted · search ignores accents and case. Save (into «★ Mine», or over the loaded preset if the name is the same) is in the header; Export (the whole library) and Import (library, bank or scene; it merges, it never replaces), in «File ▾». Everything lives in this browser (localStorage): export now and then.</div>
     <div class="lib-bar">
       <span class="srch"><input id="libSearch" type="text" placeholder="search…" maxlength="48" title="Filter by name (ignoring accents and case)"><button type="button" class="srch-x" title="Clear the search" tabindex="-1">×</button></span>
-      <label class="chk" title="Only the ones marked with ★"><input type="checkbox" id="libFavOnly"> ★ favorites only</label>
+      <label class="chk" title="Only the ones marked with ★"><input type="checkbox" id="libFavOnly"> ★ Favorites only</label>
       <button class="btn" id="libNewSec" title="Creates an empty section, ready to be named">+ Section</button>
       <button class="btn" id="libSeed" title="The factory as it is now: deleted presets and scenes come back to their section, untouched copies that the bank has since changed are refreshed; yours, renamed, moved, edited and ★ items are left alone">⟲ Restore factory</button>
       <span id="libMsg" class="note"></span>
@@ -762,7 +762,7 @@
     </div>
     <label class="wheel" title="Modulation wheel: the matrix source «Wheel (CC1)» (0 = at rest). A MIDI keyboard's wheel (CC1) moves it too. Double-click = 0"><span class="lab">Wheel</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>
     <label class="kb-grp" title="Pitch bend range in semitones (saved with the preset): ±2 is usual; ±12 for basses and effects that drop an octave. In Parts mode, each part has its own"><span class="lab">Bend</span><select id="bendRangeSel"></select></label>
-    <span class="kb-grp" title="Touch response of YOUR keyboard (not the preset's; remembered in this browser): soft = a light touch already sounds loud · linear = velocity as it comes · hard = you have to dig in to reach the top. Applies to the MIDI keyboard and the mouse (how high you click); the computer keyboard is always at full"><span class="lab">Touch</span><span class="seg" id="kbTouch"><button type="button" data-touch="soft">soft</button><button type="button" data-touch="linear">linear</button><button type="button" data-touch="hard">hard</button></span></span>
+    <span class="kb-grp" title="Touch response of YOUR keyboard (not the preset's; remembered in this browser): soft = a light touch already sounds loud · linear = velocity as it comes · hard = you have to dig in to reach the top. Applies to the MIDI keyboard and the mouse (how high you click); the computer keyboard is always at full"><span class="lab">Touch</span><span class="seg" id="kbTouch"><button type="button" data-touch="soft">Soft</button><button type="button" data-touch="linear">Linear</button><button type="button" data-touch="hard">Hard</button></span></span>
   </div>
 </div>
 </div><!-- /inst -->
