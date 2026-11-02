@@ -522,9 +522,12 @@ export async function runSelfTest() {
     if (notes(dia, 3) !== '65,69,72' || notes(dia, 4) !== '67,71,74' || notes(dia, 1) !== '62,65,69') problems.push('Chord on major: +3 ' + notes(dia, 3) + ' · +4 ' + notes(dia, 4) + ' · +1 ' + notes(dia, 1) + ' (expected F-A-C, G-B-D, D-F-A)');
     dia.unhold(2); dia.unhold(1); dia.unhold(3);
     if (dia._roots().length !== 3 || notes(dia, 0) !== '60,64,67') problems.push('Chord + Latch: the chord does not stay once every key is up (' + notes(dia, 0) + ')');
+    const mono = new Seq({ S: { seqChord: 'on', seqNotes: 'semitones', mode: 'mono' }, ctx: null });
+    C4E4G4(mono);
+    if (mono._roots().length !== 1 || notes(mono, 2) !== '69') problems.push('Chord in Mono: not one root, the last key (' + notes(mono, 2) + ')');
     dia.timer = null; dia.e.S.seqLatch = 'off'; dia.latched = null; dia.latchedChord = null;
     if (dia._roots().length) problems.push('Chord: with nothing held nor latched there are still roots');
-    push({ name: 'sequencer chord root (off = one root as always · parallel in semitones · diatonic on a scale · Latch keeps the chord)', peak: 0, ok: !problems.length, problems });
+    push({ name: 'sequencer chord root (off = one root as always · parallel in semitones · diatonic on a scale · Latch keeps the chord · Mono plays one root)', peak: 0, ok: !problems.length, problems });
   }
   {
     // Panic means silence (fixed 2026-11-02): allNotesOff lets go of a LATCHED arpeggio or sequence too —
@@ -907,6 +910,8 @@ export async function runSelfTest() {
     testCase('FM4 with op 3 muted', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4A3', 'level 0'], ['fm4S3', 'level 0'], ['fm4K3', 'level 0'], ['#fm4Fix3Ctl', 'level 0'], ['fm4R2', null], ['fm4V2', null], ['fm4Fb', null]]);
     testCase('FM4 with op 4 muted: its Feedback goes dim too', () => { C.waveA.set('fm4'); C.fm4L4.set(0); }, [['fm4Fb', 'level 0'], ['fm4R3', null]]);
     testCase('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
+    testCase('Seq in Poly: Chord live', () => C.asMode.set('seq'), [['#seqChordCtl', null]]);
+    testCase('Seq in Mono: Chord dims (one voice, no chord)', () => { C.asMode.set('seq'); C.mode.set('mono'); }, [['#seqChordCtl', 'Mono'], ['#seqPatSel', null]]);
     testCase('Wavetable without «user»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
     testCase('Wavetable «user»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Wave Editor', null]]);
     testCase('Supersaw', () => C.waveA.set('supersaw'), [['phaseA', 'Supersaw'], ['spread', null], ['sec:Unison', 'Supersaw']]);

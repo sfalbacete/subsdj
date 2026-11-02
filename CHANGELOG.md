@@ -31,6 +31,8 @@ scenes, libraries, MIDI maps). The why behind each module is in
   phrase in chords. In semitones the chord moves in parallel; on a scale it moves inside it, around
   its lowest note — C-E-G in major with «0 3 4» plays C, F and G major —, so the chord changes quality
   as it climbs. Ties, slides, accents and repeats work voice by voice; with Latch the whole chord stays.
+  Poly only: in Mono one voice cannot play a chord, so there the switch dims and the phrase follows the
+  last key, as without it.
 - Panic (and Esc) now also stops a latched arpeggio: the arpeggiator's Latch used to survive it.
 - **One case for every label.** Carbon writes every label and option with a capital first letter
   («Latch», «Soft», «Free», «Ratio»…; some were lowercase), and Classic puts all of them in

@@ -163,9 +163,12 @@ export class Seq {
   }
 
   // The roots of a step: one (last-note priority, or the latched one) — or, with Chord on, EVERY key held
-  // (with Latch, the whole gesture; once every key is up, the latched chord), lowest first
+  // (with Latch, the whole gesture; once every key is up, the latched chord), lowest first. In Mono a
+  // chord cannot sound: its notes would reach the one voice at the same instant and the last-note
+  // priority would keep the top one (in legato, gliding up from the bottom on every step) — so Mono
+  // plays one root, as with Chord off (and the switch is dimmed: ui/deps.js)
   _roots() {
-    if (this.e.S.seqChord !== 'on') { const r = this._root(); return r ? [r] : []; }
+    if (this.e.S.seqChord !== 'on' || this.e.S.mode === 'mono') { const r = this._root(); return r ? [r] : []; }
     const src = this.held.length ? (this.e.S.seqLatch === 'on' ? this.gesture : this.held)
       : (this.latchedChord && this.latchedChord.length ? this.latchedChord : this.latched ? [this.latched] : []);
     return src.filter(h => !(h.from > this.nextT + 1e-6)).sort((a, b) => a.freq - b.freq);

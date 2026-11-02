@@ -2951,7 +2951,10 @@ and each one went in its own commit, so any of them can be reverted alone.
   chord covers stabs and progressions without a new editor. On a fixed scale the chord moves
   around its LOWEST note (each held note gets its degree from it), which makes it diatonic; with
   the scene's harmony every note already moves in the scene's scale. `link` and `tie` became
-  lists (per voice); with Chord off a step has one root and the calls of before.
+  lists (per voice); with Chord off a step has one root and the calls of before. In Mono (Sergio's
+  catch) a chord cannot sound: its notes reached the one voice at the same instant, the last-note
+  priority kept the top one and, in legato, every step glided up from the bottom note — so Mono
+  ignores Chord (one root, the last key) and the switch dims there with its reason.
 - **Label case**: written «Capitalized», uppercased by Classic through `--lab-case`, which now also
   reaches option buttons, row names and a module's buttons. Uppercase is wider: «FOLLOW AMP ENV»
   pushed the Voice band out, so the option became «Amp Env» (beside «Times»), and the selftest now
