@@ -1014,8 +1014,9 @@ export async function runSelfTest() {
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
-    // Phrases as objects (2026-11-02). (1) Yours: «Save this phrase as mine…» asks a name and keeps steps,
-    // division and UNITS; choosing it brings them back exactly; Delete deletes; Export library carries them
+    // Phrases as objects (2026-11-02). (1) Yours: the disk in the module's title asks a name and keeps steps,
+    // division and UNITS; choosing it brings them back exactly; the bin deletes only yours (faded on any
+    // other phrase); the list holds phrases only, no actions; Export library carries them
     // and importing them back does not duplicate. (2) The module's lock: while on, loading a preset leaves
     // the whole Arpeggiator / Sequencer as it is; off, the preset brings its own. The user's phrases and
     // the current preset are put back afterwards.
@@ -1028,8 +1029,14 @@ export async function runSelfTest() {
       C.seqNotes.set('dorian'); C.seqPat.set('0 2 4 7! . 4 2~ 0'); C.seqDiv.set('1/8');
       const sel = document.getElementById('seqPatSel'), pick = v => { sel.value = v; sel.dispatchEvent(new Event('change')); };
       const pop = document.getElementById('phrasePop'), inp = document.getElementById('phraseName');
-      pick('+save');
-      if (!pop || pop.hidden) problems.push('«Save this phrase as mine…» does not open its popover');
+      const saveBtn = document.getElementById('phraseSaveBtn'), delBtn = document.getElementById('phraseDelBtn');
+      if (!saveBtn || !delBtn) throw new Error('no disk or no bin in the title');
+      if (sel.querySelector('option[value^="+"], option[value^="-"]')) problems.push('the phrase list still holds actions');
+      if (delBtn.getAttribute('aria-disabled') !== 'true') problems.push('the bin is live on a phrase that is not yours');
+      delBtn.click();
+      if (userPhrases().length) problems.push('the bin deleted something with no phrase of yours on');
+      saveBtn.click();
+      if (!pop || pop.hidden) problems.push('the disk does not open its popover');
       inp.value = 'Selftest phrase'; inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       const ups = userPhrases();
       if (ups.length !== 1 || ups[0].name !== 'Selftest phrase' || ups[0].pat !== '0 2 4 7! . 4 2~ 0' || ups[0].div !== '1/8' || ups[0].notes !== 'dorian') problems.push('saved: ' + JSON.stringify(ups));
@@ -1040,9 +1047,9 @@ export async function runSelfTest() {
       if (C.seqPat.get() !== '0 2 4 7! . 4 2~ 0' || C.seqDiv.get() !== '1/8' || C.seqNotes.get() !== 'dorian') problems.push('choosing yours does not bring it back exactly: ' + C.seqPat.get() + ' · ' + C.seqDiv.get() + ' · ' + C.seqNotes.get());
       const j = libraryExport();
       if (!Array.isArray(j.phrases) || !j.phrases.length || j.phrases[0].name !== 'Selftest phrase') problems.push('Export library does not carry your phrases');
-      if (!sel.querySelector('option[value="-del"]')) problems.push('no «Delete» for your phrase');
-      pick('-del');
-      if (userPhrases().length) problems.push('Delete did not delete');
+      if (delBtn.getAttribute('aria-disabled') !== 'false') problems.push('the bin is faded on a phrase of yours');
+      delBtn.click();
+      if (userPhrases().length) problems.push('the bin did not delete');
       if (mergePhrases(j.phrases) !== 1 || !userPhrases().length || userPhrases()[0].name !== 'Selftest phrase') problems.push('importing the exported phrases does not bring them back');
       if (mergePhrases(j.phrases) !== 0) problems.push('importing them twice duplicates them');
       // (2) the lock

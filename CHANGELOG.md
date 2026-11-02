@@ -14,9 +14,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   go to the nearest degree, and the notice says how many); from one scale to another the degrees
   stay, so the same phrase moves to the new mode; back to semitones it comes back exact. Each phrase
   in the list brings its units: one in semitones sets semitones back.
-- **Your phrases.** At the end of the phrase list, «Save this phrase as mine…» keeps the one you
-  have — steps, division and units — under a name, in «★ Mine»; choosing it brings it back exactly,
-  on any preset, and «Delete» removes it (with Undo in the notice). They live in this browser and
+- **Your phrases.** The disk in the Arpeggiator / Sequencer's title keeps the phrase you have —
+  steps, division and units — under a name, in «★ Mine» of the phrase list; choosing it brings it
+  back exactly, on any preset, and the bin next to it removes it (with Undo in the notice). They live in this browser and
   travel with Export library (an older SubSDJ just ignores them).
 - **The module's lock.** The «lock» in the Arpeggiator / Sequencer's title keeps the whole module as
   it is when you change preset (or Reset): the same sequence, heard on every instrument you browse.

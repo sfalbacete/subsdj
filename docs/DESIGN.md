@@ -2932,8 +2932,12 @@ and each one went in its own commit, so any of them can be reverted alone.
 - **Phrases are the sequencer's, not the instrument's.** Yours (`ui/phraseBank.js`) keep steps,
   division and units — the units, because degrees read as semitones are another melody. They live
   in localStorage and ride along with Export library as an optional `phrases` field: an older
-  version ignores it, so the library format did not change. The actions (save, delete) sit at the
-  end of the phrase list itself, not as more buttons: the row was full. The **lock** holds every
+  version ignores it, so the library format did not change. The actions (save, delete) are two
+  icons in the module's title, beside rec and lock: the phrase row was full. They first sat at the
+  end of the phrase list itself, and Sergio did not like it — an action hidden among the things it
+  acts on. The bin is faded (not disabled: its tooltip still says why) on a phrase that is not
+  yours, and `ui/tips.js` gives the title's icons the header's instant tooltip, since an icon's
+  tooltip is its only label. The **lock** holds every
   key of the module (registry `HELD`, the same mechanism as the room keys in Parts mode): the
   whole module, not only the phrase, because a preset with the arp on would otherwise switch the
   phrase off through the mutex.

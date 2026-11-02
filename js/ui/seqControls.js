@@ -180,14 +180,16 @@ export function bindSeqControls() {
   initMutex();
 }
 
-// Phrase selector: the factory phrases, YOURS («★ Mine», ui/phraseBank.js) and, at the end, two
-// actions: save the phrase you have as yours (a popover asks its name) and delete yours. Choosing a
-// phrase writes seqPat + its division + its UNITS (a phrase of yours comes back exactly as saved; a
-// factory one by degrees keeps the scale you have on). Editing the pattern by hand shows «custom».
+// Phrase selector: the factory phrases and YOURS («★ Mine», ui/phraseBank.js). Two icons in the
+// module's title act on them: the disk saves the phrase you have as yours (a popover asks its name)
+// and the bin deletes yours. Choosing a phrase writes seqPat + its division + its UNITS (a phrase of
+// yours comes back exactly as saved; a factory one by degrees keeps the scale you have on). Editing
+// the pattern by hand shows «custom».
 function initSeqPatterns() {
   const sel = document.getElementById('seqPatSel');
   if (!sel) return;
   const pop = document.getElementById('phrasePop'), inp = document.getElementById('phraseName'), go = document.getElementById('phraseSaveGo');
+  const saveBtn = document.getElementById('phraseSaveBtn'), delBtn = document.getElementById('phraseDelBtn');
   const norm = s => String(s).trim().split(/\s+/).join(' ');
   const opt = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); return o; };
   const group = label => { const og = document.createElement('optgroup'); og.label = label; sel.appendChild(og); return og; };
@@ -206,20 +208,23 @@ function initSeqPatterns() {
     SEQ_PATTERNS.forEach((p, i) => { const g = p.grp || 'Phrases'; if (!groups.has(g)) groups.set(g, group(g)); opt(groups.get(g), String(i), p.name); });
     const ups = userPhrases();
     if (ups.length) { const g = group('★ Mine'); ups.forEach((p, i) => opt(g, 'u' + i, p.name)); }
-    const act = group('Your phrases');
-    opt(act, '+save', 'Save this phrase as mine…');
-    const m = mine();
-    if (m >= 0) opt(act, '-del', 'Delete «' + ups[m].name + '»');
     sync();
+    // the bin only deletes yours: on any other phrase it is faded (still hoverable: its tooltip says why)
+    if (delBtn) {
+      const m = mine();
+      delBtn.setAttribute('aria-disabled', String(m < 0));
+      delBtn.title = m >= 0 ? 'Delete phrase: «' + ups[m].name + '» out of «★ Mine» (Undo in the notice)' : 'Delete phrase: only yours (★ Mine) — pick one of them first';
+    }
   };
 
-  // «save as mine»: the name in a popover under the selector (Enter saves, Esc or a click outside closes)
-  const closeSave = () => { if (pop) pop.hidden = true; if (inp) inp.blur(); };
+  // «save as mine»: the name in a popover under the disk (Enter saves, Esc, the disk again or a click outside closes)
+  const closeSave = () => { if (pop) pop.hidden = true; if (inp) inp.blur(); if (saveBtn) saveBtn.classList.remove('active'); };
   const openSave = () => {
     if (!pop || !inp) return;
     const m = mine(), f = factory();
     inp.value = m >= 0 ? userPhrases()[m].name : f >= 0 ? SEQ_PATTERNS[f].name.split(' · ')[0] : '';
-    pop.hidden = false; inp.focus(); inp.select();
+    pop.hidden = false; if (saveBtn) saveBtn.classList.add('active');
+    inp.focus(); inp.select();
   };
   const doSave = () => {
     const name = (inp.value || '').trim();
@@ -230,19 +235,19 @@ function initSeqPatterns() {
   };
   if (go) go.addEventListener('click', doSave);
   if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSave(); } else if (e.key === 'Escape') { e.preventDefault(); closeSave(); } });
-  document.addEventListener('pointerdown', e => { if (pop && !pop.hidden && !e.target.closest('#phraseWrap')) closeSave(); });
+  if (saveBtn) saveBtn.addEventListener('click', () => { if (pop && pop.hidden) openSave(); else closeSave(); });
+  document.addEventListener('pointerdown', e => { if (pop && !pop.hidden && !e.target.closest('#phrasePop, #phraseSaveBtn')) closeSave(); });
   document.addEventListener('escape-first', e => { if (pop && !pop.hidden) { e.preventDefault(); closeSave(); } });   // Esc closes it before being «panic»
+  if (delBtn) delBtn.addEventListener('click', () => {
+    const ups = userPhrases(), m = mine();
+    if (m < 0) { say('Delete phrase: only yours (★ Mine) can go — pick one of them first.'); return; }
+    chosen = '';
+    const snap = deletePhrase(ups[m].name);
+    undoable(document.getElementById('presetMsg'), 'Phrase «' + ups[m].name + '» deleted.', () => restorePhrase(snap));
+  });
 
   sel.addEventListener('change', () => {
     const v = sel.value;
-    if (v === '+save') { sync(); openSave(); return; }
-    if (v === '-del') {
-      const ups = userPhrases(), m = mine();
-      chosen = '';
-      if (m >= 0) { const snap = deletePhrase(ups[m].name); undoable(document.getElementById('presetMsg'), 'Phrase «' + ups[m].name + '» deleted.', () => restorePhrase(snap)); }
-      else sync();
-      return;
-    }
     if (v[0] === 'u') {                       // yours: exactly as saved (steps, division, units)
       const p = userPhrases()[+v.slice(1)];
       if (!p) { sync(); return; }
