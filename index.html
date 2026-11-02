@@ -238,42 +238,100 @@
   </div>
   <div class="panel osc" id="fm4Panel">
     <h2>FM4</h2>
-    <div class="hrow" style="align-items:flex-start">
-      <div class="ctl rotc"><div class="seg rot" id="fm4AlgSel">
-        <button data-alg="0" data-cap="4→3→2→1" title="Stack: 4→3→2→1 (brass; feedback is on 4)">1</button>
-        <button data-alg="1" data-cap="2→1 · 4→3" title="Two independent pairs: 2→1 and 4→3 (e-piano)">2</button>
-        <button data-alg="2" data-cap="2·3·4→1" title="Three parallel modulators on the carrier (dense bells)">3</button>
-        <button data-alg="3" data-cap="2·3→1 · 4→3" title="Y: 2 and 3 modulate 1; 4 modulates 3">4</button>
-        <button data-alg="4" data-cap="4→1·2·3" title="One modulator for three carriers (organ, choir)">5</button>
-        <button data-alg="5" data-cap="3→2→1 + 4" title="Stack of three + carrier 4 alone (a bed of sine)">6</button>
-        <button data-alg="6" data-cap="2→1 + 3 + 4" title="Pair 2→1 + two pure carriers">7</button>
-        <button data-alg="7" data-cap="1+2+3+4" title="Additive: all four sound; with feedback, 4 turns into a saw">8</button>
-      </div><div class="lab">Algorithm</div><div class="fm4g" id="fm4Graph"></div></div>
-      <div class="tbl fm4ops">
-        <span></span><span class="th">Ratio</span><span class="th">Level</span><span class="th">Decay</span><span class="th" title="Velocity sensitivity: how much the level scales with how hard the note is played">Vel</span>
-        <span class="rn">Op 1</span>
-        <div class="ctl ks" data-lab="Op 1 · ratio"><div class="knob" data-knob="fm4R1"><div class="ind"></div></div><div class="val"></div></div>
+    <div class="f4">
+      <div class="f4-alg" id="fm4AlgBox">
+        <div class="f4-algsel">
+          <div class="stepper f4-step"><button type="button" id="fm4AlgPrev" title="Previous algorithm" aria-label="Previous algorithm">‹</button><button type="button" class="num" id="fm4AlgNum" aria-haspopup="dialog" title="Algorithm: click to see the eight">1</button><button type="button" id="fm4AlgNext" title="Next algorithm" aria-label="Next algorithm">›</button></div>
+          <span class="f4-algname" id="fm4AlgName">Stack</span>
+        </div>
+        <div class="f4-graph" id="fm4Graph"></div>
+        <div class="f4-glob">
+          <div class="ctl f4sk" data-lab="Feedback"><div class="knob" data-knob="fm4Fb"><div class="ind"></div></div><div class="lab">Feedback</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Key time"><div class="knob" data-knob="fm4Kt"><div class="ind"></div></div><div class="lab">Key time</div><div class="val"></div></div>
+        </div>
+        <div class="pop f4-pick" id="fm4AlgPop" role="dialog" aria-label="Algorithms" hidden>
+          <div class="seg f4-algs" id="fm4AlgSel">
+            <button type="button" data-alg="0" data-cap="4→3→2→1" data-name="Stack" title="Stack: 4→3→2→1 (brass; feedback is on 4)">1</button>
+            <button type="button" data-alg="1" data-cap="2→1 · 4→3" data-name="Two pairs" title="Two independent pairs: 2→1 and 4→3 (e-piano)">2</button>
+            <button type="button" data-alg="2" data-cap="2·3·4→1" data-name="Three into one" title="Three parallel modulators on the carrier (dense bells)">3</button>
+            <button type="button" data-alg="3" data-cap="2·3→1 · 4→3" data-name="Y" title="Y: 2 and 3 modulate 1; 4 modulates 3">4</button>
+            <button type="button" data-alg="4" data-cap="4→1·2·3" data-name="One for three" title="One modulator for three carriers (organ, choir)">5</button>
+            <button type="button" data-alg="5" data-cap="3→2→1 + 4" data-name="Stack + sine" title="Stack of three + carrier 4 alone (a bed of sine)">6</button>
+            <button type="button" data-alg="6" data-cap="2→1 + 3 + 4" data-name="Pair + two" title="Pair 2→1 + two pure carriers">7</button>
+            <button type="button" data-alg="7" data-cap="1+2+3+4" data-name="Additive" title="Additive: all four sound; with feedback, 4 turns into a saw">8</button>
+          </div>
+        </div>
+      </div>
+      <div class="f4-right">
+        <div class="f4-ops" id="fm4Ops">
+        <span></span><span class="th">Ratio</span><span class="th">Level</span><span class="th">Envelope</span>
+        <button type="button" class="f4-box" data-op="1" title="Op 1: click to edit its envelope, key scaling and tuning below">1</button>
+        <div class="f4-rat" data-op="1"><div class="ctl ks" data-lab="Op 1 · ratio"><div class="knob" data-knob="fm4R1"><div class="ind"></div></div><div class="val"></div></div><div class="ctl ks f4-hz" data-lab="Op 1 · Hz"><div class="knob" data-knob="fm4Hz1"><div class="ind"></div></div><div class="val"></div></div></div>
         <div class="ctl ks" data-lab="Op 1 · level"><div class="knob" data-knob="fm4L1"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 1 · decay"><div class="knob" data-knob="fm4D1"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 1 · vel"><div class="knob" data-knob="fm4V1"><div class="ind"></div></div><div class="val"></div></div>
-        <span class="rn">Op 2</span>
-        <div class="ctl ks" data-lab="Op 2 · ratio"><div class="knob" data-knob="fm4R2"><div class="ind"></div></div><div class="val"></div></div>
+        <button type="button" class="f4-env" data-op="1" aria-label="Op 1: its envelope (click to edit it)"></button>
+        <button type="button" class="f4-box" data-op="2" title="Op 2: click to edit its envelope, key scaling and tuning below">2</button>
+        <div class="f4-rat" data-op="2"><div class="ctl ks" data-lab="Op 2 · ratio"><div class="knob" data-knob="fm4R2"><div class="ind"></div></div><div class="val"></div></div><div class="ctl ks f4-hz" data-lab="Op 2 · Hz"><div class="knob" data-knob="fm4Hz2"><div class="ind"></div></div><div class="val"></div></div></div>
         <div class="ctl ks" data-lab="Op 2 · level"><div class="knob" data-knob="fm4L2"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 2 · decay"><div class="knob" data-knob="fm4D2"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 2 · vel"><div class="knob" data-knob="fm4V2"><div class="ind"></div></div><div class="val"></div></div>
-        <span class="rn">Op 3</span>
-        <div class="ctl ks" data-lab="Op 3 · ratio"><div class="knob" data-knob="fm4R3"><div class="ind"></div></div><div class="val"></div></div>
+        <button type="button" class="f4-env" data-op="2" aria-label="Op 2: its envelope (click to edit it)"></button>
+        <button type="button" class="f4-box" data-op="3" title="Op 3: click to edit its envelope, key scaling and tuning below">3</button>
+        <div class="f4-rat" data-op="3"><div class="ctl ks" data-lab="Op 3 · ratio"><div class="knob" data-knob="fm4R3"><div class="ind"></div></div><div class="val"></div></div><div class="ctl ks f4-hz" data-lab="Op 3 · Hz"><div class="knob" data-knob="fm4Hz3"><div class="ind"></div></div><div class="val"></div></div></div>
         <div class="ctl ks" data-lab="Op 3 · level"><div class="knob" data-knob="fm4L3"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 3 · decay"><div class="knob" data-knob="fm4D3"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 3 · vel"><div class="knob" data-knob="fm4V3"><div class="ind"></div></div><div class="val"></div></div>
-        <span class="rn">Op 4</span>
-        <div class="ctl ks" data-lab="Op 4 · ratio"><div class="knob" data-knob="fm4R4"><div class="ind"></div></div><div class="val"></div></div>
+        <button type="button" class="f4-env" data-op="3" aria-label="Op 3: its envelope (click to edit it)"></button>
+        <button type="button" class="f4-box" data-op="4" title="Op 4: click to edit its envelope, key scaling and tuning below">4</button>
+        <div class="f4-rat" data-op="4"><div class="ctl ks" data-lab="Op 4 · ratio"><div class="knob" data-knob="fm4R4"><div class="ind"></div></div><div class="val"></div></div><div class="ctl ks f4-hz" data-lab="Op 4 · Hz"><div class="knob" data-knob="fm4Hz4"><div class="ind"></div></div><div class="val"></div></div></div>
         <div class="ctl ks" data-lab="Op 4 · level"><div class="knob" data-knob="fm4L4"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 4 · decay"><div class="knob" data-knob="fm4D4"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Op 4 · vel"><div class="knob" data-knob="fm4V4"><div class="ind"></div></div><div class="val"></div></div>
+        <button type="button" class="f4-env" data-op="4" aria-label="Op 4: its envelope (click to edit it)"></button>
+        </div>
+        <div class="f4-det">
+          <div class="f4-dethead"><span class="f4-detop" id="fm4DetOp">Op 1</span><span class="f4-detrole" id="fm4DetRole"></span></div>
+        <div class="f4-detrow" data-op="1">
+          <div class="ctl f4sk" data-lab="Op 1 · attack"><div class="knob" data-knob="fm4A1"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 1 · decay"><div class="knob" data-knob="fm4D1"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 1 · sustain"><div class="knob" data-knob="fm4S1"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 1 · release"><div class="knob" data-knob="fm4Rel1"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
+          <span class="f4-sep"></span>
+          <div class="ctl f4sk" data-lab="Op 1 · vel"><div class="knob" data-knob="fm4V1"><div class="ind"></div></div><div class="lab">Vel</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 1 · key"><div class="knob" data-knob="fm4K1"><div class="ind"></div></div><div class="lab">Key</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 1 · detune"><div class="knob" data-knob="fm4Det1"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+          <div class="swc f4-fix" id="fm4Fix1Ctl" title="Fixed: the operator stops following the key and sounds at its own Hz (the knob next to its level): a partial that is the same on every note — the metal of a bell, a drum's ring"><div class="seg sw" id="fm4Fix1Sel"><button data-fix="off">Off</button><button data-fix="on">On</button></div><span class="lab">Fixed</span></div>
+        </div>
+        <div class="f4-detrow" data-op="2" hidden>
+          <div class="ctl f4sk" data-lab="Op 2 · attack"><div class="knob" data-knob="fm4A2"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 2 · decay"><div class="knob" data-knob="fm4D2"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 2 · sustain"><div class="knob" data-knob="fm4S2"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 2 · release"><div class="knob" data-knob="fm4Rel2"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
+          <span class="f4-sep"></span>
+          <div class="ctl f4sk" data-lab="Op 2 · vel"><div class="knob" data-knob="fm4V2"><div class="ind"></div></div><div class="lab">Vel</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 2 · key"><div class="knob" data-knob="fm4K2"><div class="ind"></div></div><div class="lab">Key</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 2 · detune"><div class="knob" data-knob="fm4Det2"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+          <div class="swc f4-fix" id="fm4Fix2Ctl" title="Fixed: the operator stops following the key and sounds at its own Hz (the knob next to its level): a partial that is the same on every note — the metal of a bell, a drum's ring"><div class="seg sw" id="fm4Fix2Sel"><button data-fix="off">Off</button><button data-fix="on">On</button></div><span class="lab">Fixed</span></div>
+        </div>
+        <div class="f4-detrow" data-op="3" hidden>
+          <div class="ctl f4sk" data-lab="Op 3 · attack"><div class="knob" data-knob="fm4A3"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 3 · decay"><div class="knob" data-knob="fm4D3"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 3 · sustain"><div class="knob" data-knob="fm4S3"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 3 · release"><div class="knob" data-knob="fm4Rel3"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
+          <span class="f4-sep"></span>
+          <div class="ctl f4sk" data-lab="Op 3 · vel"><div class="knob" data-knob="fm4V3"><div class="ind"></div></div><div class="lab">Vel</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 3 · key"><div class="knob" data-knob="fm4K3"><div class="ind"></div></div><div class="lab">Key</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 3 · detune"><div class="knob" data-knob="fm4Det3"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+          <div class="swc f4-fix" id="fm4Fix3Ctl" title="Fixed: the operator stops following the key and sounds at its own Hz (the knob next to its level): a partial that is the same on every note — the metal of a bell, a drum's ring"><div class="seg sw" id="fm4Fix3Sel"><button data-fix="off">Off</button><button data-fix="on">On</button></div><span class="lab">Fixed</span></div>
+        </div>
+        <div class="f4-detrow" data-op="4" hidden>
+          <div class="ctl f4sk" data-lab="Op 4 · attack"><div class="knob" data-knob="fm4A4"><div class="ind"></div></div><div class="lab">A</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 4 · decay"><div class="knob" data-knob="fm4D4"><div class="ind"></div></div><div class="lab">D</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 4 · sustain"><div class="knob" data-knob="fm4S4"><div class="ind"></div></div><div class="lab">S</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 4 · release"><div class="knob" data-knob="fm4Rel4"><div class="ind"></div></div><div class="lab">R</div><div class="val"></div></div>
+          <span class="f4-sep"></span>
+          <div class="ctl f4sk" data-lab="Op 4 · vel"><div class="knob" data-knob="fm4V4"><div class="ind"></div></div><div class="lab">Vel</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 4 · key"><div class="knob" data-knob="fm4K4"><div class="ind"></div></div><div class="lab">Key</div><div class="val"></div></div>
+          <div class="ctl f4sk" data-lab="Op 4 · detune"><div class="knob" data-knob="fm4Det4"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
+          <div class="swc f4-fix" id="fm4Fix4Ctl" title="Fixed: the operator stops following the key and sounds at its own Hz (the knob next to its level): a partial that is the same on every note — the metal of a bell, a drum's ring"><div class="seg sw" id="fm4Fix4Sel"><button data-fix="off">Off</button><button data-fix="on">On</button></div><span class="lab">Fixed</span></div>
+        </div>
+        </div>
       </div>
     </div>
-    <div class="help"><b>4-operator FM</b> («FM4» wave on Osc A/B; the module dims if neither uses it). An algorithm is a graph of who modulates whom, and under the selector it is drawn the Yamaha way: the <b>carriers</b> (what you hear) at the bottom, on the output line; each <b>modulator</b> above the operator it modulates, joined by its wire; the loop over op 4 is the feedback (it lights up with the FM module's Feedback). Each operator: Ratio = multiple of the note (integer = harmonic, non-integer = bell), Level = how much it modulates (or how loud it is, if it is a carrier), Decay = its level falls as e^(−t/decay); at full (∞) it stays constant. The DX7 recipe: a modulator with a short decay = a bright attack that fades. <b>Vel</b> = velocity sensitivity (the DX7's «key velocity sensitivity»): the operator level is multiplied by 1 − vel + vel·velocity; at 0 it doesn't matter how hard you play, at 1 it is proportional. On a CARRIER that is volume; on a MODULATOR the level is the modulation index, so playing harder opens up harmonics: the timbre follows your touch, which in subtractive synthesis only the filter can do. You need a MIDI keyboard (the computer keyboard always sends velocity 1). The FM module's Feedback feeds back op 4.</div>
+    <div class="help"><b>4-operator FM</b> («FM4» wave on Osc A/B; the module dims if neither uses it). An <b>algorithm</b> is a graph of who modulates whom, drawn the Yamaha way: the <b>carriers</b> (what you hear) at the bottom, on the output line; each <b>modulator</b> above the operator it modulates, joined by its wire; the loop over op 4 is its <b>Feedback</b> (its sine turns into a saw, at full into noise). ‹ › step through the eight; the number shows them all at once.<br>Each operator, in its row: <b>Ratio</b> = multiple of the note (integer = harmonic, non-integer = bell; with Fixed on, its own <b>Hz</b> instead), <b>Level</b> = how much it modulates (or how loud it is, if it is a carrier) and its <b>envelope</b> as it runs: a note held 1.5 s and released (the dotted line). Click a row or a box of the graph to edit that operator below:<br><b>A D S R</b>: attack, decay (exponential; ∞ = it stays), sustain (the level it decays to) and release after the key (∞ = it ignores the key and carries on: the Amp Env ends the note). The DX7 recipe: a modulator with a short decay = a bright attack that fades; a modulator with a slow attack = brightness that grows (brass). · <b>Vel</b>: velocity sensitivity — the level is multiplied by 1 − vel + vel·velocity; on a carrier that is volume, on a modulator the modulation index, so playing harder opens up harmonics. · <b>Key</b>: level scaling around C4, 6 dB per octave at full: − takes level away up the keyboard (a modulator: bright bass, mellow treble), + down. · <b>Detune</b>: cents against the others (two carriers a few cents apart = the DX chorus). · <b>Fixed</b>: it stops following the key.<br><b>Key time</b> (for the four): the envelopes get shorter above C4 and longer below it — at full, half as long per octave: the treble of a piano dies sooner than its bass.</div>
   </div>
   <div class="panel osc">
     <h2>String<button type="button" class="h2tog" id="excModeBtn" aria-pressed="false" title="Exciter: how the loop is set in motion — click to cycle. Off = the pick (every note is a pluck). bow = a bow keeps feeding energy while the key is held, through the string's own motion. breath = the loop is a pipe blown by a jet: little breath is air, enough is the note, a lot overblows to the octave. Pressure, Speed/Jet and Noise/Air below; «Bow pressure» / «Bow speed» as Matrix destinations (aftertouch, wheel, expression, an LFO). The bow or the breath lands over the Amp Env's attack and stops over its release.">Bow</button></h2>

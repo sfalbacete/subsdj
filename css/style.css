@@ -527,6 +527,75 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .fm4g path.o{stroke:var(--accent2);}
 .fm4g path.fb{stroke:var(--edge-hi);stroke-dasharray:2 2;}
 .fm4g path.fb.on{stroke:var(--accent2);stroke-dasharray:none;}
+/* The FM4 panel (2026-11-02, ui/fm4Panel.js): left, the algorithm (‹ n › and its name, the graph
+   large — a box selects its operator — Feedback and Key time); right, the four operators at a glance
+   (ratio or Hz, level, the envelope as it runs) and the selected one in detail (A D S R | Vel Key
+   Detune | Fixed). The four detail rows are always in the DOM (MIDI learn, undo, presets); one shows. */
+#fm4Panel{position:relative;}
+.f4{display:flex;gap:7px;align-items:flex-start;}   /* 7: the Source band is full to the pixel (the old FM4 was 407 px; this one 409) */
+.f4-alg{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:104px;flex:none;}
+.f4-algsel{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.f4-step button.num{width:auto;min-width:18px;border:none;background:none;box-shadow:none;color:var(--accent2);font-size:13px;font-weight:600;padding:0 2px;}
+.f4-step button.num:hover{color:var(--ink);}
+.f4-algname{font-size:9px;color:var(--dim);white-space:nowrap;text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.f4-graph{line-height:0;height:100px;display:flex;align-items:center;justify-content:center;}
+.f4-graph svg{display:block;overflow:visible;}
+.f4-graph rect{fill:var(--well);stroke:var(--dim);stroke-width:1;}
+.f4-graph .car rect{stroke:var(--accent2);}
+.f4-graph .sel rect{fill:color-mix(in srgb,var(--accent2) 30%,var(--well));stroke:var(--accent2);stroke-width:1.5;}
+.f4-graph .op{cursor:pointer;}
+.f4-graph .op:hover rect{stroke:var(--ink);}
+.f4-graph text{fill:var(--ink);font-size:9px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none;}
+.f4-graph path{fill:none;stroke:var(--dim);stroke-width:1;}
+.f4-graph path.o{stroke:var(--accent2);}
+.f4-graph path.fb{stroke:var(--edge-hi);stroke-dasharray:2 2;}
+.f4-graph path.fb.on{stroke:var(--accent2);stroke-dasharray:none;}
+.f4-glob{display:flex;gap:2px;}
+/* a small knob with its label and value below (the detail row and the two globals) */
+.ctl.f4sk{width:34px;gap:2px;}
+.f4-glob .ctl.f4sk{width:48px;}
+.ctl.f4sk .knob{width:24px;height:24px;flex:none;--knob-disc-inset:2px;--knob-edge-w:1px;--knob-ring-r:5px;--knob-dot:3px;--knob-dot-top:4px;}
+.ctl.f4sk .lab{font-size:9px;line-height:11px;white-space:nowrap;}
+.ctl.f4sk .val{font-size:9px;min-height:0;line-height:11px;white-space:nowrap;}
+.f4-right{display:flex;flex-direction:column;gap:6px;}
+.f4-ops{display:grid;grid-template-columns:20px 60px 60px 116px;column-gap:6px;row-gap:1px;align-items:center;}
+.f4-ops .ks .val{width:32px;}
+.f4-rat .f4-hz,.f4-rat.fixed > .ctl:first-child{display:none;}   /* Fixed: the row shows its Hz instead of its ratio */
+.f4-rat.fixed .f4-hz{display:flex;}
+.f4-box{width:18px;height:14px;box-sizing:border-box;padding:0;border:1px solid var(--dim);border-radius:2px;background:var(--well);
+  font-family:inherit;font-size:9px;font-weight:600;line-height:1;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.f4-box.car{border-color:var(--accent2);}
+.f4-box.sel{background:color-mix(in srgb,var(--accent2) 30%,var(--well));border-color:var(--accent2);border-width:1.5px;}
+.f4-env{display:block;width:116px;height:22px;padding:0;border:none;border-radius:3px;background:var(--well);cursor:pointer;line-height:0;}
+.f4-env svg{display:block;width:116px;height:22px;}
+.f4-env.sel{outline:1.5px solid var(--accent2);outline-offset:0;}
+.f4-env path.f{fill:color-mix(in srgb,var(--dim) 18%,transparent);stroke:none;}
+.f4-env path.l{fill:none;stroke:var(--dim);stroke-width:1.2;}
+.f4-env path.amp{stroke-dasharray:2 2;opacity:.75;}
+.f4-env.car path.f{fill:color-mix(in srgb,var(--accent2) 18%,transparent);}
+.f4-env.car path.l{stroke:var(--accent2);}
+.f4-env line{stroke:var(--edge);stroke-width:1;stroke-dasharray:2 2;}
+.f4-det{border-top:1px solid var(--edge);padding-top:5px;display:flex;flex-direction:column;gap:3px;}
+.f4-dethead{display:flex;gap:8px;align-items:baseline;}
+.f4-detop{font-size:10px;font-weight:600;color:var(--accent2);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.f4-detrole{font-size:9px;color:var(--dim);}
+.f4-detrow{display:flex;align-items:flex-start;}
+.f4-detrow[hidden]{display:none;}
+.f4-sep{width:1px;align-self:stretch;background:var(--edge);margin:2px 2px;}
+.swc.f4-fix{flex-direction:column;gap:2px;width:34px;}
+.swc.f4-fix .seg.sw{margin:4px 0;}
+.swc.f4-fix .lab{font-size:9px;line-height:11px;}
+/* the algorithm picker: the eight graphs at once (the .seg of fm4Alg, in a popover) */
+.f4-pick{top:20px;left:0;padding:6px;}
+.seg.f4-algs{display:grid;grid-template-columns:repeat(4,76px);gap:5px;border:none;background:none;box-shadow:none;overflow:visible;}
+.seg.f4-algs button,.seg.f4-algs button + button{display:block;text-align:center;padding:3px 2px;white-space:nowrap;
+  border:1px solid var(--edge);border-radius:var(--r-ctl);background:var(--well);box-shadow:none;color:var(--ink);font-size:8.5px;font-weight:600;}
+.seg.f4-algs button::after{content:attr(data-name);margin-left:3px;color:var(--dim);font-weight:400;}   /* the name: not in the text, so the display reads «3 · 2·3·4→1» */
+.seg.f4-algs button.active{background:var(--well);color:var(--accent2);border-color:var(--accent2);text-shadow:none;
+  box-shadow:0 0 8px color-mix(in srgb,var(--accent2) 35%,transparent);}
+.seg.f4-algs button:hover{border-color:var(--edge-hi);}
+.seg.f4-algs svg{display:block;margin:0 auto;width:60px;height:48px;pointer-events:none;}
+.seg.f4-algs .fm4g{display:block;margin:0 0 1px;}
 /* Switch with LED: the 2-3 option .seg as a list of LEDs with their
    label (the hardware's Poly/Mono). Click on a label = pick it. */
 .seg.tog{display:flex;flex-direction:column;gap:4px;border:none;border-radius:0;background:none;box-shadow:none;overflow:visible;}
@@ -580,8 +649,6 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .rn{font-size:10px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;}
 .lfo-bank{grid-template-columns:auto 40px auto auto auto;}
 .lfo-bank select,.lfo-foot select{font-size:9px;line-height:1.2;padding:2px 3px;letter-spacing:.3px;}   /* at the scale of the shape buttons */
-.fm4ops{grid-template-columns:28px repeat(4,auto);gap:3px 4px;margin-left:4px;}
-.fm4ops .ks .val{width:30px;}   /* «12.00», «600 ms»: with 4 columns 46 px per value don't fit */
 .lfo-row{display:contents;}
 /* Steps (Roadmap 7.0 · 2.3): one row per lane; canvas of FIXED width (32 steps) */
 .ps-grid{grid-template-columns:12px 288px auto auto auto auto auto;gap:2px 8px;}   /* 288: the Player needed the room (9 px per step with 32) */

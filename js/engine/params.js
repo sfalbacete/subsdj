@@ -29,6 +29,8 @@ export const dbFmt = v => (v <= 0 ? '−∞' : (d => (d >= 0.05 ? '+' : '') + d.
 const hzFmt = v => (v < 0.1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v.toFixed(1)) + ' Hz';
 const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s');   // per-operator decay (FM4): top = flat
 const twoDec = v => v.toFixed(2);
+const sgnFmt = (v, d = 2) => (v > 0.0049 ? '+' : v < -0.0049 ? '−' : '') + Math.abs(v).toFixed(d);   // bipolar: +0.50 · −0.50 · 0.00
+const ratioFmt = v => (v >= 10 ? v.toFixed(1) : v.toFixed(2));
 // Vowel knob: shows the vowel (u, o, a…) or the span between two (u·o)
 const vowelFmt = v => {
   const p = v * (VOC_ORDER.length - 1), i = Math.min(VOC_ORDER.length - 2, Math.floor(p)), w = p - i;
@@ -79,12 +81,32 @@ export const PARAMS = {
   excPress: { def: 0.5, min: 0, max: 1 },                                   // bow pressure (light = thin, the upper partials · heavy = the fundamental takes over) / breath (little = air · a lot = the octave)
   excSpeed: { def: 0.5, min: 0, max: 1 },                                   // bow speed = the level (the key velocity scales it) / the jet's length (which register it favours)
   excNoise: { def: 0.1, min: 0, max: 1 },                                   // scratch: slow noise on the bow speed / the air in the breath
-  fm4R1: { def: 1, min: 0.25, max: 12 }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
-  fm4R2: { def: 2, min: 0.25, max: 12 }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
-  fm4R3: { def: 1, min: 0.25, max: 12 }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
-  fm4R4: { def: 3, min: 0.25, max: 12 }, fm4L4: { def: 0.2, min: 0, max: 1 }, fm4D4: { def: 0.15, min: 0.005, max: 4, log: true, fmt: decFmt },
+  // Ratio up to 24 (2026-11-02, was 12) and log: 0.5, 1, 2… keep their room at the bottom of the travel
+  fm4R1: { def: 1, min: 0.25, max: 24, log: true, fmt: ratioFmt }, fm4L1: { def: 1,   min: 0, max: 1 }, fm4D1: { def: 4,    min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R2: { def: 2, min: 0.25, max: 24, log: true, fmt: ratioFmt }, fm4L2: { def: 0.4, min: 0, max: 1 }, fm4D2: { def: 0.6,  min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R3: { def: 1, min: 0.25, max: 24, log: true, fmt: ratioFmt }, fm4L3: { def: 0.3, min: 0, max: 1 }, fm4D3: { def: 0.3,  min: 0.005, max: 4, log: true, fmt: decFmt },
+  fm4R4: { def: 3, min: 0.25, max: 24, log: true, fmt: ratioFmt }, fm4L4: { def: 0.2, min: 0, max: 1 }, fm4D4: { def: 0.15, min: 0.005, max: 4, log: true, fmt: decFmt },
   // velocity sensitivity of each operator: level × (1 − v + v·velocity); 0 = as always
   fm4V1: { def: 0, min: 0, max: 1, act: true }, fm4V2: { def: 0, min: 0, max: 1, act: true }, fm4V3: { def: 0, min: 0, max: 1, act: true }, fm4V4: { def: 0, min: 0, max: 1, act: true },
+  // FM4 «done well» (2026-11-02). Each operator's envelope is an ADSR: Attack (0 = the step), the
+  // Decay that was already there (∞ = flat, the Sustain plays no part), Sustain (the level it decays
+  // to) and Release (∞ = it ignores the note-off and carries on: the Amp Env ends the note). The
+  // defaults ARE the old operator — attack 0, decays to 0, carries on after the key — so every
+  // preset sounds as it did with no migration. Key scaling, like the DX7's: Key time (one for the
+  // four) shortens the envelopes above C4 and stretches them below; each operator's Key takes level
+  // away on one side of C4 (−: up the keyboard · +: down), 6 dB per octave at full. Detune in cents,
+  // and Fixed: the operator stops following the key and sounds at its own Hz.
+  ...Object.fromEntries([1, 2, 3, 4].flatMap(i => [
+    ['fm4A' + i,   { def: 0, min: 0, max: 4, log: true, lmin: 0.001, fmt: secFmt }],
+    ['fm4S' + i,   { def: 0, min: 0, max: 1, fmt: twoDec }],
+    ['fm4Rel' + i, { def: 4, min: 0.005, max: 4, log: true, fmt: decFmt }],
+    ['fm4K' + i,   { def: 0, min: -1, max: 1, fmt: sgnFmt }],
+    ['fm4Det' + i, { def: 0, min: -50, max: 50, fmt: v => sgnFmt(v, 0) + ' ct' }],
+    ['fm4Fix' + i, { def: 'off' }],
+    ['fm4Hz' + i,  { def: 440, min: 1, max: 8000, log: true, fmt: v => (v < 100 ? v.toFixed(1) : Math.round(v)) + ' Hz' }],
+  ])),
+  fm4Kt: { def: 0, min: 0, max: 1, fmt: twoDec },
+  fm4Fb: { def: 0, min: 0, max: 1, act: true },     // op 4's feedback (until 1.7.0 it was the FM module's fmFb: state.migrateFm4Fb)
   wtSet:    { def: 'analog' },                   // wavetable (oscs in 'wavetable' mode; global A+B)
   wtPos:    { def: 0, min: 0, max: 1 },             // morph: position between the table's frames
   wtUser:   { def: '' },                            // recipe of the 'user' table INSIDE the preset ('' = keep the drawn one)
@@ -260,7 +282,10 @@ export const PARAMS = {
    cutLFO (presets that went silent) guaranteed by construction. */
 export const EXC_KEYS = ['excPress', 'excSpeed', 'excNoise'];   // the bow's knobs (worklet params of the same name; excMode is per note)
 export const STR_KEYS = ['strBright', 'strDecay', 'strPos', 'strStiff', ...EXC_KEYS];   // the worklet's params have the same names
-export const FM4_KEYS = ['fm4Alg', 'fm4R1', 'fm4L1', 'fm4D1', 'fm4R2', 'fm4L2', 'fm4D2', 'fm4R3', 'fm4L3', 'fm4D3', 'fm4R4', 'fm4L4', 'fm4D4'];
+export const FM4_KEYS = ['fm4Alg', 'fm4R1', 'fm4L1', 'fm4D1', 'fm4R2', 'fm4L2', 'fm4D2', 'fm4R3', 'fm4L3', 'fm4D3', 'fm4R4', 'fm4L4', 'fm4D4', 'fm4Fb'];   // worklet AudioParams
+// The SHAPE of the operators (2026-11-02): read once per block, so they travel in the worklet's options
+// at the note's birth and by message when they change (Voice.setFm4) — no AudioParams on every oscillator
+export const FM4_SHAPE_KEYS = ['fm4Kt', ...[1, 2, 3, 4].flatMap(i => ['fm4A' + i, 'fm4S' + i, 'fm4Rel' + i, 'fm4K' + i, 'fm4Det' + i, 'fm4Fix' + i, 'fm4Hz' + i])];
 
 export const MX_SLOTS = 6;
 export const MX_SOURCES = [                 // signals: RAW LFOs (±1, their Level knob plays no part) and filter env (0..1·vel)

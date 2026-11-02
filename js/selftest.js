@@ -27,7 +27,7 @@ import { parseWsPattern } from './engine/WaveSeq.js';
 import { SEQ_PATTERNS } from './ui/seqControls.js';
 import { FACTORY, BANK, META, BANK_REV, rootOf, factoryPreset, migrateV1 } from './engine/presets.js';
 import { validateBank, coverage } from './engine/bankCheck.js';
-import { LEGACY_FP, migratePreset, describeFormat, unreadableReason, KNOWN_FORMATS } from './engine/legacy.js';
+import { LEGACY_FP, DEMO_FP, migratePreset, describeFormat, unreadableReason, KNOWN_FORMATS } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal } from './engine/params.js';
@@ -903,8 +903,9 @@ export async function runSelfTest() {
     testCase('Sine with index', () => { C.waveA.set('sine'); C.fmIndex.set(2); }, [['fmRatio', null], ['fmFb', null]]);
     testCase('Sine + env → FM index', () => { C.waveA.set('sine'); C.mx1src.set('env'); C.mx1dst.set('fm'); C.mx1amt.set(0.5); },
       [['fmRatio', null], ['mx1dst', null], ['fenvMode', null], ['fa', 'Amp Env']]);
-    testCase('FM4 only: Feedback yes', () => C.waveA.set('fm4'), [['sec:FM', null], ['fmRatio', 'Sine'], ['fmIndex', 'Sine'], ['fmFb', null], ['sec:FM4', null], ['fm4R2', null]]);
-    testCase('FM4 with op 3 muted', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4R2', null], ['fm4V2', null]]);
+    testCase('FM4 only: the FM module goes dim (FM4 has its own Feedback)', () => C.waveA.set('fm4'), [['sec:FM', 'Sine'], ['sec:FM4', null], ['fm4R2', null], ['fm4Fb', null], ['fm4S1', 'Decay at ∞'], ['fm4S2', null]]);
+    testCase('FM4 with op 3 muted', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4A3', 'level 0'], ['fm4S3', 'level 0'], ['fm4K3', 'level 0'], ['#fm4Fix3Ctl', 'level 0'], ['fm4R2', null], ['fm4V2', null], ['fm4Fb', null]]);
+    testCase('FM4 with op 4 muted: its Feedback goes dim too', () => { C.waveA.set('fm4'); C.fm4L4.set(0); }, [['fm4Fb', 'level 0'], ['fm4R3', null]]);
     testCase('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
     testCase('Wavetable without «user»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
     testCase('Wavetable «user»', () => { C.waveA.set('wavetable'); C.wtSet.set('user'); }, [['sec:Wave Editor', null]]);
@@ -1241,13 +1242,59 @@ export async function runSelfTest() {
       if (/NaN|Infinity/.test(fm4Svg(i))) problems.push(n + 'non-finite coordinates');
     });
     const keep = snapshot();
-    loadState({ waveA: 'fm4', fm4Alg: '4' });
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // the panel repaints on the next frame
+    loadState({ waveA: 'fm4', fm4Alg: '4' }); await frame();
     const g = document.querySelector('#fm4Graph svg');
     if (!g || g.querySelectorAll('g.op.car').length !== 3) problems.push('the page graph does not follow the selector (alg 5 → 3 carriers)');
-    loadState({ waveA: 'fm4', fmFb: 0.5 });
+    loadState({ waveA: 'fm4', fm4Fb: 0.5 }); await frame();
     if (!document.querySelector('#fm4Graph path.fb.on')) problems.push('the feedback loop does not light up with Feedback > 0');
     loadState(keep);
     push({ name: 'Yamaha-style FM4 graph: same table as the worklet, carriers below, modulators above', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // The FM4 panel (2026-11-02, ui/fm4Panel.js): ‹ › step through the algorithms (and wrap); the
+    // number opens the eight and choosing one closes them; a box of the row (or of the graph) selects
+    // its operator, whose detail row is the only one shown; Fixed swaps the row's ratio for its Hz;
+    // the envelope picture draws a release ∞ dashed (the Amp Env ends the note) and a set one solid.
+    const NAME = 'FM4 panel (‹ › and the eight algorithms · a box selects its operator · Fixed shows the Hz · the envelope as it runs)';
+    const problems = [], C = CONTROLS, keep = snapshot();
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const shown = el => !!(el && el.offsetParent);
+    const scr0 = currentScreen();
+    try {
+      showScreen('design');
+      loadState({ waveA: 'fm4', fm4Alg: '0' }); await frame();
+      document.getElementById('fm4AlgPrev').click(); await frame();
+      if (C.fm4Alg.get() !== '7' || document.getElementById('fm4AlgNum').textContent !== '8') problems.push('‹ from the first does not wrap to the eighth (' + C.fm4Alg.get() + ')');
+      document.getElementById('fm4AlgNext').click(); document.getElementById('fm4AlgNext').click(); await frame();
+      if (C.fm4Alg.get() !== '1' || document.getElementById('fm4AlgName').textContent !== 'Two pairs') problems.push('› › does not land on «2 · Two pairs» (' + C.fm4Alg.get() + ')');
+      const pop = document.getElementById('fm4AlgPop');
+      document.getElementById('fm4AlgNum').click();
+      if (pop.hidden) problems.push('the number does not open the eight algorithms');
+      if (pop.querySelectorAll('button svg').length !== 8) problems.push('the picker does not draw the eight graphs');
+      pop.querySelector('button[data-alg="4"]').click(); await frame();
+      if (C.fm4Alg.get() !== '4' || !pop.hidden) problems.push('choosing «5» in the picker: ' + C.fm4Alg.get() + (pop.hidden ? '' : ', still open'));
+      if (document.querySelectorAll('#fm4Graph g.op.car').length !== 3) problems.push('the large graph does not follow (alg 5 → 3 carriers)');
+      if (document.querySelectorAll('#fm4Ops .f4-box.car').length !== 3) problems.push('the rows do not mark the 3 carriers');
+      // selecting: a row's box, then a box of the graph
+      document.querySelector('.f4-box[data-op="3"]').click(); await frame();
+      const rows = [...document.querySelectorAll('.f4-detrow')];
+      if (rows.filter(shown).length !== 1 || !shown(rows[2]) || document.getElementById('fm4DetOp').textContent !== 'Op 3') problems.push('the box of op 3 does not show (only) its detail');
+      document.querySelector('#fm4Graph g.op[data-op="4"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); await frame();
+      if (!shown(rows[3]) || !document.querySelector('#fm4Graph g.op.sel[data-op="4"]')) problems.push('a box of the graph does not select its operator');
+      if (!/modulator/.test(document.getElementById('fm4DetRole').textContent)) problems.push('op 4 in alg 5 is not said to be a modulator («' + document.getElementById('fm4DetRole').textContent + '»)');
+      // Fixed: the row swaps its ratio for its Hz
+      const rat = document.querySelector('.f4-rat[data-op="4"]');
+      if (!shown(rat.children[0]) || shown(rat.children[1])) problems.push('without Fixed the row does not show the ratio');
+      C.fm4Fix4.set('on'); await frame();
+      if (shown(rat.children[0]) || !shown(rat.children[1])) problems.push('with Fixed the row does not show its Hz');
+      // the envelope picture: release ∞ dashed, a set one solid
+      if (!document.querySelector('.f4-env[data-op="1"] path.amp')) problems.push('release ∞ is not drawn dashed');
+      C.fm4Rel1.set(0.3); await frame();
+      if (document.querySelector('.f4-env[data-op="1"] path.amp')) problems.push('a set release is still drawn dashed');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { loadState(keep); showScreen(scr0); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
     // Output display (ui/display.js): whatever does not fit shrinks the font down to its
@@ -1589,7 +1636,9 @@ export async function runSelfTest() {
       const dawn = { format: 'subsdj-scene-v2', name: 'Dawn', parts: [] };   // a scene seeded the 1.5.0 way: its fingerprint stored with it
       // a demo pair flattened into «★ Mine» before the library (origin user): its untouched copy goes, a tweaked one stays
       const demos = await (await fetch('subsdj-demos.json', { cache: 'no-store' })).json();
-      const demoName = Object.keys(demos.presets)[0], demoData = migratePreset(migrateV1(demos.presets[demoName]));
+      // one of the demos those old versions did flatten (DEMO_FP): new pairs go on top of the file and never were
+      const asCopy = n => migratePreset(migrateV1(demos.presets[n]));
+      const demoName = Object.keys(demos.presets).find(n => DEMO_FP.has(fnv(canon(asCopy(n))))), demoData = asCopy(demoName);
       const lib = { format: 'subsdj-library-v2', next: 20, files: true,
         sections: [{ id: 's1', name: 'Pads' }, { id: 's2', name: 'Bass' }, { id: 's3', name: 'Presets 2.0' }, { id: 's4', name: '★ Mine' }, { id: 's5', name: 'Scenes' }, { id: 's6', name: 'My empty one' }, { id: 's7', name: 'Keys' }],
         items: [
@@ -3678,6 +3727,76 @@ export async function runSelfTest() {
     } catch (e2) {
       r = { name: 'FM4 operator clock (the 30 ms click survives a note scheduled 250 ms into the future)', peak: 0, ok: false,
             problems: ['exception: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
+    // FM4 · the operators' shape (2026-11-02), measured on one carrier alone (algorithm 8, op 1; the
+    // Amp Env a gate with a long release, so what moves is the operator): (1) Attack ramps up;
+    // (2) the Decay comes down to the Sustain; (3) the Release starts at the note-off (∞ = it ignores
+    // the key); (4) Key time: a decay is longer below C4 and shorter above it; (5) Key level −: half
+    // the level one octave above C4, untouched below; (6) Detune in cents; (7) Fixed: the same Hz
+    // on every key; (8) the Feedback that was the FM module's comes along into fm4Fb.
+    body.appendChild(el('st-cat', 'FM4 · operator shape'));
+    const NAME = 'FM4 operator shape (ADSR per operator · key time · key level · detune · fixed Hz · feedback migrated)';
+    let r;
+    try {
+      const problems = [], C3 = 130.81, C5 = 523.25;
+      const base = { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4L2: 0, fm4L3: 0, fm4L4: 0,
+                     cutoff: 20000, reso: 0.7, a: 0.001, d: 0.05, s: 1, r: 2, width: 0, reverbMix: 0, dlyAmt: 0, chAmt: 0 };
+      const render = async (extra, freq = C3, offAt = 0.5, secs = 1) => {
+        loadState({ ...base, ...extra });
+        const c = new OfflineAudioContext(2, Math.ceil(SR * secs), SR);
+        const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(c);
+        eng.noteOn('k1', freq, 1);
+        c.suspend(offAt).then(() => { eng.noteOff('k1'); c.resume(); });
+        return c.startRendering();
+      };
+      const rms = (b, t0, t1) => { const d = b.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+        let s = 0; for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+      // frequency from the first and last rising zero crossings (interpolated): exact to well under 0.1 %
+      const hz = (b, t0, t1) => { const d = b.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.floor(t1 * SR); let first = -1, last = -1, n = 0;
+        for (let i = i0 + 1; i < i1; i++) if (d[i - 1] < 0 && d[i] >= 0) { const x = i - 1 + d[i - 1] / (d[i - 1] - d[i]); if (first < 0) first = x; last = x; n++; }
+        return n > 1 ? (n - 1) * SR / (last - first) : 0; };
+      const flat = await render({});
+      const full = rms(flat, 0.4, 0.45);
+      if (analyze(flat).bad) problems.push('NaN/Inf');
+      // (1) attack
+      const bA = await render({ fm4A1: 0.2 });
+      const atk = rms(bA, 0.02, 0.05) / full, top = rms(bA, 0.4, 0.45) / full;
+      if (!(atk < 0.35 && top > 0.9)) problems.push('attack 200 ms: ' + atk.toFixed(2) + ' early, ' + top.toFixed(2) + ' later (expected <0.35 · >0.9)');
+      // (2) decay to the sustain
+      const bS = await render({ fm4D1: 0.05, fm4S1: 0.5 });
+      const sus = rms(bS, 0.4, 0.45) / full;
+      if (!(Math.abs(sus - 0.5) < 0.06)) problems.push('sustain 0.5 lands at ' + sus.toFixed(2));
+      // (3) release from the note-off (and ∞ = it carries on: the Amp Env, 2 s here, ends the note)
+      const bR = await render({ fm4Rel1: 0.05 }), relOn = rms(bR, 0.75, 0.8) / full, relInf = rms(flat, 0.75, 0.8) / full;
+      if (!(relOn < 0.05)) problems.push('release 50 ms: still ' + relOn.toFixed(3) + ' a quarter of a second after the key');
+      if (!(relInf > 0.3)) problems.push('release ∞: the operator fell with the key (' + relInf.toFixed(2) + ')');
+      // (4) key time: a 0.2 s decay at full Key time = 0.4 s at C3 and 0.1 s at C5
+      const kt = { fm4D1: 0.2, fm4Kt: 1 };
+      const bK3 = await render(kt, C3), bK5 = await render(kt, C5);
+      const fall = b => rms(b, 0.25, 0.3) / Math.max(1e-9, rms(b, 0.01, 0.03));
+      const f3 = fall(bK3), f5 = fall(bK5);
+      if (!(f3 > 0.35 && f5 < 0.15)) problems.push('key time: what remains at 0.28 s is ' + f3.toFixed(2) + ' at C3 and ' + f5.toFixed(2) + ' at C5 (expected >0.35 · <0.15)');
+      // (5) key level −1: −6 dB one octave above C4, nothing below
+      const l5 = rms(await render({ fm4K1: -1 }, C5), 0.4, 0.45) / rms(await render({}, C5), 0.4, 0.45);
+      const l3 = rms(await render({ fm4K1: -1 }, C3), 0.4, 0.45) / full;
+      if (!(Math.abs(l5 - 0.5) < 0.04 && Math.abs(l3 - 1) < 0.03)) problems.push('key level −1: ×' + l5.toFixed(2) + ' at C5, ×' + l3.toFixed(2) + ' at C3 (expected 0.5 · 1)');
+      // (6) detune +50 ct · (7) fixed 1000 Hz on two keys
+      const fRef = hz(flat, 0.1, 0.45), fDet = hz(await render({ fm4Det1: 50 }), 0.1, 0.45);
+      if (!(Math.abs(fDet / fRef - Math.pow(2, 50 / 1200)) < 0.001)) problems.push('detune +50 ct: ×' + (fDet / fRef).toFixed(4) + ' (expected ×' + Math.pow(2, 50 / 1200).toFixed(4) + ')');
+      const fx3 = hz(await render({ fm4Fix1: 'on', fm4Hz1: 1000 }, C3), 0.1, 0.45), fx5 = hz(await render({ fm4Fix1: 'on', fm4Hz1: 1000 }, C5), 0.1, 0.45);
+      if (!(Math.abs(fx3 - 1000) < 2 && Math.abs(fx5 - 1000) < 2)) problems.push('fixed 1000 Hz: ' + fx3.toFixed(1) + ' at C3, ' + fx5.toFixed(1) + ' at C5');
+      // (8) the feedback migrates from the FM module's into the FM4's own
+      const m1 = withPresetBase({ waveA: 'fm4', fmFb: 0.4 }).fm4Fb, m2 = withPresetBase({ waveA: 'fm4', fmFb: 0.4, fm4Fb: 0 }).fm4Fb;
+      if (m1 !== 0.4 || m2 !== 0) problems.push('feedback migration: ' + m1 + ' / ' + m2 + ' (expected 0.4 / 0)');
+      console.log('fm4 shape: attack', atk.toFixed(2), '→', top.toFixed(2), '· sustain', sus.toFixed(2), '· release 50 ms', relOn.toFixed(3), '∞', relInf.toFixed(2),
+        '· key time C3/C5', f3.toFixed(2), f5.toFixed(2), '· key level C5/C3', l5.toFixed(2), l3.toFixed(2), '· detune ×', (fDet / fRef).toFixed(4), '· fixed', fx3.toFixed(1), fx5.toFixed(1));
+      r = { name: NAME, peak: analyze(flat).peak, ok: !problems.length, problems };
+    } catch (e2) {
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
   }

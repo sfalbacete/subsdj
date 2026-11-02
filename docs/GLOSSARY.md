@@ -82,7 +82,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Osc | Onda · Octava · Apiladas · sync | Wave · Octave · Stack · sync |
 | Mixer | Ring M. · Ruido · Color · Spread · Drift · P.Width | Ring Mod · Noise · Color · Spread · Drift · P.Width |
 | Unison | Voces | Voices |
-| FM4 | Algoritmo · ratio · nivel · decay · vel | Algorithm · ratio · level · decay · vel |
+| FM4 | Algoritmo · ratio · nivel · decay · vel · envolvente: A D S R · tecla · desafinado · fija (Hz) · realimentación · tiempo por tecla | Algorithm · ratio · level · decay · vel · Envelope: A D S R · Key · Detune · Fixed (Hz) · Feedback · Key time |
 | String | Brillo · Decay · Posición · Rigidez · arco: Presión · Velocidad · Ruido · soplo: Soplo · Chorro · Aire | Bright · Decay · Position · Stiffness · bow: Pressure · Speed · Noise · breath: Breath · Jet · Air |
 | Vocal | Vocal (selector) · Tamaño · Q · Vida · Brillo · Golpe | Vowel · Size · Q · Life ⚑ · Bright · Bite ⚑ |
 | Resonator | Mezcla · Material (cuerda ↔ barra) · Decay · Brillo | Mix · Material (string ↔ bar) · Decay · Bright |

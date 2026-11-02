@@ -2958,3 +2958,53 @@ and each one went in its own commit, so any of them can be reverted alone.
   checks that Classic clips nothing — the screens check only looked at the default theme.
 - Two bugs met on the way: a button in a module title hid its activity LED (the LEDs matched the
   title's whole text), and Panic did not stop 1.7.0's latched arpeggio.
+
+## FM4, done well (2026-11-02)
+
+Sergio had seen a DX7 in JavaScript whose piano sounded good and asked whether 6 operators and 32
+algorithms were worth bringing in. They are not what makes a DX piano: Yamaha's 4-operator line
+(DX21, TX81Z) had 8 algorithms — the FM4's — and good electric pianos. What the FM4 lacked was the
+detail of each operator: one decay was its only envelope, it scaled nothing with the key and every
+operator followed the note. A full DX7 (6 operators, 32 algorithms, .syx) was turned down: it would
+be a second instrument with ~150 controls that do not fit the fixed panel, and its patches are
+Yamaha's. The FM4 grew instead, in layers, after a mock-up of the panel was approved.
+
+- **An ADSR per operator.** Attack (a straight line; 0 = the step), the Decay that was already there
+  (its knob is still the time constant τ, ∞ = flat), Sustain (the level it decays to) and Release
+  from the note-off (exponential, τ; ∞ = it ignores the key and carries on). The DEFAULTS are the
+  old operator — attack 0, decays to 0, ignores the key — so no preset needed a migration and every
+  one sounds bit for bit as before (the fingerprint batch: Δ 0.003 dB, its floor). The release
+  needs the note-off inside the worklet: the same `{lift}` message the bow already used.
+- **The envelope is evaluated once per block** (2.9 ms), as it always was, EXCEPT while an attack
+  or a release runs, where it is joined by a straight line inside the block. The first version
+  interpolated always and the 808 Kick moved 0.33 dB from its fingerprint: a 20-30 ms modulator
+  lives on its first steps, and smoothing them takes some click away. So the old regime is kept
+  exactly where the old operator lived, and the smoothing only where something new happens (an
+  attack of a few ms in 2.9 ms steps would buzz).
+- **Key scaling, pivoting on C4** (the note's key reaches the worklet in its options, from the
+  frequency at note-on). Key time, ONE for the four operators: ×2^(−Kt·octaves), so at full each
+  octave above C4 halves the times and each one below doubles them. The DX7 has one rate scaling
+  per operator, but presets mostly set them alike, and one knob left room in the detail row for
+  Detune and Fixed. Key, per operator: −1..1, 6 dB per octave at full, taken away on ONE side of C4
+  (− above, + below) and never added — a level that grew with the key could push a carrier into
+  the limiter, or a modulator into aliasing.
+- **Detune and Fixed** per operator: cents, and a frequency of its own in Hz (the same in every
+  unison or octave copy: it does not follow the key). The ratio's range went from 12 to 24, and
+  log, so 0.5, 1, 2… keep their room. «DX E-Piano» asked for a ratio of 14, clipped to 12 by the
+  old range: its data now says 12, which its render confirms is what it always sounded at (print
+  difference 0.000 dB; BANK_REV 11 so the libraries pick it up).
+- **The FM4's own Feedback** (fm4Fb). It was the FM module's fmFb, shared with the 2-operator FM,
+  so the FM module lit up for an FM4 alone. A saved preset without fm4Fb takes fmFb's value
+  (state.migrateFm4Fb): the same sound, exactly.
+- **The shape travels by options and messages, not AudioParams.** Attack, sustain, release, key
+  scaling, detune and fixed are read once per block; 29 more AudioParams on EVERY oscillator node
+  of every voice would cost per block whether the wave is FM4 or not. They go in
+  `processorOptions.fm4` at birth and as `{fm4}` when a knob moves (only to FM4 nodes).
+- **The panel.** The graph became the navigator: large, its boxes select an operator, whose ADSR,
+  Vel, Key, Detune and Fixed are edited below; the four detail rows are always in the DOM (MIDI
+  learn, undo, presets and the selftest reach every knob) and only the selected one shows. Each
+  operator's row draws its envelope as it RUNS — a note held 1.5 s and released, on a √time axis —
+  so a 70 ms tine and a 3 s body read apart at a glance. The algorithm is a stepper plus a popover
+  with the eight drawn: that popover IS the fm4Alg .seg (bindSeg, the display, MIDI and undo see a
+  normal selector); its buttons say their label through data-txt, because their SVG has text. The
+  Source band was full to the pixel: the new panel takes 409 px where the old one took 407.

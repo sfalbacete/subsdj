@@ -36,6 +36,19 @@ scenes, libraries, MIDI maps). The why behind each module is in
   («Latch», «Soft», «Free», «Ratio»…; some were lowercase), and Classic puts all of them in
   uppercase — option buttons, row names, LFO shapes and module buttons used to escape it. The filter
   envelope's «Follow Amp Env» is now «Amp Env» (next to «Times»), so Classic's uppercase fits.
+- **FM4, done well.** Each operator's decay becomes a whole envelope — **A D S R**: an attack (a
+  modulator that swells in is the brightness of FM brass), the decay that was there, the level it
+  decays to, and a release from the key (at ∞, as before, it ignores the key and the Amp Env ends
+  the note). **Key scaling**, as on the DX7: **Key time** shortens every envelope above C4 and
+  stretches it below (the treble of a piano dies sooner than its bass), and each operator's **Key**
+  takes level away on one side of C4. Each operator can be **detuned** in cents (two pairs a few
+  cents apart: the DX chorus) or set to a **Fixed** frequency that ignores the key (a bell's metal,
+  a drum's ring). The ratio reaches 24 (was 12). The FM4 now has its own **Feedback** (it was the FM
+  module's, shared with the 2-operator FM; a saved preset brings its value across).
+- **A new FM4 panel**: ‹ › step through the algorithms and the number shows the eight at once;
+  the graph is large and its boxes select an operator; each operator's row shows its envelope as
+  it runs (a note held and released), and the selected one is edited below. Every preset sounds
+  exactly as before — the new controls start where the old operator was.
 
 ## [1.7.0] — 2026-11-01
 

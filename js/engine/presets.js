@@ -29,8 +29,9 @@ import { PARAMS, posToVal } from './params.js';
 // (Marimba, Gong, Accordion) and the leads' wheel vibrato; 6: the second ear session (DX Bass,
 // Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone; 8: the kit by
 // ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade);
-// 10: the blown pipe (Breath Flute remade, Pan Pipe, Bottle, Overblown Drone).
-export const BANK_REV = 10;
+// 10: the blown pipe (Breath Flute remade, Pan Pipe, Bottle, Overblown Drone); 11: DX E-Piano's tine
+// written as the 12 it always sounded at (it asked for 14 when the ratio stopped at 12; the FM4 now reaches 24).
+export const BANK_REV = 11;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -263,12 +264,12 @@ export const BANK = [
         fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.35, fm4D2: 1.0, fm4R3: 1, fm4L3: 0.4, fm4D3: 4, fm4R4: 7, fm4L4: 0.1, fm4D4: 0.1,
         fm4V2: 0.7, fm4V4: 0.8, cutoff: 3500, keytrack: 0.5, envCurve: 0.6, a: 0.002, d: 2.5, s: 0.15, r: 0.5, panLfoLvl: 0.45, panLfoSpd: 4.5,
         width: 0.3, reverbMix: 0.18, ...WHEEL(0.3), master: 0.96 } },
-    /* two FM pairs: 2→1 is the body (modulator 14 = the «tine»), 4→3 the hit; both modulators
+    /* two FM pairs: 2→1 is the body (modulator 12 = the «tine»), 4→3 the hit; both modulators
        follow velocity: soft is round, hard brings the tine and the growl */
     { name: 'DX E-Piano', tags: ['fm', 'digital', 'bright', 'chords', 'classic'], use: 'chord',
       play: 'C2–C6; play soft for the round piano, hard for the DX bark. Wheel: opens the filter.',
       data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '1',
-        fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 14, fm4L2: 0.12, fm4D2: 0.1, fm4R3: 1, fm4L3: 0.7, fm4D3: 4, fm4R4: 1, fm4L4: 0.35, fm4D4: 0.6,
+        fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 12, fm4L2: 0.12, fm4D2: 0.1, fm4R3: 1, fm4L3: 0.7, fm4D3: 4, fm4R4: 1, fm4L4: 0.35, fm4D4: 0.6,
         fm4V2: 0.8, fm4V4: 0.7, cutoff: 9000, a: 0.002, d: 1.0, s: 0.2, r: 0.4, chAmt: 0.25, chSpd: 0.5, width: 0.35, reverbMix: 0.22, ...WHEEL(0.3), master: 0.75 } },
     { name: 'Clavinet', tags: ['analog', 'bright', 'short', 'classic'], use: 'chord',
       play: 'C2–C5, short notes; the filter follows the keyboard. Wheel: opens the filter · M1: resonance.',

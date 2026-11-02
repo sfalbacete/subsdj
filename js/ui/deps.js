@@ -22,7 +22,7 @@
      of sounding oscillators.
    · Supersaw ignores Phase (random phases) and the unison (it already is one); Spread only
      widens it; P.Width only moves the Square; Ratio/Index only act on
-     Sine; the Feedback, on Sine (with a modulator) and on op 4 of FM4.
+     Sine; the FM module's Feedback, on Sine (with a modulator) — the FM4 has its own, on op 4.
    · The LFOs always run: Speed and shape matter if their Level > 0 or if the
      matrix uses them RAW. The filter env is also the «Filter env» source.
    · Delay and reverb: with no send (Amount / Mix at 0; in Parts, from no part)
@@ -130,13 +130,23 @@ export const RULES = [
   ['pulseWidth', S => (has(S, 'square') ? null : 'only moves the Square: ' + NO('Square')), waveBy],
   ['sec:Unison', S => (waves(S).some(w => w !== 'supersaw') ? null : 'Supersaw is already unison and ignores it'), waveBy],
   ['uniDetune', S => (+S.uniVoices > 1 ? null : '1 voice: no copies to detune'), ['uniVoices']],
-  ['sec:FM', S => (has(S, 'sine') || has(S, 'fm4') ? null : NO('Sine') + ' (nor on FM4, which uses the Feedback)'), waveBy],
+  ['sec:FM', S => (has(S, 'sine') ? null : NO('Sine') + ' (the FM4 has its own Feedback)'), waveBy],
   ['fmIndex', S => (has(S, 'sine') ? null : 'the index only acts on Sine (FM4 uses its operators\' levels)'), waveBy],
   ['fmRatio', S => (!has(S, 'sine') ? 'the ratio only acts on Sine' : fmIdle(S) ? 'Index at 0: there is no modulator' : null),
     S => (!has(S, 'sine') ? waveBy(S) : ['fmIndex'])],
-  ['fmFb', S => (has(S, 'fm4') || !has(S, 'sine') ? null : fmIdle(S) ? 'Index at 0: there is no modulator to feed back' : null), ['fmIndex']],
+  ['fmFb', S => (has(S, 'sine') && fmIdle(S) ? 'Index at 0: there is no modulator to feed back' : null), ['fmIndex']],
   ['sec:FM4', S => (has(S, 'fm4') ? null : NO('FM4')), waveBy],
-  ...[1, 2, 3, 4].flatMap(i => live(['fm4R' + i, 'fm4D' + i, 'fm4V' + i], S => +S['fm4L' + i] > 0, 'Op ' + i + ' at level 0: it neither sounds nor modulates', ['fm4L' + i])),
+  // an operator at level 0 neither sounds nor modulates: all of it dims (op 4 takes the Feedback with it);
+  // its Sustain also does nothing while its Decay is ∞ (it never decays). ONE rule per key: a second one would undo the first
+  ...[1, 2, 3, 4].flatMap(i => {
+    const off = S => !(+S['fm4L' + i] > 0), why0 = 'Op ' + i + ' at level 0: it neither sounds nor modulates';
+    return [
+      ...live(['fm4R' + i, 'fm4Hz' + i, 'fm4D' + i, 'fm4V' + i, 'fm4A' + i, 'fm4Rel' + i, 'fm4K' + i, 'fm4Det' + i, '#fm4Fix' + i + 'Ctl', ...(i === 4 ? ['fm4Fb'] : [])],
+        S => !off(S), why0, ['fm4L' + i]),
+      ['fm4S' + i, S => (off(S) ? why0 : +S['fm4D' + i] >= 3.99 ? 'Decay at ∞: the operator never decays, so it never comes down to its Sustain' : null),
+        S => (off(S) ? ['fm4L' + i] : ['fm4D' + i])],
+    ];
+  }),
   ['sec:String', S => (has(S, 'string') ? null : NO('String')), waveBy],
   ...live(['excPress', 'excSpeed', 'excNoise'], S => S.excMode !== 'pluck', 'Pluck: the pick sets the string going; Pressure, Speed and Noise belong to the bow and the breath', ['excMode']),
   ['strPos', S => (S.excMode === 'breath' ? 'the breath has no bow point: Position does nothing on a pipe' : null), ['excMode']],

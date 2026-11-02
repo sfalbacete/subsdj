@@ -29,7 +29,7 @@ import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
 import { initSplash, openSplash } from './ui/splash.js';
 import { initRotaries } from './ui/rotary.js';
-import { initFm4Graph } from './ui/fm4Graph.js';
+import { initFm4Panel } from './ui/fm4Panel.js';
 import { initDisplay } from './ui/display.js';
 import { initDeps } from './ui/deps.js';
 import { initLibraryScreen } from './ui/libraryScreen.js';
@@ -55,7 +55,7 @@ bindSeqControls();   // sequencer (before initMidiMap/initPresetBank: CONTROLS a
 bindWsControls();    // Wave Sequence (wave sequencing)
 bindStepsControls(); // Steps: four lanes for the matrix (Roadmap 7.0 · 2.3)
 initRotaries();      // rotary selectors: the .seg.rot already have their active position
-initFm4Graph();      // FM4 algorithm graph under its selector (follows fm4Alg and the Feedback)
+initFm4Panel();      // FM4 panel: algorithm stepper + picker, the graph (selects an operator), the envelopes, the detail
 initKeyboard();
 initMidiMap();       // CC→control mapping with MIDI learn (needs CONTROLS already populated)
 initMIDI();          // MIDI keyboard: velocity, pitch bend, sustain + CCs via midimap

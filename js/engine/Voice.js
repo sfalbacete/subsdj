@@ -13,7 +13,7 @@
    Modulation matrix: slots source→GainNode(amt·span)→AudioParams of the
    target — the same plumbing as the dedicated routes, generalized.
    ===================================================================== */
-import { MX_SLOTS, MX_SPAN, FM4_KEYS, STR_KEYS } from './params.js';
+import { MX_SLOTS, MX_SPAN, FM4_KEYS, FM4_SHAPE_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
 import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
@@ -345,7 +345,8 @@ export class Voice {
         t0: t,                                 // note start: the per-operator envelopes (FM4) count from here
         seed: (this.rnd() * 4294967296) >>> 0,  // seed of the worklet's randomness (free phases, drift): repeatable offline
         ...(this.oscs.length === 0 ? { gphase: (this.S.oscB.phase || 0) / 360 } : {}),   // A: its ghost master (sync) starts at B's phase
-        ...(cfg.wave === 'string' ? { vel: this.vel, exc: this.S.excMode, excAtk: +this.S.a || 0 } : {}),   // the string: the strength of the pluck colors the plectrum; the exciter and how long the bow takes to land
+        ...(cfg.wave === 'string' ? { vel: this.vel, exc: this.S.excMode, excAtk: +this.S.a || 0 } : {}),
+        ...(cfg.wave === 'fm4' ? { fm4: { ...this._fm4Shape(), key: Math.log2(freq / 261.6256) } } : {}),   // FM4: the operators' shape and the note's key (octaves from C4: key scaling)   // the string: the strength of the pluck colors the plectrum; the exciter and how long the bow takes to land
         // mip tables (cloned by the options postMessage, ~290 KB per node: 0.3 ms)
         ...(cfg.wave === 'wavetable' ? { wt: getWtSet(this.S.wtSet) } : {}),
       },
@@ -362,7 +363,7 @@ export class Voice {
     const fmRParam = node.parameters.get('fmRatio'); fmRParam.value = this.S.fmRatio;
     const fmIParam = node.parameters.get('fmIndex'); fmIParam.value = this.S.fmIndex;
     const fmFParam = node.parameters.get('fmFb'); if (fmFParam) fmFParam.value = this.S.fmFb;   // may be missing (old cached worklet)
-    // FM4: algorithm + ratio/level/decay × 4, set at birth and live by name (setFm4)
+    // FM4: algorithm + ratio/level/decay × 4 + feedback, set at birth and live by name (setFm4)
     const fm4P = {};
     for (const k of FM4_KEYS) { const ap = node.parameters.get(k); if (ap) { ap.value = /^fm4L\d$/.test(k) ? this._fm4Lvl(+k[4]) : +this.S[k]; fm4P[k] = ap; } }
     // may be missing if the browser served an old worklet from cache: degrade without crashing
@@ -399,7 +400,7 @@ export class Voice {
     node.connect(dest);
     this.oscs.push({ node, freq: fParam, detune: dParam, pw: pParam, sp: sParam, dr: drParam,
       uv: uvParam, ud: udParam, fmR: fmRParam, fmI: fmIParam, fmF: fmFParam, wt: wtParam, fm4P, syncR: syncParam, slave: slaveParam, strP,
-      isWt: cfg.wave === 'wavetable', ratio });   // isWt: the wave sequence only automates these · ratio: octave (glideTo)
+      isWt: cfg.wave === 'wavetable', isFm4: cfg.wave === 'fm4', ratio });   // isWt: the wave sequence only automates these · ratio: octave (glideTo)
   }
   _clampPW(v) { return v < 0.01 ? 0.01 : (v > 0.99 ? 0.99 : v); }
 
@@ -907,7 +908,18 @@ export class Voice {
   // proportional to velocity. In a modulator the level IS the index: hitting
   // harder = more harmonics, not just more volume.
   _fm4Lvl(i) { const s = +this.S['fm4V' + i] || 0; return +this.S['fm4L' + i] * (1 - s + s * this.vel); }
+  // The operators' SHAPE (FM4_SHAPE_KEYS: envelopes, key scaling, tuning) as the worklet reads it
+  _fm4Shape() {
+    const S = this.S, four = (k, d = 0) => [1, 2, 3, 4].map(i => (Number.isFinite(+S[k + i]) ? +S[k + i] : d));
+    return { A: four('fm4A'), S: four('fm4S'), Rel: four('fm4Rel', 4), K: four('fm4K'), Det: four('fm4Det'),
+             Fix: [1, 2, 3, 4].map(i => (S['fm4Fix' + i] === 'on' ? 1 : 0)), Hz: four('fm4Hz', 440), Kt: +S.fm4Kt || 0 };
+  }
   setFm4(key, v) {
+    if (FM4_SHAPE_KEYS.includes(key)) {   // shape: by message (the worklet keeps the note's key)
+      const fm4 = this._fm4Shape();
+      this.oscs.forEach(o => { if (o.isFm4) { try { o.node.port.postMessage({ fm4 }); } catch (e) {} } });
+      return;
+    }
     const lv = /^fm4[LV](\d)$/.exec(key);   // Level and Vel move the same worklet param
     if (lv) { key = 'fm4L' + lv[1]; v = this._fm4Lvl(+lv[1]); }
     const tc = this.ctx.currentTime; this.oscs.forEach(o => { const ap = o.fm4P && o.fm4P[key]; if (!ap) return; if (key === 'fm4Alg') ap.setValueAtTime(+v, tc); else ap.setTargetAtTime(+v, tc, 0.02); }); }
@@ -1041,8 +1053,9 @@ export class Voice {
     const now = this.ctx.currentTime;
     const t = at !== null ? Math.max(now, at + this.lag) : now;   // arp/Seq/players schedule the note-off on the audio clock
     const fRel = this.S.fenvMode === 'own' ? Math.max(0.006, this.S.fr) : rel;
-    // the bow comes off the string over the release (String in Bow mode): the string rings on by itself
-    this.oscs.forEach(o => { if (o.strP && o.strP.excPress) { try { o.node.port.postMessage({ lift: t, rel }); } catch (e) {} } });
+    // the bow comes off the string over the release (String in Bow mode): the string rings on by itself;
+    // the FM4's operators start their own release there (those whose Release isn't ∞)
+    this.oscs.forEach(o => { if (o.isFm4 || (o.strP && o.strP.excPress)) { try { o.node.port.postMessage({ lift: t, rel }); } catch (e) {} } });
     // Release with the knob's curve, anchoring the CURRENT value. Key: if you release mid-ramp
     // (e.g. the decay of a pluck with sustain 0), a bare cancelScheduledValues erases the
     // target ramp and the parameter stays stuck at the LAST event (the attack peak)

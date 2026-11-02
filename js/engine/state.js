@@ -29,10 +29,18 @@ export function migrateFb(p) {
   return { ...p, dlyFb: r6(Math.min(0.8, ('dlyAmt' in p ? p.dlyAmt : PARAMS.dlyAmt.def) * 0.85)) };
 }
 
+// FM4 (2026-11-02): op 4's feedback was the FM module's Feedback (fmFb), shared with the 2-operator
+// FM; now the FM4 has its own (fm4Fb). A preset WITHOUT fm4Fb predates it: it takes fmFb's value —
+// the same sound, exactly (fmFb keeps feeding the 2-op FM, as it always did).
+export function migrateFm4Fb(p) {
+  if (!p || 'fm4Fb' in p || !('fmFb' in p)) return p;
+  return { ...p, fm4Fb: p.fmFb };
+}
+
 // A preset is a DIFFERENCE over PRESET_BASE (params.js), not over the
 // neutral defaults: that way the old ones sound the same. {} = Reset (no base).
 // What was saved up to 1.3.0 arrives in Spanish: legacy.migratePreset turns it into English.
-export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFb(migrateMix(migratePreset(p))) } : {});
+export const withPresetBase = p => (p && Object.keys(p).length ? { ...PRESET_BASE, ...migrateFm4Fb(migrateFb(migrateMix(migratePreset(p)))) } : {});
 
 export function makeDefaultState() {
   const S = { oscA: {}, oscB: {} };

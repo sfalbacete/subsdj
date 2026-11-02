@@ -5,11 +5,15 @@
    FM4: 4-operator FM synthesis à la DX7/TX81Z. An ALGORITHM is just a
    directed graph of who modulates whom (FM4_ALGS): the leaves modulate, the
    roots (carriers) sound. Each operator has its own ratio (multiple of the
-   note), level and DECAY (level·e^(−t/decay); flat if decay ≥ FM4_DEC_FLAT):
+   note), level and ENVELOPE: an ADSR whose decay is exponential
+   (s + (1−s)·e^(−t/decay); flat if decay ≥ FM4_DEC_FLAT) and whose release
+   starts at the note-off ({lift} message; ≥ FM4_DEC_FLAT = it ignores it):
    a modulator that decays = a bright attack that fades, which is what makes
    pluck, bell, e-piano and kick. Operator 4 carries the feedback
-   (fmFb, as in the 2-op). Phase modulation in cycles: level 1 ⇒
-   FM4_MOD cycles ≈ 7.5 rad of index. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4.
+   (fm4Fb). Phase modulation in cycles: level 1 ⇒
+   FM4_MOD cycles ≈ 7.5 rad of index. Params fm4Alg / fm4R1-4 / fm4L1-4 / fm4D1-4 /
+   fm4Fb; the rest of the shape (attack, sustain, release, key scaling,
+   detune, fixed frequency) in processorOptions.fm4 and the {fm4} message.
    WAVETABLE: processorOptions.wt = { lens, frames } (mips generated
    on the main thread, engine/wavetable.js). Lookup with cubic (Hermite)
    interpolation + linear morph between adjacent frames (param wtPos);
@@ -136,7 +140,27 @@ const FM4_ALGS = [
   { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 additive: all four sound (feedback on 4 = saw)
 ];
 const FM4_MOD = 1.2;          // phase cycles per unit of modulator level (≈ 7.5 rad of index at level 1)
-const FM4_DEC_FLAT = 3.99;    // decay ≥ this = no envelope (constant level)
+const FM4_DEC_FLAT = 3.99;    // decay ≥ this = no envelope (constant level); release ≥ this = it ignores the note-off
+const C4_HZ = 261.6256;       // key scaling pivots on C4 (the note's key, in octaves from it)
+
+// The shape of the four operators (2026-11-02): A attack, S sustain, Rel release, K key level
+// (−1..1), Det cents, Fix (fixed frequency) and Hz; Kt key time (one for the four) and key (the
+// note, octaves above C4). The defaults are the operator before it had a shape: attack 0, decays
+// to 0, ignores the note-off, follows the key — so a node without options sounds as it always did.
+function fm4Shape(o) {
+  o = o || {};
+  const arr = (a, d) => [0, 1, 2, 3].map(i => (Array.isArray(a) && Number.isFinite(+a[i]) ? +a[i] : d));
+  return {
+    A: arr(o.A, 0), S: arr(o.S, 0), Rel: arr(o.Rel, 4), K: arr(o.K, 0), Det: arr(o.Det, 0), Fix: arr(o.Fix, 0), Hz: arr(o.Hz, 440),
+    Kt: Number.isFinite(+o.Kt) ? +o.Kt : 0, key: Number.isFinite(+o.key) ? +o.key : 0,
+  };
+}
+// An operator's envelope u seconds after the note start, released at tl (Infinity = held): attack
+// in a straight line, decay and release exponential (time constants: the knob IS τ, as before)
+function fm4EnvAt(u, a, d, flat, s, r, relFlat, tl) {
+  const held = x => (x < a ? x / a : flat ? 1 : s + (1 - s) * Math.exp(-(x - a) / d));
+  return relFlat || u < tl ? held(u) : held(tl) * Math.exp(-(u - tl) / r);
+}
 
 class PulseProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -162,8 +186,9 @@ class PulseProcessor extends AudioWorkletProcessor {
       { name: 'excPress',  defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: bow pressure
       { name: 'excSpeed',  defaultValue: 0.5, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: bow speed
       { name: 'excNoise',  defaultValue: 0.1, minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // exciter: scratch
+      { name: 'fm4Fb',     defaultValue: 0,   minValue: 0,     maxValue: 1,     automationRate: 'k-rate' },   // FM4: op 4's feedback
       ...[1, 2, 3, 4].flatMap(n => [
-        { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 12,  automationRate: 'k-rate' },
+        { name: 'fm4R' + n, defaultValue: 1,   minValue: 0.25,  maxValue: 24,  automationRate: 'k-rate' },
         { name: 'fm4L' + n, defaultValue: 0.5, minValue: 0,     maxValue: 1,   automationRate: 'k-rate' },
         { name: 'fm4D' + n, defaultValue: 4,   minValue: 0.005, maxValue: 4,   automationRate: 'k-rate' },
       ]),
@@ -193,9 +218,10 @@ class PulseProcessor extends AudioWorkletProcessor {
       this.fb1 = new Float32Array(this.octaves * 7);   // last two outputs of the modulator (feedback)
       this.fb2 = new Float32Array(this.octaves * 7);
       this.fm4Ph = new Float32Array(this.octaves * 7 * 4);   // FM4: 4 phases per copy (copy 0 starts at the configured phase)
-      this.fm4Fb = new Float32Array(this.octaves * 7 * 2);   // FM4: feedback memory of op 4
+      this.fm4FbMem = new Float32Array(this.octaves * 7 * 2);   // FM4: feedback memory of op 4
       for (let i = 0; i < this.octaves * 7; i++) for (let op = 0; op < 4; op++) this.fm4Ph[i * 4 + op] = (i % 7 === 0) ? ph : rnd();
       this.fm4Out = new Float32Array(4);
+      this.fm4dEnv = new Float32Array(4);   // FM4: per-sample step of each envelope inside the block (linear between its two ends)
       for (let i = 0; i < this.phases.length; i++) {
         this.phases[i] = (i % 7 === 0) ? ph : rnd();
         this.modPhases[i] = (i % 7 === 0) ? ph : rnd();
@@ -224,9 +250,11 @@ class PulseProcessor extends AudioWorkletProcessor {
     this.tBirth = null;
     this.driftZ = 0;    // state of the drift random walk (independent per oscillator)
     this.wt = (this.type === 'wavetable' && o.wt && o.wt.frames) ? o.wt : null;
+    this.f4 = fm4Shape(o.fm4);   // FM4: the operators' shape (envelopes, key scaling, tuning) and the note's key
     this.port.onmessage = (e) => {
       if (e.data === 'stop') this.stopped = true;
       else if (e.data && typeof e.data === 'object' && typeof e.data.lift === 'number') { this.lift = e.data.lift; this.liftRel = Math.max(0.005, +e.data.rel || 0.05); }
+      else if (e.data && typeof e.data === 'object' && e.data.fm4) this.f4 = fm4Shape({ ...this.f4, ...e.data.fm4 });   // a knob moved: the key stays
     };
   }
 
@@ -378,34 +406,52 @@ class PulseProcessor extends AudioWorkletProcessor {
     } else if (type === 'fm4') {
       const alg = FM4_ALGS[Math.max(0, Math.min(FM4_ALGS.length - 1, params.fm4Alg[0] | 0))];
       const R = [params.fm4R1[0], params.fm4R2[0], params.fm4R3[0], params.fm4R4[0]];
-      const beta = (params.fmFb ? params.fmFb[0] : 0) * FM_FB_MAX / TWO_PI;   // op 4 feedback, in cycles
-      // per-operator envelope, k-rate (one value per 2.9 ms block: the
-      // step is inaudible; with decay ≥ FM4_DEC_FLAT the level is constant)
+      const beta = (params.fm4Fb ? params.fm4Fb[0] : 0) * FM_FB_MAX / TWO_PI;   // op 4 feedback, in cycles
+      // Per-operator envelope, one value per block (2.9 ms) as always — the decay's steps are
+      // inaudible and every preset keeps its sound bit for bit — EXCEPT while an attack or a release
+      // runs: there it is computed at both ends of the block and joined by a straight line (an attack
+      // of a few ms in 2.9 ms steps would buzz). The clock counts from the note start (t0) or from
+      // the first block if the processor was born later.
       if (this.tBirth === null) this.tBirth = currentTime;   // first processed block (currentTime: the AudioWorkletGlobalScope clock)
-      const env = this.fm4Out, t = this.t0 !== null ? Math.max(0, currentTime - Math.max(this.t0, this.tBirth)) : this.t;
+      const f4 = this.f4, env = this.fm4Out, dEnv = this.fm4dEnv;
+      const tStart = this.t0 !== null ? Math.max(this.t0, this.tBirth) : currentTime - this.t;   // the note's start, on the audio clock
+      const t = Math.max(0, currentTime - tStart), t1 = t + N / sr;
+      const tl = this.lift !== null ? Math.max(0, this.lift - tStart) : Infinity;             // the note-off, from the same start
+      const kt = Math.pow(2, -f4.Kt * f4.key);   // Key time: at full, ×½ per octave above C4 (×2 per octave below)
       const Lv = [params.fm4L1[0], params.fm4L2[0], params.fm4L3[0], params.fm4L4[0]];
       const D = [params.fm4D1[0], params.fm4D2[0], params.fm4D3[0], params.fm4D4[0]];
-      for (let op = 0; op < 4; op++) env[op] = Lv[op] * (D[op] >= FM4_DEC_FLAT ? 1 : Math.exp(-t / Math.max(0.005, D[op])));
-      const carG = lvl / Math.sqrt(alg.car.length), out = [0, 0, 0, 0], ph = this.fm4Ph, fbm = this.fm4Fb;
+      for (let op = 0; op < 4; op++) {
+        // Key level: − takes level away above C4, + below; 6 dB per octave at full (never adds any)
+        const K = f4.K[op], kl = K < 0 ? Math.pow(2, K * Math.max(0, f4.key)) : K > 0 ? Math.pow(2, -K * Math.max(0, -f4.key)) : 1;
+        const flat = D[op] >= FM4_DEC_FLAT, relFlat = f4.Rel[op] >= FM4_DEC_FLAT;
+        const a = f4.A[op] * kt, d = Math.max(0.005, D[op]) * kt, s = f4.S[op], r = Math.max(0.005, f4.Rel[op]) * kt, g = Lv[op] * kl;
+        const e0 = g * fm4EnvAt(t, a, d, flat, s, r, relFlat, tl);
+        env[op] = e0;
+        dEnv[op] = (t < a || (!relFlat && t1 > tl)) ? (g * fm4EnvAt(t1, a, d, flat, s, r, relFlat, tl) - e0) / N : 0;   // a ramp running: smooth
+      }
+      // tuning: Detune in cents; Fixed = its own Hz, the same in every copy (it does not follow the key)
+      const tn = [0, 1, 2, 3].map(op => Math.pow(2, f4.Det[op] / 1200));
+      const fx = [0, 1, 2, 3].map(op => (f4.Fix[op] ? f4.Hz[op] * tn[op] / sr : 0));
+      const carG = lvl / Math.sqrt(alg.car.length), out = [0, 0, 0, 0], ph = this.fm4Ph, fbm = this.fm4FbMem;
       for (let k = 0; k < oct; k++) {
         const base = fs * (1 << k);
         if (base >= nyq) continue;
         for (let j = 0; j < uv; j++) {
           const f = base * uniMul(j), idx = k * 7 + j, o = idx * 4, fo = idx * 2;
-          const dt0 = f * R[0] / sr, dt1 = f * R[1] / sr, dt2 = f * R[2] / sr, dt3 = f * R[3] / sr;
+          const dt0 = fx[0] || f * R[0] * tn[0] / sr, dt1 = fx[1] || f * R[1] * tn[1] / sr, dt2 = fx[2] || f * R[2] * tn[2] / sr, dt3 = fx[3] || f * R[3] * tn[3] / sr;
           for (let i = 0; i < N; i++) {
             // from 3 down to 0: modulators always have a higher index than what they modulate
             for (let op = 3; op >= 0; op--) {
               let m = 0; const ms = alg.mods[op]; for (let q = 0; q < ms.length; q++) m += out[ms[q]];
               let phase = ph[o + op] + m * FM4_MOD;
               if (op === 3 && beta > 0) phase += beta * (fbm[fo] + fbm[fo + 1]) * 0.5;
-              const y = Math.sin(TWO_PI * phase) * env[op];
+              const y = Math.sin(TWO_PI * phase) * (env[op] + dEnv[op] * i);
               out[op] = y;
               if (op === 3) { fbm[fo + 1] = fbm[fo]; fbm[fo] = y; }
             }
             let s = 0; const cs = alg.car; for (let q = 0; q < cs.length; q++) s += out[cs[q]];
             ch[i] += s * carG;
-            ph[o] += dt0; if (ph[o] >= 1) ph[o] -= 1;
+            ph[o] += dt0; if (ph[o] >= 1) ph[o] -= Math.floor(ph[o]);
             ph[o + 1] += dt1; if (ph[o + 1] >= 1) ph[o + 1] -= Math.floor(ph[o + 1]);
             ph[o + 2] += dt2; if (ph[o + 2] >= 1) ph[o + 2] -= Math.floor(ph[o + 2]);
             ph[o + 3] += dt3; if (ph[o + 3] >= 1) ph[o + 3] -= Math.floor(ph[o + 3]);

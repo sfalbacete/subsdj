@@ -3,15 +3,14 @@
    row, above the output line; each MODULATOR above the operator it
    modulates, joined by its wire; the feedback, a loop over op 4. It reads at a
    glance and shows what an algorithm is: just a graph of who modulates whom.
-   It sits under the rotary selector (instead of the «4→3→2→1» caption); the loop
-   lights up when the FM module's Feedback is > 0.
+   It is drawn LARGE in the FM4 panel (its boxes select an operator: ui/fm4Panel.js)
+   and small in the algorithm picker; the loop lights up when Feedback is > 0.
    The table is the worklet's (FM4_ALGS in worklets/pulse-processor.js),
    COPIED: a worklet cannot be imported from the page. The selftest
    checks that the two don't drift apart.
    Placement: row = height above the output (carrier 0; a modulator, one
    more than the highest of its targets); column = the mean of its
    targets' columns, and those landing on the same spot fan out. */
-import { CONTROLS } from './registry.js';
 
 // for each operator (0..3), its MODULATORS; and which operators are CARRIERS
 export const FM4_ALGS = [
@@ -25,8 +24,9 @@ export const FM4_ALGS = [
   { mods: [[], [], [], []], car: [0, 1, 2, 3] },      // 7 additive: all four sound (feedback on 4 = saw)
 ];
 
-const W = 100, H = 80;                 // fixed canvas: the scale doesn't change between algorithms
-const COL = 22, ROW = 18, BW = 16, BH = 12;   // grid pitch and operator box
+// two sizes on a fixed canvas each (the scale does not change between algorithms): the picker's and the panel's
+export const SMALL = { W: 100, H: 80, COL: 22, ROW: 18, BW: 16, BH: 12, loop: 4 };
+export const LARGE = { W: 104, H: 100, COL: 26, ROW: 24, BW: 22, BH: 16, loop: 5 };
 const FB_OP = 3;                       // the Feedback feeds back op 4
 
 // {col, row} of each operator (columns from 0)
@@ -50,11 +50,14 @@ export function layout(alg) {
   return [0, 1, 2, 3].map(op => ({ col: col[op] - c0, row: row[op] }));
 }
 
-export function svgFor(algIdx, fbOn = false) {
+// The graph as SVG. opt: a size (SMALL, LARGE) and sel = the selected operator (0..3, filled),
+// whose boxes carry data-op (1..4) so a click can pick it.
+export function svgFor(algIdx, fbOn = false, opt = {}) {
+  const { W, H, COL, ROW, BW, BH, loop } = { ...SMALL, ...opt }, sel = opt.sel ?? -1;
   const alg = FM4_ALGS[algIdx] || FM4_ALGS[0], pos = layout(alg);
   const cols = Math.max(...pos.map(p => p.col)), rows = Math.max(...pos.map(p => p.row));
-  const x0 = (W - (cols * COL + BW)) / 2 - 2;          // −2: room for the loop on the right
-  const y0 = 5 + ((H - 15) - (rows * ROW + BH)) / 2;   // the loop on top, the output line at the bottom
+  const x0 = (W - (cols * COL + BW)) / 2 - (loop - 2);        // room for the loop on the right
+  const y0 = 5 + ((H - 15) - (rows * ROW + BH)) / 2;          // the loop on top, the output line at the bottom
   const x = op => x0 + pos[op].col * COL, y = op => y0 + (rows - pos[op].row) * ROW;
   const cx = op => x(op) + BW / 2;
   const out = [];
@@ -64,34 +67,16 @@ export function svgFor(algIdx, fbOn = false) {
     out.push(`<path class="w" d="M${cx(m)} ${yA} V${mid} H${cx(t)} V${yB}"/>`);
   }));
   // output: the carriers drop down to a common line
-  const yL = y0 + rows * ROW + BH + 5, xs = alg.car.map(cx);
+  const yL = y0 + rows * ROW + BH + loop + 1, xs = alg.car.map(cx);
   alg.car.forEach(op => out.push(`<path class="o" d="M${cx(op)} ${y(op) + BH} V${yL}"/>`));
   const xm = (Math.min(...xs) + Math.max(...xs)) / 2;
-  out.push(`<path class="o" d="M${Math.min(...xs)} ${yL} H${Math.max(...xs)} M${xm} ${yL} V${yL + 4}"/>`);
+  out.push(`<path class="o" d="M${Math.min(...xs)} ${yL} H${Math.max(...xs)} M${xm} ${yL} V${yL + loop}"/>`);
   // op 4 feedback loop: from its side to its own input
   const fx = x(FB_OP), fy = y(FB_OP);
-  out.push(`<path class="fb${fbOn ? ' on' : ''}" d="M${fx + BW} ${fy + BH / 2} H${fx + BW + 4} V${fy - 4} H${fx + BW / 2} V${fy}"/>`);
+  out.push(`<path class="fb${fbOn ? ' on' : ''}" d="M${fx + BW} ${fy + BH / 2} H${fx + BW + loop} V${fy - loop} H${fx + BW / 2} V${fy}"/>`);
   for (let op = 0; op < 4; op++) {
-    out.push(`<g class="op${alg.car.includes(op) ? ' car' : ''}"><rect x="${x(op)}" y="${y(op)}" width="${BW}" height="${BH}" rx="2"/>` +
+    out.push(`<g class="op${alg.car.includes(op) ? ' car' : ''}${op === sel ? ' sel' : ''}" data-op="${op + 1}"><rect x="${x(op)}" y="${y(op)}" width="${BW}" height="${BH}" rx="${BW > 18 ? 2.5 : 2}"/>` +
              `<text x="${cx(op)}" y="${y(op) + BH / 2}">${op + 1}</text></g>`);
   }
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${out.join('')}</svg>`;
-}
-
-export function initFm4Graph() {
-  const box = document.getElementById('fm4Graph'), seg = document.getElementById('fm4AlgSel');
-  if (!box || !seg) return;
-  let alg = +CONTROLS.fm4Alg.get() || 0, fb = +CONTROLS.fmFb.get() > 0;
-  const paint = () => {
-    box.innerHTML = svgFor(alg, fb);
-    const b = seg.querySelector('button[data-alg="' + alg + '"]');
-    box.title = b ? b.title : '';
-  };
-  // param-change arrives wherever it comes from: click, knob, preset, MIDI, part change
-  document.addEventListener('param-change', e => {
-    const { target, value } = e.detail;
-    if (target === 'fm4Alg') { alg = +value || 0; paint(); }
-    else if (target === 'fmFb' && (+value > 0) !== fb) { fb = +value > 0; paint(); }
-  });
-  paint();
 }
