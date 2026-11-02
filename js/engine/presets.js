@@ -21,7 +21,7 @@
    revision follows the code (library.syncBank), keeping what the user touched.
    The bank up to 1.4.0 is archived in subsdj-bank-1.4.json.
    ===================================================================== */
-import { PARAMS, posToVal } from './params.js';
+import { PARAMS, PRESET_BASE, posToVal } from './params.js';
 
 // Bump it with EVERY change to the bank's data: a library keeps copies, and only a new revision
 // (or ⟲ Restore factory) replaces the untouched ones. 3: the sync recognises every historical
@@ -30,8 +30,9 @@ import { PARAMS, posToVal } from './params.js';
 // Breath Flute, Rhodes, Glockenspiel, Tubular Bells, Crystal Bell); 7: Vibraphone; 8: the kit by
 // ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade);
 // 10: the blown pipe (Breath Flute remade, Pan Pipe, Bottle, Overblown Drone); 11: DX E-Piano's tine
-// written as the 12 it always sounded at (it asked for 14 when the ratio stopped at 12; the FM4 now reaches 24).
-export const BANK_REV = 11;
+// written as the 12 it always sounded at (it asked for 14 when the ratio stopped at 12; the FM4 now reaches 24);
+// 12: Init gets a gentle Amp Env (155 ms · 354 ms · 0.65 · 1.57 s) instead of the gate.
+export const BANK_REV = 12;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -49,7 +50,12 @@ const MAC2 = (dst, amt) => ({ mx4src: 'mac2', mx4dst: dst, mx4amt: amt });      
 
 export const BANK = [
   { cat: 'Basics', presets: [
-    { name: 'Init', tags: [], use: 'note', play: 'Reset: oscillator A alone, filter open, gate envelope — the blank page.', data: {} },
+    // Init = Reset with a gentle Amp Env (Sergio, 2026-11-02: the gate's 2 ms / 1 / 20 ms is the
+    // designer's neutral, not a sound to start playing from). A non-empty preset goes on top of
+    // PRESET_BASE, so the base's other keys are written back to their neutral defaults here: B off,
+    // filter open and flat — still the blank page — at the bank's level. The Reset button keeps the gate.
+    { name: 'Init', tags: [], use: 'note', play: 'Oscillator A alone, filter open, a gentle envelope — the blank page.',
+      data: { ...Object.fromEntries(Object.keys(PRESET_BASE).map(k => [k, PARAMS[k].def])), a: 0.155, d: 0.354, s: 0.65, r: 1.57, master: 1.33 } },   // master: levelled like the bank (−14 LUFS)
   ] },
 
   /* ---------- Bass: one note at a time, C1-C3 ---------- */

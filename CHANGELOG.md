@@ -51,6 +51,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
   the graph is large and its boxes select an operator; each operator's row shows its envelope as
   it runs (a note held and released), and the selected one is edited below. Every preset sounds
   exactly as before — the new controls start where the old operator was.
+- **Init** (Basics) starts with a gentle Amp Env — 155 ms · 354 ms · 0.65 · 1.57 s — instead of the
+  gate, and at the level of the rest of the bank; it is still oscillator A alone with the filter open.
+  The Reset button keeps the gate (2 ms · 1 · 20 ms): the neutral for designing a hit.
 
 ## [1.7.0] — 2026-11-01
 
