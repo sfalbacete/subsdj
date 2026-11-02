@@ -6,7 +6,15 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased
+## [1.8.0] — 2026-11-02
+
+The FM4 grows up and the sequencer's phrases become yours. Each FM4 operator gets a whole
+**envelope** (A D S R), **key scaling** (time and level around C4), **detune** and a **fixed
+frequency**, with a new panel that shows the algorithm large and every operator's envelope as it
+runs. The sequencer keeps **your own phrases**, records them **step by step** from any keyboard,
+plays them in **chords** and keeps its melody when you change units; a **lock** holds the module
+across presets. **Init** is now the one place the synth starts from. Nothing saved changes:
+presets, scenes, libraries and MIDI maps load and sound as before.
 
 - **The sequencer's units keep the melody.** The selector next to the phrases used to change only
   what the numbers meant, so picking a scale turned a phrase into another melody. Now, picking a
