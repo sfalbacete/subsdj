@@ -14,7 +14,9 @@
    the last one (lastDir) — touching it prepares the arp without switching it on. */
 import { part } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
-import { CONTROLS, applyTarget, bindSelect } from './registry.js';
+import { CONTROLS, applyTarget, bindSelect, HELD } from './registry.js';
+import { userPhrases, savePhrase, deletePhrase, restorePhrase } from './phraseBank.js';
+import { undoable } from './presetBank.js';
 import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { attachKnob } from './knobs.js';
@@ -170,34 +172,87 @@ export function bindSeqControls() {
   initSeqEditor(document.getElementById('seqCanvas'));
   initSeqLen();
   initSeqPatterns();
+  initLock();
   initMutex();
 }
 
-// Phrase selector: choosing one writes seqPat (+ recommended division);
-// editing the pattern by hand sets it back to «custom».
+// Phrase selector: the factory phrases, YOURS («★ Mine», ui/phraseBank.js) and, at the end, two
+// actions: save the phrase you have as yours (a popover asks its name) and delete yours. Choosing a
+// phrase writes seqPat + its division + its UNITS (a phrase of yours comes back exactly as saved; a
+// factory one by degrees keeps the scale you have on). Editing the pattern by hand shows «custom».
 function initSeqPatterns() {
   const sel = document.getElementById('seqPatSel');
   if (!sel) return;
-  const opt = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); };
-  opt(sel, '', '— custom —');
-  const groups = new Map();
-  SEQ_PATTERNS.forEach((p, i) => {
-    const gname = p.grp || 'Phrases';
-    if (!groups.has(gname)) { const og = document.createElement('optgroup'); og.label = gname; sel.appendChild(og); groups.set(gname, og); }
-    opt(groups.get(gname), String(i), p.name);
-  });
+  const pop = document.getElementById('phrasePop'), inp = document.getElementById('phraseName'), go = document.getElementById('phraseSaveGo');
   const norm = s => String(s).trim().split(/\s+/).join(' ');
+  const opt = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); return o; };
+  const group = label => { const og = document.createElement('optgroup'); og.label = label; sel.appendChild(og); return og; };
+  const mine = () => { const cur = norm(CONTROLS.seqPat.get()), n = CONTROLS.seqNotes.get(); return userPhrases().findIndex(p => p.pat === cur && p.notes === n); };
+  const factory = () => { const cur = norm(CONTROLS.seqPat.get()); return SEQ_PATTERNS.findIndex(p => norm(p.pat) === cur); };
+  let chosen = '';   // the option last picked: several phrases can share the same steps, the one picked stays shown
   const sync = () => {
-    const cur = norm(part().S.seqPat);
-    const chosen = SEQ_PATTERNS[+sel.value];
-    if (chosen && norm(chosen.pat) === cur) return;   // the current selection already matches (some patterns repeat across groups)
-    const i = SEQ_PATTERNS.findIndex(p => norm(p.pat) === cur);
-    sel.value = i >= 0 ? String(i) : '';
+    const m = mine(), f = factory(), cur = norm(CONTROLS.seqPat.get());
+    const keep = chosen && (chosen[0] === 'u' ? +chosen.slice(1) === m : SEQ_PATTERNS[+chosen] && norm(SEQ_PATTERNS[+chosen].pat) === cur);
+    sel.value = keep ? chosen : m >= 0 ? 'u' + m : f >= 0 ? String(f) : '';
   };
+  const build = () => {
+    sel.textContent = '';
+    opt(sel, '', '— custom —');
+    const groups = new Map();
+    SEQ_PATTERNS.forEach((p, i) => { const g = p.grp || 'Phrases'; if (!groups.has(g)) groups.set(g, group(g)); opt(groups.get(g), String(i), p.name); });
+    const ups = userPhrases();
+    if (ups.length) { const g = group('★ Mine'); ups.forEach((p, i) => opt(g, 'u' + i, p.name)); }
+    const act = group('Your phrases');
+    opt(act, '+save', 'Save this phrase as mine…');
+    const m = mine();
+    if (m >= 0) opt(act, '-del', 'Delete «' + ups[m].name + '»');
+    sync();
+  };
+
+  // «save as mine»: the name in a popover under the selector (Enter saves, Esc or a click outside closes)
+  const closeSave = () => { if (pop) pop.hidden = true; if (inp) inp.blur(); };
+  const openSave = () => {
+    if (!pop || !inp) return;
+    const m = mine(), f = factory();
+    inp.value = m >= 0 ? userPhrases()[m].name : f >= 0 ? SEQ_PATTERNS[f].name.split(' · ')[0] : '';
+    pop.hidden = false; inp.focus(); inp.select();
+  };
+  const doSave = () => {
+    const name = (inp.value || '').trim();
+    if (!name) { inp.focus(); say('Save the phrase: type a name first.'); return; }
+    const i = savePhrase({ name, pat: CONTROLS.seqPat.get(), div: CONTROLS.seqDiv.get(), notes: CONTROLS.seqNotes.get() });
+    if (i >= 0) { chosen = 'u' + i; build(); say('Phrase «' + name + '» saved in ★ Mine (this browser; it travels with Export library).'); }
+    closeSave();
+  };
+  if (go) go.addEventListener('click', doSave);
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSave(); } else if (e.key === 'Escape') { e.preventDefault(); closeSave(); } });
+  document.addEventListener('pointerdown', e => { if (pop && !pop.hidden && !e.target.closest('#phraseWrap')) closeSave(); });
+  document.addEventListener('escape-first', e => { if (pop && !pop.hidden) { e.preventDefault(); closeSave(); } });   // Esc closes it before being «panic»
+
   sel.addEventListener('change', () => {
-    const p = SEQ_PATTERNS[+sel.value];
-    if (!p) { sync(); return; }               // «custom» overwrites nothing
+    const v = sel.value;
+    if (v === '+save') { sync(); openSave(); return; }
+    if (v === '-del') {
+      const ups = userPhrases(), m = mine();
+      chosen = '';
+      if (m >= 0) { const snap = deletePhrase(ups[m].name); undoable(document.getElementById('presetMsg'), 'Phrase «' + ups[m].name + '» deleted.', () => restorePhrase(snap)); }
+      else sync();
+      return;
+    }
+    if (v[0] === 'u') {                       // yours: exactly as saved (steps, division, units)
+      const p = userPhrases()[+v.slice(1)];
+      if (!p) { sync(); return; }
+      part().resume();
+      chosen = v;
+      CONTROLS.seqNotes.set(p.notes);
+      CONTROLS.seqPat.set(p.pat);
+      CONTROLS.seqDiv.set(p.div);
+      return;
+    }
+    const p = SEQ_PATTERNS[+v];
+    if (!v || !p) { sync(); return; }         // «custom» overwrites nothing
     part().resume();
+    chosen = v;
     CONTROLS.seqPat.set(p.pat);
     CONTROLS.seqDiv.set(p.div);
     // each phrase brings its units: one by degrees needs a scale (the one you have on, if any: degrees
@@ -207,8 +262,26 @@ function initSeqPatterns() {
     else if (CONTROLS.seqNotes.get() !== 'semitones') CONTROLS.seqNotes.set('semitones');
     if (p.bpm) CONTROLS.bpm.set(p.bpm);       // the classics land on their tempo
   });
-  document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat') sync(); });
-  sync();
+  // the steps or the units changed (by hand, a preset, undo…): the selection and «Delete» follow
+  document.addEventListener('param-change', e => { if (e.detail.target === 'seqPat' || e.detail.target === 'seqNotes') build(); });
+  document.addEventListener('phrases-changed', build);
+  build();
+}
+
+// The module's LOCK (the «lock» in its title): while it is on, loading a preset or Reset leave every key
+// of the Arpeggiator / Sequencer as it is (registry HELD) — the same sequence on other instruments.
+export const AS_KEYS = ['arpMode', 'arpDiv', 'arpOct', 'arpGate', 'arpLatch', 'seqOn', 'seqPat', 'seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', 'seqNotes'];
+function initLock() {
+  const b = document.getElementById('asLockBtn');
+  if (!b) return;
+  const set = on => {
+    for (const k of AS_KEYS) { if (on) HELD.add(k); else HELD.delete(k); }
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+    b.title = (on ? 'Locked: changing preset (or Reset) leaves this module as it is' : 'Lock: changing preset (or Reset) leaves this whole module as it is')
+      + ' — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own';
+  };
+  b.addEventListener('click', () => { set(!b.classList.contains('active')); say(b.classList.contains('active') ? 'Arpeggiator / Sequencer locked: presets keep out of it.' : 'Arpeggiator / Sequencer unlocked: each preset brings its own.'); });
+  set(false);
 }
 
 // Step editor: columns = pattern tokens; vertical drag = pitch

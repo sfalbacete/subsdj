@@ -47,7 +47,12 @@ const roomKey = k => sceneOn() && ROOM_KEYS.has(k);   // in Parts mode the Room 
 // Mode and its shared Division, Gate and Latch, which write the active mode's own key. It is
 // there for MIDI learn and the Output display; it is never a preset key (not saved, not reset, not loaded).
 // A control with {learn: false} has its widget taken by a virtual one: MIDI learn binds the virtual one.
-export function applyDefaults() { for (const k in CONTROLS) if (!roomKey(k) && !CONTROLS[k].virtual) CONTROLS[k].set(CONTROLS[k].def); }
+// HELD keys: a module LOCKED by its owner (the Arpeggiator / Sequencer's «lock», ui/seqControls.js) keeps
+// them as they are when a preset loads or Reset runs — to hear the same sequence on other instruments.
+// Switching part still shows each part's own (syncControls does not look at this).
+export const HELD = new Set();
+const kept = k => roomKey(k) || HELD.has(k) || (CONTROLS[k] && CONTROLS[k].virtual);
+export function applyDefaults() { for (const k in CONTROLS) if (!kept(k)) CONTROLS[k].set(CONTROLS[k].def); }
 export function snapshot()      { const o = {}; for (const k in CONTROLS) if (!CONTROLS[k].virtual) o[k] = CONTROLS[k].get(); return o; }
 
 export function loadState(state) {
@@ -56,7 +61,7 @@ export function loadState(state) {
   e.allNotesOff();
   applyDefaults();                                  // clean base (neutral: {} = Reset)
   state = withPresetBase(state);                    // a preset goes on top of the preset base (params.js)
-  for (const k in state) if (CONTROLS[k] && !roomKey(k) && !CONTROLS[k].virtual) CONTROLS[k].set(state[k]);
+  for (const k in state) if (CONTROLS[k] && !kept(k)) CONTROLS[k].set(state[k]);
 }
 
 // Shows an engine's state S in the controls (on part change).

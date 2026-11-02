@@ -611,6 +611,13 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seqcanvas{flex:none;width:340px;align-items:stretch;}
 .seq-sel{gap:6px;flex:none;}
 #seqPatSel{flex:1;min-width:0;width:auto;}
+/* the phrase selector with its «save as» popover (ui/seqControls.js): the wrapper takes the select's room */
+#phraseWrap{flex:1;min-width:0;display:flex;}
+#phraseWrap #seqPatSel{width:100%;}
+#phraseName{width:170px;background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
+  padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
+#phraseName:focus{border-color:var(--accent);outline:none;}
+.h2tog + .h2tog{margin-left:6px;}
 #seqNotesSel{flex:none;width:116px;}   /* notes by degree (5.2) */
 #mxRows{display:flex;flex-direction:column;gap:4px;}
 

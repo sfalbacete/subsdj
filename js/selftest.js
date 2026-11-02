@@ -35,6 +35,7 @@ import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase }
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
+import { PANELS as LED_PANELS } from './ui/activity.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony, SCALES } from './engine/Harmony.js';
@@ -44,7 +45,8 @@ import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
 import { makeSfzKit, makeZip, velocityLayers } from './ui/sfzExport.js';
 import { ccToVal, zoneOf, applyCC, armLearn, learnCapture, setDevice, getDevice, getMap } from './ui/midimap.js';
-import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId, currentPreset, markPreset } from './ui/presetBank.js';
+import { loadPresetIndex, loadPresetId, navIds, presetBankReady, currentPresetId, currentPreset, markPreset, libraryExport } from './ui/presetBank.js';
+import { userPhrases, mergePhrases, reloadPhrases, PHRASE_LS } from './ui/phraseBank.js';
 import { undo, redo, historyDepth, isModified, enterCompare, exitCompare, isComparing, record } from './ui/history.js';
 import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
@@ -971,6 +973,71 @@ export async function runSelfTest() {
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally { loadState(keep); refreshDeps(); }
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Phrases as objects (2026-11-02). (1) Yours: «Save this phrase as mine…» asks a name and keeps steps,
+    // division and UNITS; choosing it brings them back exactly; Delete deletes; Export library carries them
+    // and importing them back does not duplicate. (2) The module's lock: while on, loading a preset leaves
+    // the whole Arpeggiator / Sequencer as it is; off, the preset brings its own. The user's phrases and
+    // the current preset are put back afterwards.
+    const NAME = 'phrases as objects (yours keep steps, division and units · delete · they travel with the library · the lock keeps the module across presets)';
+    const problems = [], C = CONTROLS, keep = snapshot(), id0 = currentPresetId(), lockBtn = document.getElementById('asLockBtn');
+    let saved = null; try { saved = localStorage.getItem(PHRASE_LS); } catch { /* no storage */ }
+    try {
+      try { localStorage.removeItem(PHRASE_LS); } catch { /* no storage */ }
+      reloadPhrases(); loadState({});
+      C.seqNotes.set('dorian'); C.seqPat.set('0 2 4 7! . 4 2~ 0'); C.seqDiv.set('1/8');
+      const sel = document.getElementById('seqPatSel'), pick = v => { sel.value = v; sel.dispatchEvent(new Event('change')); };
+      const pop = document.getElementById('phrasePop'), inp = document.getElementById('phraseName');
+      pick('+save');
+      if (!pop || pop.hidden) problems.push('«Save this phrase as mine…» does not open its popover');
+      inp.value = 'Selftest phrase'; inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      const ups = userPhrases();
+      if (ups.length !== 1 || ups[0].name !== 'Selftest phrase' || ups[0].pat !== '0 2 4 7! . 4 2~ 0' || ups[0].div !== '1/8' || ups[0].notes !== 'dorian') problems.push('saved: ' + JSON.stringify(ups));
+      if (!pop.hidden) problems.push('the popover stays open after saving');
+      if (sel.value !== 'u0') problems.push('the selector does not show the phrase just saved (' + sel.value + ')');
+      C.seqNotes.set('semitones'); C.seqPat.set('0 12'); C.seqDiv.set('1/16');
+      pick('u0');
+      if (C.seqPat.get() !== '0 2 4 7! . 4 2~ 0' || C.seqDiv.get() !== '1/8' || C.seqNotes.get() !== 'dorian') problems.push('choosing yours does not bring it back exactly: ' + C.seqPat.get() + ' · ' + C.seqDiv.get() + ' · ' + C.seqNotes.get());
+      const j = libraryExport();
+      if (!Array.isArray(j.phrases) || !j.phrases.length || j.phrases[0].name !== 'Selftest phrase') problems.push('Export library does not carry your phrases');
+      if (!sel.querySelector('option[value="-del"]')) problems.push('no «Delete» for your phrase');
+      pick('-del');
+      if (userPhrases().length) problems.push('Delete did not delete');
+      if (mergePhrases(j.phrases) !== 1 || !userPhrases().length || userPhrases()[0].name !== 'Selftest phrase') problems.push('importing the exported phrases does not bring them back');
+      if (mergePhrases(j.phrases) !== 0) problems.push('importing them twice duplicates them');
+      // (2) the lock
+      const warm = library.presets().find(it => it.name === 'Warm Pad');
+      if (!warm || !lockBtn) throw new Error('no Warm Pad or no lock');
+      C.asMode.set('seq'); C.seqPat.set('0 12 7');
+      lockBtn.click();
+      if (!lockBtn.classList.contains('active')) problems.push('the lock does not switch on');
+      loadPresetId(warm.id);
+      if (C.seqOn.get() !== 'on' || C.seqPat.get() !== '0 12 7') problems.push('locked: loading Warm Pad changed the module (' + C.seqOn.get() + ' · ' + C.seqPat.get() + ')');
+      lockBtn.click();
+      loadPresetId(warm.id);
+      if (C.seqOn.get() !== 'off' || C.seqPat.get() !== PARAMS.seqPat.def) problems.push('unlocked: the preset does not bring its own module (' + C.seqOn.get() + ' · ' + C.seqPat.get() + ')');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (lockBtn && lockBtn.classList.contains('active')) lockBtn.click();
+      try { if (saved === null) localStorage.removeItem(PHRASE_LS); else localStorage.setItem(PHRASE_LS, saved); } catch { /* no storage */ }
+      reloadPhrases();
+      if (id0) loadPresetId(id0);
+      loadState(keep); refreshDeps();
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Activity LEDs (ui/activity.js): every section it lists has its LED in the title. They are found by
+    // the title's TEXT, and a button inside a title («lock», 2026-11-02) once made a module lose its LED.
+    const problems = [];
+    const titles = new Map([...document.querySelectorAll('.panel h2')].map(h => [[...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim(), h]));
+    for (const name of Object.keys(LED_PANELS)) {
+      const h = titles.get(name);
+      if (!h) problems.push('«' + name + '»: no module with that title');
+      else if (!h.querySelector('.led')) problems.push('«' + name + '»: no LED in its title');
+    }
+    push({ name: 'activity LEDs (every section listed has its LED, buttons in a title or not)', peak: 0, ok: !problems.length, problems });
   }
   {
     // Who turns it on (2026-11-01, ui/enablers.js). (1) Coverage: in a handful of states, EVERY dimmed

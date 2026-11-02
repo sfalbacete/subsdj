@@ -10,6 +10,7 @@ import { library, SEC_MINE, MAX_NAME } from '../engine/library.js';
 import { CONTROLS, loadState, snapshot } from './registry.js';
 import { download } from './recorder.js';
 import { record, markSaved, isModified } from './history.js';
+import { userPhrases, mergePhrases } from './phraseBank.js';
 
 let curId = null, msgEl, ready = Promise.resolve();
 const msg = t => { if (msgEl) msgEl.textContent = t; };
@@ -21,6 +22,9 @@ export function undoable(el, text, fn) {
   u.addEventListener('click', e => { e.stopPropagation(); fn(); el.textContent = 'Restored.'; });
   el.appendChild(u);
 }
+// The library as exported (Export, and the copy before a Wipe): plus your sequencer phrases, an optional field
+// an older SubSDJ ignores (ui/phraseBank.js)
+export function libraryExport() { const j = library.exportData(), ph = userPhrases(); if (ph.length) j.phrases = ph; return j; }
 export const cleanPreset = d => { const c = {}; for (const k in d) if (k in CONTROLS && !CONTROLS[k].virtual) c[k] = d[k]; return c; };   // drops unknown keys (and virtual ones: they are no preset key)
 export function presetBankReady() { return ready; }   // seeding the repo banks is asynchronous
 
@@ -133,7 +137,7 @@ export function initPresetBank() {
   // everything a load could rebuild it from are forgotten and the page starts again from the factory
   const wipeBtn = document.getElementById('wipeBtn');
   if (wipeBtn) wipeBtn.addEventListener('click', () => {
-    const j = library.exportData();
+    const j = libraryExport();
     download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library-before-wipe.json');
     msg('Library copied to a file; starting again from the factory…');
     setTimeout(() => { library.wipe(); location.reload(); }, 600);   // the download has started by then
@@ -142,7 +146,7 @@ export function initPresetBank() {
 
   // ---- export / import the whole Library (JSON) ----
   document.getElementById('expBtn').addEventListener('click', () => {
-    const j = library.exportData();
+    const j = libraryExport();
     download(new Blob([JSON.stringify(j, null, 1)], { type: 'application/json' }), 'subsdj-library.json');
     msg('Library exported: ' + j.items.length + ' items in ' + j.sections.length + ' sections.');
   });
@@ -156,9 +160,11 @@ export function initPresetBank() {
         let dropped = 0;   // settings this version does not know (a file from a newer one): said, not silent
         const clean = d => { const c = cleanPreset(d); dropped += Object.keys(d).length - Object.keys(c).length; return c; };
         const r = library.importData(data, { clean });
+        const np = mergePhrases(data.phrases);   // your sequencer phrases travel with the library (ui/phraseBank.js)
         msg((r.type === 'library' ? 'Library merged: ' + r.n + ' new items.'
           : r.type === 'scene' ? (r.n ? 'Scene added to «Scenes».' : 'That scene was already there.')
           : (r.n ? 'Imported ' + r.n + ' presets (into «Imported»).' : 'The file had no new presets.'))
+          + (np ? ' ' + np + (np > 1 ? ' sequencer phrases' : ' sequencer phrase') + ' too.' : '')
           + (dropped ? ' ' + dropped + ' settings this version does not know were left out' + (data.app ? ' (file from SubSDJ ' + data.app + ')' : '') + '.' : ''));
       } catch (err) { msg('Could not import: ' + (err.message || err)); }
       impFile.value = '';

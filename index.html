@@ -563,7 +563,7 @@
        so the presets keep both. Arp-only: Direction, Octaves. Seq-only: Retrig, the phrase, Steps.
        ui/seqControls.js · whatever the Mode leaves idle is dimmed in place (ui/deps.js). -->
   <div class="panel" id="arpSeq">
-    <h2>Arpeggiator / Sequencer</h2>
+    <h2>Arpeggiator / Sequencer<button type="button" class="h2tog" id="asLockBtn" aria-pressed="false" title="Lock: changing preset (or Reset) leaves this whole module as it is — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own">lock</button></h2>
     <div class="hrow seqlay">
       <div class="as-grid">
         <div class="ctl rotc"><div class="seg rot" id="asModeSel"><button data-asm="off" title="Off: the keys play as they are">Off</button><button data-asm="arp" title="Arpeggiator: the keys you hold, one after another">Arp</button><button data-asm="seq" title="Sequencer: the key you hold is the root that transposes the phrase">Seq</button></div><div class="lab">Mode</div></div>
@@ -577,7 +577,7 @@
         <div class="ctl rotc"><div class="seg rot" id="arpOctSel"><button data-aoct="1" title="One octave">1</button><button data-aoct="2" title="Two octaves">2</button><button data-aoct="3" title="Three octaves">3</button></div><div class="lab">Octaves</div></div>
       </div>
       <div class="vcol seqcanvas">
-        <div class="hrow seq-sel"><select id="seqPatSel"></select><select id="seqNotesSel" title="Units of the phrase: SEMITONES above the key, or DEGREES of a scale counted from the key. Picking a scale from semitones rewrites the phrase in degrees and keeps its melody (notes outside the scale go to the nearest degree); from one scale to another the degrees stay, so the same phrase moves to the new mode (major → dorian → phrygian…); back to semitones the notes come back exact. «harmony» = the scene's scale (Parts)"></select><div class="stepper" id="seqLenCtl" title="Steps: the length of the phrase (1-16)"><button id="seqLenDec">−</button><span class="num" id="seqLenNum">8</span><button id="seqLenInc">+</button></div></div>
+        <div class="hrow seq-sel"><span class="menuWrap" id="phraseWrap"><select id="seqPatSel" title="Phrases: the factory ones, yours («★ Mine») and, at the end, save the one you have as yours or delete it"></select><div class="pop" id="phrasePop" role="dialog" aria-label="Save the phrase" hidden><input id="phraseName" type="text" placeholder="phrase name…" maxlength="24" aria-label="Name of the phrase" autocomplete="off" spellcheck="false"><span class="pop-where">steps, division and units</span><button class="btn" id="phraseSaveGo" type="button">Save</button></div></span><select id="seqNotesSel" title="Units of the phrase: SEMITONES above the key, or DEGREES of a scale counted from the key. Picking a scale from semitones rewrites the phrase in degrees and keeps its melody (notes outside the scale go to the nearest degree); from one scale to another the degrees stay, so the same phrase moves to the new mode (major → dorian → phrygian…); back to semitones the notes come back exact. «harmony» = the scene's scale (Parts)"></select><div class="stepper" id="seqLenCtl" title="Steps: the length of the phrase (1-16)"><button id="seqLenDec">−</button><span class="num" id="seqLenNum">8</span><button id="seqLenInc">+</button></div></div>
         <canvas id="seqCanvas" title="Drag a step = pitch · click = note/rest · Shift + click = accent · Alt + click = tie → slide → none · Ctrl + click = repeats (1-4)"></canvas>
       </div>
     </div>
