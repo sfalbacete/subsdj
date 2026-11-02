@@ -21,6 +21,12 @@ scenes, libraries, MIDI maps). The why behind each module is in
 - **The module's lock.** The «lock» in the Arpeggiator / Sequencer's title keeps the whole module as
   it is when you change preset (or Reset): the same sequence, heard on every instrument you browse.
 - The Arpeggiator / Sequencer's activity LED was missing (a button in a title hid it from the LEDs).
+- **Step recording.** «rec» in the module's title: while it is armed, every key you play — QWERTY,
+  the screen or a MIDI keyboard — writes the next step of the phrase instead of transposing it, and
+  sounds as you play it. 0 is the C of the octave you start in (hold any C later and it plays as
+  you played it); Space = a rest, Backspace = back one step, Enter, Esc or «rec» again = done. A chord
+  struck at once is one step with its lowest note; on a scale each note goes to its nearest degree.
+  The take is one undo step.
 
 ## [1.7.0] — 2026-11-01
 

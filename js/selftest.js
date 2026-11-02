@@ -1028,6 +1028,55 @@ export async function runSelfTest() {
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
+    // Step recording (2026-11-02): with «rec» armed, a live key reaches AudioEngine.recHook and writes the
+    // next step: 0 = the C of the first note's octave; Space = rest; Backspace = back; a chord struck at
+    // once is one step with its lowest note; on a scale, the nearest degree; the take is ONE undo step;
+    // nothing recorded leaves the phrase as it was; loading a preset drops the take without touching it.
+    const NAME = 'step recording (keys write the phrase from the C of the first note · Space rest · Backspace back · a chord = its lowest · degrees · one undo step)';
+    const problems = [], C = CONTROLS, keep = snapshot(), btn = document.getElementById('seqRecBtn');
+    const wait = ms => new Promise(r => setTimeout(r, ms)), f = m => 440 * Math.pow(2, (m - 69) / 12);
+    const key = (id, m) => { part().noteOn(id, f(m)); part().noteOff(id); };
+    const kd = (k, code) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code, bubbles: true }));
+    try {
+      if (!btn) throw new Error('no «rec» button');
+      loadState({}); C.seqNotes.set('semitones'); C.seqPat.set('0 3 7 12 . 7 3 .');
+      const before = C.seqPat.get();
+      btn.click();
+      if (!btn.classList.contains('active') || !part().recHook) problems.push('«rec» does not arm the recording');
+      key('st1', 64); await wait(60);              // E4: the take's 0 is C4 → 4
+      key('st2', 67); await wait(60);              // G4 → 7
+      kd(' ', 'Space'); await wait(60);            // a rest
+      key('st3', 72); await wait(60);              // C5 → 12…
+      kd('Backspace', 'Backspace'); await wait(60);   // …taken back
+      part().noteOn('st4', f(69)); part().noteOn('st5', f(65)); part().noteOff('st4'); part().noteOff('st5');   // A4 + F4 at once → F4 = 5
+      await wait(60);
+      btn.click();
+      if (btn.classList.contains('active') || part().recHook) problems.push('«rec» again does not stop the recording');
+      if (C.seqPat.get() !== '4 7 . 5') problems.push('recorded «' + C.seqPat.get() + '» (expected «4 7 . 5»)');
+      undo();
+      if (C.seqPat.get() !== before) problems.push('one undo does not bring the phrase back (' + C.seqPat.get() + ')');
+      // on a scale: nearest degree (F#4 → between F and G → F, the lower)
+      C.seqNotes.set('major'); btn.click();
+      key('st6', 64); await wait(60); key('st7', 66); await wait(60);
+      kd('Enter', 'Enter');
+      if (C.seqPat.get() !== '2 3') problems.push('on major: «' + C.seqPat.get() + '» (expected «2 3»)');
+      // nothing recorded: as it was
+      const p0 = C.seqPat.get(); btn.click(); btn.click();
+      if (C.seqPat.get() !== p0) problems.push('an empty take changed the phrase (' + C.seqPat.get() + ')');
+      // a preset during the take: dropped, the preset's phrase stays
+      btn.click(); key('st8', 60); await wait(60);
+      const warm = library.presets().find(it => it.name === 'Warm Pad'), id0 = currentPresetId();
+      if (warm) {
+        loadPresetId(warm.id);
+        if (part().recHook || btn.classList.contains('active')) problems.push('loading a preset does not stop the recording');
+        if (C.seqPat.get() !== PARAMS.seqPat.def) problems.push('a dropped take touched the loaded preset\'s phrase (' + C.seqPat.get() + ')');
+        if (id0) loadPresetId(id0);
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally { if (btn && btn.classList.contains('active')) btn.click(); loadState(keep); refreshDeps(); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
     // Activity LEDs (ui/activity.js): every section it lists has its LED in the title. They are found by
     // the title's TEXT, and a button inside a title («lock», 2026-11-02) once made a module lose its LED.
     const problems = [];

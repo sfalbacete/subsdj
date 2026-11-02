@@ -20,9 +20,11 @@ import { undoable } from './presetBank.js';
 import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { attachKnob } from './knobs.js';
-import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern } from '../engine/Seq.js';
+import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern, scaleOfNotes, toDegrees } from '../engine/Seq.js';
+import { record } from './history.js';
 
 const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };   // the header's floating notice
+let rec = null;   // the step recording in progress (initRec), or null: the editor draws its cursor
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
 
@@ -173,6 +175,7 @@ export function bindSeqControls() {
   initSeqLen();
   initSeqPatterns();
   initLock();
+  initRec();
   initMutex();
 }
 
@@ -284,6 +287,75 @@ function initLock() {
   set(false);
 }
 
+// STEP RECORDING («rec» in the module's title, 2026-11-02): while it is armed the keys — QWERTY, the
+// screen or MIDI — stop transposing and WRITE the phrase, one step per key (the engine sends a live key
+// here, AudioEngine.recHook, and lets it sound as it is). 0 is the C of the octave the take starts in:
+// holding any C later plays it as you played it. A chord struck at once is one step with its lowest
+// note; with the units on a scale each note goes to its nearest degree. Space = a rest, Backspace =
+// back one step, Enter, Esc or «rec» again = done. The take replaces the phrase (its length is what you
+// recorded, up to 16) and is ONE undo step; nothing recorded leaves the phrase as it was.
+const CHORD_MS = 35;   // keys closer than this are one chord: the step keeps the lowest
+function initRec() {
+  const btn = document.getElementById('seqRecBtn');
+  if (!btn) return;
+  const paint = on => { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', String(on)); };
+  // what the editor shows while recording: the steps so far and an empty slot where the next one goes
+  const show = () => CONTROLS.seqPat.set(rec.steps.concat(rec.steps.length < SEQ_MAX_STEPS ? ['.'] : []).join(' '));
+  const tokenOf = off => { const I = scaleOfNotes(CONTROLS.seqNotes.get()); return String(I ? toDegrees(off, I).deg : off); };
+  const onKey = freq => {
+    if (!rec) return;
+    const midi = Math.round(69 + 12 * Math.log2(freq / 440)), t = performance.now();
+    if (rec.ref === null) rec.ref = Math.floor(midi / 12) * 12;    // 0 = the C of the octave you start in
+    let off = midi - rec.ref;
+    while (off > SEQ_OFF_MAX) off -= 12;                            // out of the editor's range: folded by octaves
+    while (off < SEQ_OFF_MIN) off += 12;
+    const n = rec.steps.length;
+    if (n && t - rec.lastT < CHORD_MS && rec.lastOff !== null) {   // a chord struck at once: one step, its lowest note
+      if (off < rec.lastOff) { rec.steps[n - 1] = tokenOf(off); rec.lastOff = off; }
+    } else { rec.steps.push(tokenOf(off)); rec.lastOff = off; }
+    rec.lastT = t;
+    show();
+    if (rec.steps.length >= SEQ_MAX_STEPS) stop();
+  };
+  const start = () => {
+    const e = part();
+    if (e.seq && e.seq.timer) e.seq.stop();         // a phrase playing (latched) would cover what you write
+    rec = { steps: [], ref: null, lastT: 0, lastOff: null, before: CONTROLS.seqPat.get(), part: e };
+    e.recHook = onKey;
+    paint(true);
+    show();
+    say('Recording the phrase: play it key by key · Space = rest · Backspace = back · Enter or Esc = done');
+  };
+  // abort: something else took the module (a preset, another part): the take is dropped, the phrase not touched
+  const stop = (abort = false) => {
+    if (!rec) return;
+    const r = rec;
+    rec = null;
+    if (r.part) r.part.recHook = null;
+    paint(false);
+    if (abort) { say('Recording stopped: the take was dropped.'); document.dispatchEvent(new CustomEvent('param-change', { detail: { target: 'seqPat' } })); return; }
+    CONTROLS.seqPat.set(r.before);                   // back where it was, so the whole take is ONE undo step
+    if (r.steps.length) {
+      const fin = r.steps.join(' ');
+      record('Recorded phrase', () => CONTROLS.seqPat.set(fin));
+      say('Phrase recorded: ' + r.steps.length + (r.steps.length > 1 ? ' steps.' : ' step.'));
+    } else say('Nothing recorded: the phrase is as it was.');
+  };
+  btn.addEventListener('click', () => { part().resume(); btn.blur(); if (rec) stop(); else start(); });   // blurred: Space must not «click» it again
+  window.addEventListener('keydown', e => {
+    if (!rec) return;
+    const t = e.target, txt = t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text') || t.isContentEditable);
+    if (txt || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (rec.steps.length < SEQ_MAX_STEPS) { rec.steps.push('.'); rec.lastOff = null; show(); if (rec.steps.length >= SEQ_MAX_STEPS) stop(); }
+    } else if (e.key === 'Backspace') { e.preventDefault(); rec.steps.pop(); rec.lastOff = null; show(); }
+    else if (e.key === 'Enter') { e.preventDefault(); stop(); }
+  }, true);
+  document.addEventListener('escape-first', e => { if (rec) { e.preventDefault(); stop(); } });   // Esc ends the take before being «panic»
+  for (const ev of ['part-changed', 'scene-changed', 'preset-loaded']) document.addEventListener(ev, () => { if (rec) stop(true); });
+}
+
 // Step editor: columns = pattern tokens; vertical drag = pitch
 // (quantized to semitones, −12..+24), short tap = toggles note/rest.
 function initSeqEditor(canvas) {
@@ -339,6 +411,10 @@ function initSeqEditor(canvas) {
         g.fillRect(xa, h - PAD - 3, xb - xa, 2);                                  // rest: mark at the base
       }
     });
+    if (rec) {                                         // recording: the column the next key writes, in the alarm color
+      const i = Math.min(rec.steps.length, steps.length - 1), x0 = PAD + i * cw;
+      g.strokeStyle = token('--hot'); g.lineWidth = 1.5; g.strokeRect(x0 + 1.5, PAD + 1.5, cw - 3, h - 2 * PAD - 3); g.lineWidth = 1;
+    }
   }
 
   // Preview while editing: the note of the step you are setting sounds

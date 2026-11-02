@@ -563,7 +563,7 @@
        so the presets keep both. Arp-only: Direction, Octaves. Seq-only: Retrig, the phrase, Steps.
        ui/seqControls.js · whatever the Mode leaves idle is dimmed in place (ui/deps.js). -->
   <div class="panel" id="arpSeq">
-    <h2>Arpeggiator / Sequencer<button type="button" class="h2tog" id="asLockBtn" aria-pressed="false" title="Lock: changing preset (or Reset) leaves this whole module as it is — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own">lock</button></h2>
+    <h2>Arpeggiator / Sequencer<button type="button" class="h2tog rec" id="seqRecBtn" aria-pressed="false" title="Rec: step recording of the phrase — every key you play (QWERTY, the screen or MIDI) writes the next step instead of transposing; 0 is the C of the octave you start in. Space = rest · Backspace = back · Enter, Esc or rec again = done. A chord struck at once is one step (its lowest note); on a scale, each note goes to its nearest degree. One undo step">rec</button><button type="button" class="h2tog" id="asLockBtn" aria-pressed="false" title="Lock: changing preset (or Reset) leaves this whole module as it is — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own">lock</button></h2>
     <div class="hrow seqlay">
       <div class="as-grid">
         <div class="ctl rotc"><div class="seg rot" id="asModeSel"><button data-asm="off" title="Off: the keys play as they are">Off</button><button data-asm="arp" title="Arpeggiator: the keys you hold, one after another">Arp</button><button data-asm="seq" title="Sequencer: the key you hold is the root that transposes the phrase">Seq</button></div><div class="lab">Mode</div></div>

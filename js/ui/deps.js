@@ -204,7 +204,7 @@ export const RULES = [
   // The shared widgets are targeted through their virtual controls (asDiv…: ui/seqControls.js)
   ...live(['asDiv', 'asGate', 'asLatch'], S => asModeOf(S) !== 'off', 'Mode Off', ['asMode']),
   ...live(['asDir', '.ctl:has(#arpOctSel)'], S => asModeOf(S) === 'arp', S => (asModeOf(S) === 'off' ? 'Mode Off' : 'Arp only: the Mode is on Seq'), ['asMode']),
-  ...live(['#seqRetrigCtl', '#seqPatSel', '#seqCanvas', '#seqLenCtl'], S => asModeOf(S) === 'seq', S => (asModeOf(S) === 'off' ? 'Mode Off' : 'Seq only: the Mode is on Arp'), ['asMode']),
+  ...live(['#seqRetrigCtl', '#seqPatSel', '#seqCanvas', '#seqLenCtl', '#seqRecBtn'], S => asModeOf(S) === 'seq', S => (asModeOf(S) === 'off' ? 'Mode Off' : 'Seq only: the Mode is on Arp'), ['asMode']),
   ['sec:Wave Sequence', S => (has(S, 'wavetable') ? null : 'it only moves the Wavetable Morph: ' + NO('Wavetable')), waveBy],
   ...live(['wsDiv', 'wsMode', 'wsXf', '#wsCanvas', '.ctl:has(#wsLenNum)'], S => S.wsOn === 'on', 'State Off', ['wsOn']),
   // scene (Parts): conductor state, not preset state

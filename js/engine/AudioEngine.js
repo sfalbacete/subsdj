@@ -92,6 +92,8 @@ export class AudioEngine {
     this.monoVoice = null;        // single voice in mono mode
     this.arp = new Arp(this);     // arpeggiator (active when S.arpMode != 'off')
     this.seq = new Seq(this);     // step sequencer (active when S.seqOn == 'on')
+    this.recHook = null;          // step recording (ui/seqControls.js): a live key goes there (and sounds as it is) instead of the Arp / Seq
+    this._recIds = new Set();     // the keys taken by the recording: their note-off goes to the direct path
     this.wseq = new WaveSeq(this);// wave sequence (active when S.wsOn == 'on')
     this.steps = new Steps(this); // Steps: 4 lanes for the matrix (Roadmap 7.0 · 2.3)
     this.perfVal = { wheel: 0, at: 0, expr: 0 };   // performance sources (0..1); the nodes are born in init()
@@ -256,12 +258,18 @@ export class AudioEngine {
   // ---------- voices ----------
   // when (optional): audio time of the key — the players; the Arp/Seq put it into that grid step
   noteOn(id, freq, vel = 1, when = null) {
+    if (this.recHook && when === null) {           // recording a phrase: a LIVE key writes a step (a player's, with its time, plays as usual)
+      this.recHook(freq, vel); this._recIds.add(id);
+      if (this.ready) this._directOn(id, freq, vel);
+      return;
+    }
     if (!this.ready) return;
     if (this.S.seqOn === 'on') return this.seq.hold(id, freq, vel, when);      // the key is the root of the phrase
     if (this.S.arpMode !== 'off') return this.arp.hold(id, freq, vel, when);   // the arp sequences the notes
     this._directOn(id, freq, vel, when);
   }
   noteOff(id) {
+    if (this._recIds.delete(id)) { if (this.ready) this._directOff(id); return; }   // a key the recording took
     if (this.S.seqOn === 'on') return this.seq.unhold(id);
     if (this.S.arpMode !== 'off') return this.arp.unhold(id);
     this._directOff(id);

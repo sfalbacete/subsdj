@@ -618,6 +618,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
   padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;}
 #phraseName:focus{border-color:var(--accent);outline:none;}
 .h2tog + .h2tog{margin-left:6px;}
+.h2tog.rec.active{color:var(--hot);border-color:var(--hot);background:color-mix(in srgb,var(--hot) 14%,transparent);animation:recArmed 1.2s ease-in-out infinite;}   /* recording: it breathes in the alarm color */
+@keyframes recArmed{50%{background:color-mix(in srgb,var(--hot) 30%,transparent);}}
 #seqNotesSel{flex:none;width:116px;}   /* notes by degree (5.2) */
 #mxRows{display:flex;flex-direction:column;gap:4px;}
 
