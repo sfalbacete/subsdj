@@ -27,6 +27,11 @@ scenes, libraries, MIDI maps). The why behind each module is in
   you played it); Space = a rest, Backspace = back one step, Enter, Esc or «rec» again = done. A chord
   struck at once is one step with its lowest note; on a scale each note goes to its nearest degree.
   The take is one undo step.
+- **Chord** (a switch in the sequencer): every key you hold is a root, so a held chord plays the
+  phrase in chords. In semitones the chord moves in parallel; on a scale it moves inside it, around
+  its lowest note — C-E-G in major with «0 3 4» plays C, F and G major —, so the chord changes quality
+  as it climbs. Ties, slides, accents and repeats work voice by voice; with Latch the whole chord stays.
+- Panic (and Esc) now also stops a latched arpeggio: the arpeggiator's Latch used to survive it.
 
 ## [1.7.0] — 2026-11-01
 

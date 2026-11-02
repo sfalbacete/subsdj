@@ -230,6 +230,7 @@ export const PARAMS = {
   seqGate:   { def: 0.6, min: 0.05, max: 1 },       // length of each step (fraction)
   seqLatch:  { def: 'off' },                        // on: the phrase keeps going after the key is released
   seqRetrig: { def: 'off' },                        // on: a new key restarts the phrase (on the grid)
+  seqChord:  { def: 'off' },                        // on: every key held is a root — the phrase plays in chords (diatonic on a scale)
   wsOn:   { def: 'off' },                           // off | on — wave sequence (wave sequencing)
   wsPat:  { def: '0 . 7 . 3 5 7 .' },               // phrase of FRAMES 0..7, '.' = hold (max 16 steps)
   // Steps (Roadmap 7.0 · 2.3, engine/Steps.js): 4 lanes of values −1..+1 (up to 32), each

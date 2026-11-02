@@ -311,9 +311,9 @@ export class AudioEngine {
     this.lastFreq = freq;
   }
   allNotesOff() {
-    this.arp.tie = this.seq.tie = this.seq.link = null;   // the tied note that was waiting for its off goes down with the rest (fast cut below)
-    this.arp.held = []; this.arp._maybeStop();
-    this.seq.held = []; this.seq.latched = null; this.seq._maybeStop();
+    this.arp.tie = null; this.seq.tie = []; this.seq.link = null;   // the tied note that was waiting for its off goes down with the rest (fast cut below)
+    this.arp.held = []; this.arp.gesture = []; this.arp.latched = null; this.arp._maybeStop();   // a latched chord goes too (panic means silence)
+    this.seq.held = []; this.seq.gesture = []; this.seq.latched = null; this.seq.latchedChord = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }
@@ -651,7 +651,7 @@ export class AudioEngine {
       case 'syncA': this._forVoices(v => v.setSync(value === 'on')); break;      // hard sync: also to the sounding notes
       case 'macro1': case 'macro2': this.perf['mac' + name.slice(-1)].offset.setTargetAtTime(value, this.ctx.currentTime, PERF_TAU); break;
       case 'seqOn': if (value === 'off') this.seq.stop(); else this.allNotesOff(); break;   // pat/div/gate live
-      case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq._maybeStop(); } break;
+      case 'seqLatch': if (value === 'off' && !this.seq.held.length) { this.seq.latched = null; this.seq.latchedChord = null; this.seq._maybeStop(); } break;
       // a, d, s, r, glide, lfoFade, filterSlope, filterType: read when each voice is created (no live node)
     }
   }

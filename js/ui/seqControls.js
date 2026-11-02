@@ -144,6 +144,7 @@ function bindArpSeq() {
 export function bindSeqControls() {
   bindArpSeq();
   bindSeg('seqRetrigSel', 'sretrig', 'seqRetrig', 'seqRetrig');
+  bindSeg('seqChordSel', 'schord', 'seqChord', 'seqChord');   // chord root (every key held is a root)
 
   // seqPat: the canvas editor is its only widget. No `el`: outside MIDI learn
   // (a CC can't edit a string; applyCC would swallow it with no effect anyway).
@@ -273,7 +274,7 @@ function initSeqPatterns() {
 
 // The module's LOCK (the «lock» in its title): while it is on, loading a preset or Reset leave every key
 // of the Arpeggiator / Sequencer as it is (registry HELD) — the same sequence on other instruments.
-export const AS_KEYS = ['arpMode', 'arpDiv', 'arpOct', 'arpGate', 'arpLatch', 'seqOn', 'seqPat', 'seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', 'seqNotes'];
+export const AS_KEYS = ['arpMode', 'arpDiv', 'arpOct', 'arpGate', 'arpLatch', 'seqOn', 'seqPat', 'seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', 'seqNotes', 'seqChord'];
 function initLock() {
   const b = document.getElementById('asLockBtn');
   if (!b) return;

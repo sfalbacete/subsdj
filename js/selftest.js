@@ -504,6 +504,45 @@ export async function runSelfTest() {
     push({ name: 'sequencer units (semitones ↔ degrees keeps the melody · back exact · scale → scale = a new mode)', peak: 0, ok: !problems.length, problems });
   }
   {
+    // Chord root (2026-11-02, Seq «Chord»), no ctx: with it OFF the step has one root (the last key) as
+    // always; ON, every key held is a root — in semitones the chord moves in parallel, on a scale it moves
+    // INSIDE it around the lowest note (C-E-G in major: +3 degrees = F-A-C, +1 = D-F-A, a minor chord);
+    // with Latch the whole gesture stays once every key is up; Latch off lets it go.
+    const problems = [], hz = m => 440 * Math.pow(2, (m - 69) / 12), mid = f => Math.round(69 + 12 * Math.log2(f / 440));
+    const notes = (q, off) => q._stepFreqs(off, q._roots()).map(mid).join(',');
+    const C4E4G4 = q => { q.timer = 1; q.hold(1, hz(60), 1); q.hold(2, hz(64), 0.8); q.hold(3, hz(67), 0.9); };
+    const off = new Seq({ S: { seqChord: 'off', seqNotes: 'semitones' }, ctx: null });
+    C4E4G4(off);
+    if (off._roots().length !== 1 || notes(off, 2) !== '69') problems.push('Chord off: not one root, the last key (' + notes(off, 2) + ')');
+    const par = new Seq({ S: { seqChord: 'on', seqNotes: 'semitones' }, ctx: null });
+    C4E4G4(par);
+    if (notes(par, 2) !== '62,66,69') problems.push('Chord in semitones: +2 = ' + notes(par, 2) + ' (expected D F# A: 62,66,69)');
+    const dia = new Seq({ S: { seqChord: 'on', seqNotes: 'major', seqLatch: 'on' }, ctx: null });
+    C4E4G4(dia);
+    if (notes(dia, 3) !== '65,69,72' || notes(dia, 4) !== '67,71,74' || notes(dia, 1) !== '62,65,69') problems.push('Chord on major: +3 ' + notes(dia, 3) + ' · +4 ' + notes(dia, 4) + ' · +1 ' + notes(dia, 1) + ' (expected F-A-C, G-B-D, D-F-A)');
+    dia.unhold(2); dia.unhold(1); dia.unhold(3);
+    if (dia._roots().length !== 3 || notes(dia, 0) !== '60,64,67') problems.push('Chord + Latch: the chord does not stay once every key is up (' + notes(dia, 0) + ')');
+    dia.timer = null; dia.e.S.seqLatch = 'off'; dia.latched = null; dia.latchedChord = null;
+    if (dia._roots().length) problems.push('Chord: with nothing held nor latched there are still roots');
+    push({ name: 'sequencer chord root (off = one root as always · parallel in semitones · diatonic on a scale · Latch keeps the chord)', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Panic means silence (fixed 2026-11-02): allNotesOff lets go of a LATCHED arpeggio or sequence too —
+    // the arpeggiator's Latch (1.7.0) used to survive it and keep playing.
+    const problems = [];
+    try {
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(ctx, [{ arpMode: 'up', arpLatch: 'on' }]);
+      const e = sc.parts[0].engine;
+      e.arp.latched = [{ id: 1, freq: 220, vel: 1, from: 0 }]; e.arp.gesture = e.arp.latched.slice();
+      e.seq.latched = { freq: 220, vel: 1 }; e.seq.latchedChord = [{ id: 1, freq: 220, vel: 1, from: 0 }];
+      e.allNotesOff();
+      if (e.arp.latched || e.arp.gesture.length) problems.push('the arpeggiator\'s latched chord survives allNotesOff');
+      if (e.seq.latched || e.seq.latchedChord) problems.push('the sequencer\'s latched root / chord survives allNotesOff');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: 'panic lets go of latched arpeggios and sequences', peak: 0, ok: !problems.length, problems });
+  }
+  {
     // step marker: selection by the audio clock and pruning of expired steps
     const q = new Seq({ S: {}, ctx: { currentTime: 1.0 } });
     q.timer = 1;
