@@ -2915,3 +2915,42 @@ does nothing, and what to touch — is answered better by pointing at the cause.
   section, so «Mixer · Osc B» never reads as the oscillator.
 - **A dimmed control keeps no title** while it is dimmed (it goes to data-title0 and comes back
   when it is alive): the browser's tooltip would come up a second later over ours.
+
+## Phrases, recording, chords and labels (2026-11-02)
+
+Sergio left the list while he was out — the five points of the sequencer conversation of 1.7.0 —
+and each one went in its own commit, so any of them can be reverted alone.
+
+- **Units keep the melody.** The selector only changed what the numbers meant, so choosing a
+  scale turned a phrase into another melody. By hand it now converts (`Seq.convertPattern`):
+  semitones → a scale goes to the nearest degree (a tie to the lower one, and the notice counts
+  what moved); scale → scale keeps the degrees, which is the point of degrees (the same phrase in
+  a new mode); back to semitones is exact. A programmatic set (a preset, undo, MIDI) converts
+  nothing: those bring their phrase with its units. A factory phrase in semitones sets semitones;
+  one by degrees keeps the scale you have on. 'harmony' converts as major: its scale depends on
+  the key you hold.
+- **Phrases are the sequencer's, not the instrument's.** Yours (`ui/phraseBank.js`) keep steps,
+  division and units — the units, because degrees read as semitones are another melody. They live
+  in localStorage and ride along with Export library as an optional `phrases` field: an older
+  version ignores it, so the library format did not change. The actions (save, delete) sit at the
+  end of the phrase list itself, not as more buttons: the row was full. The **lock** holds every
+  key of the module (registry `HELD`, the same mechanism as the room keys in Parts mode): the
+  whole module, not only the phrase, because a preset with the arp on would otherwise switch the
+  phrase off through the mutex.
+- **Step recording** takes the live keys at the engine (`AudioEngine.recHook`, keys without a
+  time: a player's notes are not recorded), so QWERTY, the screen and MIDI all write. 0 is the C
+  of the octave the take starts in — the first note as 0 would break phrases that start on the
+  fifth. The take is one undo step: the phrase goes back to where it was and the result is set
+  inside a `record()`. A preset or a part change during the take drops it without touching the
+  phrase (restoring it would overwrite the preset's).
+- **Chord root** rather than chords per step: the editor has one value per column, and a held
+  chord covers stabs and progressions without a new editor. On a fixed scale the chord moves
+  around its LOWEST note (each held note gets its degree from it), which makes it diatonic; with
+  the scene's harmony every note already moves in the scene's scale. `link` and `tie` became
+  lists (per voice); with Chord off a step has one root and the calls of before.
+- **Label case**: written «Capitalized», uppercased by Classic through `--lab-case`, which now also
+  reaches option buttons, row names and a module's buttons. Uppercase is wider: «FOLLOW AMP ENV»
+  pushed the Voice band out, so the option became «Amp Env» (beside «Times»), and the selftest now
+  checks that Classic clips nothing — the screens check only looked at the default theme.
+- Two bugs met on the way: a button in a module title hid its activity LED (the LEDs matched the
+  title's whole text), and Panic did not stop 1.7.0's latched arpeggio.
