@@ -138,12 +138,17 @@ export function applySceneJSON(sc, j) {
 // inherits the sound that was there (and the Room, its settings); the single engine is
 // muted and stays alive to come back to.
 // born: the preset the other parts are born with (the UI passes Init, the blank page; {} = the neutral)
+// The scene's Room as it is born from the rack: its settings, and a NEUTRAL master (1 = 0 dB). Part 1
+// keeps the preset's Master as its fader, so it sounds exactly as it did with Parts off. The scene master
+// used to start at the preset's Master as well: the part came out at Master² — with the makeups presets
+// carry since 1.1.0 (up to ×4), up to +12 dB the moment Parts went on, and a ×0.47 one 7 dB quieter
+// (measured by Sergio's ear and then by the selftest, 2026-11-07). Scene files bring their own master.
+export const sceneFromRack = S => ({ roomS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: 1 });
 export async function enableScene(born = {}) {
   if (scene) return scene;
   if (!single.ready) throw new Error('the audio is not ready yet');
   const S = single.S;
-  scene = await createScene(single.ctx, Array.from({ length: N_PARTS }, (_, i) => (i ? born : toControls(S))),
-    { roomS: S, fb: S.dlyFb, dlyToRev: S.reverbMix, master: S.master });
+  scene = await createScene(single.ctx, Array.from({ length: N_PARTS }, (_, i) => (i ? born : toControls(S))), sceneFromRack(S));
   single.allNotesOff(); router.clear();
   single.room.setMaster(0);
   current = scene.parts[0].engine;

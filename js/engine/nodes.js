@@ -72,6 +72,21 @@ export function makeIR(ctx, seconds, decay, damp = 0) {
   }
   return buf;
 }
+// A WaveShaper that leaves the signal as it is (a straight curve) but delays it EXACTLY as an
+// oversampled shaper does: the clean branch beside a saturated one goes through it, so the two
+// arrive together. Without it the oversampling's latency (128 frames in Chrome at 2x) puts the
+// saturated branch 2.9 ms behind the clean one and, at every in-between amount, the two sum into a
+// comb — a notch every 345 Hz (measured in the Filter's Drive and in the Tape, 2026-11-07). The same
+// setting on both shapers gives the same latency in any browser, whatever its number. LIN_K scales
+// the input into the curve's ±1 (beyond it a shaper clamps); the caller's gain after it carries ×LIN_K.
+export const LIN_K = 16;
+const LIN_CURVE = new Float32Array([-1, 1]);
+export function mkLinearShaper(ctx, oversample) {
+  const input = ctx.createGain(); input.gain.value = 1 / LIN_K;
+  const shaper = ctx.createWaveShaper(); shaper.curve = LIN_CURVE; shaper.oversample = oversample;
+  input.connect(shaper);
+  return { input, shaper };
+}
 // --- LFO shapes an OscillatorNode doesn't have: S&H and drift ('sh', 'drift') ---
 // They are looped BUFFERS read by an AudioBufferSourceNode; the knob's speed is
 // their playbackRate. Time unit of the buffer: 0.1 s at 8 kHz (a control signal:

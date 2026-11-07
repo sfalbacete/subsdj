@@ -3159,8 +3159,8 @@ engine (corr 0.998) with the wet branch 128 frames LATE: the WaveShaper's oversa
 what goes through it, and the dry branch beside it didn't wait. At every in-between amount the two
 summed into a comb — a notch every 345 Hz, 2.9 ms apart: the Dist sounded hollow, a still flanger
 under every preset that used it. The worklet delays its dry branch by exactly its own latency (an
-impulse comes out as ONE echo, 6·10⁻⁴ of a second one). The same pattern is still in the Filter's
-Drive (128 frames) and in the Tape's saturation (129): measured, pending a decision. The Dist's law is
+impulse comes out as ONE echo, 6·10⁻⁴ of a second one). The same pattern was in the Filter's Drive
+(128 frames) and in the Tape's saturation (129) — see the end of this section. The Dist's law is
 the old one (`amount·tanh(4·(1 + 6·amount)·x)/tanh 4/(1 + amount) + (1 − amount)·x`; a sine follows
 it within 1.3 %): the presets keep their character and lose the comb. The bank's fingerprint alarm
 caught exactly the 21 presets with Dist and the 2 with flanger.
@@ -3220,3 +3220,123 @@ the rest bit-identical (measured 0.000 / 0.75).
 running (the oversampling: two 32-tap filters per sample and channel) — the shared budget counts it
 that way. Presets: Crushed Arp, Comb Arp (Motion) and Jet Pad (Pads) show it; demo pairs DST 1-14 and
 FLG 1-8.
+
+**The same comb, in the Filter's Drive and in the Tape.** Both mix a clean branch and a saturated
+one, and the saturated one goes through an oversampled WaveShaper (2x; 4x for Fold): 2.9 ms late. How
+deep the comb is depends on how alike the two branches are in level; in the curve's linear region the
+Filter's Drive at 0.2 — the most common value in the bank — gives 33 dB from peak to notch, and the
+Tape at 0.5 gives 26 dB across the whole mix. And since the saturated branch compresses as a note gets
+louder, the balance — and the comb's depth — moved along every note. Sergio: «if you think it's good
+for the synth, go ahead; if we don't like the result, we go back». The fix is cheaper than a worklet:
+the clean branch goes through a STRAIGHT shaper with the same oversampling (`nodes.mkLinearShaper`, a
+two-point curve with the input scaled into its ±1), so both carry the same latency in any browser,
+whatever its number. It is born with the saturated branch (Drive or Saturation above 0): at 0 nothing
+changes, not even by its latency; a sounding voice hands over with a 10 ms crossfade. Measured with a
+saw quiet enough for the curves to be linear, the harmonics against the clean render spread 30 dB
+before (Drive 0.2) and 23 dB (Tape 0.5); after, 0.02 and 0.12 dB (check «aligned branches»). The
+second shaper costs what the first did — almost all of it is the oversampling: the Drive goes from
+0.15 to 0.25 «simple voices» and the Fold's extra from 0.13 to 0.30 (10 voices × 20 s, before and
+after). 18 factory presets use them (17 the Drive, Nostalgia Tape the tape).
+
+**By ear, then the bank.** The before/after of the 33 presets that changed (22 for the Dist and the
+flanger, 18 for the Drive and the Tape, 7 in both) went to Sergio first: «more punch; it doesn't change
+much, some timbres move a little, but not towards anything bad — it just sounds fatter where it should
+(the percussion)». Then the fingerprints were renewed — BEFORE the levels: with the alarm still up, every
+one of the 33 counted as failing and the level tool would have moved them all to −14 LUFS exactly,
+not just the ones out of tolerance — and nine Masters came back to the bank's rules (bank rev 14):
+louder now, Neuro Bass, Hoover, Nostalgia Tape, Talking Robot and Syllables; the 909 Kick, 909 Snare
+and 808 Cowbell over the hits' peak; and Motorik Bass, quieter in LUFS but peakier, held by its peak
+ceiling (a note keeps 5 dB of room before the limiter).
+
+## Parts on: the level stays (2026-11-07)
+
+Sergio, trying the bank: «when I switched to Sequencing (Parts), suddenly everything got louder». Measured:
+switching Parts on multiplied the sound by its own Master again — +6.8 dB for Moog Bass (×2.38), +5.5 for
+Syllables (limited; +8.2 without the limiter), +2.6 for Glass Pad, −6.8 for Jet Pad (×0.47). `enableScene`
+gave the new scene's Room the preset's Master as its master, and part 1 kept that same Master as its fader
+(in Parts `master` is the part's fader): Master². Harmless when Masters were around 0.7; since 1.1.0 they are
+makeups up to ×4. Now the scene born from the rack starts with a NEUTRAL master (1 = 0 dB, `sceneFromRack`,
+shared by `enableScene` and the selftest): part 1 = Room 1 × fader Master = what the single engine gave.
+Measured on a dry saw at ×0.47 / ×1 / ×2.4: 0.0 dB. A pad can still differ by ±1 dB from one context to the
+other — the scene builds more engines, so the seeded random draws (phases, drift, the reverb's IR) come out
+different; that is the same note played twice, not a level. Scene files carry their own master and keep it.
+(The same afternoon, pads that «saturated» after continuing a session were a restored scene with Layer on —
+Reset only takes the part being edited back to Init; the others went on sounding.)
+
+## The bank after the destruction and the FM4: quality, not evidence (2026-11-07)
+
+Sergio asked whether, after Dist · Flanger and the comb, the bank needed a look, or presets that show what
+the synth can do. Three findings: the coverage check in `engine/bankCheck.js` was blind to the new knobs (it
+only knew `dist > 0` and `flAmt > 0`; the four part-level destinations entered on their own through
+MX_DESTS), so its 131/131 was true only of what it looked at; the FM4 of 1.8.0 — operator envelopes, key
+scaling, detune, fixed frequency — was in no factory preset at all (the 16 FM4 presets were the ones from
+before); and of the destruction the bank showed Hard, Lows, Steps → Dist/Rate and Macro → Bits (Crushed Arp),
+the tuned comb (Comb Arp) and the flanger in tempo (Jet Pad), nothing else. Sergio's rule: **presets of
+quality, not evidence** — what the consolidated banks ship (docs/BANK.md), not a demonstration of a knob.
+
+**The coverage first.** Thirteen features added (Dist hard / fuzz, Crush bits, Crush rate, Lows, the comb at
+Depth 0 with feedback, the flanger LFO in tempo, FM4 attack / sustain / release, key scaling, detune, fixed,
+the sequencer in chords), each read on the effective value and only when it can be heard (a Dist type counts
+when the Dist sounds, by its knob or by the matrix driving it from 0). From then on the selftest names the
+holes instead of guessing them. Rect is NOT asked for (below).
+
+**FM4 by ear — the layer 5 that was pending.** Applied to the presets whose classic has it, with the settings
+the demo pairs already carried: **DX E-Piano** gets the DX chorus (ops 3-4 +5 ct, the second pair against the
+first) and key scaling (Key time 0.6, the tine −0.5 up the keyboard): measured, the high chord's centroid
+737 → 701 Hz and its decay to −20 dB 2.03 → 1.93 s; a variant with the tine at ratio 14 — the DX7's E.PIANO 1 —
+goes to the ear beside it (centroid 857: much brighter). **Rhodes**: the bark (op 2, ratio 1) fades up the
+keyboard (−0.5) and Key time 0.4; the tine's own level scaling was tried (−0.3) and dropped: a real Rhodes is
+a bell up high, the tine must stay. **FM Brass**: attack 150 / 100 ms on ops 2-3 (the modulators swell in: the
+start 5 dB quieter, the brightness arriving over the first 200 ms) and op 2's release 0.2 s, so the tail
+darkens (centroid 363 → 302 Hz, 250 ms after the key). **Marimba and Glockenspiel** were given Key time 0.5 /
+0.4 and it was taken out again: the fundamental's level at +0.25 / +0.45 / +0.65 s came out IDENTICAL with and
+without it, on every note from C3 to C7. Their decay lives in the Amp Env (d 1.0 / 2.5 s, s 0), which ends
+the note before the operators' decays (1.4 / 2.5 s) count; for Key time to shorten the small bars the operators
+would have to carry the decay under a flat Amp Env — another preset, for another day.
+
+**Six presets, each with its reference.** Fuzz Bass (the bass fuzz with a clean blend: Lows at 110 Hz keeps
+the fundamental of C1–F2 whole — the sine under the saw — and the harmonics are fuzzed; Fuzz rather than
+Hard for its asymmetry: the 2nd harmonic 4 dB up, measured). Fuzz Lead (the Minimoog charts' «fuzz
+guitar»: saw + triangle sub, the filter closed and tracking, aftertouch and Macro 1 → Dist). Chip Lead (the
+8-bit console as the modern packs ship it: a 12 % pulse, delayed vibrato, the chips' echo channel, 8 bits
+and a 10 kHz hold for the sheen; Macro 1 walks the duty cycle 12 → 50 %). Lo-Fi Keys (the lo-fi beat's
+e-piano: a Rhodes at 10 bits and 17 kHz on a worn tape — the SP-1200's 12 bit / 26 kHz goes to the ear beside
+it). Steel Drum (DX7 ROM1A «STEEL DRUM», Juno-106 «Steel Drums»: carriers at 1× and 2× — the octave tuned into
+the same dent —, each pair's modulator only in the strike, and op 4 FIXED at 1870 Hz: the pan's clank, the
+same metal on every key; a 40 ct blip; Key time 0.3). Chord Sequence (the chord sequencer every modern poly
+has: Chord on, the tresillo stab riff with its octave jumps in the phrase, the dotted-eighth echo in the
+rests). Rendered for the ear with `tools/render.mjs`; the sequence with the selftest's trick (the Seq's ticks
+driven from `ctx.suspend` every 25 ms, since a setInterval does not run inside an offline render): the
+tresillo lands where it should at 124 bpm.
+
+**The Octavia that wasn't.** The first lead was «Octave Fuzz» on the Rect type: |x| of a tone IS its octave,
+so the dry half keeps the note and the wet half should ring an octave up. Measured on C5 (523 Hz): the octave
+sat 11 dB under the fundamental — 13 with Soft, so Rect added 2 dB of octave. The reason is the insert's
+level: it sees peaks of +6 dBFS by design (the headroom comes later, in the Room), and the drive is tied to the
+amount (gain 1 + 6·amount), so the rectifier runs at tanh(2·4·x) with x near 1: flat most of the period, a
+dip at each zero crossing — a pulse train, not a rectified sine — and the DC blocker takes away what |x|
+mostly is. With the oscillators 10 dB down and the filter sitting ON the note with full keytrack (the neck
+pickup with the tone rolled off, which is how an Octavia is played) the octave reaches −8 dB; for a clean
+one the input would have to drop another 10 dB, and ×4 of Master cannot bring that back to the bank's
+level. So Rect stays a demo (DST 7-8) and the lead became Fuzz Lead. Noted for the module: a Rect with
+its own input trim would be the real Octavia.
+
+**The fuzz's dead zone, in context.** FUZZ_GATE 0.02 on the driven signal chokes below −47 dBFS at the
+insert: on a bass with a 0.18-0.3 s release the tails of Fuzz and Hard came out identical (RMS every 100 ms
+after the key). The sputter the demo DST 4 shows needs a long, fading note; the preset's play line no
+longer claims it.
+
+**Levels and fingerprints.** The factory batch leveled the newcomers (Fuzz Bass, Steel Drum and Chord
+Sequence were off by more than 3 dB at Master 1: ×1.86, ×1.53, ×2.24; the other three landed within the
+rule at Master 1) and the fingerprints of the nine presets whose data changed against the reference were
+renewed: selftest 245/245 (checks 123/123, factory 122/122), coverage 152/152; the ear session's WAVs are in `x/ear-2026-11-07/` (keys, keys2, brass, leads, bass,
+bass2, steel, steel2, chordseq), A/B for the refinements and variants for the newcomers, for Sergio to
+decide before anything is committed.
+
+**The ear's verdict (Sergio, the same evening).** Of the WAVs: Fuzz Bass WITHOUT Lows (the bass fuzzed whole
+rather than the sub kept clean — Lows stays shown by Crushed Arp), FM Brass B, Chord Sequence, DX E-Piano C
+(B plus the tine at ratio 14, the DX7's — the 12 it carried was the old range's ceiling), Lo-Fi Keys at 10
+bits and 17 kHz (not the SP-1200's 12 / 26), Rhodes A — as it was, no key scaling —, Chip Lead at 12 % with
+its crush, Fuzz Lead on HARD (over Fuzz and Soft), Steel Drum with the blip DOWN. Applied, re-leveled, the
+fingerprints renewed; the coverage still names every feature (Fuzz Bass keeps `dist:fuzz`, Fuzz Lead and
+Crushed Arp `dist:hard`, DX E-Piano, Lo-Fi Keys and Steel Drum the FM4 key scaling).

@@ -57,6 +57,8 @@ const wave = (d, w) => (soundsA(d) && eff(d, 'waveA') === w) || (soundsB(d) && e
 const lfoOn = (d, k) => (k !== 'pan' && eff(d, k + 'LfoLvl') > 0) || (k === 'pan' && eff(d, 'panLfoLvl') > 0) || (LFO_SRC[k] && usesSrc(d, LFO_SRC[k]));
 const lfoShape = (d, s) => LFO_KEYS.some(k => k !== 'pan' && lfoOn(d, k) && eff(d, k + 'LfoShape') === s);
 const seqTok = (d, re) => eff(d, 'seqOn') === 'on' && re.test(eff(d, 'seqPat'));
+const OPS = [1, 2, 3, 4];
+const destroys = d => eff(d, 'dist') > 0 || usesDst(d, 'dist');   // the Dist sounds: its knob, or the matrix driving it from 0
 
 export const FEATURES = [
   ...WAVES.map(w => ({ id: 'wave:' + w, label: 'wave ' + w, test: d => wave(d, w) })),
@@ -128,6 +130,21 @@ export const FEATURES = [
   { id: 'ws:loop', label: 'wave sequence (loop)', test: d => eff(d, 'wsOn') === 'on' && eff(d, 'wsMode') === 'loop' },
   { id: 'ws:1shot', label: 'wave sequence (1-shot)', test: d => eff(d, 'wsOn') === 'on' && eff(d, 'wsMode') === '1shot' },
   { id: 'swing', label: 'swing', test: d => eff(d, 'swing') > 0.5 },
+  // Dist · Flanger (2026-11-07): the part's insert. A type counts when the Dist sounds (knob or matrix);
+  // the crush when its knob is up or the matrix drives it; Lows when something is being destroyed. Rect is not
+  // asked for: at the insert's level it cannot give a clean octave (DESIGN, 2026-11-07), the demos show it
+  ...['hard', 'fuzz'].map(t => ({ id: 'dist:' + t, label: 'distortion ' + t, test: d => destroys(d) && eff(d, 'distType') === t })),
+  { id: 'crush:bits', label: 'crush bits', test: d => eff(d, 'crushBits') > 0 || usesDst(d, 'bits') },
+  { id: 'crush:rate', label: 'crush rate', test: d => eff(d, 'crushRate') > 0 || usesDst(d, 'rate') },
+  { id: 'dist:lows', label: 'destruction with Lows (the bass kept whole)', test: d => eff(d, 'distKeep') > 0 && (destroys(d) || eff(d, 'crushBits') > 0 || eff(d, 'crushRate') > 0 || usesDst(d, 'bits') || usesDst(d, 'rate')) },
+  { id: 'flanger:comb', label: 'flanger as a tuned comb (Depth 0, feedback)', test: d => eff(d, 'flAmt') > 0 && eff(d, 'flDepth') < 0.01 && Math.abs(eff(d, 'flFb')) >= 0.3 },
+  { id: 'flanger:sync', label: 'flanger LFO in tempo', test: d => eff(d, 'flAmt') > 0 && eff(d, 'flSync') !== 'free' },
+  // FM4 1.8: the operator's shape beyond its decay, key scaling, detune and a fixed frequency
+  { id: 'fm4:env', label: 'FM4 operator attack / sustain / release', test: d => wave(d, 'fm4') && OPS.some(i => eff(d, 'fm4A' + i) > 0 || eff(d, 'fm4S' + i) > 0 || eff(d, 'fm4Rel' + i) < 4) },
+  { id: 'fm4:key', label: 'FM4 key scaling (time or level)', test: d => wave(d, 'fm4') && (eff(d, 'fm4Kt') > 0 || OPS.some(i => eff(d, 'fm4K' + i) !== 0)) },
+  { id: 'fm4:detune', label: 'FM4 operator detune', test: d => wave(d, 'fm4') && OPS.some(i => eff(d, 'fm4Det' + i) !== 0) },
+  { id: 'fm4:fixed', label: 'FM4 operator at a fixed frequency', test: d => wave(d, 'fm4') && OPS.some(i => eff(d, 'fm4Fix' + i) === 'on') },
+  { id: 'seq:chord', label: 'sequencer in chords', test: d => eff(d, 'seqOn') === 'on' && eff(d, 'seqChord') === 'on' },
   ...MX_SOURCES.filter(s => s.id !== 'off').map(s => ({ id: 'src:' + s.id, label: 'matrix source ' + s.label, test: d => usesSrc(d, s.id) })),
   ...MX_DESTS.filter(t => !/^amt\d$/.test(t.id)).map(t => ({ id: 'dst:' + t.id, label: 'matrix destination ' + t.label, test: d => usesDst(d, t.id) })),
   { id: 'dst:amt', label: 'matrix destination Amount of a slot', test: d => slots(d).some(s => /^amt\d$/.test(s.dst)) },   // the six count as one

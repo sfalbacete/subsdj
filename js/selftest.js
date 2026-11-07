@@ -32,7 +32,7 @@ import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_L
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal, crushHzOf } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
-import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
+import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part, sceneFromRack } from './engine/parts.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
 import { PANELS as LED_PANELS } from './ui/activity.js';
@@ -2994,6 +2994,32 @@ export async function runSelfTest() {
     // part and a predelay change from the room reach every part's S; (4) part 4's
     // reverb send leaves a tail in the room once its VCA has closed.
     body.appendChild(el('st-cat', 'Parts'));
+    // Parts switched on from the rack (enableScene → sceneFromRack): part 1 must sound as the single engine
+    // did. The scene's master used to start at the preset's Master too: Master² (+7.5 dB at ×2.38, −6.6 at ×0.47)
+    {
+      const NAME = 'Parts on from the rack: part 1 sounds as the single engine did (the scene\'s master starts neutral, not at the preset\'s Master)';
+      let r0;
+      try {
+        // a sound with nothing random in it (no drift, no unison, no reverb): a scene builds more engines, so
+        // seeded random draws (phases, drift, the IR) come out different — ±1 dB on a pad, not a level error
+        const problems = [], out = [], dry = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 3000, reso: 0, a: 0.01, d: 0.1, s: 1, r: 0.2, reverbMix: 0, dlyAmt: 0 };
+        for (const pr of [{ ...dry, master: 1 }, { ...dry, master: 2.4 }, { ...dry, master: 0.47 }]) {
+          const S = applyPreset(makeDefaultState(), pr), secs = 1.6;
+          const rend = async mk => { const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR), e = await mk(ctx);
+            e.noteOn('a', NOTE1); e.noteOn('b', NOTE2); ctx.suspend(1).then(() => { e.noteOff('a'); e.noteOff('b'); ctx.resume(); });
+            return ctx.startRendering(); };
+          const bOff = await rend(async ctx => { const e = new AudioEngine(); e.S = structuredClone(S); await e.init(ctx); return e; });
+          const bOn = await rend(async ctx => (await createScene(ctx, [toControls(S)], sceneFromRack(S))).parts[0].engine);
+          const rms = b => { const d = b.getChannelData(0); let s = 0; for (const v of d) s += v * v; return Math.sqrt(s / d.length); };
+          const jump = 20 * Math.log10(rms(bOn) / rms(bOff));
+          out.push('×' + S.master + ' ' + jump.toFixed(2) + ' dB');
+          if (!(Math.abs(jump) < 0.1)) problems.push('Master ×' + S.master + ': the part jumps ' + jump.toFixed(1) + ' dB when Parts goes on');
+        }
+        console.log('parts on from the rack:', out.join(' · '));
+        r0 = { name: NAME, peak: 0, ok: !problems.length, problems };
+      } catch (e2) { r0 = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+      push(r0);
+    }
     let r;
     try {
       const problems = [];
@@ -4594,6 +4620,22 @@ export async function runSelfTest() {
       if (!(off <= 3)) problems.push(off + ' periods off by more than 5 % around the jump (a slide would bend ~20)');
       console.log('fx flanger: +fb 440/660', pos.toFixed(1), '· −fb 220/440', neg.toFixed(1), '· periods off around the jump', off, 'of', zc.length - 1);
       return peakOf(yj);
+    });
+    // The same comb lived in the Filter's Drive (per voice) and in the Tape's saturation (master): their
+    // saturated branch went through an oversampled WaveShaper and arrived 128 frames late. A saw quiet
+    // enough for the curves to be linear must keep its harmonics in proportion (before: 30 dB of spread)
+    await one('Filter Drive (soft and fold) and Tape saturation: the clean and saturated branches aligned (a quiet saw keeps its harmonics in proportion: no comb)', async problems => {
+      const base = { waveA: 'sawtooth', levelA: 0.03, levelB: 0, cutoff: 20000, reso: -3, a: 0.005, d: 0.1, s: 1, r: 0.1, master: 1 };
+      const rend = async st => { loadState(st); return (await renderOne(structuredClone(engine.S), { secs: 1.5, offAt: 1.3 })).getChannelData(0); };
+      const ref = await rend(base), t1 = 0.4 + Math.round(0.8 * NOTE1) / NOTE1;   // whole periods
+      const spread = d => { const r = []; for (let h = 1; h <= 30; h++) r.push(20 * Math.log10(goe(d, h * NOTE1, 0.4, t1) / goe(ref, h * NOTE1, 0.4, t1))); return Math.max(...r) - Math.min(...r); };
+      const out = [];
+      for (const [label, extra] of [['Drive 0.2', { filterDrive: 0.2 }], ['Drive fold 0.3', { filterDrive: 0.3, driveChar: 'fold' }], ['Tape 0.5', { tapeSat: 0.5 }]]) {
+        const s = spread(await rend({ ...base, ...extra })); out.push(label + ' ' + s.toFixed(2));
+        if (!(s < 0.5)) problems.push(label + ': the harmonics spread ' + s.toFixed(1) + ' dB from the clean render (a comb: the branches are not aligned)');
+      }
+      console.log('aligned branches: spread in dB ·', out.join(' · '));
+      return 0;
     });
     await one('Matrix → Dist · Flanger (part level): Steps → Dist destroys only the steps at 1 · a per-note source (velocity) does nothing and doesn\'t even wake the insert · the flanger\'s LFO in tempo', async problems => {
       const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: -3, a: 0.005, d: 0.1, s: 1, r: 0.1, bpm: 120,

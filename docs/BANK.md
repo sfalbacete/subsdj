@@ -370,6 +370,11 @@ saved stops loading: the old bank comes back from the archive).
 - Hits are measured by peak (−4 dBFS), not loudness: a kick is 50 ms of transient.
 - A scene can reserve a part for the player (`keys`, 1-4): its player off, the rack and the
   keyboard go to it on load; exported scenes carry it too.
+- 2026-11-07 (Sergio): **quality, not evidence**. A preset enters only as a sound the consolidated
+  banks ship or a sound worth playing, never as the demonstration of a knob (that is what the
+  demo pairs are for). The coverage check names the holes; the ear fills them or leaves them
+  (Rect is left to the demos). Bank rev 15: six presets, three FM4 refinements (DESIGN, «The bank
+  after the destruction and the FM4»).
 
 ## Sources
 

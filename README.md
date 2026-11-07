@@ -48,7 +48,7 @@ steps, effects, parts and generative music.
 
 ## The factory bank
 
-109 presets in 12 categories by use — Bass, Leads, Brass & Strings, Keys, Plucks &
+118 presets in 12 categories by use — Bass, Leads, Brass & Strings, Keys, Plucks &
 Bells, Pads, Cinescape, Motion, Percussion, Voice, FX & Textures — chosen so that
 every one has a job and none sounds like another: the classics every synth bank has
 and the sounds only this one does. Hover a preset in the picker or on the Presets

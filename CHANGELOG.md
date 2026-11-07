@@ -6,8 +6,37 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## [Unreleased]
+## [1.9.0] — 2026-11-07
 
+The part's Dist · Flanger becomes a way to **destroy** a sound — four drive types, a bit and rate
+**crusher**, **Lows** that keep the bass whole, a flanger with its own LFO in tempo that rings as a
+**tuned comb** — and the **matrix** reaches all of it. Three combs that were never meant to be there
+are gone from the Dist, the Filter's Drive and the Tape: everything that goes through them sounds
+fuller. The **session survives** closing the page, **Seq Rec** records a phrase while it loops, Parts
+no longer jumps in level when it goes on, and the bank grows to 118 with the FM4 of 1.8.0 inside
+its classics and six new sounds. Presets, scenes, libraries and MIDI maps load as before; a sound
+with Dist, Drive or Tape between 0 and 1 — yours too — sounds fuller than it did, on purpose.
+
+- **Bank rev 15: the FM4 of 1.8.0 reaches the factory bank, and six presets.** DX E-Piano gets the DX7's tine
+  (ratio 14), the DX chorus (its second pair +5 cents) and key scaling (the tine fades up the keyboard; every
+  operator envelope shorter there, longer below); FM Brass's modulators swell in over the first 150 ms (the
+  DX7 brass «wah») and its body modulator lets go with the key, so the tail darkens; Rhodes was offered the
+  same scaling and stays as it was, by ear. New: **Fuzz Bass** (Bass: a bass through a fuzz, whole), **Fuzz
+  Lead** (Leads: the fuzz solo, clipped flat; aftertouch and M1 add fuzz), **Chip Lead** (Leads: a 12 % pulse through an 8-bit, 10 kHz converter,
+  the tracker's delayed vibrato, M1 walks the duty cycle to 50 %), **Lo-Fi Keys** (Keys: an e-piano at 10 bits
+  and 17 kHz on a worn tape, in a small plate), **Steel Drum** (Plucks & Bells: the pan, its metal on an
+  operator at a fixed 1870 Hz) and **Chord Sequence** (Motion: the sequencer in chords, the tresillo stab riff
+  with its octave jumps written in the phrase). The bank check now asks for the new features by name —
+  the Dist types, Crush bits and rate, Lows, the tuned comb, the flanger in tempo, the FM4 operator
+  envelopes, key scaling, detune and fixed frequency, the sequencer in chords — and every one is shown.
+  Two things were tried and left out, measured: Key time on Marimba and Glockenspiel (inaudible: the Amp Env
+  ends the note before the operators' decays count) and an Octavia on the Rect type (at the insert's level the
+  rectifier saturates into pulses and the octave stays 8 dB under the note).
+- **Switching Parts on no longer changes the volume.** The scene's master started at the Master of the
+  sound you were playing, and part 1 kept that same Master as its fader: it came out at Master × Master.
+  With the makeups the presets carry since 1.1.0 (up to ×4), that was up to +12 dB the moment Parts went
+  on — into the limiter — and a quiet preset (×0.47) dropped 7 dB. Now the scene's master starts at
+  0 dB and part 1 sounds exactly as it did; the scenes in files keep their own master.
 - **Dist · Flanger, rebuilt: ways to destroy a sound, and both in the matrix.** The part's Dist
   now has a **type** — Soft (the tanh it always was), Hard (clipped flat), Fuzz (very high gain with a
   dead zone: every note's tail chokes and sputters) and Rect (the octave above) — and a **Crush**:
@@ -22,9 +51,12 @@ scenes, libraries, MIDI maps). The why behind each module is in
   notes on its 1s. Being one for the whole part, they don't take per-note sources (envelopes,
   velocity…): the slot says so. Jumps of the flanger's delay (S&H, square, a step) are crossfaded, not
   slid, so they don't chirp. New presets: **Crushed Arp** and **Comb Arp** (Motion), **Jet Pad** (Pads).
-- **The Dist loses a comb it always had.** Its saturated branch arrived 2.9 ms after its clean one
-  (the oversampling's delay) and the two summed into a comb — a notch every 345 Hz — at every amount
-  between 0 and 1. Now they are aligned: the presets with Dist sound fuller, and a little louder.
+- **The Dist, the Filter's Drive and the Tape lose a comb they always had.** In all three the
+  saturated branch arrived 2.9 ms after the clean one (the oversampling's delay) and the two summed
+  into a comb — a notch every 345 Hz, up to 33 dB deep — at every setting between 0 and 1. Now they
+  are aligned: the presets that use them sound fuller and punchier (nine of them brought back to the
+  bank's level: Neuro Bass, Hoover, Nostalgia Tape, Motorik Bass, Talking Robot, Syllables, 909 Kick,
+  909 Snare, 808 Cowbell).
 
 - **Your session survives closing the page.** Whatever you were doing and had not saved — the sound,
   the Arpeggiator / Sequencer with its phrase, the Wave Sequence, Steps, the matrix, the tempo, the

@@ -15,7 +15,7 @@
    ===================================================================== */
 import { MX_SLOTS, MX_SPAN, FX_DESTS, FM4_KEYS, FM4_SHAPE_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
-import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
+import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom, mkLinearShaper, LIN_K } from './nodes.js';
 import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
 import { getVocalBank, bwMul, vocMakeup, brightMul, VOC_BRIGHT_IX,
          VOC_LIFE_CENTS, VOC_SMOOTH, VOC_ATK_GAIN, VOC_ATK_TAU, VOC_ATK_Q,
@@ -46,6 +46,7 @@ const FOLD_CURVE = (() => {
 // the tanh at the same Drive (its level doesn't grow when pushed): DRV_FOLD_MK evens it out.
 const DRV_GAIN = { soft: 4, fold: 9 }, DRV_BIAS = { soft: 0.3, fold: 1 }, DRV_FOLD_MK = 1.4;
 const DRV_DC_HZ = 5;   // DC block of the saturated path: the bias creates DC along with the signal
+const DRV_XF = 0.01;   // s: a sounding voice hands its clean branch over to the aligned one (ensureDrive) over this time constant
 // Value of the curve at u, interpolated the way the WaveShaper does (used by the bias compensation)
 const curveAt = (c, u) => { const x = (c.length - 1) * (Math.max(-1, Math.min(1, u)) + 1) / 2, i = Math.min(c.length - 2, Math.floor(x)); return c[i] + (c[i + 1] - c[i]) * (x - i); };
 
@@ -88,7 +89,9 @@ const COST = {
   copy: 0.005,        // each oscillator copy (unison, Supersaw = 7, stacked octaves): PolyBLEP, cheap
   sine: 0.06, sineFm: 0.18, fm4: 0.47,   // per copy: sines per sample (FM with index: two; FM4: four)
   filterMod: 0.07, filterMod24: 0.16,     // modulated filter (env, LFO, matrix): coefficients per sample
-  drive: 0.15, fold: 0.13, vocal: 0.25, reson: 0.24,  // fold: what the fold adds (4x oversampling; measured 2026-10-20, Asym adds nothing)
+  // drive: with its clean branch aligned (a second, straight shaper with the same oversampling) since
+  // 2026-11-07: ×1.7 the old 0.15 (soft) and ×1.95 the fold's 0.28, measured on 10 voices × 20 s
+  drive: 0.25, fold: 0.3, vocal: 0.25, reson: 0.24,  // fold: what the fold adds (4x oversampling; Asym adds nothing)
   vocDyn: 0.26,       // Vocal made dynamic by Bite: 10 WaveShapers (biquads still k-rate)
   vocMx: 0.8,         // Vocal moved by the matrix: WaveShapers + a-rate biquads (measured on «Madrigal»)
   bow: 0.02,          // a bowed copy: two lines, the friction table and the noise per sample (estimate)
@@ -548,11 +551,22 @@ export class Voice {
     // matrix (Drive target): the slot comes in through dvMod — its gain is the knob's travel
     // in curve units — onto the input gain (fold sweeps)
     this.dvMod = ctx.createGain(); this.dvMod.gain.value = c.mod; this.dvMod.connect(this.dvPre.gain);
+    // The clean branch through a STRAIGHT shaper with the same oversampling (nodes.mkLinearShaper): it
+    // arrives with the saturated one — before, the wet came 128 frames late and the two made a comb at
+    // every in-between Drive. A voice not yet sounding just switches branches; a sounding one (the knob
+    // or the matrix waking the Drive mid-note) crossfades, or the 2.9 ms would jump.
+    const lin = mkLinearShaper(ctx, c.os), dry = (1 - this.S.filterDrive) * LIN_K;
+    this.dvLinIn = lin.input; this.dvLin = lin.shaper; this.dvDryL = ctx.createGain();
+    this.preFilter.connect(this.dvLinIn); this.dvLin.connect(this.dvDryL); this.dvDryL.connect(this.dvOut);
+    if (now < this.t0) { this.dvDryL.gain.value = dry; this.dvDry.gain.value = 0; }
+    else { this.dvDryL.gain.value = 0; this.dvDryL.gain.setTargetAtTime(dry, now, DRV_XF); this.dvDry.gain.setTargetAtTime(0, now, DRV_XF); }
   }
   _driveApply(tau = 0.02) {
     if (!this.dvShaper) return;
     const c = this._driveCfg(), tc = this.ctx.currentTime;
-    if (this.dvChar !== c.ch) { this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvChar = c.ch; }   // character change (the curve jumps: a click, like changing waveform)
+    if (this.dvChar !== c.ch) {   // character change (the curve jumps: a click, like changing waveform); the clean branch follows its oversampling
+      this.dvShaper.curve = c.curve; this.dvShaper.oversample = c.os; this.dvLin.oversample = c.os; this.dvChar = c.ch;
+    }
     this.dvPre.gain.setTargetAtTime(c.pre, tc, tau);
     this.dvPost.gain.setTargetAtTime(c.post, tc, tau);
     this.dvMod.gain.setTargetAtTime(c.mod, tc, tau);
@@ -893,7 +907,8 @@ export class Voice {
   setFilterDrive(v) {
     if (v > 0) this.ensureDrive();
     const tc = this.ctx.currentTime;
-    this.dvDry.gain.setTargetAtTime(1 - v, tc, 0.02);
+    if (this.dvDryL) this.dvDryL.gain.setTargetAtTime((1 - v) * LIN_K, tc, 0.02);   // the aligned clean branch (ensureDrive)
+    else this.dvDry.gain.setTargetAtTime(1 - v, tc, 0.02);
     if (!this.dvWet) return;
     this._driveApply();
     this.dvWet.gain.setTargetAtTime(v, tc, 0.02);
@@ -1131,7 +1146,7 @@ export class Voice {
     }
     [this.busA, this.busB, this.gA, this.gB, this.ringX, this.noiseGain, this.nLP, this.nHP,
      this.lp, this.hp, this.lp2, this.hp2, this.lpMix, this.hpMix, this.fenvGain, this.vca, this.ampMod, this.panner,
-     this.dvDry, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut, this.dvBias, this.dvComp, this.dvDC, this.dvMod, ...(this.resMatG || []),
+     this.dvDry, this.dvLinIn, this.dvLin, this.dvDryL, this.dvPre, this.dvShaper, this.dvPost, this.dvWet, this.dvOut, this.dvBias, this.dvComp, this.dvDC, this.dvMod, ...(this.resMatG || []),
      this.vocDry, this.vocOut, this.vocWet, this.vocCtl, this.vocWanderGain, this.vocBurstGain, this.vocBurstBp,
      ...(this.vocBqs || []), ...(this.vocGains || []), ...(this.vocShapers || []),
      ...(this.vocBrights || []),

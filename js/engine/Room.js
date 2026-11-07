@@ -16,7 +16,7 @@
    engines: set() keeps their S in sync (Arp/Seq/WaveSeq read the S.bpm of
    their own engine: a single clock for the scene).
    ===================================================================== */
-import { makeIR, mkLFO, setLfoShape } from './nodes.js';
+import { makeIR, mkLFO, setLfoShape, mkLinearShaper, LIN_K } from './nodes.js';
 
 // Output limiter (see worklets/limiter-processor.js): same delay (6 ms) and
 // same gain below the threshold (+1.71 dB, measured) as the DynamicsCompressor
@@ -239,6 +239,7 @@ export class Room {
     this.satLP = ctx.createBiquadFilter(); this.satLP.type = 'lowpass'; this.satLP.Q.value = -3; this.satLP.frequency.value = tapeLP(S.tapeSat);
     this.satWet = ctx.createGain(); this.satWet.gain.value = S.tapeSat;
     this.satOut = ctx.createGain();
+    this.satLin = null;   // the clean branch aligned with the saturated one: born with the first saturation (_ensureSatLin)
     // 2) wow/flutter: short line modulated by an irregular drift ('drift' buffer) and a fast sine;
     //    at 0 the dry path goes through whole (no latency, no phase); with wow > 0 everything goes through the line
     const wowOn = S.tapeWow > 0 ? 1 : 0;
@@ -280,6 +281,7 @@ export class Room {
     this.tapeIn.connect(this.satDry); this.satDry.connect(this.satOut);
     this.tapeIn.connect(this.satPre); this.satPre.connect(this.satShaper); this.satShaper.connect(this.satPost);
     this.satPost.connect(this.satLP); this.satLP.connect(this.satWet); this.satWet.connect(this.satOut);
+    if (S.tapeSat > 0) this._ensureSatLin(true);
     this.satOut.connect(this.wowDry); this.wowDry.connect(this.tapeOut);
     this.satOut.connect(this.tapeDelay); this.tapeDelay.connect(this.wowWet); this.wowWet.connect(this.tapeOut);
     this.tapeOut.connect(this.headroom); this.headroom.connect(this.master); this.master.connect(this.comp);
@@ -288,6 +290,22 @@ export class Room {
     // --- Shimmer (on demand: the common case shimAmt = 0 doesn't pay for the worklet) and freeze ---
     this.shim = null; this.frozen = false;
     if (S.shimAmt > 0) this._ensureShim();
+  }
+
+  // ---------- tape: the clean branch, aligned ----------
+  // The saturated branch goes through a ×2 oversampled WaveShaper, which delays it (129 frames with
+  // its low-pass); the clean one went straight, and at every Saturation between 0 and 1 the two summed
+  // into a comb across the whole mix (26 dB from peak to notch at 0.5). Now the clean branch goes
+  // through a straight shaper with the same oversampling (nodes.mkLinearShaper). Born with the first
+  // Saturation above 0 — at 0 the tape stays exactly transparent, without even its latency —, and
+  // live it takes over from the direct branch with a crossfade (the 2.9 ms would jump).
+  _ensureSatLin(born = false) {
+    if (this.satLin) return;
+    const ctx = this.ctx, lin = mkLinearShaper(ctx, '2x'), out = ctx.createGain(), dry = (1 - this.S.tapeSat) * LIN_K, now = ctx.currentTime;
+    this.tapeIn.connect(lin.input); lin.shaper.connect(out); out.connect(this.satOut);
+    this.satLin = { ...lin, out };
+    if (born) { out.gain.value = dry; this.satDry.gain.value = 0; }
+    else { out.gain.value = 0; out.gain.setTargetAtTime(dry, now, 0.01); this.satDry.gain.setTargetAtTime(0, now, 0.01); }
   }
 
   // ---------- shimmer ----------
@@ -349,7 +367,9 @@ export class Room {
       case 'reverbType': if (this.frozen && value !== 'plate') this.setFreeze(false); this._setType(value); this._shimUpdate(smooth); break;   // the IR doesn't freeze: release before switching
       // tape on the master (TAPE_*): each stage is exact at 0 again
       case 'tapeSat':
-        smooth(this.satDry.gain, 1 - value); smooth(this.satWet.gain, value);
+        if (value > 0) this._ensureSatLin();
+        if (this.satLin) smooth(this.satLin.out.gain, (1 - value) * LIN_K); else smooth(this.satDry.gain, 1 - value);
+        smooth(this.satWet.gain, value);
         smooth(this.satPre.gain, tapePre(value)); smooth(this.satPost.gain, tapePost(value));
         smooth(this.satLP.frequency, tapeLP(value)); break;
       case 'tapeWow': { const on = value > 0 ? 1 : 0;
@@ -449,7 +469,8 @@ export class Room {
       if (l.alt) { try { l.alt.stop(); l.alt.disconnect(); } catch (e) {} }   // the tape wow is a 'drift' buffer
     }
     for (const n of [this.tapeIn, this.satDry, this.satPre, this.satShaper, this.satPost, this.satLP, this.satWet, this.satOut,
-                     this.wowDry, this.wowWet, this.tapeDelay, this.tapeOut]) { try { n.disconnect(); } catch (e) {} }
+                     this.wowDry, this.wowWet, this.tapeDelay, this.tapeOut,
+                     ...(this.satLin ? [this.satLin.input, this.satLin.shaper, this.satLin.out] : [])]) { try { n.disconnect(); } catch (e) {} }
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
     try { this.comp.port.postMessage('stop'); } catch (e) {}   // the limiter is a worklet: make it stop processing
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
