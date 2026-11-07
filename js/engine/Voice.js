@@ -13,7 +13,7 @@
    Modulation matrix: slots source→GainNode(amt·span)→AudioParams of the
    target — the same plumbing as the dedicated routes, generalized.
    ===================================================================== */
-import { MX_SLOTS, MX_SPAN, FM4_KEYS, FM4_SHAPE_KEYS, STR_KEYS } from './params.js';
+import { MX_SLOTS, MX_SPAN, FX_DESTS, FM4_KEYS, FM4_SHAPE_KEYS, STR_KEYS } from './params.js';
 import { getWtSet } from './wavetable.js';
 import { mkVoiceLFO, setVoiceLfoRate, setVoiceLfoShape, stopVoiceLFO, nextVoicePhase, ctxRandom } from './nodes.js';
 import { resRatios, resQ, resGains, resNoiseGain, RES_BAR, RES_HARM } from './reson.js';
@@ -856,7 +856,7 @@ export class Voice {
       this.mxSlots[i] = null;
     }
     const S = this.S, srcId = S['mx' + i + 'src'], dstId = S['mx' + i + 'dst'];
-    if (srcId && srcId !== 'off') {
+    if (srcId && srcId !== 'off' && !FX_DESTS.has(dstId)) {   // the part's insert is wired by the engine (AudioEngine.fxRewire)
       const src = this._mxSrcNode(srcId), params = this._mxDestParams(dstId, i);
       if (src && params.length) {
         const gain = this.ctx.createGain();

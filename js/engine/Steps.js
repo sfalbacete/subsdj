@@ -124,6 +124,18 @@ export class Steps {
     this._run(t);
     return this.src[i];
   }
+  // The same source for a PART-level destination (the Dist · Flanger insert, wired when the
+  // matrix changes, not when a note starts): it doesn't start the lanes — the notes do (noteOn);
+  // if they are already running, the new lane joins them.
+  node(i) {
+    if (!this.src[i]) {
+      const ctx = this.e.ctx, c = ctx.createConstantSource();
+      c.offset.value = this.clock.users.has(this) ? this.valueAt(i, ctx.currentTime) : 0; c.start();
+      this.src[i] = c;
+    }
+    if (this.clock.users.has(this)) this._run(this.e.ctx.currentTime);
+    return this.src[i];
+  }
   _run(t) {
     const ctx = this.e.ctx, clock = this.clock;
     if (!clock.users.has(this)) clock.join(this, t, 0.25, this.e.bpm);

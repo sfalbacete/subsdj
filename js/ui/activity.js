@@ -41,7 +41,7 @@ export const PANELS = {
   'Voice · Master':  S => S.pitchEnvAmt !== 0 || S.glide > 0 || S.freqCents !== 0,
   'LFOs':            S => Object.values(LFOS).some(f => f(S)),
   'Matrix':          mxAny,
-  'Dist · Flanger':  S => S.dist > 0 || S.flAmt > 0,
+  'Dist · Flanger':  S => S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || S.flAmt > 0 || ['dist', 'bits', 'rate'].some(d => dstUsed(S, d)),
   'Chorus':          S => S.chAmt > 0,
   'Delay':           S => S.dlyAmt > 0,
   'Reverb':          S => S.reverbMix > 0,

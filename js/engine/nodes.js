@@ -72,14 +72,6 @@ export function makeIR(ctx, seconds, decay, damp = 0) {
   }
   return buf;
 }
-// FIXED saturation curve (tanh). It used to be regenerated on every gesture of the
-// Drive knob: one Float32Array(1024) per event, and swapping the curve could click.
-// Now the drive lives in the input gain (distPre) and the normalization (distPost).
-export function makeDistCurve() {
-  const n = 1024, c = new Float32Array(n), k = 4;
-  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
-  return c;
-}
 // --- LFO shapes an OscillatorNode doesn't have: S&H and drift ('sh', 'drift') ---
 // They are looped BUFFERS read by an AudioBufferSourceNode; the knob's speed is
 // their playbackRate. Time unit of the buffer: 0.1 s at 8 kHz (a control signal:

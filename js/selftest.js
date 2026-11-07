@@ -30,7 +30,7 @@ import { validateBank, coverage } from './engine/bankCheck.js';
 import { LEGACY_FP, DEMO_FP, migratePreset, describeFormat, unreadableReason, KNOWN_FORMATS } from './engine/legacy.js';
 import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_LS, invalidateUserSet, getWtSet,
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
-import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal } from './engine/params.js';
+import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal, crushHzOf } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part } from './engine/parts.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
@@ -899,7 +899,8 @@ export async function runSelfTest() {
       ['sec:FM', 'Sine'], ['sec:FM4', 'FM4'], ['sec:Wavetable', 'Wavetable'], ['sec:Wave Editor', 'Wavetable'],
       ['noiseColor', 'Noise'], ['vocVowel', 'Mix at 0'], ['resMat', 'Mix at 0'], ['fa', 'Amount'], ['fenvMode', 'Amount'],
       ['hitGap', 'hit'], ['pitchEnvDec', 'Amt'], ['monoTrig', 'Mono'], ['uniDetune', '1 voice'], ['cutLfoSpd', 'Level'], ['lfoFade', 'vibrato'],
-      ['mx1dst', 'free'], ['mx1amt', 'free'], ['flSpd', 'Fl.Amount'], ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
+      ['mx1dst', 'free'], ['mx1amt', 'free'], ['flSpd', 'Flanger at 0'], ['flFb', 'Flanger at 0'], ['distType', 'Dist at 0'], ['distKeep', 'nothing'],
+      ['chSpd', 'Amount'], ['dlyTime', 'Amount'],
       ['bpm', 'tempo'], ['reverbSize', 'Mix'], ['shimInt', 'Mix'], ['arpGate', 'Off'], ['seqGate', 'Off'],
       ['#seqCanvas', 'Off'], ['sec:Wave Sequence', 'Wavetable'], ['sec:Unison', null], ['levelB', null], ['cutoff', null]]);
     testCase('Osc B halfway: B sounds (square)', () => C.levelB.set(0.5), [['sec:Osc B', null], ['pulseWidth', null], ['pwmLfoLvl', null], ['pwmLfoSpd', 'Level']]);
@@ -913,6 +914,17 @@ export async function runSelfTest() {
     testCase('FM4 with op 3 muted', () => { C.waveA.set('fm4'); C.fm4L3.set(0); }, [['fm4R3', 'level 0'], ['fm4D3', 'level 0'], ['fm4V3', 'level 0'], ['fm4A3', 'level 0'], ['fm4S3', 'level 0'], ['fm4K3', 'level 0'], ['#fm4Fix3Ctl', 'level 0'], ['fm4R2', null], ['fm4V2', null], ['fm4Fb', null]]);
     testCase('FM4 with op 4 muted: its Feedback goes dim too', () => { C.waveA.set('fm4'); C.fm4L4.set(0); }, [['fm4Fb', 'level 0'], ['fm4R3', null]]);
     testCase('Mono', () => C.mode.set('mono'), [['monoTrig', null]]);
+    // Dist · Flanger: ONE per part — a per-note source can't reach it; a part-level one can, even with the knob at 0
+    testCase('Velocity → Dist: a per-note source can\'t reach the part\'s insert', () => { C.mx1src.set('vel'); C.mx1dst.set('dist'); C.mx1amt.set(1); },
+      [['mx1dst', 'one for the whole part'], ['mx1amt', 'one for the whole part'], ['distType', 'Dist at 0']]);
+    testCase('Steps 1 → Dist with the knob at 0: alive', () => { C.mx1src.set('st1'); C.mx1dst.set('dist'); C.mx1amt.set(1); },
+      [['mx1dst', null], ['distType', null], ['distKeep', null], ['sec:Steps', null]]);
+    testCase('Flanger on, its LFO in tempo', () => { C.flAmt.set(0.5); C.flSync.set('1 bar'); },
+      [['flFb', null], ['flShape', null], ['flSpd', 'tempo'], ['bpm', null]]);
+    testCase('Flanger with Depth 0: its LFO does nothing', () => { C.flAmt.set(0.5); C.flDepth.set(0); },
+      [['flDelay', null], ['flShape', 'Depth'], ['flSpd', 'Depth']]);
+    testCase('LFO → Flanger with the flanger at 0', () => { C.mx1src.set('lfoCut'); C.mx1dst.set('flanger'); C.mx1amt.set(0.5); },
+      [['mx1dst', 'Flanger']]);
     testCase('Seq in Poly: Chord live', () => C.asMode.set('seq'), [['#seqChordCtl', null]]);
     testCase('Seq in Mono: Chord dims (one voice, no chord)', () => { C.asMode.set('seq'); C.mode.set('mono'); }, [['#seqChordCtl', 'Mono'], ['#seqPatSel', null]]);
     testCase('Wavetable without «user»', () => C.waveA.set('wavetable'), [['sec:Wavetable', null], ['sec:Wave Editor', 'user'], ['sec:Wave Sequence', null], ['wsDiv', 'Off']]);
@@ -4463,6 +4475,147 @@ export async function runSelfTest() {
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
     }
+  }
+
+  // ---------- Dist · Flanger: the part's insert (worklets/destroy-processor.js, 2026-11-07) ----------
+  // The worklet on its own (a known signal in, the parameters set) and then through the engine:
+  // transparent at 0 and its two Dist branches aligned (the old one had the wet 128 frames late:
+  // a comb at every in-between amount) · Soft = the old Dist's law · the types · the crush · Lows ·
+  // the flanger's tuned comb and its splices · the matrix at part level.
+  {
+    body.appendChild(el('st-cat', 'Dist · Flanger'));
+    const LAT = 31;
+    const one = async (NAME, fn) => {
+      let r;
+      try { const problems = [], peak = await fn(problems); r = { name: NAME, peak: peak || 0, ok: !problems.length, problems }; }
+      catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    };
+    // the worklet alone: `sig` in (mono, upmixed), each parameter a number or a function(param) that automates it
+    const fxRun = async (sig, params) => {
+      const ctx = new OfflineAudioContext(2, sig.length, SR); await loadWorklets(ctx);
+      const fx = new AudioWorkletNode(ctx, 'destroy-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+        channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+      for (const [k, v] of Object.entries(params)) { const p = fx.parameters.get(k); if (typeof v === 'function') v(p); else p.value = v; }
+      const b = ctx.createBuffer(1, sig.length, SR); b.copyToChannel(sig, 0);
+      const s = ctx.createBufferSource(); s.buffer = b; s.connect(fx); fx.connect(ctx.destination); s.start();
+      return (await ctx.startRendering()).getChannelData(0);
+    };
+    const gen = (secs, f) => { const n = Math.round(secs * SR), x = new Float32Array(n); for (let i = 0; i < n; i++) x[i] = f(i / SR, i); return x; };
+    const sine = (hz, amp, secs) => gen(secs, t => amp * Math.sin(2 * Math.PI * hz * t));
+    const noise = (amp, secs) => { let s = 12345; return gen(secs, () => { s = (s * 1664525 + 1013904223) >>> 0; return amp * (s / 4294967296 * 2 - 1); }); };
+    const peakOf = d => { let p = 0; for (const v of d) p = Math.max(p, Math.abs(v)); return p; };
+    const rmsW1 = (d, t0, t1) => { let s = 0; const i0 = Math.round(t0 * SR), i1 = Math.min(d.length, Math.round(t1 * SR)); for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+    const goe = (d, f, t0, t1) => { const i0 = Math.round(t0 * SR), i1 = Math.min(d.length, Math.round(t1 * SR)), c = 2 * Math.cos(2 * Math.PI * f / SR);
+      let s1 = 0, s2 = 0; for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; } return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / (i1 - i0); };
+
+    await one('Dist · Flanger at 0 is transparent (the part 31 samples later, exactly) · the Dist\'s dry and wet branches land on the same sample (one echo, not two: no comb)', async problems => {
+      const x = noise(0.3, 0.5), y = await fxRun(x, { amount: 0, mix: 0, fb: 0 });
+      let err = 0; for (let i = LAT; i < x.length; i++) err = Math.max(err, Math.abs(y[i] - x[i - LAT]));
+      if (!(err < 1e-6)) problems.push('at 0 the output is not the input ' + LAT + ' samples later (largest error ' + err.toExponential(2) + ')');
+      // an impulse small enough for the curve to be linear: with Dist 0.5 both branches must come out at the same instant
+      const z = await fxRun(gen(0.3, (t, i) => (i === 4410 ? 0.001 : 0)), { amount: 0.5, mix: 0 });
+      let at = 0; for (let i = 0; i < z.length; i++) if (Math.abs(z[i]) > Math.abs(z[at])) at = i;
+      let second = 0; for (let i = 0; i < z.length; i++) if (Math.abs(i - at) > 40) second = Math.max(second, Math.abs(z[i]));
+      if (at - 4410 !== LAT) problems.push('the impulse comes out ' + (at - 4410) + ' samples later (expected ' + LAT + ')');
+      if (!(second < 0.01 * Math.abs(z[at]))) problems.push('a second echo at ' + (second / Math.abs(z[at]) * 100).toFixed(1) + ' % of the first: the branches are not aligned');
+      console.log('fx: at 0 largest error', err.toExponential(2), '· impulse after', at - 4410, '· second echo', (second / Math.abs(z[at])).toExponential(2));
+      return peakOf(z);
+    });
+    await one('Dist «Soft» follows the old Dist\'s law (tanh k = 4, drive and blend from one knob)', async problems => {
+      const a = 0.6, x = sine(220, 0.8, 0.5), y = await fxRun(x, { amount: a, mix: 0 });
+      const law = v => (1 - a) * v + a * Math.tanh(4 * Math.max(-1, Math.min(1, (1 + 6 * a) * v))) / Math.tanh(4) / (1 + a);
+      let e = 0, en = 0; for (let i = 4410; i < x.length; i++) { const ref = law(x[i - LAT]); e += (y[i] - ref) ** 2; en += ref * ref; }
+      const rel = Math.sqrt(e / en);
+      if (!(rel < 0.05)) problems.push('it departs from the law by ' + (rel * 100).toFixed(1) + ' % (only the oversampling\'s band limit and the DC blocker should separate them)');
+      console.log('fx soft vs the law: relative error', rel.toFixed(4));
+      return peakOf(y);
+    });
+    await one('Dist types: Hard clips flat · Fuzz chokes the tail (dead zone) · Rect gives the octave · switching type doesn\'t click', async problems => {
+      const x = sine(220, 0.8, 0.6);
+      const yr = await fxRun(x, { amount: 1, type: 3, mix: 0 });
+      const oct = goe(yr, 440, 0.2, 0.6) / Math.max(1e-9, goe(yr, 220, 0.2, 0.6));
+      if (!(oct > 10)) problems.push('Rect: 440 Hz / 220 Hz = ' + oct.toFixed(1) + ' (expected ≫ 1: the octave)');
+      const yh = await fxRun(x, { amount: 1, type: 1, mix: 0 });
+      const crest = peakOf(yh.subarray(8820)) / rmsW1(yh, 0.2, 0.6);
+      if (!(crest < 1.15)) problems.push('Hard: crest factor ' + crest.toFixed(2) + ' (a flat clip ≈ 1, a sine 1.41)');
+      const yf = await fxRun(gen(1.5, t => 0.8 * Math.exp(-7 * t) * Math.sin(2 * Math.PI * 220 * t)), { amount: 1, type: 2, mix: 0 });
+      const loud = rmsW1(yf, 0.1, 0.2), tail = rmsW1(yf, 1.3, 1.5);
+      if (!(tail < loud * 1e-3)) problems.push('Fuzz: the tail doesn\'t choke (' + (tail / loud).toExponential(2) + ' of the loud part)');
+      const ys = await fxRun(sine(220, 0.5, 0.6), { amount: 0.7, mix: 0, type: p => { p.setValueAtTime(0, 0); p.setValueAtTime(1, 0.3); } });
+      const step = (t0, t1) => { let m = 0; for (let i = Math.round(t0 * SR); i < Math.round(t1 * SR); i++) m = Math.max(m, Math.abs(ys[i] - ys[i - 1])); return m; };
+      const sAt = step(0.29, 0.33), sElse = Math.max(step(0.1, 0.28), step(0.35, 0.55));
+      if (!(sAt < 1.3 * sElse)) problems.push('switching type clicks (largest step ' + sAt.toFixed(3) + ' against ' + sElse.toFixed(3) + ' elsewhere)');
+      console.log('fx types: rect 440/220', oct.toFixed(1), '· hard crest', crest.toFixed(2), '· fuzz tail', (tail / loud).toExponential(2), '· type switch', sAt.toFixed(3), 'vs', sElse.toFixed(3));
+      return peakOf(yr);
+    });
+    await one('Crush: Bits at the end = 1 bit (3 levels) · at 0.8 = 4 bits (≤ 17 levels) · Rate holds at the frequency its knob shows', async problems => {
+      const x = sine(1000, 0.9, 0.5), levels = d => new Set(Array.from(d.subarray(4410), v => Math.round(v * 1e6))).size;
+      const n1 = levels(await fxRun(x, { bits: 1, mix: 0 })), n4 = levels(await fxRun(x, { bits: 0.8, mix: 0 }));
+      if (n1 > 3) problems.push('Bits 1: ' + n1 + ' levels (expected ≤ 3)');
+      if (n4 > 17) problems.push('Bits 0.8: ' + n4 + ' levels (expected ≤ 17)');
+      const r = 0.45, hz = crushHzOf(r), yr = await fxRun(x, { rate: r, mix: 0 });
+      let ch = 0; for (let i = 4411; i < yr.length; i++) if (yr[i] !== yr[i - 1]) ch++;
+      const meas = ch / ((yr.length - 4411) / SR);
+      if (!(Math.abs(meas / hz - 1) < 0.03)) problems.push('Rate ' + r + ': it holds ' + meas.toFixed(0) + ' times a second, the knob says ' + hz.toFixed(0) + ' Hz');
+      console.log('fx crush: levels at 1 bit', n1, '· at 4 bits', n4, '· rate', meas.toFixed(0), 'Hz vs', hz.toFixed(0));
+      return 0.9;
+    });
+    await one('Lows: under Lows the bass comes out whole through a hard clip, and without the low junk the clip throws down there', async problems => {
+      // a bass at 55 Hz and two highs whose difference tone falls at 80 Hz. The window (0.3-0.9 s) holds
+      // whole cycles of every frequency measured: no leakage from the bass into its neighbours
+      const x = gen(1, t => 0.5 * Math.sin(2 * Math.PI * 55 * t) + 0.25 * Math.sin(2 * Math.PI * 1500 * t) + 0.25 * Math.sin(2 * Math.PI * 1580 * t));
+      // Hard (symmetric) clips the bass along with the highs: its 3rd harmonic. The difference tone is 2nd order,
+      // which only an even curve makes: Rect throws it down at 80 Hz LOUDER than the bass — the residue's high-pass keeps it out
+      const yk = await fxRun(x, { amount: 1, type: 1, keep: 150, mix: 0 }), yn = await fxRun(x, { amount: 1, type: 1, mix: 0 });
+      const fk = await fxRun(x, { amount: 1, type: 3, keep: 150, mix: 0 }), fn = await fxRun(x, { amount: 1, type: 3, mix: 0 });
+      const g = (d, f) => goe(d, f, 0.3, 0.9), db = v => 20 * Math.log10(Math.max(1e-12, v));
+      const bass = d => db(g(d, 55) / g(x, 55)), h3 = d => db(g(d, 165) / g(d, 55)), junk = d => db(g(d, 80) / g(d, 55));
+      const bk = bass(yk), hk = h3(yk), hn = h3(yn), jk = junk(fk), jn = junk(fn);
+      if (!(Math.abs(bk) < 1)) problems.push('with Lows the bass changes by ' + bk.toFixed(1) + ' dB');
+      if (!(hk < -40)) problems.push('with Lows the bass still gets clipped (3rd harmonic at ' + hk.toFixed(1) + ' dB)');
+      if (!(hn > -30)) problems.push('without Lows the hard clip should mangle the bass (3rd at ' + hn.toFixed(1) + ' dB): the test proves nothing');
+      if (!(jk < -20)) problems.push('with Lows the rectifier\'s 80 Hz difference tone stays at ' + jk.toFixed(1) + ' dB from the bass');
+      if (!(jn > 0)) problems.push('without Lows the rectifier should throw an 80 Hz difference tone over the bass (' + jn.toFixed(1) + ' dB): the test proves nothing');
+      console.log('fx lows: bass', bk.toFixed(2), 'dB · hard 3rd with/without', hk.toFixed(1), hn.toFixed(1), 'dB · rect 80 Hz junk with/without', jk.toFixed(1), jn.toFixed(1), 'dB');
+      return peakOf(yk);
+    });
+    await one('Flanger: Manual tunes the comb (+ feedback: peaks at 1/τ · −: at 1/2τ) · a jump of its LFO is spliced, not slid (no chirp)', async problems => {
+      const x = noise(0.2, 1);
+      const yp = await fxRun(x, { mix: 1, depth: 0, delay: 1 / 440, fb: 0.9 }), yn = await fxRun(x, { mix: 1, depth: 0, delay: 1 / 440, fb: -0.9 });
+      const pos = goe(yp, 440, 0.2, 1) / goe(yp, 660, 0.2, 1), neg = goe(yn, 220, 0.2, 1) / goe(yn, 440, 0.2, 1);
+      if (!(pos > 5)) problems.push('+fb: 440 Hz / 660 Hz = ' + pos.toFixed(1) + ' (expected ≫ 1: the comb rings at 1/τ)');
+      if (!(neg > 5)) problems.push('−fb: 220 Hz / 440 Hz = ' + neg.toFixed(1) + ' (expected ≫ 1: the hollow comb rings at 1/2τ)');
+      // the LFO jumps from −1 to +1 at 0.5 s (τ from 1.7 to 8.3 ms): sliding would bend the pitch for tens of ms;
+      // spliced, the 440 Hz periods around the jump keep their length (at most a couple move, from the crossfade's phase)
+      const yj = await fxRun(sine(440, 0.5, 1), { mix: 1, fb: 0, depth: 1, delay: 0.005, lfo: p => { p.setValueAtTime(-1, 0); p.setValueAtTime(1, 0.5); } });
+      const zc = []; for (let i = Math.round(0.45 * SR); i < Math.round(0.65 * SR); i++) if (yj[i - 1] < 0 && yj[i] >= 0) zc.push(i - 1 + yj[i - 1] / (yj[i - 1] - yj[i]));
+      let off = 0; for (let k = 1; k < zc.length; k++) if (Math.abs((zc[k] - zc[k - 1]) / (SR / 440) - 1) > 0.05) off++;
+      if (!(off <= 3)) problems.push(off + ' periods off by more than 5 % around the jump (a slide would bend ~20)');
+      console.log('fx flanger: +fb 440/660', pos.toFixed(1), '· −fb 220/440', neg.toFixed(1), '· periods off around the jump', off, 'of', zc.length - 1);
+      return peakOf(yj);
+    });
+    await one('Matrix → Dist · Flanger (part level): Steps → Dist destroys only the steps at 1 · a per-note source (velocity) does nothing and doesn\'t even wake the insert · the flanger\'s LFO in tempo', async problems => {
+      const base = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 8000, reso: -3, a: 0.005, d: 0.1, s: 1, r: 0.1, bpm: 120,
+                     st1Pat: '0 1', st1Div: '1/8', mx1src: 'st1', mx1dst: 'dist', mx1amt: 0 };
+      const rend = async st => { loadState(st); const s = structuredClone(engine.S), ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.3), SR);
+        const eng = new AudioEngine(); eng.S = s; await eng.init(ctx);
+        eng.noteOn('n', NOTE1); ctx.suspend(1.1).then(() => { eng.noteOff('n'); ctx.resume(); });
+        return { d: (await ctx.startRendering()).getChannelData(0), eng }; };
+      const r0 = await rend(base), r1 = await rend({ ...base, mx1amt: 1 });
+      const diff = (a, b) => { let e = 0, en = 0; for (let i = Math.round(a * SR); i < Math.round(b * SR); i++) { e += (r1.d[i] - r0.d[i]) ** 2; en += r0.d[i] ** 2; } return Math.sqrt(e / Math.max(1e-12, en)); };
+      const w = [diff(0.05, 0.22), diff(0.3, 0.47), diff(0.55, 0.72), diff(0.8, 0.97)];   // 1/8 at 120 = 0.25 s: 0 · 1 · 0 · 1
+      if (!(w[0] < 0.01 && w[2] < 0.01)) problems.push('the 0 steps change (' + w[0].toFixed(3) + ', ' + w[2].toFixed(3) + ')');
+      if (!(w[1] > 0.1 && w[3] > 0.1)) problems.push('the 1 steps aren\'t destroyed (' + w[1].toFixed(3) + ', ' + w[3].toFixed(3) + ')');
+      const rv = await rend({ ...base, mx1src: 'vel', mx1amt: 1 }), rz = await rend({ ...base, mx1src: 'off' });
+      let dv = 0; for (let i = 0; i < rv.d.length; i++) dv = Math.max(dv, Math.abs(rv.d[i] - rz.d[i]));
+      if (rv.eng.fx) problems.push('Velocity → Dist woke the insert (a per-note source can\'t reach it)');
+      if (dv !== 0) problems.push('Velocity → Dist changed the sound (largest difference ' + dv.toExponential(2) + ')');
+      const rf = await rend({ ...base, mx1src: 'off', flAmt: 0.5, flSync: '1 bar', flShape: 'triangle' }), l = rf.eng.flLFO;
+      if (!(l && l.sync === 4 && Math.abs(l.hz - 0.5) < 1e-9 && l.shape === 'triangle')) problems.push('flanger LFO: sync ' + (l && l.sync) + ' beats, ' + (l && l.hz) + ' Hz, shape ' + (l && l.shape) + ' (expected 4 · 0.5 · triangle)');
+      console.log('fx matrix: steps 0/1/0/1', w.map(v => v.toFixed(3)).join(' '), '· velocity diff', dv);
+      return peakOf(r1.d);
+    });
   }
 
   // ---------- Roadmap 5.0 · block 4: performance sources ----------

@@ -29,7 +29,7 @@
      their times don't sound. The BPM is used by the synced delay, the arpeggiator,
      the sequencers and, with Parts, the conductor. */
 import { part, sceneOn, getScene } from '../engine/parts.js';
-import { MX_SLOTS } from '../engine/params.js';
+import { MX_SLOTS, FX_DESTS, FX_SOURCES, MX_SOURCES } from '../engine/params.js';
 import { CONTROLS } from './registry.js';
 
 // --- what sounds ---------------------------------------------------------
@@ -54,15 +54,23 @@ const dstWhy = (S, d) =>
   : d === 'drive' ? (S.filterDrive > 0 ? null : 'Drive: the Drive knob is at 0 and the signal doesn\'t go through the curve')
   : d === 'pitchA' ? (oscOn(S, 'A') ? null : 'Pitch A: oscillator A isn\'t sounding (Level A and Ring at 0)')
   : d === 'resMat' ? (S.resAmt > 0 ? null : 'Material: the Resonator\'s Mix is at 0')
+  : d === 'flanger' ? (S.flAmt > 0 ? null : 'Flanger: its knob is at 0 — the flanger isn\'t in the signal')
   : /^amt\d$/.test(d) ? (S['mx' + d.slice(3) + 'src'] !== 'off' ? null : 'Amount ' + d.slice(3) + ': that slot is free (source «—»)')
   : null;
 // another slot feeds this slot's amount: with the knob at 0 it still moves (the modulator sets the depth)
 const amtFed = (S, i) => { for (let j = 1; j <= MX_SLOTS; j++) if (j !== i && S['mx' + j + 'src'] !== 'off' && S['mx' + j + 'amt'] && S['mx' + j + 'dst'] === 'amt' + i) return true; return false; };
-const slotOn = (S, i) => S['mx' + i + 'src'] !== 'off' && (!!S['mx' + i + 'amt'] || amtFed(S, i)) && !dstWhy(S, S['mx' + i + 'dst']);
+const slotOn = (S, i) => S['mx' + i + 'src'] !== 'off' && (!!S['mx' + i + 'amt'] || amtFed(S, i)) && !dstWhy(S, S['mx' + i + 'dst'])
+  && !(fxAim(S, S['mx' + i + 'dst']) && !FX_SOURCES.has(S['mx' + i + 'src']));   // a per-note source can't reach the part's insert
 const mxFrom = (S, src) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'src'] === src && slotOn(S, i)) return true; return false; };
 const mxTo = (S, dst) => { for (let i = 1; i <= MX_SLOTS; i++) if (S['mx' + i + 'dst'] === dst && slotOn(S, i)) return true; return false; };
+// The Dist · Flanger insert is ONE per part (after the voices are summed): its destinations — and the
+// Amount of a slot aimed at it — take only part-level sources (params.FX_SOURCES)
+const fxAim = (S, d) => FX_DESTS.has(d) || (/^amt\d$/.test(d) && FX_DESTS.has(S['mx' + d.slice(3) + 'dst']));
+const srcLabel = id => (MX_SOURCES.find(s => s.id === id) || { label: id }).label;
 const slotWhy = (S, i, isAmt) => {
   if (S['mx' + i + 'src'] === 'off') return 'source «—»: the slot is free';
+  if (fxAim(S, S['mx' + i + 'dst']) && !FX_SOURCES.has(S['mx' + i + 'src']))
+    return 'Dist · Flanger is one for the whole part: «' + srcLabel(S['mx' + i + 'src']) + '» is born with each note and has no single value to give it — use an LFO, Steps (continuous), wheel, aftertouch, expression or a macro';
   if (S['mx' + i + 'src'] === 'acc' && !(S.seqOn === 'on' && /!/.test(S.seqPat || '')))
     return 'Accent: only the sequencer gives it, when on, on steps marked «!»';
   if (S['mx' + i + 'dst'] === 'amt' + i) return 'Amount ' + i + ': a slot cannot modulate its own amount';
@@ -78,11 +86,13 @@ const LFO_SRC = { pwm: 'lfoPwm', cut: 'lfoCut', res: 'lfoRes', amp: 'lfoAmp', fr
 const lfoLive = (S, k) => k === 'pan' ? S.panLfoLvl > 0
   : ((S[k + 'LfoLvl'] > 0 && (k !== 'pwm' || has(S, 'square'))) || mxFrom(S, LFO_SRC[k]));
 const dlyLive = S => anyPart(S, s => s.dlyAmt > 0);
+const destroying = S => S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || ['dist', 'bits', 'rate'].some(d => mxTo(S, d));
+const flSynced = S => S.flAmt > 0 && S.flDepth > 0 && S.flSync && S.flSync !== 'free';   // the flanger's LFO in tempo
 const revLive = S => anyPart(S, s => s.reverbMix > 0);
 const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'free';
 const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'free') || sceneOn()
   || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'wavetable'))
-    || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)));   // a tempo-synced LFO in use
+    || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)) || flSynced(s));   // a tempo-synced LFO in use
 // the swing swings what runs in STEPS (Arp, Seq, Steps in the matrix, players); the delay and synced LFOs don't
 const swingUsed = S => sceneOn() || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || [1, 2, 3, 4, 5, 6].some(j => /^st\d/.test(s['mx' + j + 'src'] || '') && s['mx' + j + 'amt']));
 const NO = w => 'no sounding oscillator is on ' + w;
@@ -96,10 +106,11 @@ const REV_IDLE = () => (sceneOn() ? 'no part sends to the reverb' : 'Mix at 0: n
 // A wave condition is touched at the wave selectors — and at the level of an oscillator that isn't sounding.
 const waveBy = S => [...(oscOn(S, 'A') ? ['waveA'] : ['waveA', 'levelA']), ...(oscOn(S, 'B') ? ['waveB'] : ['waveB', 'levelB'])];
 const MX_SRCS = Array.from({ length: MX_SLOTS }, (_, j) => 'mx' + (j + 1) + 'src');
-const dstBy = (S, d) => (['pw', 'wt', 'fm'].includes(d) ? waveBy(S) : d === 'vow' ? ['vocAmt'] : d === 'drive' ? ['filterDrive']
+const dstBy = (S, d) => (['pw', 'wt', 'fm'].includes(d) ? waveBy(S) : d === 'vow' ? ['vocAmt'] : d === 'drive' ? ['filterDrive'] : d === 'flanger' ? ['flAmt']
   : d === 'pitchA' ? ['levelA', 'ring'] : d === 'resMat' ? ['resAmt'] : /^amt\d$/.test(d) ? ['mx' + d.slice(3) + 'src'] : []);
 const slotBy = (S, i) => {           // the same order as slotWhy
   if (S['mx' + i + 'src'] === 'off') return ['mx' + i + 'src'];
+  if (fxAim(S, S['mx' + i + 'dst']) && !FX_SOURCES.has(S['mx' + i + 'src'])) return ['mx' + i + 'src'];
   if (S['mx' + i + 'src'] === 'acc' && !(S.seqOn === 'on' && /!/.test(S.seqPat || ''))) return S.seqOn === 'on' ? ['#seqCanvas'] : ['asMode'];
   if (S['mx' + i + 'dst'] === 'amt' + i) return ['mx' + i + 'dst'];
   if (dstWhy(S, S['mx' + i + 'dst'])) return dstBy(S, S['mx' + i + 'dst']);
@@ -196,7 +207,16 @@ export const RULES = [
   ]),
 
   // ---------- Effects ----------
-  ...live(['flSpd'], S => S.flAmt > 0, 'Fl.Amount at 0', ['flAmt']),
+  // Dist · Flanger: the type only shapes the Dist; Lows only matters if something destroys; the flanger's
+  // knobs need the flanger on, and its LFO's (speed, shape, sync) a Depth too
+  ['distType', S => (S.dist > 0 || mxTo(S, 'dist') ? null : 'Dist at 0: the signal doesn\'t go through the curve (the type only shapes the Dist)'), ['dist']],
+  ['distKeep', S => (destroying(S) ? null : 'nothing to keep the lows from: Dist, Bits and Rate are at 0'), ['dist', 'crushBits', 'crushRate']],
+  ...live(['flDelay', 'flDepth', 'flFb'], S => S.flAmt > 0, 'Flanger at 0: the flanger isn\'t in the signal', ['flAmt']),
+  ...all(['flShape', 'flSync'], S => (!(S.flAmt > 0) ? 'Flanger at 0: the flanger isn\'t in the signal' : !(S.flDepth > 0) ? 'Depth at 0: the LFO doesn\'t move the delay' : null),
+    S => (!(S.flAmt > 0) ? ['flAmt'] : ['flDepth'])),
+  ['flSpd', S => (!(S.flAmt > 0) ? 'Flanger at 0: the flanger isn\'t in the signal' : !(S.flDepth > 0) ? 'Depth at 0: the LFO doesn\'t move the delay'
+    : S.flSync && S.flSync !== 'free' ? 'in tempo: the BPM division rules (sync)' : null),
+    S => (!(S.flAmt > 0) ? ['flAmt'] : !(S.flDepth > 0) ? ['flDepth'] : ['flSync'])],
   ...live(['chMode', 'chSpd'], S => S.chAmt > 0, 'Amount at 0', ['chAmt']),
   ...live(['dlyDamp', 'dlyWow', 'dlySync', 'dlySat'], dlyLive, DLY_IDLE, ['dlyAmt']),
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'in Parts mode the Room\'s Fdbk rules (part mixer)' : null), S => (!dlyLive(S) ? ['dlyAmt'] : [])],

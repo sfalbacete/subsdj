@@ -532,12 +532,27 @@
   </div>
   <div class="panel">
     <h2>Dist · Flanger</h2>
-    <div class="hrow">
-      <div class="ctl"><div class="knob" data-knob="dist"><div class="ind"></div></div><div class="lab">Drive</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="flAmt"><div class="ind"></div></div><div class="lab">Fl.Amount</div><div class="val"></div></div>
-      <div class="ctl"><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="lab">Fl.Speed</div><div class="val"></div></div>
+    <div class="seg fx-type" id="distTypeSel" title="Dist type: how the wave is destroyed">
+      <button data-dt="soft" title="Soft: tanh, the warm classic saturation (the Dist as it always was)">Soft</button><button data-dt="hard" title="Hard: clips flat — harsher and brighter">Hard</button><button data-dt="fuzz" title="Fuzz: very high gain, asymmetric, with a dead zone: the tail of every note chokes and sputters (a starved fuzz)">Fuzz</button><button data-dt="rect" title="Rect: a rectifier (|x|) — the octave above and a rough edge; on a chord every interval clashes">Rect</button>
     </div>
-    <div class="help"><b>Distortion</b>, global (tanh, dry/wet: at 0 it is transparent) · <b>Flanger</b> with fixed feedback (the classic jet).</div>
+    <div class="hrow">
+      <div class="ctl"><div class="knob" data-knob="dist" title="Dist: drive and blend at once (0 = clean). For the WHOLE part, after the voices are summed: in a chord the notes multiply with each other (intermodulation) — the Filter's Drive saturates each voice on its own instead"><div class="ind"></div></div><div class="lab">Dist</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="crushBits" title="Crush · bits: from 16 down to 1. Few levels: a grainy noise that GROWS as each note fades (the step is fixed and the signal shrinks), until the tails break up"><div class="ind"></div></div><div class="lab">Bits</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="crushRate" title="Crush · rate: the sample rate, from 44.1 kHz down to 150 Hz, with no filter — the harmonics above half of it fold back down: inharmonic, metallic, different on every key (the 8-bit sound). Sweeping it is a sound of its own"><div class="ind"></div></div><div class="lab">Rate</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="distKeep" title="Lows: below this frequency nothing is destroyed — the bass stays whole and round, and the low junk a clipped chord throws down is cleaned away (off = everything goes through)"><div class="ind"></div></div><div class="lab">Lows</div><div class="val"></div></div>
+    </div>
+    <div class="hrow">
+      <div class="ctl"><div class="knob" data-knob="flAmt" title="Flanger: how much of the delayed copy is added (0 = off)"><div class="ind"></div></div><div class="lab">Flanger</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flDelay" title="Manual: where the comb sits (the delay at rest, 0.5-20 ms). Still (Depth 0) with high feedback it is a TUNED comb: it rings at 1/delay — 4.5 ms ≈ 220 Hz (A3)"><div class="ind"></div></div><div class="lab">Manual</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flDepth" title="Depth: how far the LFO swings the delay around Manual (1 = ±2/3: at 3 ms, from 1 to 5 ms, the classic jet). At 0 the LFO does nothing: only Manual and the matrix move it"><div class="ind"></div></div><div class="lab">Depth</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="flFb" title="Feedback: + metallic jet (the peaks of the comb sharpen) · − hollow (the comb flips: odd harmonics). Near ±95 % it rings"><div class="ind"></div></div><div class="lab">Fdbk</div><div class="val"></div></div>
+    </div>
+    <div class="hrow fx-lfo">
+      <div class="ctl ks" data-lab="Flanger LFO · speed"><span class="th">LFO</span><div class="knob" data-knob="flSpd"><div class="ind"></div></div><div class="val"></div></div>
+      <button class="lfoShape" data-shape="flShape" title="Flanger LFO shape: click to cycle (sin/tri/saw/sqr/S&amp;H/drift). The jumps (S&amp;H, square, saw) are spliced, not slid: no chirp"></button>
+      <select class="lfoSync" data-sync="flSync" title="Flanger LFO sync: free (Speed in Hz) or a division of the BPM — the cycle lands on the common clock's grid, with the arpeggiator and the sequencers"></select>
+    </div>
+    <div class="help"><b>Dist · Flanger</b>: one for the whole part, after the voices are summed. <b>Destruction</b> = Lows → Dist (by <b>type</b>: Soft tanh · Hard clip · Fuzz gated · Rect octave) → Crush (<b>Rate</b>, then <b>Bits</b>). At 0 everything is transparent. <b>Flanger</b>: the part plus a copy delayed by Manual, fed back by Fdbk (− = hollow), swung by its own LFO (shape and tempo like the LFO bank's). In the <b>Matrix</b> these are destinations too — <b>Dist</b>, <b>Crush bits</b>, <b>Crush rate</b>, <b>Flanger</b> — but being one per part they only take part-level sources: the LFOs, Steps (continuous), wheel, aftertouch, expression and the macros. Steps → Dist with the knob at 0 = only the notes on the 1s get destroyed.</div>
   </div>
   <div class="panel">
     <h2>Chorus</h2>

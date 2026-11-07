@@ -31,8 +31,9 @@ import { PARAMS, PRESET_BASE, posToVal } from './params.js';
 // ear (kicks, snares, hats); 9: the bowed string (Cello, String Section, Bowed Glass; Bowed Metal remade);
 // 10: the blown pipe (Breath Flute remade, Pan Pipe, Bottle, Overblown Drone); 11: DX E-Piano's tine
 // written as the 12 it always sounded at (it asked for 14 when the ratio stopped at 12; the FM4 now reaches 24);
-// 12: Init gets a gentle Amp Env (155 ms · 354 ms · 0.65 · 1.57 s) instead of the gate.
-export const BANK_REV = 12;
+// 12: Init gets a gentle Amp Env (155 ms · 354 ms · 0.65 · 1.57 s) instead of the gate; 13: the part's
+// Dist · Flanger rebuilt (its Dist without the comb) and three presets that show it (Crushed Arp, Comb Arp, Jet Pad).
+export const BANK_REV = 13;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -464,6 +465,11 @@ export const BANK = [
       data: { waveA: 'sawtooth', waveB: 'sine', octB: 1, detuneB: 7, levelA: 0.5, levelB: 0.5, cutoff: 4000, reso: 1, a: 0.3, d: 1, s: 0.8, r: 1.2,
         cutLfoShape: 'triangle', cutLfoSpd: 0.25, lfoPhase: 'voice', mx1src: 'lfoCut', mx1dst: 'lvlA', mx1amt: -0.5, mx2src: 'lfoCut', mx2dst: 'lvlB', mx2amt: 0.5,
         reverbMix: 0.3, width: 0.5, ...WHEEL(0.3), ...MAC1('lvlB', 0.5), master: 0.65 } },
+    /* the old jet, now in tempo: the flanger's LFO (triangle, two bars) lands on the bar line; high feedback */
+    { name: 'Jet Pad', tags: ['analog', 'evolving', 'slow', 'chords', 'classic'], use: 'chord',
+      play: 'Hold chords (C2–C5): the jet climbs and falls once every two bars. Wheel: opens the filter.',
+      data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -6, detuneB: 6, levelA: 0.5, levelB: 0.5, cutoff: 2400, reso: 1.5, a: 0.4, d: 0.6, s: 0.85, r: 1.4,
+        flAmt: 0.7, flSync: '2 bars', flShape: 'triangle', flFb: 0.75, flDelay: 0.004, bpm: 100, width: 0.5, reverbMix: 0.3, reverbSize: 2.5, ...WHEEL(0.3), master: 0.47 } },
   ] },
 
   /* ---------- Cinescape: sounds at the scale of the landscape (times ×10, octave per oscillator) ---------- */
@@ -633,6 +639,23 @@ export const BANK = [
       data: { waveA: 'square', waveB: 'sawtooth', pulseWidth: 0.4, detuneB: 5, levelA: 0.6, levelB: 0.4, cutoff: 1800, reso: 4, filterEnvAmt: 2200,
         a: 0.003, d: 0.18, s: 0, r: 0.25, dlyAmt: 0.6, dlySync: '1/4.', bpm: 90, dlyFb: 0.85, dlyDamp: 0.55, dlyWow: 0.35, dlySat: 0.6,
         width: 0.3, reverbMix: 0.15, reverbSize: 2.2, ...WHEEL(0.4), ...MAC1('reso', 0.4), master: 1.45 } },
+    /* the part's Dist · Flanger by steps: Steps 1 (0 0 0 1) opens a hard Dist on one note in four, with the
+       knob at 0; Steps 2 sinks the crush rate down the bar; Lows keeps the low notes whole. Macro 1 → fewer bits */
+    { name: 'Crushed Arp', tags: ['digital', 'dirty', 'rhythmic', 'arp', 'techno'], use: 'chord',
+      play: 'Hold a chord (C3–C4): one note in four comes out crushed and the rate sinks down the bar. Wheel: opens the filter · M1: fewer bits.',
+      data: { arpMode: 'up', arpDiv: '1/16', arpOct: '2', arpGate: 0.5, bpm: 128, waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.4, detuneB: 6, levelA: 0.6, levelB: 0.4,
+        cutoff: 2600, reso: 3, filterEnvAmt: 1800, a: 0.002, d: 0.18, s: 0.3, r: 0.12,
+        distType: 'hard', distKeep: 120, st1Pat: '0 0 0 1', mx1src: 'st1', mx1dst: 'dist', mx1amt: 0.85,
+        st2Pat: '0 0 0.1 0.2 0.3 0.4 0.5 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1', mx2src: 'st2', mx2dst: 'rate', mx2amt: 0.7,
+        dlyAmt: 0.25, dlySync: '1/8.', width: 0.4, reverbMix: 0.15, ...WHEEL(0.4), ...MAC1('bits', 0.75), master: 1 } },
+    /* the flanger as a TUNED comb (Depth 0, feedback 80 %, Manual 4.5 ms ≈ 222 Hz) that Steps 1 moves note by
+       note: every note of the arp rings through a different metal. Macro 1 → the Amount of slot 1: wider leaps */
+    { name: 'Comb Arp', tags: ['metallic', 'rhythmic', 'arp', 'digital', 'evolving'], use: 'chord',
+      play: 'Hold a chord (C3–C5): every note of the arp rings through a different comb. Wheel: opens the filter · M1: wider leaps.',
+      data: { arpMode: 'updown', arpDiv: '1/16', arpOct: '2', arpGate: 0.4, bpm: 120, waveA: 'sawtooth', waveB: 'sawtooth', detuneB: 7, levelA: 0.6, levelB: 0.4,
+        cutoff: 3500, reso: 1, filterEnvAmt: 2000, a: 0.002, d: 0.2, s: 0.2, r: 0.2,
+        flAmt: 0.8, flDepth: 0, flDelay: 0.0045, flFb: 0.8, st1Pat: '0 0.4 -0.3 0.7 0.15 -0.6 0.5 -0.15', mx1src: 'st1', mx1dst: 'flanger', mx1amt: 0.2,
+        dlyAmt: 0.2, dlySync: '1/8.', width: 0.5, reverbMix: 0.25, ...WHEEL(0.4), ...MAC1('amt1', 0.5), master: 0.9 } },
   ] },
 
   /* ---------- Percussion: a deliberately synthetic 808/909 kit, played in the octave of C3.

@@ -3129,3 +3129,94 @@ transposes it as usual), without it the phrase stops. Panic or the Mode switched
 the take stays armed and the next key starts the loop again. A part change drops the take and gives
 the old part its phrase back (the take had been writing into it); a preset or a scene brought their
 own, which is not touched.
+
+## Dist · Flanger: destruction, and the part's insert in the matrix (2026-11-07)
+
+Sergio had moved the cutoff along the arpeggio with a synced LFO and asked why the flanger couldn't
+do the same, and why the Dist wasn't in the matrix either. Then: «there are synth modules that
+specialise in destruction, with different methods — can you look into it?». The answer to the first
+question is the chain: the matrix lived inside the voice, and the Dist and the flanger come after the
+voices are summed — one per part. Nobody had given them a path. The answer to the second was a
+catalogue (saturation, gated fuzz, rectification, wavefolding, bitcrush, sample-rate reduction,
+erosion, fixed-carrier ring, bit logic, codecs, glitch, multiband) rendered as A/B samples over one
+arpeggio, and a module with the methods that add something the synth didn't have.
+
+**Not moved: the Filter's Drive.** It looks like «another method», but what defines it is WHERE it is:
+before the filter (the filter tames the harmonics it makes: warm, not raw), per voice (a chord stays a
+chord: no intermodulation) and modulated per note (it is already the matrix's «Drive»). Moving it
+would have lost all three; Fold stays there too (folding a chord's sum is chaos). Two «Drive» knobs
+were confusing, so the part's one is now called **Dist**.
+
+**One worklet per part (`worklets/destroy-processor.js`), born on demand.** Until something needs it,
+the part goes through a gain (exactly transparent); once born, the whole part goes through it, with a
+crossfade from the bypass when it is born live (its 31 samples of latency would otherwise jump). Chain:
+Lows split → Dist by type (×2 oversampled) → Crush (rate, then bits) → the residue's high-pass →
+flanger. Every amount is an AudioParam, so the matrix connects straight to them and their ranges clamp
+knob + modulation.
+
+**The Dist had a comb.** Measuring the old Dist to calibrate the samples, the model only matched the
+engine (corr 0.998) with the wet branch 128 frames LATE: the WaveShaper's oversampling ('2x') delays
+what goes through it, and the dry branch beside it didn't wait. At every in-between amount the two
+summed into a comb — a notch every 345 Hz, 2.9 ms apart: the Dist sounded hollow, a still flanger
+under every preset that used it. The worklet delays its dry branch by exactly its own latency (an
+impulse comes out as ONE echo, 6·10⁻⁴ of a second one). The same pattern is still in the Filter's
+Drive (128 frames) and in the Tape's saturation (129): measured, pending a decision. The Dist's law is
+the old one (`amount·tanh(4·(1 + 6·amount)·x)/tanh 4/(1 + amount) + (1 − amount)·x`; a sine follows
+it within 1.3 %): the presets keep their character and lose the comb. The bank's fingerprint alarm
+caught exactly the 21 presets with Dist and the 2 with flanger.
+
+**Four types, a makeup each.** Soft (the old tanh) · Hard (flat clip) · Fuzz (×6 more gain, an
+asymmetric clip, and a dead zone: under it the signal is silence, so a fading note chokes and sputters
+— the starved fuzz) · Rect (|x|: the octave; on a chord every interval clashes). Each type's makeup
+gives Soft's loudness at a middling amount, measured on a saw arpeggio at the part's level (the
+insert sees peaks of +6 dBFS: the headroom comes later, in the Room). Rect needs ×3.1: half of |x| is
+DC, which the blocker takes away. Changing type crossfades the curves over 10 ms (a curve jumping is
+a click); the shapes have no memory and the down filter is linear, so the blend happens on the
+oversampled values.
+
+**Crush without anti-aliasing, on purpose.** Rate is a sample and hold (one decision per sample for
+both channels): the harmonics above R/2 fold back down, inharmonic, a different metal on each key; the
+knob goes from 44.1 kHz to 150 Hz in log, and the hold rate measured is the one the knob shows (3418
+for 3417 Hz). Bits quantize at 16 − 15·bits bits, fractional so they sweep; the step is fixed and the
+signal shrinks, so the noise GROWS as a note fades until the tail breaks up.
+
+**Lows: a real split — the first one wasn't.** «Below this, nothing is destroyed». The first version
+split «lows» with a low-pass and «the rest» as `x − lows`: it adds back up exactly, but it is not a
+high-pass — the low-pass turns the phase, and «the rest» kept nearly all of the bass, phase-turned, so
+the clip mangled it all the same. Now a Linkwitz-Riley 4 pair (their sum is an all-pass: flat, a phase
+turn around the cutoff), and the RESIDUE of the destruction (what it adds to the highs) high-passed
+at the cutoff too: the difference tones a distorted chord throws below don't muddy the bass. Measured
+on 55 Hz + 1500 + 1580: the bass comes out at 0.00 dB with its 3rd harmonic at −97 dB (−21 without
+Lows); the rectifier's 80 Hz difference tone, +24 dB OVER the bass without Lows, stays at −27. (The
+worklet also runs in Node — a harness that fakes the AudioWorklet globals — which reproduced the
+browser's numbers to the decimal and made choosing that scenario quick.)
+
+**The flanger: the same one, then more.** Manual (0.5-20 ms), Depth (1 = ±2/3 of Manual: at 3 ms the
+old 1-5 ms), Feedback ±95 % (− = the hollow comb, odd harmonics), and its own LFO with the bank's
+shapes and tempo sync (mkLFO + setLfoSync, so it lands on the common clock). At Depth 0 with feedback
+it is a TUNED comb: it rings at 1/τ (+fb) or 1/2τ (−fb). Its default settings reproduce the old
+flanger as closely as a model of it did (corr 0.955: the DelayNode's interpolation). Measured on the
+way: Chrome did NOT clamp the old flanger's DelayNode-in-a-cycle to 128 frames (a free model matched
+0.95, a clamped one 0.59).
+
+**Splice, don't slide.** Sliding a delay's read head is speeding a tape: the pitch bends. That IS the
+flanger's sweep, but a jump (S&H, square, a Steps step with its 4 ms ramp) slid that way chirps — the
+first prototype measured 3.6× the high-frequency energy at every step. The head may slide up to ±15 %
+in speed (the old flanger's sweep at its fastest needs 10 %); further than 0.3 ms from its target, it
+is a splice: the old head and a new one at the target crossfade over 10 ms. Measured: a jump of the LFO
+from −1 to +1 leaves the 440 Hz periods around it untouched (0 of 87 off by more than 5 %).
+
+**The matrix at part level.** Four destinations — Dist, Crush bits, Crush rate, Flanger (Manual's
+position, in octaves: ±1 = the knob's whole travel) — wired by the ENGINE once per part
+(`AudioEngine.fxRewire`), not by the voices (which skip them). Only part-level sources reach them: the
+global LFOs (raw), Steps continuous (`Steps.node`: the lane's source without starting the clock — the
+notes start it), wheel, aftertouch, expression and the macros; a per-note source has no single value
+to give a part and does nothing (the dependencies say so, and it doesn't even wake the insert). The
+amount of a slot aimed at the insert can be modulated by another part-level slot (Comb Arp's M1). With
+the knob at 0 a slot can switch the Dist on: Steps 0 0 0 1 → Dist destroys one note in four and leaves
+the rest bit-identical (measured 0.000 / 0.75).
+
+**Cost.** Measured on the worklet itself: 0.3 % of a core born and idle, 1.4-1.6 % with the Dist
+running (the oversampling: two 32-tap filters per sample and channel) — the shared budget counts it
+that way. Presets: Crushed Arp, Comb Arp (Motion) and Jet Pad (Pads) show it; demo pairs DST 1-14 and
+FLG 1-8.

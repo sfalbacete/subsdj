@@ -115,6 +115,7 @@ export function bindOscControls() {
   bindSeg('envmModeSel', 'envm', 'envmMode', 'envmMode');           // Mod Env: normal / loop / trigger (per note)
   bindSeg('dlySyncSel', 'sync', 'dlySync', 'dlySync');     // delay: free / BPM division
   bindSeg('chModeSel', 'chm', 'chMode', 'chMode');         // chorus 2 lines / ensemble 3 phases
+  bindSeg('distTypeSel', 'dt', 'distType', 'distType');    // Dist · Flanger: soft / hard / fuzz / rect
   bindSeg('reverbTypeSel', 'rt', 'reverbType', 'reverbType');   // reverb: hall (IR) / plate (Dattorro)
   bindSeg('fm4AlgSel', 'alg', 'fm4Alg', 'fm4Alg');              // FM4: algorithm (who modulates whom)
   bindSeg('uniVoicesSel', 'uv', 'uniVoices', 'uniVoices'); // unison: no. of copies per oscillator

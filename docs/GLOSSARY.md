@@ -96,6 +96,8 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | LFOs | forma · level · speed · sync: libre · fade · fase: global/voz · deriva | shape · level · speed · sync: free · fade · phase: global/voice · drift |
 | LFOs | Trémolo · formas sin/tri/saw/sqr/S&H/deriva | Tremolo · sin/tri/saw/sqr/S&H/drift |
 | Matrix | macro 1 · macro 2 | macro 1 · macro 2 |
+| Dist · Flanger | tipo: suave · duro · fuzz · rectificado · Dist · Bits · Rate · Graves | type: Soft · Hard · Fuzz · Rect · Dist · Bits · Rate · Lows |
+| Dist · Flanger | Flanger · Manual · Profundidad · realim. · LFO (forma, sync) | Flanger · Manual · Depth · Fdbk · LFO (shape, sync) |
 | Delay | Time · Damp · Wow · libre · Sync · realim. · satur. | Time · Damp · Wow · free · Sync · fdbk · sat |
 | Reverb | tipo · Intervalo · ❄ Freeze | type · Interval · ❄ Freeze |
 | Tape | Saturación · Wow | Saturation · Wow |
@@ -126,6 +128,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Pitch · Pulse width · Cutoff · Resonancia · Amplitud · Pan | Pitch · Pulse width · Cutoff · Resonance · Amplitude · Pan |
 | Wavetable · Vocal · FM índice · Nivel A · Nivel B · Nivel Ring · Nivel ruido | Wavetable · Vowel · FM index · Level A · Level B · Level Ring · Level Noise |
 | Drive · Pitch A · Material · Presión de arco · Velocidad de arco | Drive · Pitch A · Material · Bow pressure · Bow speed |
+| Dist · Crush bits · Crush rate · Flanger (de parte) | Dist · Crush bits · Crush rate · Flanger (part level) |
 
 ## Harmony: notes and scales
 

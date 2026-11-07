@@ -29,6 +29,11 @@ export const dbFmt = v => (v <= 0 ? '−∞' : (d => (d >= 0.05 ? '+' : '') + d.
 const hzFmt = v => (v < 0.1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v.toFixed(1)) + ' Hz';
 const decFmt = v => v >= 3.99 ? '∞' : (v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s');   // per-operator decay (FM4): top = flat
 const twoDec = v => v.toFixed(2);
+// Crush (Dist · Flanger): the knobs' 0..1 travel → bits and Hz. The SAME mappings live in
+// worklets/destroy-processor.js (RATE_TOP, RATE_MIN, 16 − 15·bits): change them together.
+export const CRUSH_RATE_TOP = 44100, CRUSH_RATE_MIN = 150;
+export const crushBitsOf = v => 16 - 15 * v;
+export const crushHzOf = v => CRUSH_RATE_TOP * Math.pow(CRUSH_RATE_MIN / CRUSH_RATE_TOP, v);
 const sgnFmt = (v, d = 2) => (v > 0.0049 ? '+' : v < -0.0049 ? '−' : '') + Math.abs(v).toFixed(d);   // bipolar: +0.50 · −0.50 · 0.00
 const ratioFmt = v => (v >= 10 ? v.toFixed(1) : v.toFixed(2));
 // Vowel knob: shows the vowel (u, o, a…) or the span between two (u·o)
@@ -183,9 +188,20 @@ export const PARAMS = {
   resBright: { def: 0.5, min: 0, max: 1 },           // balance between low and high modes (0 dark · 0.77 flat · 1 bright), at constant level
 
   // --- FX ---
-  dist:    { def: 0, min: 0, max: 1, act: true },
-  flAmt:   { def: 0, min: 0, max: 1, act: true },
-  flSpd:   { def: 0.3, min: 0.05, max: 8, unit: ' Hz' },
+  // Dist · Flanger: ONE insert per part (worklets/destroy-processor.js, 2026-11-07). Destruction
+  // = Lows (what is below skips it) → Drive by type → Crush (rate, then bits); then the flanger.
+  dist:      { def: 0, min: 0, max: 1, act: true },            // drive and wet at once (the old Dist's law)
+  distType:  { def: 'soft' },                                  // 'soft' tanh · 'hard' flat clip · 'fuzz' gated, asymmetric · 'rect' |x| (the octave)
+  crushBits: { def: 0, min: 0, max: 1, act: true, fmt: v => (v <= 0 ? 'off' : crushBitsOf(v).toFixed(1) + ' bit') },
+  crushRate: { def: 0, min: 0, max: 1, act: true, fmt: v => (v <= 0 ? 'off' : (h => (h >= 1000 ? (h / 1000).toFixed(1) + ' kHz' : h.toFixed(0) + ' Hz'))(crushHzOf(v))) },
+  distKeep:  { def: 0, min: 0, max: 500, log: true, lmin: 30, act: true, fmt: v => (v <= 0 ? 'off' : v.toFixed(0) + ' Hz') },   // Lows: below it, no destruction
+  flAmt:   { def: 0, min: 0, max: 1, act: true },               // flanger mix
+  flSpd:   { def: 0.3, min: 0.01, max: 8, log: true, fmt: hzFmt },   // its LFO (free); with flSync the BPM rules
+  flShape: { def: 'sine' },                                     // its LFO's shape (the LFO bank's: sin/tri/saw/sqr/S&H/drift)
+  flSync:  { def: 'free' },                                     // 'free' or a division (LFO_DIVS)
+  flDepth: { def: 1, min: 0, max: 1 },                          // how far the LFO swings the delay (1 = ±2/3 of Manual: the old 1..5 ms)
+  flDelay: { def: 0.003, min: 0.0005, max: 0.02, log: true, fmt: v => (v * 1000).toFixed(v < 0.001 ? 2 : 1) + ' ms' },   // Manual: where the comb sits
+  flFb:    { def: 0.35, min: -0.95, max: 0.95, fmt: v => (v > 0.004 ? '+' : v < -0.004 ? '−' : '') + Math.abs(v * 100).toFixed(0) + ' %' },   // − = the hollow comb (odd harmonics)
   chAmt:   { def: 0, min: 0, max: 1, act: true },   // chorus/ensemble (wet mix)
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus, 3 phases)
@@ -347,6 +363,13 @@ export const MX_DESTS = [
   // aftertouch → Pressure is the bowed note that swells and bites, expression → Speed the dynamics
   { id: 'excPress', label: 'Bow pressure' },
   { id: 'excSpeed', label: 'Bow speed' },
+  // PART-level destinations (2026-11-07): the Dist · Flanger insert, ONE per part after the voices are
+  // summed (AudioEngine.fxRewire). They take part-level sources only (FX_SOURCES); a per-note one
+  // (envelopes, velocity, S&H, «Steps · note»…) has no single value to give them and does nothing.
+  { id: 'dist',    label: 'Dist' },          // the amount (knob + modulation, clamped 0..1): from 0 it can switch the Dist on
+  { id: 'bits',    label: 'Crush bits' },
+  { id: 'rate',    label: 'Crush rate' },
+  { id: 'flanger', label: 'Flanger' },       // the comb's position, in octaves of the delay (±1 = Manual's whole travel)
   // Amount modulation (2026-10-31): the slot adds its source to the AMOUNT of another slot, in
   // the knob's units (±1): wheel → Amount of the vibrato slot = a real mod wheel; aftertouch →
   // Amount of an LFO; env → the vibrato grows with the note; a macro → three modulations at once.
@@ -355,7 +378,12 @@ export const MX_DESTS = [
   { id: 'amt4', label: 'Amount 4' }, { id: 'amt5', label: 'Amount 5' }, { id: 'amt6', label: 'Amount 6' },
 ];
 export const MX_SPAN = { pitch: 1200, pw: 0.45, cutoff: 4800, reso: 12, amp: 1, pan: 1, wt: 1, vow: 1, fm: 8,
-  lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1, excPress: 1, excSpeed: 1 };   // drive and resMat: the voice scales them (per character / per mode)
+  lvlA: 1, lvlB: 1, lvlRing: 1, lvlNoise: 1, drive: 1, pitchA: 1200, resMat: 1, excPress: 1, excSpeed: 1,   // drive and resMat: the voice scales them (per character / per mode)
+  dist: 1, bits: 1, rate: 1, flanger: Math.log2(0.02 / 0.0005) };   // part level: ±1 = the knob's whole travel (flanger: Manual's, in octaves)
+export const FX_DESTS = new Set(['dist', 'bits', 'rate', 'flanger']);
+// The sources that exist at PART level: the engine's global LFOs (raw), Steps continuous, the
+// performance ones and the macros. The rest are born per note (Voice) and can't reach the insert.
+export const FX_SOURCES = new Set(['lfoCut', 'lfoRes', 'lfoAmp', 'lfoFreq', 'lfoPwm', 'st1', 'st2', 'st3', 'st4', 'wheel', 'at', 'expr', 'mac1', 'mac2']);
 for (let i = 1; i <= MX_SLOTS; i++) {
   PARAMS['mx' + i + 'src'] = { def: 'off' };
   PARAMS['mx' + i + 'dst'] = { def: 'cutoff' };
@@ -396,6 +424,9 @@ for (const k of LFO_KEYS) PARAMS[k + 'LfoSync'] = { def: 'free' };
 // Effective speed of LFO k (Hz): the division at the BPM, or the Speed knob
 export const lfoHz = (S, k, bpm) => { const b = LFO_DIVS[S[k + 'LfoSync']]; return b ? bpm / 60 / b : S[k + 'LfoSpd']; };
 export const lfoBeats = (S, k) => LFO_DIVS[S[k + 'LfoSync']] || 0;   // 0 = free
+// The flanger's LFO (Dist · Flanger): the same, with its own keys (flSpd, flSync)
+export const flHz = (S, bpm) => { const b = LFO_DIVS[S.flSync]; return b ? bpm / 60 / b : S.flSpd; };
+export const flBeats = S => LFO_DIVS[S.flSync] || 0;
 
 /* --- Preset base ---
    The `def` values above are NEUTRAL: Reset (and startup) leave oscillator A

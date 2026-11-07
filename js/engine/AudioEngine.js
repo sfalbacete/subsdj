@@ -19,8 +19,8 @@ import { clockOf } from './Clock.js';
 import { Steps } from './Steps.js';
 import { getWtSet } from './wavetable.js';
 
-import { makeNoise, makeWander, makeDistCurve, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
-import { LFO_KEYS, lfoHz, lfoBeats, STR_KEYS } from './params.js';
+import { makeNoise, makeWander, mkLFO, mkPhasedLFO, setLfoRate, setLfoShape, setLfoSync } from './nodes.js';
+import { LFO_KEYS, lfoHz, lfoBeats, flHz, flBeats, STR_KEYS, MX_SLOTS, MX_SPAN, FX_DESTS, FX_SOURCES } from './params.js';
 import { Room, ROOM_KEYS } from './Room.js';
 
 const MAX_POLY = 10;    // voices held at once; beyond that, the oldest is stolen
@@ -49,7 +49,14 @@ const MONO_XF = 0.005;
 export const VOICE_BUDGET = 30;
 // Fixed cost of an engine with no notes, in the same «simple voices» (measured: 2.5 %
 // of a core with its Room and no effects; each effect, what it adds when on).
-const ENGINE_COST = { base: 1, dist: 0.17, fl: 0.14, ch: 0.22, ens: 0.37 };
+// fx: the Dist · Flanger worklet, measured on itself (Node, 2026-11-07): born and idle 0.3 % of a core,
+// with the Dist running 1.4-1.6 % (its ×2 oversampling: two 32-tap filters per sample and channel)
+const ENGINE_COST = { base: 1, fx: 0.2, fxDrive: 1, ch: 0.22, ens: 0.37 };
+// Dist · Flanger insert (worklets/destroy-processor.js): the knobs → its AudioParams, and the types in order
+const FX_PARAM = { dist: 'amount', crushBits: 'bits', crushRate: 'rate', distKeep: 'keep', flAmt: 'mix', flDelay: 'delay', flDepth: 'depth', flFb: 'fb' };
+const FX_MX_PARAM = { dist: 'amount', bits: 'bits', rate: 'rate', flanger: 'mod' };   // matrix destination → AudioParam
+const DIST_TYPES = ['soft', 'hard', 'fuzz', 'rect'];
+const FX_XF = 0.01;   // s: time constant of the crossfade from the bypass to the worklet when it is born live
 const budgets = new WeakMap();
 const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
 // Performance sources (wheel, aftertouch, expression): smoothing of MIDI's 1/127 jumps
@@ -70,11 +77,11 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // matrix source ← 
 // The ?v=N breaks the browser's heuristic cache: BUMP IT when worklet code
 // changes (otherwise the browser may pair new modules with an old processor
 // and the new parameters arrive undefined -> crash when creating voices).
-const WK_V = '?v=19';  // v19: the FM4's operators get a shape (ADSR, key scaling, detune, fixed Hz) and their own feedback (fm4Fb); v18: the breath (a jet into the bore); v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
+const WK_V = '?v=20';  // v20: destroy-processor (the part's Dist · Flanger: drive types, crush, lows, flanger with feedback and splices); v19: the FM4's operators get a shape (ADSR, key scaling, detune, fixed Hz) and their own feedback (fm4Fb); v18: the breath (a jet into the bore); v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
-  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor', 'limiter-processor']
+  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor', 'limiter-processor', 'destroy-processor']
     .map(n => ctx.audioWorklet.addModule(new URL('./worklets/' + n + '.js' + WK_V, import.meta.url))));
   workletsLoaded.add(ctx);
 }
@@ -121,18 +128,16 @@ export class AudioEngine {
     this.amp = ctx.createGain(); this.amp.gain.value = S.amplitude;
 
     // INSERT EFFECTS ON DEMAND. Of each effect only the DRY path always exists
-    // (a gain); the wet — the ×2 WaveShaper of the distortion, the modulated
-    // delay lines of the flanger, the chorus and the ensemble, and their 9
-    // LFOs — is born the first time its amount rises above 0 (_ensureDist, _ensureFl,
-    // _ensureCh, _ensureEns) and stays. At 0 the output is the same (it added 0),
+    // (a gain); the wet — the Dist · Flanger worklet, the modulated delay lines of the
+    // chorus and the ensemble, and their LFOs — is born the first time it is needed
+    // (_ensureFx, _ensureCh, _ensureEns) and stays. At 0 the output is the same,
     // but an engine with no notes cost ~4 % of a core with everything at 0 — and in
     // Parts there are five engines (the 4 parts and the single one, silent underneath).
-    // Distortion (dry/wet: at 0 it is TRANSPARENT). A WaveShaper clips to ±1 any
-    // peak >1 that enters it, so keeping it always in series saturated with polyphony.
-    // Only the "wet" part is mixed in according to the drive; at 0 everything passes dry.
-    this.distDry = ctx.createGain(); this.distDry.gain.value = 1 - S.dist;
-    this.distOut = ctx.createGain();
-    this.flDry = ctx.createGain(); this.flOut = ctx.createGain();     // flanger
+    // Dist · Flanger (worklets/destroy-processor.js): until it is born the part goes through
+    // fxBypass (exactly transparent); once born, the WHOLE part goes through it (it aligns
+    // its own dry and wet branches: LAT = 31 samples of latency, 0.7 ms).
+    this.fxBypass = ctx.createGain(); this.fxOut = ctx.createGain();
+    this.fx = null; this.fxSlots = [];
     // Stereo chorus (two short lines modulated at different speeds) and
     // ensemble (Solina-style triple chorus): see _ensureCh / _ensureEns
     this.chDry = ctx.createGain(); this.chOut = ctx.createGain();
@@ -156,9 +161,8 @@ export class AudioEngine {
     // Global connections (the wets get hooked when they are created)
     this.acCoup = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * AC_HZ / ctx.sampleRate)]);   // no DC (see AC_HZ)
     this.voicesBus.connect(this.amp);
-    this.amp.connect(this.distDry); this.distDry.connect(this.distOut);
-    this.distOut.connect(this.flDry); this.flDry.connect(this.flOut);
-    this.flOut.connect(this.chDry); this.chDry.connect(this.chOut);
+    this.amp.connect(this.fxBypass); this.fxBypass.connect(this.fxOut);
+    this.fxOut.connect(this.chDry); this.chDry.connect(this.chOut);
     // Output: chOut -> level -> mute -> [pan -> Room dry] + [sends]
     this.chOut.connect(this.acCoup); this.acCoup.connect(this.level); this.level.connect(this.muteG);   // no DC, wherever it comes from (see AC_HZ)
     this.muteG.connect(this.partPan); this.partPan.connect(this.room.dry);
@@ -172,8 +176,6 @@ export class AudioEngine {
     this.freqLFO = mkLFO(ctx, S.freqLfoSpd, S.freqLfoLvl);
     this.pwmLFO = mkLFO(ctx, S.pwmLfoSpd, S.pwmLfoLvl);
     this.panLFO = mkLFO(ctx, S.panLfoSpd, S.panLfoLvl);   // autopan: depth is connected per voice
-    if (S.dist > 0) this._ensureDist();                  // effects the state already brings switched on
-    if (S.flAmt > 0) this._ensureFl();
     if (S.chAmt > 0) { if (S.chMode === 'ensemble') this._ensureEns(); else this._ensureCh(); }
     // LFO waveforms (the state may bring them from a preset); sin/tri/saw/sqr
     // are the native oscillator, S&H and drift an alternative source (nodes.js)
@@ -233,6 +235,10 @@ export class AudioEngine {
     // «in the past» and were applied all at once: the kick only hit sometimes (in
     // headless and offline the delay is constant and it doesn't show). Offline: 5 ms (golden).
     this.mod.lookahead = this.offline ? 0.005 : Math.max(0.005, 0.005 + 2 * (ctx.baseLatency || 0.01));
+    // Dist · Flanger: born now if the state already brings it on (no fade: nothing is sounding yet),
+    // and the matrix slots that point at it (part level) wired
+    if (S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || S.flAmt > 0) this._ensureFx(true);
+    for (let i = 1; i <= MX_SLOTS; i++) this.fxRewire(i, new Set(), true);
     if (!this.offline) console.info('SubSDJ · note look-ahead', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
 
     this.ready = true;
@@ -253,6 +259,8 @@ export class AudioEngine {
       setLfoSync(this.ctx, lfo, beats, clock, hz);
       if (k !== 'amp') this._forVoices(v => v.setLfo(k, 'spd', hz));
     }
+    const fl = this.flLFO;                 // the flanger's (Dist · Flanger), with its own keys
+    if (fl && (flBeats(this.S) || fl.sync)) setLfoSync(this.ctx, fl, flBeats(this.S), clock, flHz(this.S, clock.bpm));
   }
 
   // ---------- voices ----------
@@ -407,25 +415,65 @@ export class AudioEngine {
   // All silent (no voices, no tails): the Steps let go of the clock (reset «on play»)
   _maybeIdle() { if (!this.voices.size && !this.tails.size) this.steps.idle(); }
   // ---------- insert effects on demand (see init) ----------
-  _ensureDist() {
-    if (this.shaper) return;
-    const ctx = this.ctx, S = this.S;
-    this.distPre = ctx.createGain(); this.distPre.gain.value = 1 + S.dist * 6;
-    this.shaper = ctx.createWaveShaper(); this.shaper.curve = makeDistCurve(); this.shaper.oversample = '2x';
-    this.distPost = ctx.createGain(); this.distPost.gain.value = 1 / (1 + S.dist);
-    this.distWet = ctx.createGain(); this.distWet.gain.value = S.dist;
-    this.amp.connect(this.distPre); this.distPre.connect(this.shaper); this.shaper.connect(this.distPost);
-    this.distPost.connect(this.distWet); this.distWet.connect(this.distOut);
+  // Dist · Flanger (worklets/destroy-processor.js): ONE worklet per part with the whole
+  // destruction (Lows → Drive by type → Crush) and the flanger. Born the first time something
+  // needs it (a knob above 0, or a matrix slot pointing at it) and it stays. `instant`: at
+  // startup nothing sounds yet; live, the part crossfades from the bypass to it (its 0.7 ms of
+  // latency would otherwise jump). Its LFO is the engine's (mkLFO): shapes and tempo like the bank's.
+  _ensureFx(instant = false) {
+    if (this.fx) return this.fx;
+    const ctx = this.ctx, S = this.S, now = ctx.currentTime;
+    const fx = this.fx = new AudioWorkletNode(ctx, 'destroy-processor', {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+    for (const k in FX_PARAM) fx.parameters.get(FX_PARAM[k]).value = S[k];
+    fx.parameters.get('type').value = Math.max(0, DIST_TYPES.indexOf(S.distType));
+    this.flLFO = mkLFO(ctx, flHz(S, this.bpm), 1); setLfoShape(ctx, this.flLFO, S.flShape);
+    this.flLFO.out.connect(fx.parameters.get('lfo'));
+    if (flBeats(S)) setLfoSync(ctx, this.flLFO, flBeats(S), clockOf(ctx), flHz(S, clockOf(ctx).bpm));
+    this.fxWet = ctx.createGain(); this.fxWet.gain.value = instant ? 1 : 0;
+    this.amp.connect(fx); fx.connect(this.fxWet); this.fxWet.connect(this.fxOut);
+    if (instant) this.fxBypass.gain.value = 0;
+    else { this.fxWet.gain.setTargetAtTime(1, now, FX_XF); this.fxBypass.gain.setTargetAtTime(0, now, FX_XF); }
+    return fx;
   }
-  _ensureFl() {
-    if (this.flDelay) return;
-    const ctx = this.ctx, S = this.S;
-    this.flDelay = ctx.createDelay(0.05); this.flDelay.delayTime.value = 0.003;
-    this.flFb = ctx.createGain(); this.flFb.gain.value = 0.35;
-    this.flWet = ctx.createGain(); this.flWet.gain.value = S.flAmt;
-    this.distOut.connect(this.flDelay); this.flDelay.connect(this.flWet); this.flWet.connect(this.flOut);
-    this.flDelay.connect(this.flFb); this.flFb.connect(this.flDelay);
-    this.flLFO = mkLFO(ctx, S.flSpd, 0.002); this.flLFO.depth.connect(this.flDelay.delayTime);
+  // ---- the matrix at PART level: the insert's destinations (params.FX_DESTS) ----
+  // The same flat mx* keys as the voices'; a slot whose destination is the insert is wired HERE,
+  // once per part, and the voices skip it (Voice.mxRewire). Only part-level sources reach it
+  // (FX_SOURCES): the global LFOs raw, Steps continuous, wheel/AT/expr, macros.
+  _fxSrcNode(src) {
+    if (!FX_SOURCES.has(src)) return null;
+    if (this.mod.mxLfo[src]) return this.mod.mxLfo[src];
+    if (this.perf[src]) return this.perf[src];
+    const st = /^st(\d)$/.exec(src);
+    return st ? this.steps.node(+st[1]) : null;
+  }
+  _fxSpan(dst, depth = 0) {         // like Voice._mxSpan: «Amount n» takes slot n's destination's scale
+    const amt = /^amt(\d)$/.exec(dst);
+    if (!amt) return MX_SPAN[dst] || 0;
+    return depth > MX_SLOTS ? 1 : this._fxSpan(this.S['mx' + amt[1] + 'dst'], depth + 1);
+  }
+  // (Re)wires slot i if it points at the insert (or at the Amount of a slot that does), then the slots
+  // that modulate its amount. init: at startup (the worklet may be born without a fade).
+  fxRewire(i, seen = new Set(), init = false) {
+    if (seen.has(i)) return;
+    seen.add(i);
+    const old = this.fxSlots[i];
+    if (old) { try { old.src.disconnect(old.gain); } catch (e) {} try { old.gain.disconnect(); } catch (e) {} this.fxSlots[i] = null; }
+    const S = this.S, dst = S['mx' + i + 'dst'], src = this._fxSrcNode(S['mx' + i + 'src']);
+    const amt = /^amt(\d)$/.exec(dst), target = amt && +amt[1] !== i ? this.fxSlots[+amt[1]] : null;
+    if (src && (FX_DESTS.has(dst) || target)) {
+      const param = target ? target.gain.gain : this._ensureFx(init).parameters.get(FX_MX_PARAM[dst]);
+      const gain = this.ctx.createGain();
+      gain.gain.value = (S['mx' + i + 'amt'] || 0) * this._fxSpan(dst);
+      src.connect(gain); gain.connect(param);
+      this.fxSlots[i] = { src, gain, dst };
+    }
+    for (let j = 1; j <= MX_SLOTS; j++) if (j !== i && S['mx' + j + 'dst'] === 'amt' + i) this.fxRewire(j, seen, init);
+  }
+  fxSetAmt(i) {
+    const slot = this.fxSlots[i]; if (!slot) return;
+    slot.gain.gain.setTargetAtTime((this.S['mx' + i + 'amt'] || 0) * this._fxSpan(slot.dst), this.ctx.currentTime, 0.02);
   }
   // Stereo chorus: two short lines modulated by LFOs at different
   // speeds (decorrelates L/R), no feedback.
@@ -437,7 +485,7 @@ export class AudioEngine {
     this.chD2 = ctx.createDelay(0.06); this.chD2.delayTime.value = 0.028;
     this.chMerge = ctx.createChannelMerger(2);
     this.chWet = ctx.createGain(); this.chWet.gain.value = S.chMode === 'chorus' ? S.chAmt : 0;
-    this.flOut.connect(this.chSend);
+    this.fxOut.connect(this.chSend);
     this.chSend.connect(this.chD1); this.chSend.connect(this.chD2);
     this.chD1.connect(this.chMerge, 0, 0); this.chD2.connect(this.chMerge, 0, 1);
     this.chMerge.connect(this.chWet); this.chWet.connect(this.chOut);
@@ -466,7 +514,7 @@ export class AudioEngine {
       slow.depth.connect(d.delayTime); fast.depth.connect(d.delayTime);
       this.ensDelays.push(d); this.ensSlow.push(slow); this.ensFast.push(fast);
     }
-    this.flOut.connect(this.ensSend);
+    this.fxOut.connect(this.ensSend);
     this.ensDelays.forEach(d => this.ensSend.connect(d));
     this.ensDelays[0].connect(this.ensL);
     this.ensDelays[2].connect(this.ensR);
@@ -478,7 +526,8 @@ export class AudioEngine {
   // budget counts it along with the voices (in Parts there are five engines).
   engineCost() {
     if (!this.ready) return 0;
-    return ENGINE_COST.base + (this.shaper ? ENGINE_COST.dist : 0) + (this.flDelay ? ENGINE_COST.fl : 0)
+    const driving = this.S.dist > 0 || this.fxSlots.some(s => s && s.dst === 'dist');   // the worklet only runs its Dist when it can be heard
+    return ENGINE_COST.base + (this.fx ? (driving ? ENGINE_COST.fxDrive : ENGINE_COST.fx) : 0)
       + (this.chWet ? ENGINE_COST.ch : 0) + (this.ensWet ? ENGINE_COST.ens : 0);
   }
   // CPU budget (VOICE_BUDGET): makes room for a voice of cost `cost`
@@ -531,7 +580,11 @@ export class AudioEngine {
     // the slot's gain live; src/dst rewire the slot in the live voices.
     // NEW voices read S.mx* when they are built, like the rest of the state.
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
-    if (mx) { this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1])); return; }
+    if (mx) {
+      this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1]));
+      if (mx[2] === 'amt') this.fxSetAmt(+mx[1]); else this.fxRewire(+mx[1]);   // the slots that point at the part's insert
+      return;
+    }
     if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: worklet params by name
     if (STR_KEYS.includes(name)) { this._forVoices(v => v.setStr(name, value)); return; }   // String: same (Position only counts at the pluck)
     // ROOM keys (bpm, echo time/damp/wow, reverb size/damp/pre): applied by
@@ -609,17 +662,15 @@ export class AudioEngine {
       case 'cutLfoShape':  setLfoShape(this.ctx, this.cutLFO, value); break;
       case 'resLfoShape':  setLfoShape(this.ctx, this.resLFO, value); break;
 
-      case 'dist':
-        if (value > 0) this._ensureDist();
-        smooth(this.distDry.gain, 1 - value);   // crossfade: at 0 = all dry (clean, no clipping)
-        if (this.shaper) {
-          smooth(this.distPre.gain, 1 + value * 6);   // the drive lives here (fixed curve)
-          smooth(this.distPost.gain, 1 / (1 + value));
-          smooth(this.distWet.gain, value);
-        }
+      // Dist · Flanger: the amounts give birth to the worklet; the rest are its params if it exists
+      case 'dist': case 'crushBits': case 'crushRate': case 'flAmt': if (value > 0) this._ensureFx();   // falls through
+      case 'distKeep': case 'flDelay': case 'flDepth': case 'flFb':
+        if (this.fx) smooth(this.fx.parameters.get(FX_PARAM[name]), value);
         break;
-      case 'flAmt': if (value > 0) this._ensureFl(); if (this.flWet) smooth(this.flWet.gain, value); break;
-      case 'flSpd': if (this.flLFO) smooth(this.flLFO.osc.frequency, value); break;
+      case 'distType': if (this.fx) this.fx.parameters.get('type').setValueAtTime(Math.max(0, DIST_TYPES.indexOf(value)), now); break;   // the worklet crossfades the curves
+      case 'flSpd': if (this.flLFO && !this.flLFO.sync) setLfoRate(this.flLFO, value, now); break;      // in tempo the division rules
+      case 'flShape': if (this.flLFO) setLfoShape(this.ctx, this.flLFO, value); break;
+      case 'flSync': if (this.flLFO) setLfoSync(this.ctx, this.flLFO, flBeats(this.S), clockOf(this.ctx), flHz(this.S, clockOf(this.ctx).bpm)); break;
       case 'chAmt': {
         const ens = this.S.chMode === 'ensemble';
         if (value > 0) { if (ens) this._ensureEns(); else this._ensureCh(); }
@@ -709,7 +760,8 @@ export class AudioEngine {
     try { this.pitchOffset.stop(); this.pitchOffset.disconnect(); } catch (e) {}
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }
-    for (const n of [this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { try { n.disconnect(); } catch (e) {} }
+    for (const s of this.fxSlots) if (s) { try { s.gain.disconnect(); } catch (e) {} }
+    for (const n of [this.fx, this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { if (!n) continue; try { n.disconnect(); } catch (e) {} }
     this.room.engines = this.room.engines.filter(e => e !== this);
     this.budget.delete(this);
     if (this.ownsRoom) this.room.dispose();

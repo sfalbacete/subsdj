@@ -8,6 +8,24 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## [Unreleased]
 
+- **Dist · Flanger, rebuilt: ways to destroy a sound, and both in the matrix.** The part's Dist
+  now has a **type** — Soft (the tanh it always was), Hard (clipped flat), Fuzz (very high gain with a
+  dead zone: every note's tail chokes and sputters) and Rect (the octave above) — and a **Crush**:
+  **Bits** (16 down to 1: a grain that grows as each note fades) and **Rate** (44.1 kHz down to 150 Hz,
+  no filter: inharmonic, the 8-bit sound). **Lows** keeps the bass out of all of it: below its
+  frequency nothing is destroyed, and the low junk a distorted chord throws down is cleaned away. The
+  **flanger** gains **Manual** (where the comb sits), **Depth**, **Feedback** (negative = the hollow
+  comb) and its own **LFO** with the shapes and the tempo sync of the LFO bank — with Depth at 0 and
+  the feedback up it is a tuned comb that rings. And in the **Matrix** there are four new
+  destinations — **Dist**, **Crush bits**, **Crush rate**, **Flanger** — so an LFO, Steps, the wheel,
+  aftertouch, expression or a macro can move them: Steps → Dist with the knob at 0 destroys only the
+  notes on its 1s. Being one for the whole part, they don't take per-note sources (envelopes,
+  velocity…): the slot says so. Jumps of the flanger's delay (S&H, square, a step) are crossfaded, not
+  slid, so they don't chirp. New presets: **Crushed Arp** and **Comb Arp** (Motion), **Jet Pad** (Pads).
+- **The Dist loses a comb it always had.** Its saturated branch arrived 2.9 ms after its clean one
+  (the oversampling's delay) and the two summed into a comb — a notch every 345 Hz — at every amount
+  between 0 and 1. Now they are aligned: the presets with Dist sound fuller, and a little louder.
+
 - **Your session survives closing the page.** Whatever you were doing and had not saved — the sound,
   the Arpeggiator / Sequencer with its phrase, the Wave Sequence, Steps, the matrix, the tempo, the
   lock, and in Parts the whole scene — is kept in this browser every couple of seconds and when the
