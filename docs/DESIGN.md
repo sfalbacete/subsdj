@@ -534,12 +534,13 @@ js/ui/
   theme.js                     skin: token()/tint()/hue() serve the CSS tokens to the canvases; theme selector (reads the themes from the sheets)
   partsControls.js             Parts button + 1-4 selector in the header + Part Mixer module
   playerControls.js            Harmony (▶ Play, scale, progression, seed), Player (mode + knobs), Arrangement (+ the part's Enters/Drift row) modules
-                               and Arrangement (energy, sway, cycle, open, surprise; ⇩⇧↺ scene)
+                               and Arrangement (energy, sway, cycle, open, surprise; ⇩⇧ scene)
 scenes/*.json                 the repo's scenes (⇧ Scene in the Arrangement module): night ambient, dorian
                                dawn, hypnotic techno, robot choir — the selftest renders them all
   frame.js                     the fixed-size instrument scaled to the window (zoom); fitCanvas/uiZoom for the canvases
   screens.js                   Design / Sequencing / Presets tabs: one fixed panel each; moves the shared ones (data-slot)
   rotary.js                    rotary selector: a .seg.rot with its buttons in an arc around a knob
+  session.js                   the session: unsaved work kept while you play, offered back by the welcome window (compares, like the ●)
   display.js                   Output display (last parameter touched and, if it is switched off, why), File menu and bank notices
   (engine) Voice.cost + AudioEngine.VOICE_BUDGET   CPU budget shared by the parts (see «Performance»)
   deps.js                      dependencies: switches off (dimmed, playable) whatever does nothing with the current configuration, with its reason
@@ -3023,3 +3024,61 @@ startup (after the history is up, so it is «saved» and no undo step), Reset go
 undo step, marked as the current preset) and the parts that Parts adds are born with it. The
 engine's neutral stays where it belongs, as the base presets are written on (loadState starts
 from it). It is the library's Init: saving over it makes it your own starting point.
+
+## The session survives closing the page (2026-11-07)
+
+Sergio: «you will not always save the design in progress, and losing it — knowingly or not — is no
+fun». So the work in progress is kept while you play and offered back when you come in
+(`ui/session.js`).
+
+**What is kept.** The rack as `snapshot()` — that is the Design and Sequencing screens whole: every
+control in CONTROLS, which already includes the Arpeggiator / Sequencer phrase, the Wave Sequence,
+Steps, the matrix and the clock — plus its preset and the REFERENCE of its ● (history.js), and the
+Arp / Seq lock (it lives outside CONTROLS, in HELD). In Parts: `sceneToJSON`, each part's ● reference,
+Layer and the single engine's sound underneath (the one Parts off brings back). Not kept: the undo
+stacks, and what is already stored on its own (the drawn wave, your phrases, the library, theme,
+screen, MIDI map).
+
+**When there is something to keep: by comparison, never by «the user did things».** A «touched» flag
+gets three ordinary cases wrong: Reset after editing, undoing back to the start and a knob put back.
+The question is «would closing now lose something that is nowhere else?», and the ● already answers
+most of it: the rack against its reference, with its tolerance. The rules (the table agreed with
+Sergio): kept if the ● is lit; if the ● is off but that preset was deleted from the library and the
+rack is not what a fresh start gives (Init); if the Arp / Seq is locked with a phrase that is not the
+start's; in Parts, if the scene differs from the one loaded (library or file) or from the one Parts
+started with — and if the rack had unsaved work when Parts started, the scene carries it: kept. A
+preset loaded as it is, Save, Reset, undo to the start: nothing to keep, and the stored session is
+deleted, so next time there is no question.
+
+Two catches found on the way. (1) THE LOCK: a locked phrase is written into the ●'s reference when a
+preset loads (loadState keeps the HELD keys and markSaved snapshots them), so the ● goes off with the
+phrase in no preset at all — hence its own rule. Consequence worth knowing: Reset with the lock on
+leaves the phrase (that is what the lock is for), so it still asks, and the question says «Arp / Seq
+locked». (2) THE PLAYERS' DRIFT moves a parameter of a part while a scene plays and leaves it moved:
+the scene is compared with the drift's base, or every scene played would count as edited.
+
+**Only on entering, never a «recover last session».** Sergio: it would be ambiguous (the session from
+before entering, or the latest autosave?) and Reset has to keep meaning Reset. So the only way back
+is the question at the door; discarding there is a decision. For the same reason nothing is written
+until the answer: the pending session cannot be overwritten by the first knob turned. A session that
+fails to come back stays stored, and nothing is written during that visit.
+
+**The question is the welcome window's.** Not a second popup and never `confirm()`: the window that
+already asks for the gesture the audio needs shows what was left («Warm Pad» · 8 changes · Arp / Seq
+locked — last change today, 12:22) and the big button becomes CONTINUE (Enter, and Escape too: keeping
+is the default); «start from Init» under it takes a deliberate click. One gesture answers and starts
+the audio.
+
+**Back with its ● lit.** The work is still not saved; a session that came back looking saved is
+exactly how it would get lost the second time.
+
+**Writing.** Every 2 s, only if the content changed (the date is left out of the comparison: the date
+shown is that of the last change), and at once on `pagehide` / `visibilitychange` (`beforeunload`
+is unreliable on phones). Off with ?selftest and ?nosplash (tests and tools). ↺ Last, the scene's own
+autosave, is gone: it duplicated this, by hand and only for scenes.
+
+Verified: the selftest check «session» (the table, the round trip exact with its ● and lock, Parts
+with a drifting player, the welcome's question) and an end-to-end probe in headless Chrome with real
+reloads: edits all over, reload, CONTINUE, Reset, Parts, start from Init, a knob put back — 21 steps,
+all as expected. Known limits: with two tabs open the last one to write wins; a scene loaded from the
+library and then deleted from it still counts as one that can be loaded again.

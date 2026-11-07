@@ -13,6 +13,10 @@
    browser won't make sound without a gesture), and at the bottom the version, its date
    (RELEASE), the code and the license. Enter also gets you in; while it is up,
    the keyboard plays no notes. The window scales with the instrument.
+   It can also ASK (askOnWelcome, ui/session.js): unsaved work from the last
+   visit → the button says CONTINUE (Enter, Escape) and «start from Init»
+   appears under it (a click, or Tab to it and Enter); the answer comes with
+   the same gesture that starts the audio.
    Off with ?selftest or ?nosplash (tests and screenshots: tools/shot.mjs).
    ===================================================================== */
 import { VERSION, RELEASE } from '../version.js';
@@ -134,11 +138,17 @@ export class SplashFx {
 // Escape or a click outside close it. On close it is HIDDEN (not removed) and the effect stops.
 let open = () => {};
 export const openSplash = (about = true) => open(about);
+// The welcome asks { what, when }: resolves 'continue' or 'fresh' when it closes; null if no welcome is up
+// (?selftest, ?nosplash, the «About»): then nobody answered
+let ask = () => Promise.resolve(null);
+export const askOnWelcome = info => ask(info);
 
 export function initSplash() {
   const el = document.getElementById('splash');
   if (!el) return;
   const card = el.querySelector('.sp-card'), btn = el.querySelector('#spEnter'), label = btn.querySelector('span');
+  const sess = el.querySelector('#spSession'), fresh = el.querySelector('#spFresh');
+  let answer = null;   // the pending question's resolve
   el.querySelector('#spVer').textContent = 'v' + VERSION;
   el.querySelector('#spDate').textContent = splashDate(RELEASE);
   const fx = new SplashFx(el.querySelector('canvas'));
@@ -153,11 +163,14 @@ export function initSplash() {
   // keyboard (which also listens in capture on window): first registered, first to hear.
   const keys = e => {
     if (!shown) return;
-    if (e.key === 'Enter' || e.key === ' ' || (about && e.key === 'Escape')) close();
+    if (answer && e.key === 'Tab') (document.activeElement === fresh ? btn : fresh).focus({ preventScroll: true });   // two buttons: Tab goes between them
+    else if (e.key === 'Enter' || e.key === ' ') close(answer && document.activeElement === fresh ? 'fresh' : 'continue');
+    else if ((about || answer) && e.key === 'Escape') close('continue');   // with a question, Escape keeps the work: discarding it takes a deliberate choice
     e.stopImmediatePropagation(); e.preventDefault();          // also against other window listeners (the keyboard listens there)
   };
-  function close() {
+  function close(choice = 'continue') {
     if (!shown) return; shown = false;
+    if (answer) { const res = answer; answer = null; res(choice); }
     if (!about) try {                                         // the welcome: the gesture the browser requires before making sound
       const e = part();
       if (e && e.ctx && e.ctx.state === 'suspended') e.ctx.resume().then(() => setStatus('powerInfo', 'on', 'audio on')).catch(() => {});
@@ -165,11 +178,21 @@ export function initSplash() {
     fx.exitT = (performance.now() - (t0 ?? performance.now())) / 1000;
     el.classList.add('out');
     removeEventListener('resize', scale);
-    timer = setTimeout(() => { cancelAnimationFrame(raf); el.hidden = true; }, 460);
+    timer = setTimeout(() => { cancelAnimationFrame(raf); el.hidden = true; sess.hidden = fresh.hidden = true; }, 460);
   }
+  ask = ({ what = '', when = '' } = {}) => new Promise(res => {
+    if (!shown || about || answer) { res(null); return; }
+    answer = res;
+    el.querySelector('#spSessWhat').textContent = what;
+    el.querySelector('#spSessWhen').textContent = when;
+    sess.hidden = fresh.hidden = false;
+    label.textContent = 'CONTINUE';
+    btn.focus({ preventScroll: true });
+  });
   open = (asAbout) => {
     if (shown) return; shown = true; about = asAbout;
     clearTimeout(timer); cancelAnimationFrame(raf);
+    sess.hidden = fresh.hidden = true;
     label.textContent = about ? 'BACK' : 'ENTER';
     fx.exitT = null; t0 = null;
     el.hidden = false; el.classList.remove('out');
@@ -178,7 +201,8 @@ export function initSplash() {
     btn.focus({ preventScroll: true });
   };
   addEventListener('keydown', keys, true);
-  btn.addEventListener('click', close);
+  btn.addEventListener('click', () => close('continue'));
+  fresh.addEventListener('click', () => close('fresh'));
   el.addEventListener('click', e => { if (about && !card.contains(e.target)) close(); });   // «About»: a click outside also closes
   const q = new URLSearchParams(location.search);
   if (q.has('selftest') || q.has('nosplash')) el.hidden = true;   // tests and screenshots: no welcome (the «About» still works)

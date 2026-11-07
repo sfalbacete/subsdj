@@ -37,6 +37,7 @@ import { initHistory } from './ui/history.js';
 import { initClock } from './ui/clock.js';
 import { initTips } from './ui/tips.js';
 import { initEnablers } from './ui/enablers.js';
+import { initSession } from './ui/session.js';
 import { setStatus, isStatus } from './ui/status.js';
 import { VERSION } from './version.js';
 
@@ -83,7 +84,8 @@ startWithInit();     // the synth starts ON Init, the blank page (loaded and «s
 document.addEventListener('change', e => { if (e.target.tagName === 'SELECT') e.target.blur(); });
 
 // 2) Audio engine (loads the worklet; the context starts suspended and resumes on the first gesture)
-engine.init()
+const audioReady = engine.init();
+audioReady
   .then(() => {
     initScope(document.getElementById('scope'), document.getElementById('spectrum'));
     initMeter();         // output meter: L/R peaks and limiter reduction
@@ -94,7 +96,11 @@ engine.init()
     setStatus('powerInfo', 'err', 'error starting the audio (see the console)');
   });
 
-// 3) Self-test (?selftest=1): renders the factory presets in an
+// 3) The session (ui/session.js): unsaved work from the last visit is offered back on the welcome
+//    window; from the answer on, it is kept every few seconds and on closing. Off with ?selftest / ?nosplash.
+initSession(audioReady);
+
+// 4) Self-test (?selftest=1): renders the factory presets in an
 //    OfflineAudioContext and validates the output. It doesn't need the real audio.
 if (new URLSearchParams(location.search).has('selftest')) {
   import('./selftest.js')

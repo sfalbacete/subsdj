@@ -110,7 +110,7 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Player | Golpes · Pasos · Rot · Prob · Gate · Acento · Oct · Vel · Respira · Ciclo | Hits · Steps · Rot · Prob · Gate · Accent · Oct · Vel · Breathe ⚑ · Cycle |
 | Player | Notas · Densidad · Silencio · Gravedad · Rango · Legato · Quinta · Cada | Notes · Density · Rest · Gravity · Range · Legato · Fifth · Every |
 | Arrangement | Energía · Vaivén · Ciclo · Apertura · Sorpresa | Energy · Sway ⚑ · Cycle · Open ⚑ · Surprise |
-| Arrangement | parte N: entra · Deriva · cant. · ⇩ ⇧ Escena · ↺ Última | part N: enters · Drift · amt · ⇩ ⇧ Scene · ↺ Last |
+| Arrangement | parte N: entra · Deriva · cant. · ⇩ ⇧ Escena | part N: enters · Drift · amt · ⇩ ⇧ Scene |
 | Library | ★ solo favoritos · + Sección · ★ Míos · Escenas · Importados | ★ favorites only · + Section · ★ Mine · Scenes · Imported |
 | Keyboard | Octava · Rueda · Bend · Tacto: suave · lineal · dura | Octave · Wheel · Bend · Touch ⚑: soft · linear · hard |
 | MIDI map | MIDI LEARN · Esc sale · Pickup · ⇩ ⇧ Mapa · ⟲ Fábrica | MIDI LEARN · Esc exits · Pickup · ⇩ ⇧ Map · ⟲ Factory |

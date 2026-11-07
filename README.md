@@ -79,6 +79,11 @@ keeps it aside untouched (File ▾ → Export or Discard the unreadable copy) ra
 overwrite it, and a file from a newer version is refused with a message, never half
 read.
 
+What you had not saved is not lost either: if you close the page (or the browser
+crashes) in the middle of a sound, a phrase or a scene, the welcome window offers it
+back next time — **CONTINUE**, or **start from Init** to leave it behind. It only asks
+when there really is something unsaved.
+
 ## Browsers
 
 Developed and tested in **Chrome**; Edge uses the same engine. Firefox and

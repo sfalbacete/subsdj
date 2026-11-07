@@ -55,7 +55,10 @@ import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION, RELEASE } from './version.js';
-import { splashDate, SplashFx } from './ui/splash.js';
+import { splashDate, SplashFx, openSplash, askOnWelcome } from './ui/splash.js';
+import { captureSession, soloDirty, sceneCore, sceneDirty, restoreSession, describe as describeSession } from './ui/session.js';
+import { setAsLock, asLocked } from './ui/seqControls.js';
+import { diffKeys } from './ui/history.js';
 import { FM4_ALGS, layout as fm4Layout, svgFor as fm4Svg } from './ui/fm4Graph.js';
 
 const SR = 44100;
@@ -5401,6 +5404,97 @@ export async function runSelfTest() {
       if (!sp.hidden) problems.push('Escape does not close the «About»');
     }
     push({ name: 'welcome window (the frame paints · the whole name · version and date · «About»)', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // The session (2026-11-07): what is kept on closing the page is decided by COMPARISON with what can be
+    // rebuilt (the ●'s test), never by «something was touched». Reset, undo, a knob put back and a preset
+    // loaded as it is leave nothing; an edit, a preset deleted from under the rack or a locked phrase do.
+    // Putting a session back is exact and keeps its ● lit. In Parts the scene compares with the one loaded,
+    // and a player's drift is not an edit. The welcome asks: CONTINUE (Enter, Escape) or start from Init.
+    const NAME = 'session (kept only if closing would lose it: ● lit, its preset deleted, a locked phrase, a scene edited · Reset, undo, a knob put back leave nothing · put back exactly with its ● · the welcome asks)';
+    const problems = [], C = CONTROLS, keep = snapshot(), id0 = currentPresetId();
+    const wait = ms => new Promise(r => setTimeout(r, ms)), settle = p => Promise.race([p, wait(1500).then(() => 'timeout')]);
+    const reset = () => document.getElementById('resetBtn').click();
+    try {
+      reset();                                                    // Init: what a fresh start gives
+      const base = snapshot(), dirty = () => { const s = captureSession(); return soloDirty(s.solo, s.lock, base); };
+      if (dirty()) problems.push('on Init there is something to keep');
+      const c0 = C.cutoff.get();
+      C.cutoff.set(c0 * 0.5);
+      if (!dirty()) problems.push('an edit is not kept');
+      C.cutoff.set(c0);
+      if (dirty()) problems.push('a knob put back is still kept');
+      C.reso.set(5); C.seqPat.set('0 5 7 12');
+      reset();
+      if (dirty()) problems.push('after Reset there is something to keep');
+      record('selftest', () => C.reso.set(7));
+      if (!dirty()) problems.push('an undoable edit is not kept');
+      undo();
+      if (dirty()) problems.push('undone back to the start, still kept');
+      const warm = library.presets().find(it => it.name === 'Warm Pad');
+      if (!warm) throw new Error('no Warm Pad');
+      loadPresetId(warm.id);
+      if (dirty()) problems.push('a preset loaded as it is is kept');
+      C.cutoff.set(C.cutoff.get() * 0.7); C.wsPat.set('0 1 2 3'); C.st1Pat.set('1 -1');
+      if (!dirty()) problems.push('an edited preset is not kept');
+      const ws = snapshot();                                      // deleted from under the rack: the same sound, in no library
+      if (!soloDirty({ state: ws, ref: ws, preset: null }, false, base)) problems.push('a sound whose preset was deleted is not kept');
+      if (soloDirty({ state: base, ref: base, preset: null }, false, base)) problems.push('Init untouched with no Init in the library is kept');
+      // the round trip: what is captured comes back exactly, with its preset, its ● lit and its lock
+      setAsLock(true);
+      const s = captureSession(), said = describeSession(s).replace(/ /g, ' ');   // no-break spaces inside each piece
+      if (said !== '«Warm Pad» · 3 changes · Arp / Seq locked') problems.push('the welcome would say «' + said + '»');
+      setAsLock(false); reset();
+      await restoreSession(s);
+      const back = diffKeys(s.solo.state, snapshot());
+      if (back.length) problems.push('put back: ' + back.length + ' keys differ (' + back.slice(0, 4).join(', ') + ')');
+      if (!isModified()) problems.push('put back with its ● off');
+      if (currentPresetId() !== warm.id) problems.push('put back without its preset');
+      if (!asLocked()) problems.push('put back without its lock');
+      // a locked phrase rides over the presets: it is in none of them
+      setAsLock(false); reset();
+      C.seqPat.set('0 5 7 12'); setAsLock(true); loadPresetId(warm.id);
+      if (!dirty()) problems.push('a locked phrase is not kept');
+      setAsLock(false);
+      // Parts: the scene compares with the one loaded; a player's drift is the player playing, not an edit
+      const sc = await createScene(new OfflineAudioContext(2, 4410, SR));
+      const ref = { core: sceneCore(sc), ok: true };
+      if (sceneDirty(sceneCore(sc), ref)) problems.push('a scene as loaded is kept');
+      sc.parts[1].pan = 0.5;
+      if (!sceneDirty(sceneCore(sc), ref)) problems.push('an edited scene (a pan) is not kept');
+      sc.parts[1].pan = 0;
+      const pl = sc.conductor.players[0], e0 = sc.parts[0].engine;
+      pl.driftKey = 'cutoff'; pl.driftBase = e0.S.cutoff; e0.set('cutoff', e0.S.cutoff * 1.5);
+      if (sceneDirty(sceneCore(sc), ref)) problems.push('a player\'s drift counts as an edit');
+      if (!sceneDirty(sceneCore(sc), { ...ref, ok: false })) problems.push('a scene started over unsaved work is not kept');
+      for (const p of sc.parts) p.engine.dispose();
+      sc.room.dispose();
+      // the welcome asks: CONTINUE by default (Escape too), «start from Init» with a click; the «About» never asks
+      const sp = document.getElementById('splash'), q = id => document.getElementById(id);
+      openSplash(false);
+      let ans = askOnWelcome({ what: 'test', when: 'now' });
+      const lab = document.querySelector('#spEnter span').textContent;
+      if (q('spSession').hidden || q('spFresh').hidden || lab !== 'CONTINUE') problems.push('the welcome does not ask (button: ' + lab + ')');
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      if ((ans = await settle(ans)) !== 'continue') problems.push('Escape: ' + ans);
+      await wait(520);
+      openSplash(false); ans = askOnWelcome({ what: 'test', when: 'now' });
+      q('spFresh').click();
+      if ((ans = await settle(ans)) !== 'fresh') problems.push('«start from Init»: ' + ans);
+      await wait(520);
+      if (!sp.hidden || !q('spSession').hidden) problems.push('the window or its question stays up');
+      openSplash(true);
+      if (!q('spSession').hidden || (await settle(askOnWelcome({}))) !== null) problems.push('the «About» asks');
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await wait(520);
+      if (q('sceneLast')) problems.push('↺ Last is still there');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      setAsLock(false);
+      if (id0) loadPresetId(id0);
+      loadState(keep); refreshDeps();
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
 
   // Social card (Open Graph): title, description, URL and image present; the

@@ -280,17 +280,21 @@ function initSeqPatterns() {
 // The module's LOCK (the «lock» in its title): while it is on, loading a preset or Reset leave every key
 // of the Arpeggiator / Sequencer as it is (registry HELD) — the same sequence on other instruments.
 export const AS_KEYS = ['arpMode', 'arpDiv', 'arpOct', 'arpGate', 'arpLatch', 'seqOn', 'seqPat', 'seqDiv', 'seqGate', 'seqLatch', 'seqRetrig', 'seqNotes', 'seqChord'];
+export const asLocked = () => HELD.has('seqPat');
+// On or off, with its button painted (the session puts the lock back as you left it: ui/session.js)
+export function setAsLock(on) {
+  for (const k of AS_KEYS) { if (on) HELD.add(k); else HELD.delete(k); }
+  const b = document.getElementById('asLockBtn');
+  if (!b) return;
+  b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  b.title = (on ? 'Locked: changing preset (or Reset) leaves this module as it is' : 'Lock: changing preset (or Reset) leaves this whole module as it is')
+    + ' — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own';
+}
 function initLock() {
   const b = document.getElementById('asLockBtn');
   if (!b) return;
-  const set = on => {
-    for (const k of AS_KEYS) { if (on) HELD.add(k); else HELD.delete(k); }
-    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
-    b.title = (on ? 'Locked: changing preset (or Reset) leaves this module as it is' : 'Lock: changing preset (or Reset) leaves this whole module as it is')
-      + ' — mode, phrase, division, gate, latch… — so you can hear the same sequence on other instruments. Off: each preset brings its own';
-  };
-  b.addEventListener('click', () => { set(!b.classList.contains('active')); say(b.classList.contains('active') ? 'Arpeggiator / Sequencer locked: presets keep out of it.' : 'Arpeggiator / Sequencer unlocked: each preset brings its own.'); });
-  set(false);
+  b.addEventListener('click', () => { setAsLock(!asLocked()); say(asLocked() ? 'Arpeggiator / Sequencer locked: presets keep out of it.' : 'Arpeggiator / Sequencer unlocked: each preset brings its own.'); });
+  setAsLock(false);
 }
 
 // STEP RECORDING («rec» in the module's title, 2026-11-02): while it is armed the keys — QWERTY, the

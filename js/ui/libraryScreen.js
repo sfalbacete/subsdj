@@ -179,6 +179,6 @@ export function initLibraryScreen() {
   document.addEventListener('preset-marked', mark);   // changing part or saving: the current one changes without loading
   document.addEventListener('play-changed', render);   // scenes' ▶/⏹ kept up to date (also from ▶ Play)
   document.addEventListener('scene-changed', render);  // Panic or Parts switched off stop the conductor
-  document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // another scene (⇧ Scene, ↺ Last)
+  document.addEventListener('scene-loaded', () => { playingId = null; render(); });   // another scene (⇧ Scene, the session brought back)
   render();
 }

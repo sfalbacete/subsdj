@@ -4,7 +4,8 @@
    part the rack is editing: mode + its knobs; its arrangement,
    Enters / Drift, is a row of the Arrangement module)
    and «Arrangement» (energy, sway, cycle, open, surprise + the SCENE:
-   ⇩ export, ⇧ import, ↺ last — autosaved every few seconds).
+   ⇩ export, ⇧ import; the scene in progress survives closing the page with the
+   rest of the session, ui/session.js).
    Only visible with the scene on (partsControls shows/hides them).
    The settings live in the scene's conductor (engine/Conductor.js), not
    in the presets: the preset is the instrument, the player is the musician.
@@ -17,7 +18,6 @@ import { CONTROLS } from './registry.js';
 import { download } from './recorder.js';
 
 const $ = id => document.getElementById(id);
-const LS_SCENE = 'subsdj.scene.v2', LS_SCENE_V1 = 'subsdj.escena.v1';   // the one up to 1.3.0: ↺ Last reads it if there is no other
 const conductor = () => { const sc = getScene(); return sc ? sc.conductor : null; };
 const int = v => String(Math.round(v));
 // knobs per mode: [key, label, min, max, integer?]
@@ -32,7 +32,7 @@ const KNOBS = {
 };
 const ARR_KNOBS = [['energy', 'Energy', 0, 1], ['sway', 'Sway', 0, 1], ['cycle', 'Cycle', 4, 64, 1],
                    ['open', 'Open', 0, 1], ['surprise', 'Surprise', 0, 1]];
-let infoTimer = null, saveTimer = null;
+let infoTimer = null;
 // the conductor's settings don't go through the registry: they notify ui/deps.js (what is off) by hand
 const depsRefresh = () => document.dispatchEvent(new Event('deps-refresh'));
 
@@ -106,8 +106,7 @@ function refreshInfo() {
     ' · playing ' + c.players.map((p, i) => c.arr.stateAt(bar, i, p.cfg).active && p.cfg.mode !== 'off' ? (i + 1) : '·').join('');
 }
 
-// ---------- scene: export / import / last ----------
-function saveLast() { const sc = getScene(); if (!sc) return; try { localStorage.setItem(LS_SCENE, JSON.stringify(sceneToJSON(sc))); } catch (e) {} }
+// ---------- scene: export / import ----------
 export async function loadScene(json) {   // also from the Library (Presets screen)
   if (!sceneOn()) { await enableScene(); document.dispatchEvent(new CustomEvent('scene-loaded')); }   // switches on (and the UI is assembled)
   applySceneJSON(getScene(), json);
@@ -153,24 +152,16 @@ export function initPlayerControls() {
     try { await loadScene(JSON.parse(await f.text())); $('presetMsg').textContent = 'Scene loaded: ' + f.name; }
     catch (err) { $('presetMsg').textContent = 'Invalid scene: ' + (err.message || err); }
   });
-  $('sceneLast').addEventListener('click', async () => {
-    let j = null; try { j = JSON.parse(localStorage.getItem(LS_SCENE) || localStorage.getItem(LS_SCENE_V1)); } catch (e) {}
-    if (!j) { $('presetMsg').textContent = 'No saved scene'; return; }
-    try { await loadScene(j); $('presetMsg').textContent = 'Last scene restored (' + (j.date || j.fecha || '').slice(0, 16) + ')'; }
-    catch (err) { $('presetMsg').textContent = 'Invalid scene: ' + (err.message || err); }
-  });
-  window.addEventListener('beforeunload', saveLast);
 
   document.addEventListener('part-changed', buildPlayerUI);
   document.addEventListener('preset-loaded', () => { if (getScene()) buildPlayerUI(); });
   document.addEventListener('scene-changed', e => {
-    clearInterval(infoTimer); infoTimer = null; clearInterval(saveTimer); saveTimer = null;
+    clearInterval(infoTimer); infoTimer = null;
     if (e.detail.on) {
       const c = conductor();
       c.onDrift = (i, key, v) => { const sc = getScene(); if (sc && sc.sel === i && CONTROLS[key] && Math.abs(CONTROLS[key].get() - v) > 1e-9) CONTROLS[key].set(v); };
       syncAll();
       infoTimer = setInterval(refreshInfo, 200);
-      saveTimer = setInterval(saveLast, 3000);
-    } else saveLast();
+    }
   });
 }

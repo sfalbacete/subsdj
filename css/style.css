@@ -950,7 +950,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   --sp-shadow:rgba(0,0,0,.7); --sp-halo:rgba(63,198,242,.12); --sp-ink:#cdeee6; --sp-soft:#7aa39a; --sp-meta:#8fd9c8; --sp-white:#fff;
   --sp-green:#39d4a3; --sp-cyan:#3fc6f2; --sp-violet:#a78bfa; --sp-glow:rgba(63,198,242,.4);
   --sp-btn-top:rgba(6,24,26,.96); --sp-btn-bot:rgba(2,10,12,.98); --sp-btn-top-on:rgba(12,52,56,.96); --sp-btn-bot-on:rgba(4,22,26,.98);
-  --sp-btn-ink:#d6fff6; --sp-btn-glow:rgba(63,214,242,.75); --sp-sweep:rgba(255,255,255,.2);
+  --sp-btn-ink:#d6fff6; --sp-btn-glow:rgba(63,214,242,.75); --sp-sweep:rgba(255,255,255,.2); --sp-well:rgba(0,0,0,.28);
   /* canvas palettes (splash.js interpolates them to 256 colors): cyclic plasma and the name's copper */
   --sp-plasma:#02090a,#041d1c,#08383a,#0d5752,#127a6c,#18a08a,#127a6c,#0d4f57,#132a4a,#08202a;
   --sp-copper:#0e3b52,#3fc6f2,#e8fbff,#3fc6f2,#2a6f9e,#7d63d8,#d9ccff,#a78bfa,#3b2a78,#0e3b52;}
@@ -983,6 +983,18 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 #spEnter:hover span,#spEnter:focus-visible span{background:linear-gradient(180deg,var(--sp-btn-top-on),var(--sp-btn-bot-on));color:var(--sp-white);}
 #spEnter:active{transform:scale(.97);}
 #spEnter:focus{outline:none;}
+/* The question of the session (ui/session.js): what was left unsaved, and the way out under the big
+   button — CONTINUE is the button (and Enter, and Escape); starting from Init takes a deliberate click */
+.sp-session{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;box-sizing:border-box;padding:9px 10px;
+  border:1px solid var(--sp-edge);border-radius:6px;background:var(--sp-well);text-align:center;
+  font:500 11px/1.35 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--sp-ink);overflow-wrap:anywhere;}
+.sp-session[hidden],.sp-fresh[hidden]{display:none;}
+.sp-session b{font-weight:600;font-size:10px;line-height:1;letter-spacing:.28em;text-indent:.28em;text-transform:uppercase;color:var(--sp-meta);}
+.sp-session .sp-when{font-size:10px;color:var(--sp-soft);}
+.sp-fresh{margin-top:-5px;padding:3px 6px;border:0;background:none;cursor:pointer;
+  font:500 11px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.06em;color:var(--sp-soft);
+  text-decoration:underline;text-underline-offset:3px;}
+.sp-fresh:hover,.sp-fresh:focus-visible{color:var(--sp-white);outline:none;}
 .sp-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;border-top:1px solid var(--sp-edge2);
   font:500 10px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:.04em;color:var(--sp-soft);}
 .sp-foot b{color:var(--sp-ink);font-weight:600;}

@@ -35,14 +35,15 @@ let ui = {};                // buttons and dot (initHistory)
 const partKey = () => (sceneOn() ? getScene().sel : 'solo');
 const stack = () => { const k = partKey(); if (!stacks.has(k)) stacks.set(k, { undo: [], redo: [] }); return stacks.get(k); };
 
-// Equal with a tolerance on numbers (a knob put back «in place» with the mouse doesn't land on the same float)
-function same(k, a, b) {
+// Equal with a tolerance on numbers (a knob put back «in place» with the mouse doesn't land on the same float).
+// The session (ui/session.js) decides with the same test whether there is anything to keep.
+export function same(k, a, b) {
   if (a === b) return true;
   if (typeof a !== 'number' || typeof b !== 'number') return false;
   const p = PARAMS[k], span = p && p.max !== undefined ? p.max - p.min : 1;
   return Math.abs(a - b) <= 1e-4 * span;
 }
-const diffKeys = (a, b) => Object.keys(b).filter(k => !same(k, a[k], b[k]));
+export const diffKeys = (a, b) => Object.keys(b).filter(k => !same(k, a[k], b[k]));
 
 // Name of a control as the Output display reads it: «Filter · Cutoff»
 function labelOf(keys) {
@@ -119,6 +120,10 @@ export const historyDepth = () => ({ undo: stack().undo.length, redo: stack().re
 export function markSaved() { savedBy.set(partKey(), snapshot()); refresh(); }
 const saved = () => savedBy.get(partKey());          // no known preset in this part: neither ● nor Compare
 export const isModified = () => !!saved() && diffKeys(saved(), snapshot()).length > 0;
+// The reference of a part ('solo' or 0-3), read and put back by the session (ui/session.js): a session
+// brought back keeps its ● lit — it is not saved anywhere, and it must not look as if it were
+export const savedRef = (k = partKey()) => savedBy.get(k) || null;
+export function setSavedRef(k, snap) { if (snap) savedBy.set(k, snap); else savedBy.delete(k); refresh(); }
 export function enterCompare() {
   end();
   if (comparing || !isModified()) return;

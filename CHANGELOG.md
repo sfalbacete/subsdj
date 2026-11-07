@@ -6,6 +6,18 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## [Unreleased]
+
+- **Your session survives closing the page.** Whatever you were doing and had not saved — the sound,
+  the Arpeggiator / Sequencer with its phrase, the Wave Sequence, Steps, the matrix, the tempo, the
+  lock, and in Parts the whole scene — is kept in this browser every couple of seconds and when the
+  page closes. Next time, the welcome window says what was left (and when) and asks: **CONTINUE**
+  brings it back exactly, with its ● still lit (it is still not saved); **start from Init** leaves it
+  behind. It only asks when closing would really have lost something: after Reset, after undoing
+  back to the start, with a preset loaded as it is or just saved, there is nothing to ask about.
+- **↺ Last is gone** from the Arrangement module: the session already brings back the scene in
+  progress, on entering.
+
 ## [1.8.0] — 2026-11-02
 
 The FM4 grows up and the sequencer's phrases become yours. Each FM4 operator gets a whole
