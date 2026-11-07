@@ -92,7 +92,7 @@ export class AudioEngine {
     this.monoVoice = null;        // single voice in mono mode
     this.arp = new Arp(this);     // arpeggiator (active when S.arpMode != 'off')
     this.seq = new Seq(this);     // step sequencer (active when S.seqOn == 'on')
-    this.recHook = null;          // step recording (ui/seqControls.js): a live key goes there (and sounds as it is) instead of the Arp / Seq
+    this.recHook = null;          // step recording (ui/seqControls.js): a live key goes there instead of the Arp / Seq (and sounds as it is, unless the hook returns true)
     this._recIds = new Set();     // the keys taken by the recording: their note-off goes to the direct path
     this.wseq = new WaveSeq(this);// wave sequence (active when S.wsOn == 'on')
     this.steps = new Steps(this); // Steps: 4 lanes for the matrix (Roadmap 7.0 · 2.3)
@@ -259,8 +259,8 @@ export class AudioEngine {
   // when (optional): audio time of the key — the players; the Arp/Seq put it into that grid step
   noteOn(id, freq, vel = 1, when = null) {
     if (this.recHook && when === null) {           // recording a phrase: a LIVE key writes a step (a player's, with its time, plays as usual)
-      this.recHook(freq, vel); this._recIds.add(id);
-      if (this.ready) this._directOn(id, freq, vel);
+      const quiet = this.recHook(freq, vel); this._recIds.add(id);   // quiet: the take's loop plays it already
+      if (this.ready && !quiet) this._directOn(id, freq, vel);
       return;
     }
     if (!this.ready) return;
@@ -313,7 +313,7 @@ export class AudioEngine {
   allNotesOff() {
     this.arp.tie = null; this.seq.tie = []; this.seq.link = null;   // the tied note that was waiting for its off goes down with the rest (fast cut below)
     this.arp.held = []; this.arp.gesture = []; this.arp.latched = null; this.arp._maybeStop();   // a latched chord goes too (panic means silence)
-    this.seq.held = []; this.seq.gesture = []; this.seq.latched = null; this.seq.latchedChord = null; this.seq._maybeStop();
+    this.seq.held = []; this.seq.gesture = []; this.seq.latched = null; this.seq.latchedChord = null; this.seq.pinned = null; this.seq._maybeStop();
     this.heldStack = []; this.monoVoice = null;
     for (const id of [...this.voices.keys()]) this._releaseVoice(id, 0.03);
   }

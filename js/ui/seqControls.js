@@ -21,7 +21,7 @@ import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { attachKnob } from './knobs.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern, scaleOfNotes, toDegrees } from '../engine/Seq.js';
-import { record } from './history.js';
+import { record, end as endGesture } from './history.js';
 
 const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };   // the header's floating notice
 let rec = null;   // the step recording in progress (initRec), or null: the editor draws its cursor
@@ -297,73 +297,121 @@ function initLock() {
   setAsLock(false);
 }
 
-// STEP RECORDING («rec» in the module's title, 2026-11-02): while it is armed the keys — QWERTY, the
-// screen or MIDI — stop transposing and WRITE the phrase, one step per key (the engine sends a live key
-// here, AudioEngine.recHook, and lets it sound as it is). 0 is the C of the octave the take starts in:
-// holding any C later plays it as you played it. A chord struck at once is one step with its lowest
-// note; with the units on a scale each note goes to its nearest degree. Space = a rest, Backspace =
-// back one step, Enter, Esc or «rec» again = done. The take replaces the phrase (its length is what you
-// recorded, up to 16) and is ONE undo step; nothing recorded leaves the phrase as it was.
+// STEP RECORDING (2026-11-02; LOOPING, and a switch on the keyboard bar, since 2026-11-07): «Seq Rec»
+// sits beside the keyboard, so it is there on every screen. Switching it on puts the module on Seq
+// (if it was not: an undo step of its own) and arms the take; switching it off ends the take and
+// leaves the Mode on Seq. While it is on, the keys — QWERTY, the screen or MIDI — stop transposing and
+// WRITE the phrase, one step per key (the engine sends a live key here, AudioEngine.recHook). The
+// phrase starts EMPTY and is as long as what you have written: the first key sets it LOOPING by itself
+// (Seq.pin: a root of its own, the take's C, with no key held) — one note over and over —, and every
+// key after that adds a step, so the loop grows under your hands; each new key sounds as you play it
+// and again when the loop reaches it. Full (16 steps), the cursor goes back to the first step and
+// writes over it, for as long as you like. 0 is the C of the octave the take starts in: holding any C
+// later plays it as you played it. A chord struck at once is one step with its lowest note; with the
+// units on a scale each note goes to its nearest degree. Space = a rest (a silent step), Backspace =
+// back one step, Enter, Esc or the switch = done: with Latch the loop goes on (as if latched on its C),
+// without it, it stops. The take is ONE undo step; nothing recorded leaves the phrase as it was. The
+// phrase ITSELF is the take's buffer, so Steps and the phrase list still work in the middle of it.
 const CHORD_MS = 35;   // keys closer than this are one chord: the step keeps the lowest
+// Columns the editor draws: during a take that is still growing, one more — the empty slot the next key fills
+const colsOf = n => n + (rec && rec.cur >= n && n < SEQ_MAX_STEPS ? 1 : 0);
 function initRec() {
-  const btn = document.getElementById('seqRecBtn');
-  if (!btn) return;
-  const paint = on => { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', String(on)); };
-  // what the editor shows while recording: the steps so far and an empty slot where the next one goes
-  const show = () => CONTROLS.seqPat.set(rec.steps.concat(rec.steps.length < SEQ_MAX_STEPS ? ['.'] : []).join(' '));
+  const sw = document.getElementById('seqRecSw');
+  if (!sw) return;
+  const [offBtn, onBtn] = sw.querySelectorAll('button');
+  const paint = on => { offBtn.classList.toggle('active', !on); onBtn.classList.toggle('active', on); };
   const tokenOf = off => { const I = scaleOfNotes(CONTROLS.seqNotes.get()); return String(I ? toDegrees(off, I).deg : off); };
-  const onKey = freq => {
-    if (!rec) return;
+  // writes a step: at the end while the phrase can grow (the loop gets one step longer); full, over the
+  // step under the cursor, which goes back to the first after the last
+  const write = tok => {
+    const tk = tokensOf();
+    let i;
+    if (rec.cur >= tk.length && tk.length < SEQ_MAX_STEPS) { tk.push(tok); i = tk.length - 1; rec.cur = tk.length; }
+    else { i = rec.cur % tk.length; tk[i] = tok; rec.cur = i + 1; }
+    rec.lastIdx = i; rec.n++;
+    CONTROLS.seqPat.set(tk.join(' '));
+    return i;
+  };
+  // the loop, from the first key on (Mode = Seq only); true = it started on step i, so it plays the key
+  // itself. In Mono the loop's notes and the key would fight over the one voice: the loop alone is heard
+  const loop = i => {
+    const e = rec.part;
+    if (!e.ready || e.S.seqOn !== 'on') return false;
+    return e.seq.pin(440 * Math.pow(2, (rec.ref - 69) / 12), rec.vel, i) || e.S.mode === 'mono';
+  };
+  const onKey = (freq, vel) => {
+    if (!rec) return false;
     const midi = Math.round(69 + 12 * Math.log2(freq / 440)), t = performance.now();
-    if (rec.ref === null) rec.ref = Math.floor(midi / 12) * 12;    // 0 = the C of the octave you start in
+    if (rec.ref === null) { rec.ref = Math.floor(midi / 12) * 12; rec.vel = vel; }   // 0 = the C of the octave you start in; the loop plays at the first key's velocity
     let off = midi - rec.ref;
     while (off > SEQ_OFF_MAX) off -= 12;                            // out of the editor's range: folded by octaves
     while (off < SEQ_OFF_MIN) off += 12;
-    const n = rec.steps.length;
-    if (n && t - rec.lastT < CHORD_MS && rec.lastOff !== null) {   // a chord struck at once: one step, its lowest note
-      if (off < rec.lastOff) { rec.steps[n - 1] = tokenOf(off); rec.lastOff = off; }
-    } else { rec.steps.push(tokenOf(off)); rec.lastOff = off; }
+    let i = rec.lastIdx;
+    if (rec.lastOff !== null && t - rec.lastT < CHORD_MS) {         // a chord struck at once: one step, its lowest note
+      if (off < rec.lastOff) { const tk = tokensOf(); if (i < tk.length) { tk[i] = tokenOf(off); CONTROLS.seqPat.set(tk.join(' ')); } rec.lastOff = off; }
+    } else { i = write(tokenOf(off)); rec.lastOff = off; }
     rec.lastT = t;
-    show();
-    if (rec.steps.length >= SEQ_MAX_STEPS) stop();
+    return loop(i);
   };
   const start = () => {
+    endGesture();                                    // the click that arms it is not a gesture: the take is one step, recorded at the end
     const e = part();
-    if (e.seq && e.seq.timer) e.seq.stop();         // a phrase playing (latched) would cover what you write
-    rec = { steps: [], ref: null, lastT: 0, lastOff: null, before: CONTROLS.seqPat.get(), part: e };
+    if (asModeOf(e.S) !== 'seq') record('Mode · Seq (Seq Rec)', () => CONTROLS.asMode.set('seq'));   // recording means the Seq
+    const before = CONTROLS.seqPat.get();
+    if (e.seq && e.seq.timer) e.seq.stop();         // the phrase playing goes: the loop comes back from the first key, over the take's C
+    rec = { cur: 0, n: 0, ref: null, vel: 1, lastT: 0, lastOff: null, lastIdx: 0, before, part: e };
     e.recHook = onKey;
+    CONTROLS.seqPat.set('');                         // an empty phrase: it grows with every key
     paint(true);
-    show();
-    say('Recording the phrase: play it key by key · Space = rest · Backspace = back · Enter or Esc = done');
+    say('Seq Rec: every key adds a step and the phrase loops from the first one · Space = rest · Backspace = back · Enter, Esc or the switch = done');
   };
-  // abort: something else took the module (a preset, another part): the take is dropped, the phrase not touched
-  const stop = (abort = false) => {
+  // abort: something else took the module (a preset, a scene, another part): the take is dropped. On a
+  // part change the old part gets its phrase back; a preset or a scene brought their own (not touched)
+  const stop = (abort = false, restore = false) => {
     if (!rec) return;
-    const r = rec;
+    endGesture();                                    // the click that stops it is not a gesture either (it would store the half take)
+    const r = rec, e = r.part, fin = CONTROLS.seqPat.get();
     rec = null;
-    if (r.part) r.part.recHook = null;
+    e.recHook = null;
+    const goesOn = !abort && e.S.seqLatch === 'on' && !!e.seq.pinned;
+    e.seq.unpin(goesOn);                             // with Latch the loop goes on, as if latched on its C; else it stops
     paint(false);
-    if (abort) { say('Recording stopped: the take was dropped.'); document.dispatchEvent(new CustomEvent('param-change', { detail: { target: 'seqPat' } })); return; }
+    if (abort) {
+      if (restore) e.set('seqPat', r.before);
+      say('Recording stopped: the take was dropped.');
+      document.dispatchEvent(new CustomEvent('param-change', { detail: { target: 'seqPat' } }));
+      return;
+    }
     CONTROLS.seqPat.set(r.before);                   // back where it was, so the whole take is ONE undo step
-    if (r.steps.length) {
-      const fin = r.steps.join(' ');
+    if (r.n && fin.trim()) {
       record('Recorded phrase', () => CONTROLS.seqPat.set(fin));
-      say('Phrase recorded: ' + r.steps.length + (r.steps.length > 1 ? ' steps.' : ' step.'));
+      const len = fin.trim().split(/\s+/).length;
+      say('Phrase recorded: ' + len + (len > 1 ? ' steps' : ' step') + (goesOn ? ' · it keeps playing (Latch)' : '') + '.');
     } else say('Nothing recorded: the phrase is as it was.');
   };
-  btn.addEventListener('click', () => { part().resume(); btn.blur(); if (rec) stop(); else start(); });   // blurred: Space must not «click» it again
+  // the inactive button lies on top (the .seg.sw switch), so any click toggles; blurred: Space must not «click» it again
+  for (const b of [offBtn, onBtn]) b.addEventListener('click', () => { part().resume(); b.blur(); if (rec) stop(); else start(); });
+  paint(false);
   window.addEventListener('keydown', e => {
     if (!rec) return;
     const t = e.target, txt = t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text') || t.isContentEditable);
     if (txt || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'Space') {
+    if (e.code === 'Space') { e.preventDefault(); write('.'); rec.lastOff = null; }
+    else if (e.key === 'Backspace') {
       e.preventDefault();
-      if (rec.steps.length < SEQ_MAX_STEPS) { rec.steps.push('.'); rec.lastOff = null; show(); if (rec.steps.length >= SEQ_MAX_STEPS) stop(); }
-    } else if (e.key === 'Backspace') { e.preventDefault(); rec.steps.pop(); rec.lastOff = null; show(); }
+      if (!rec.n) return;                            // nothing written yet: nothing to take back
+      const tk = tokensOf();
+      if (!tk.length) return;
+      if (rec.cur >= tk.length) { tk.pop(); rec.cur = tk.length; }                    // growing: the last step goes (the loop shrinks)
+      else { rec.cur = (rec.cur - 1 + tk.length) % tk.length; tk[rec.cur] = '.'; }   // writing over a full phrase: back one, blanked
+      rec.n--; rec.lastOff = null;
+      CONTROLS.seqPat.set(tk.join(' '));
+    }
     else if (e.key === 'Enter') { e.preventDefault(); stop(); }
   }, true);
   document.addEventListener('escape-first', e => { if (rec) { e.preventDefault(); stop(); } });   // Esc ends the take before being «panic»
-  for (const ev of ['part-changed', 'scene-changed', 'preset-loaded']) document.addEventListener(ev, () => { if (rec) stop(true); });
+  for (const ev of ['scene-changed', 'preset-loaded']) document.addEventListener(ev, () => { if (rec) stop(true); });
+  document.addEventListener('part-changed', () => { if (rec) stop(true, true); });
 }
 
 // Step editor: columns = pattern tokens; vertical drag = pitch
@@ -388,8 +436,9 @@ function initSeqEditor(canvas) {
     g.strokeStyle = tint('--dim', .35); hline(yOf(0));                       // root
     const oct = part().ready ? part().seq.octaveSteps() : 12;                  // the octave: 12 semitones or the scale's degrees
     g.setLineDash([3, 4]); g.strokeStyle = tint('--dim', .22); hline(yOf(oct)); g.setLineDash([]);
-    if (!steps.length) return;
-    const cw = (w - 2 * PAD) / steps.length;
+    const cols = colsOf(steps.length);
+    if (!cols) return;
+    const cw = (w - 2 * PAD) / cols;
     g.font = '8px system-ui';
     steps.forEach((st, i) => {
       const x0 = PAD + i * cw;
@@ -422,7 +471,7 @@ function initSeqEditor(canvas) {
       }
     });
     if (rec) {                                         // recording: the column the next key writes, in the alarm color
-      const i = Math.min(rec.steps.length, steps.length - 1), x0 = PAD + i * cw;
+      const i = rec.cur < steps.length ? rec.cur : cols > steps.length ? steps.length : 0, x0 = PAD + i * cw;
       g.strokeStyle = token('--hot'); g.lineWidth = 1.5; g.strokeRect(x0 + 1.5, PAD + 1.5, cw - 3, h - 2 * PAD - 3); g.lineWidth = 1;
     }
   }
@@ -444,7 +493,7 @@ function initSeqEditor(canvas) {
     const toks = tokensOf();
     if (!toks.length) return;
     const rect = canvas.getBoundingClientRect();
-    const cw = (W - 2 * PAD) / toks.length;
+    const cw = (W - 2 * PAD) / colsOf(toks.length);   // as drawn (a take's empty slot included)
     const step = Math.max(0, Math.min(toks.length - 1, Math.floor(((e.clientX - rect.left) / uiZoom() - PAD) / cw)));
     const st = parsePattern(part().S.seqPat)[step];
     // articulations (Roadmap 7.0 · 5.1), on a step with a note: Shift = accent,

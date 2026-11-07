@@ -1083,52 +1083,94 @@ export async function runSelfTest() {
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {
-    // Step recording (2026-11-02): with «rec» armed, a live key reaches AudioEngine.recHook and writes the
-    // next step: 0 = the C of the first note's octave; Space = rest; Backspace = back; a chord struck at
-    // once is one step with its lowest note; on a scale, the nearest degree; the take is ONE undo step;
-    // nothing recorded leaves the phrase as it was; loading a preset drops the take without touching it.
-    const NAME = 'step recording (keys write the phrase from the C of the first note · Space rest · Backspace back · a chord = its lowest · degrees · one undo step)';
-    const problems = [], C = CONTROLS, keep = snapshot(), btn = document.getElementById('seqRecBtn');
+    // Step recording (2026-11-02; looping, on the keyboard bar's «Seq Rec» switch, 2026-11-07): switching
+    // it on puts the module on Seq (its own undo step) and arms the take; a live key reaches
+    // AudioEngine.recHook and APPENDS a step: the phrase starts empty and grows with every key; full
+    // (16), the cursor goes back to the first step and writes over it. 0 = the C of the first note's
+    // octave; Space = rest; Backspace = back (growing: the last step goes; writing over: back one,
+    // blanked); a chord struck at once is one step with its lowest note; on a scale, the nearest degree;
+    // the take is ONE undo step; nothing recorded leaves the phrase as it was; loading a preset drops the
+    // take without touching it. The first key sets the phrase looping over the take's C (Seq.pin), with
+    // no key held; at the end, Latch keeps it going (latched on that C) and without Latch it stops —
+    // and the Mode stays on Seq.
+    const NAME = 'step recording (Seq Rec switch puts the Mode on Seq · empty phrase that grows with each key and loops from the first · full, wraps and writes over · Latch keeps it going · Space rest · Backspace back · a chord = its lowest · degrees · one undo step)';
+    const problems = [], C = CONTROLS, keep = snapshot(), sw = document.getElementById('seqRecSw');
     const wait = ms => new Promise(r => setTimeout(r, ms)), f = m => 440 * Math.pow(2, (m - 69) / 12);
     const key = (id, m) => { part().noteOn(id, f(m)); part().noteOff(id); };
     const kd = (k, code) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code, bubbles: true }));
+    const on = () => !!sw && sw.lastElementChild.classList.contains('active');
+    const toggle = () => sw.querySelector('button:not(.active)').click();
     try {
-      if (!btn) throw new Error('no «rec» button');
+      if (!sw) throw new Error('no «Seq Rec» switch');
       loadState({}); C.seqNotes.set('semitones'); C.seqPat.set('0 3 7 12 . 7 3 .');
       const before = C.seqPat.get();
-      btn.click();
-      if (!btn.classList.contains('active') || !part().recHook) problems.push('«rec» does not arm the recording');
+      if (C.asMode.get() !== 'off') problems.push('Init does not start with the Mode Off (' + C.asMode.get() + ')');
+      toggle();
+      if (!on() || !part().recHook) problems.push('«Seq Rec» does not arm the recording');
+      if (C.asMode.get() !== 'seq') problems.push('«Seq Rec» does not put the module on Seq (' + C.asMode.get() + ')');
+      if (C.seqPat.get() !== '') problems.push('arming does not empty the phrase («' + C.seqPat.get() + '»)');
+      if (part().ready && part().seq.timer) problems.push('the phrase plays before the first key');
       key('st1', 64); await wait(60);              // E4: the take's 0 is C4 → 4
+      if (!part().ready) problems.push('the live engine is not running: the loop cannot be checked');
+      else {
+        const pin = part().seq.pinned;
+        if (!part().seq.timer || !pin || Math.abs(pin.freq - f(60)) > 0.01) problems.push('the first key does not set the phrase looping over the take\'s C (' + (pin ? pin.freq.toFixed(2) + ' Hz' : 'no root') + ')');
+      }
+      if (C.seqPat.get() !== '4') problems.push('after one key the phrase is «' + C.seqPat.get() + '» (expected «4»: one step)');
       key('st2', 67); await wait(60);              // G4 → 7
       kd(' ', 'Space'); await wait(60);            // a rest
       key('st3', 72); await wait(60);              // C5 → 12…
       kd('Backspace', 'Backspace'); await wait(60);   // …taken back
       part().noteOn('st4', f(69)); part().noteOn('st5', f(65)); part().noteOff('st4'); part().noteOff('st5');   // A4 + F4 at once → F4 = 5
       await wait(60);
-      btn.click();
-      if (btn.classList.contains('active') || part().recHook) problems.push('«rec» again does not stop the recording');
+      toggle();
+      if (on() || part().recHook) problems.push('«Seq Rec» off does not stop the recording');
+      if (C.asMode.get() !== 'seq') problems.push('switching «Seq Rec» off leaves the Seq (' + C.asMode.get() + ')');
+      if (part().ready && (part().seq.timer || part().seq.pinned)) problems.push('without Latch the loop goes on after the take');
       if (C.seqPat.get() !== '4 7 . 5') problems.push('recorded «' + C.seqPat.get() + '» (expected «4 7 . 5»)');
       undo();
       if (C.seqPat.get() !== before) problems.push('one undo does not bring the phrase back (' + C.seqPat.get() + ')');
+      undo();
+      if (C.asMode.get() !== 'off') problems.push('a second undo does not take the Mode back to Off (' + C.asMode.get() + ')');
       // on a scale: nearest degree (F#4 → between F and G → F, the lower)
-      C.seqNotes.set('major'); btn.click();
+      C.seqNotes.set('major'); toggle();
       key('st6', 64); await wait(60); key('st7', 66); await wait(60);
       kd('Enter', 'Enter');
+      if (on()) problems.push('Enter does not end the take');
       if (C.seqPat.get() !== '2 3') problems.push('on major: «' + C.seqPat.get() + '» (expected «2 3»)');
+      // full (16 steps), the cursor goes back to the first and writes over it; Backspace there blanks
+      C.seqNotes.set('semitones'); toggle();
+      for (let i = 0; i < 16; i++) { key('sf' + i, 60 + (i % 12)); await wait(45); }   // offsets 0…11, 0…3
+      key('sf16', 67); await wait(45);             // the 17th: G over step 1
+      const full = ['7', ...Array.from({ length: 15 }, (_, i) => String((i + 1) % 12))].join(' ');
+      if (C.seqPat.get() !== full) problems.push('full: «' + C.seqPat.get() + '» (expected «' + full + '»)');
+      kd('Backspace', 'Backspace'); await wait(45);
+      if (C.seqPat.get() !== full.replace(/^7/, '.')) problems.push('Backspace while writing over: «' + C.seqPat.get() + '»');
+      kd('Enter', 'Enter');
+      // with Latch the loop goes on at the end, latched on the take's C (a key transposes it as usual)
+      if (part().ready) {
+        C.seqLatch.set('on'); toggle();
+        key('sl2', 67); await wait(60);
+        toggle();
+        const lt = part().seq.latched;
+        if (!part().seq.timer || part().seq.pinned || !lt || Math.abs(lt.freq - f(60)) > 0.01) problems.push('with Latch the loop does not go on latched on the take\'s C');
+        part().seq.stop();
+        C.seqLatch.set('off');
+      }
       // nothing recorded: as it was
-      const p0 = C.seqPat.get(); btn.click(); btn.click();
+      const p0 = C.seqPat.get(); toggle(); toggle();
       if (C.seqPat.get() !== p0) problems.push('an empty take changed the phrase (' + C.seqPat.get() + ')');
       // a preset during the take: dropped, the preset's phrase stays
-      btn.click(); key('st8', 60); await wait(60);
+      toggle(); key('st8', 60); await wait(60);
       const warm = library.presets().find(it => it.name === 'Warm Pad'), id0 = currentPresetId();
       if (warm) {
         loadPresetId(warm.id);
-        if (part().recHook || btn.classList.contains('active')) problems.push('loading a preset does not stop the recording');
+        if (part().recHook || on()) problems.push('loading a preset does not stop the recording');
         if (C.seqPat.get() !== PARAMS.seqPat.def) problems.push('a dropped take touched the loaded preset\'s phrase (' + C.seqPat.get() + ')');
         if (id0) loadPresetId(id0);
       }
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
-    finally { if (btn && btn.classList.contains('active')) btn.click(); loadState(keep); refreshDeps(); }
+    finally { if (on()) toggle(); if (part().ready) part().seq.stop(); loadState(keep); refreshDeps(); }
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
   {

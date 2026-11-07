@@ -113,12 +113,23 @@ export class Seq {
     this.link = null;        // [{id, mode: 'tie'|'slide'}] per voice: the notes the previous step left tied to the next
     this.gesture = [];       // Chord: every key pressed since the hands were last off (what Latch keeps)
     this.latchedChord = null;   // Chord + Latch: the chord left sounding once every key is up
+    this.pinned = null;      // {freq, vel}: a root of its own, above keys and latch (the step recording's loop: pin/unpin)
     this.nid = 0;            // note id counter (repeats use up several per step)
   }
 
   _div() { return DIV_BEATS[this.e.S.seqDiv] || 0.25; }
   // Start running in tempo with the first step at t (or on the grid, if others are already running)
   _begin(t) { this.idx = 0; clockOf(this.e.ctx).begin(this, t, this._div(), this.e.bpm); }
+  // Sets the phrase running from step `from`; false if it already was
+  _run(t, from = 0) {
+    if (this.timer) return false;
+    this.playQ = [];
+    this._begin(t);
+    this.idx = from;
+    this.timer = setInterval(() => this._tick(), 25);
+    this._tick();                                     // the first step, now: it does not depend on when the first interval arrives
+    return true;
+  }
   hold(id, freq, vel, when = null) {
     if (!this.held.length) this.gesture = [];   // a new gesture (the latched chord stays until the new keys come in)
     if (!this.held.find(h => h.id === id)) {
@@ -126,14 +137,27 @@ export class Seq {
       this.held.push(h);
       if (!this.gesture.find(g => g.id === id)) this.gesture.push(h);
     }
-    if (!this.timer) {
-      this.playQ = [];
-      this._begin(when === null ? this.e.ctx.currentTime + 0.03 : when);
-      this.timer = setInterval(() => this._tick(), 25);
-      this._tick();                                   // the first step, now: it does not depend on when the first interval arrives
-    } else if (this.e.S.seqRetrig === 'on') {           // restarts the phrase ON THE GRID (nextT untouched: no flams)
-      if (when === null) this.idx = 0; else this.retrigAt = when;
-    }
+    if (this.timer) {
+      if (this.e.S.seqRetrig === 'on') {              // restarts the phrase ON THE GRID (nextT untouched: no flams)
+        if (when === null) this.idx = 0; else this.retrigAt = when;
+      }
+    } else this._run(when === null ? this.e.ctx.currentTime + 0.03 : when);
+  }
+  // The step recording's loop (ui/seqControls.js): while the take lasts the keys write instead of
+  // transposing, so the phrase gets a root of its own — the take's C — and plays exactly what was
+  // written so far, with no key held (one note: that note over and over; each key appends one more).
+  // From: the step to start on if the phrase was stopped (the one just written: it sounds now, so the
+  // key needs no note of its own). True if it started it.
+  pin(freq, vel, from = 0) {
+    this.pinned = { freq, vel };
+    return this._run(this.e.ctx.currentTime + 0.03, from);
+  }
+  // The take is over. keep: the phrase goes on as if latched on that C (a key transposes it as usual)
+  unpin(keep = false) {
+    const p = this.pinned; if (!p) return;
+    this.pinned = null;
+    if (keep && !this.held.length) { this.latched = p; this.latchedChord = null; }
+    this._maybeStop();
   }
   unhold(id) {
     const gone = this.held.find(h => h.id === id);
@@ -144,7 +168,7 @@ export class Seq {
       else { this.latched = null; this.latchedChord = null; this._maybeStop(); }
     }
   }
-  _maybeStop() { if (this.timer && !this.held.length && !this.latched) { clearInterval(this.timer); this.timer = null; this.playQ = []; this._flushTie(); this._unlink(this.e.ctx.currentTime); clockOf(this.e.ctx).leave(this); } }
+  _maybeStop() { if (this.timer && !this.held.length && !this.latched && !this.pinned) { clearInterval(this.timer); this.timer = null; this.playQ = []; this._flushTie(); this._unlink(this.e.ctx.currentTime); clockOf(this.e.ctx).leave(this); } }
   // the note left tied to the next step ends at t
   _unlink(t) { const l = this.link; if (l) { this.link = null; for (const x of l) this.e._directOff(x.id, t); } }
   // Note-off scheduled on the audio clock and emitted NOW, in order with the ons:
@@ -154,10 +178,11 @@ export class Seq {
   _off(id, t, tie) { if (tie) this.tie.push({ id, t }); else this.e._directOff(id, t); }
   _flushTie() { const p = this.tie; if (p.length) { this.tie = []; for (const x of p) this.e._directOff(x.id, x.t); } }
 
-  stop() { this.held = []; this.gesture = []; this.latched = null; this.latchedChord = null; this._maybeStop(); this.e.allNotesOff(); }
+  stop() { this.held = []; this.gesture = []; this.latched = null; this.latchedChord = null; this.pinned = null; this._maybeStop(); this.e.allNotesOff(); }
 
-  // Root with last-note priority; with latch, the last one released
+  // Root with last-note priority; with latch, the last one released (a pinned root goes first)
   _root() {
+    if (this.pinned) return this.pinned;
     for (let i = this.held.length - 1; i >= 0; i--) if (!(this.held[i].from > this.nextT + 1e-6)) return this.held[i];   // the last one that has already come in
     return this.latched;
   }
@@ -168,7 +193,7 @@ export class Seq {
   // priority would keep the top one (in legato, gliding up from the bottom on every step) — so Mono
   // plays one root, as with Chord off (and the switch is dimmed: ui/deps.js)
   _roots() {
-    if (this.e.S.seqChord !== 'on' || this.e.S.mode === 'mono') { const r = this._root(); return r ? [r] : []; }
+    if (this.pinned || this.e.S.seqChord !== 'on' || this.e.S.mode === 'mono') { const r = this._root(); return r ? [r] : []; }
     const src = this.held.length ? (this.e.S.seqLatch === 'on' ? this.gesture : this.held)
       : (this.latchedChord && this.latchedChord.length ? this.latchedChord : this.latched ? [this.latched] : []);
     return src.filter(h => !(h.from > this.nextT + 1e-6)).sort((a, b) => a.freq - b.freq);
@@ -270,7 +295,10 @@ export class Seq {
           }
         }
       } else { this._flushTie(); this._unlink(this.nextT); }   // rest: the tied note ends here
-      this.idx++;
+      // the next step is the one AFTER this, whatever the length does meanwhile: a phrase that grows
+      // under the playhead (the step recording appends) plays its new step next instead of jumping to
+      // idx % newLength — the same as idx++ while the length stays put
+      this.idx = this.idx % steps.length + 1;
       clock.advance(this, div);
     }
   }

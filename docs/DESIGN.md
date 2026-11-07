@@ -3082,3 +3082,50 @@ with a drifting player, the welcome's question) and an end-to-end probe in headl
 reloads: edits all over, reload, CONTINUE, Reset, Parts, start from Init, a knob put back — 21 steps,
 all as expected. Known limits: with two tabs open the last one to write wins; a scene loaded from the
 library and then deleted from it still counts as one that can be loaded again.
+
+## Seq Rec: recording while it plays (2026-11-07)
+
+Sergio had seen it on other synths: a quick «record» where the sequence plays while you enter it,
+each key adding the next note. The 1.8.0 take was silent on purpose — a phrase playing would cover
+what you write —, but when the phrase playing IS what you write, that reason goes away.
+
+**It grows with every key — the second try.** The first version kept the phrase's length (Steps),
+blanked it and filled it in order, wrapping at the end: I had recommended it, because a loop that
+grows changes its bar on every key (one note repeated at 1/16, then two, then three…) and because the
+Seq picked its step as `idx % length`, so a length changing under the playhead made it jump. Sergio
+tried it and corrected it: what he had seen grows, and a fixed length obliges you to fill it. The
+jump was the real objection, and it has a cheap fix in `Seq._tick`: the next step is now
+`idx % length + 1` instead of `idx + 1` — the same while the length stays put, and a phrase that grows
+under the playhead plays its new step next. So the take starts EMPTY and every key appends; the
+first one sets it looping on its own (one note over and over is part of the gesture). Full (16 steps)
+the cursor goes back to the first and writes over it — the earlier choice, kept: the take never runs
+out. Timing does not matter — a key is the NEXT step, not the one under the playhead; recording in
+real time (where you press is where the note falls) was left for if it is ever missed.
+
+**A switch on the keyboard bar.** The module lives on the Sequencing screen only, and its «rec» was
+dimmed unless the Mode was Seq. Sergio wanted it «global»: it is now «Seq Rec», a pill switch beside
+Octave, Wheel, Bend and Touch — you record with the keys, and the keyboard is on every screen.
+Switching it on puts the module on Seq (an undo step of its own, so two undos take everything back)
+and arms the take; off ends it and leaves the Mode on Seq. While armed the switch and its label take
+the alarm color and breathe. It is not a parameter: nothing of it goes into presets or MIDI learn.
+
+**The phrase is the take's buffer.** Before, the take lived in its own array and was copied into
+the phrase for the editor to show it; now each key writes straight into `seqPat`, so the Seq plays
+it at once (it reads the phrase on every step) and Steps or the phrase list keep working in the
+middle of a take. The editor draws one column more while the phrase is growing: the empty slot the
+next key fills. The undo is as before: at the end the phrase goes back to where it was and the
+result is set inside a `record()`. Both the arming click and the stopping click close the history's
+open gesture first (`end()`): otherwise the click that stops a take stored the half take as a step
+of its own — that was already so in 1.8.0, unseen because the selftest clicks without a pointer.
+
+**A root of its own: `Seq.pin`.** The Seq plays only while a key holds (or Latch keeps) its root, and
+during a take the keys write instead of transposing. So the take pins a root — the take's C, the
+same 0 the phrase is written from, so it plays exactly what was written — above keys and latch,
+from the first key on. The loop starts ON the step just written, so that key needs no note of its own
+(no double attack); later keys sound as you play them and again when the loop reaches them — except
+in Mono, where the key and the loop would fight over the one voice and the loop alone is heard. At
+the end `unpin(keep)`: with Latch the pin becomes the latched root (the loop goes on, and a key
+transposes it as usual), without it the phrase stops. Panic or the Mode switched off drop the pin;
+the take stays armed and the next key starts the loop again. A part change drops the take and gives
+the old part its phrase back (the take had been writing into it); a preset or a scene brought their
+own, which is not touched.

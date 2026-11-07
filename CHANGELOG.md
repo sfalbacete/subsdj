@@ -17,6 +17,16 @@ scenes, libraries, MIDI maps). The why behind each module is in
   back to the start, with a preset loaded as it is or just saved, there is nothing to ask about.
 - **↺ Last is gone** from the Arrangement module: the session already brings back the scene in
   progress, on entering.
+- **Seq Rec: record a phrase while it plays.** A switch beside the keyboard, so it is there on
+  every screen: switching it on puts the Arpeggiator / Sequencer on Seq and starts a take with an
+  empty phrase. Every key you play adds a step, and from the first one the phrase loops by itself,
+  over the C of the octave you started in — one note over and over, then two, then three —, so you
+  hear it grow as you write it; each new key also sounds as you play it. At 16 steps it goes back to
+  the first and writes over it, for as long as you like. Switching it off (or Enter, Esc) ends the take
+  and leaves the Mode on Seq: with Latch the loop keeps playing, as if latched on that C, and any key
+  transposes it as usual; without Latch it stops. Space adds a rest, Backspace takes the last step
+  back, and the take is one undo step (switching to Seq is another). The «rec» button in the module's
+  title is gone: the switch replaces it.
 
 ## [1.8.0] — 2026-11-02
 
