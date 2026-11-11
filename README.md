@@ -24,6 +24,11 @@ steps, effects, parts and generative music.
   keyboard, **Touch** sets the velocity curve (soft, linear or hard) and
   **Bend** the preset's pitch bend range. **MIDI map** binds any hardware
   control to any control on screen.
+- Under the keyboard too: **Click** is a metronome on the shared clock (the 1 of
+  each bar accented; straight to the output, so the WAV recorder does not hear
+  it) and **Tap** sets the tempo from your taps (from the third one, the median
+  of the last intervals). **Seq Rec** records a phrase into the sequencer from
+  the keys while it loops.
 - The audio starts with the first click or the first key: browsers don't let a
   page make sound before that.
 - `Escape` or **Panic** cut every note.

@@ -32,7 +32,9 @@ import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_L
          encodeUserFrames, decodeUserFrames } from './engine/wavetable.js';
 import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal, crushHzOf } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
-import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part, sceneFromRack } from './engine/parts.js';
+import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part, sceneFromRack, getScene } from './engine/parts.js';
+import { Metronome, TapTempo } from './engine/Metronome.js';
+import { metronome } from './ui/tempo.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
 import { feedMeter, meterLedOn } from './ui/meter.js';
 import { PANELS as LED_PANELS } from './ui/activity.js';
@@ -1103,10 +1105,12 @@ export async function runSelfTest() {
     // blanked); a chord struck at once is one step with its lowest note; on a scale, the nearest degree;
     // the take is ONE undo step; nothing recorded leaves the phrase as it was; loading a preset drops the
     // take without touching it. The first key sets the phrase looping over the take's C (Seq.pin), with
-    // no key held; at the end, Latch keeps it going (latched on that C) and without Latch it stops —
-    // and the Mode stays on Seq.
-    const NAME = 'step recording (Seq Rec switch puts the Mode on Seq · empty phrase that grows with each key and loops from the first · full, wraps and writes over · Latch keeps it going · Space rest · Backspace back · a chord = its lowest · degrees · one undo step)';
+    // no key held; at the end the loop goes on, latched on that C — arming switches Latch on along with
+    // the Mode, in ONE undo step (2026-11-08) — and the Mode stays on Seq. Another part chosen in the
+    // middle of a take ends it there, as Enter would (the phrase and the loop stay on that part).
+    const NAME = 'step recording (Seq Rec switch puts the Mode on Seq and Latch on · empty phrase that grows with each key and loops from the first · full, wraps and writes over · the loop goes on after the take · another part ends the take there · Space rest · Backspace back · a chord = its lowest · degrees · one undo step)';
     const problems = [], C = CONTROLS, keep = snapshot(), sw = document.getElementById('seqRecSw');
+    let partsByMe = false;   // the Parts switched on here (for the part change): off again at the end
     const wait = ms => new Promise(r => setTimeout(r, ms)), f = m => 440 * Math.pow(2, (m - 69) / 12);
     const key = (id, m) => { part().noteOn(id, f(m)); part().noteOff(id); };
     const kd = (k, code) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code, bubbles: true }));
@@ -1120,6 +1124,7 @@ export async function runSelfTest() {
       toggle();
       if (!on() || !part().recHook) problems.push('«Seq Rec» does not arm the recording');
       if (C.asMode.get() !== 'seq') problems.push('«Seq Rec» does not put the module on Seq (' + C.asMode.get() + ')');
+      if (C.seqLatch.get() !== 'on') problems.push('«Seq Rec» does not switch Latch on (the loop would die with the take)');
       if (C.seqPat.get() !== '') problems.push('arming does not empty the phrase («' + C.seqPat.get() + '»)');
       if (part().ready && part().seq.timer) problems.push('the phrase plays before the first key');
       key('st1', 64); await wait(60);              // E4: the take's 0 is C4 → 4
@@ -1138,12 +1143,16 @@ export async function runSelfTest() {
       toggle();
       if (on() || part().recHook) problems.push('«Seq Rec» off does not stop the recording');
       if (C.asMode.get() !== 'seq') problems.push('switching «Seq Rec» off leaves the Seq (' + C.asMode.get() + ')');
-      if (part().ready && (part().seq.timer || part().seq.pinned)) problems.push('without Latch the loop goes on after the take');
+      if (part().ready) {                          // the loop goes on after the take, latched on the take's C (Latch went on with the take)
+        const lt = part().seq.latched;
+        if (!part().seq.timer || part().seq.pinned || !lt || Math.abs(lt.freq - f(60)) > 0.01) problems.push('after the take the loop does not go on latched on the take\'s C');
+        part().seq.stop();
+      }
       if (C.seqPat.get() !== '4 7 . 5') problems.push('recorded «' + C.seqPat.get() + '» (expected «4 7 . 5»)');
       undo();
       if (C.seqPat.get() !== before) problems.push('one undo does not bring the phrase back (' + C.seqPat.get() + ')');
       undo();
-      if (C.asMode.get() !== 'off') problems.push('a second undo does not take the Mode back to Off (' + C.asMode.get() + ')');
+      if (C.asMode.get() !== 'off' || C.seqLatch.get() !== 'off') problems.push('a second undo does not take the Mode and Latch back (' + C.asMode.get() + ' · Latch ' + C.seqLatch.get() + ')');
       // on a scale: nearest degree (F#4 → between F and G → F, the lower)
       C.seqNotes.set('major'); toggle();
       key('st6', 64); await wait(60); key('st7', 66); await wait(60);
@@ -1159,15 +1168,26 @@ export async function runSelfTest() {
       kd('Backspace', 'Backspace'); await wait(45);
       if (C.seqPat.get() !== full.replace(/^7/, '.')) problems.push('Backspace while writing over: «' + C.seqPat.get() + '»');
       kd('Enter', 'Enter');
-      // with Latch the loop goes on at the end, latched on the take's C (a key transposes it as usual)
+      // another part chosen in the middle of a take (2026-11-08): the take ends as with Enter — the phrase
+      // stays on the part that recorded it, its loop goes on (Latch) and the take is on THAT part's undo stack
       if (part().ready) {
-        C.seqLatch.set('on'); toggle();
-        key('sl2', 67); await wait(60);
-        toggle();
-        const lt = part().seq.latched;
-        if (!part().seq.timer || part().seq.pinned || !lt || Math.abs(lt.freq - f(60)) > 0.01) problems.push('with Latch the loop does not go on latched on the take\'s C');
-        part().seq.stop();
-        C.seqLatch.set('off');
+        const isOn = () => document.body.classList.contains('parts');
+        if (!isOn()) { partsByMe = true; document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+        const sc = getScene();
+        if (!sc) problems.push('the Parts do not turn on: the part change cannot be checked');
+        else {
+          const sel0 = sc.sel, e1 = sc.parts[sel0].engine, other = (sel0 + 1) % sc.parts.length;
+          const pick = i => document.querySelector('#partSel button[data-p="' + i + '"]').click();
+          const pat1 = C.seqPat.get();
+          toggle(); key('sp1', 62); await wait(60); key('sp2', 65); await wait(60);   // D4, F4 over the take's C4 → «2 5»
+          pick(other);
+          if (on() || e1.recHook) problems.push('choosing another part does not end the take');
+          if (e1.S.seqPat !== '2 5') problems.push('the part that recorded does not keep the phrase («' + e1.S.seqPat + '»)');
+          if (!e1.seq.timer || !e1.seq.latched) problems.push('the loop of the part that recorded does not go on after the part change');
+          e1.seq.stop();
+          pick(sel0); undo();
+          if (C.seqPat.get() !== pat1) problems.push('undo on the part that recorded does not bring its phrase back (' + C.seqPat.get() + ')');
+        }
       }
       // nothing recorded: as it was
       const p0 = C.seqPat.get(); toggle(); toggle();
@@ -1182,8 +1202,64 @@ export async function runSelfTest() {
         if (id0) loadPresetId(id0);
       }
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
-    finally { if (on()) toggle(); if (part().ready) part().seq.stop(); loadState(keep); refreshDeps(); }
+    finally {
+      if (on()) toggle(); if (part().ready) part().seq.stop();
+      if (partsByMe && document.body.classList.contains('parts')) { document.getElementById('partsBtn').click(); for (let i = 0; i < 50 && document.body.classList.contains('parts'); i++) await wait(100); }
+      loadState(keep); refreshDeps();
+    }
     push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Metronome and tap tempo (2026-11-08, the keyboard bar's Click and Tap). (1) Offline: the clock anchored
+    // at 0.1 s at 120 BPM and the metronome scheduling 1.9 s at once → clicks at 100 / 600 / 1100 / 1600 ms,
+    // the first (the 1) louder than the other three, which are alike. (2) Pure: taps every 500 ms give 120
+    // from the third one; a stray tap (200 ms) does not move the median; a 3 s pause starts a new count; out
+    // of range is clamped to the BPM range. (3) Live: the switch starts and stops it as a user of the common
+    // clock (the next Arp/Seq lands on its grid).
+    body.appendChild(el('st-cat', 'Metronome and tap tempo'));
+    const NAME = 'metronome and tap tempo (a click on every beat of the common clock · the 1 accented · tap = the median of the last intervals from the 3rd tap · a pause starts over · clamped · the Click switch joins the clock)';
+    let r;
+    try {
+      const problems = [];
+      const c = new OfflineAudioContext(1, Math.ceil(SR * 2.0), SR), clk = clockOf(c);
+      clk.anchor('director', 0.1, 120);
+      new Metronome(c, () => 120).scheduleAll(1.9, 0.1);
+      const d = (await c.startRendering()).getChannelData(0), HOP = Math.round(0.001 * SR);
+      const env = []; for (let i = 0; i + HOP <= d.length; i += HOP) { let s = 0; for (let k = i; k < i + HOP; k++) s += d[k] * d[k]; env.push(Math.sqrt(s / HOP)); }
+      const top = Math.max(...env), at = [], pk = []; let up = false, cur = 0;
+      env.forEach((v, i) => { if (!up && v > top * 0.2) { up = true; at.push(i); cur = v; } else if (up) { if (v > cur) cur = v; if (v < top * 0.05) { up = false; pk.push(cur); } } });
+      if (up) pk.push(cur);
+      const ms = at.map(i => i * HOP / SR * 1000);
+      if (at.length !== 4 || ms.some((t, i) => Math.abs(t - (100 + 500 * i)) > 3)) problems.push('clicks at ' + ms.map(t => t.toFixed(0)).join(' / ') + ' ms (expected 100 / 600 / 1100 / 1600)');
+      else {
+        const db = 20 * Math.log10(pk[0] / Math.max(pk[1], pk[2], pk[3])), alike = Math.max(pk[1], pk[2], pk[3]) / Math.min(pk[1], pk[2], pk[3]);
+        if (!(db > 2)) problems.push('the 1 is not accented (' + db.toFixed(1) + ' dB over the other beats)');
+        if (alike > 1.1) problems.push('the other beats are not alike (' + alike.toFixed(2) + ')');
+      }
+      // (2)
+      const tt = new TapTempo({ lo: 40, hi: 220 }), got = [0, 500, 1000, 1500, 2000, 2500].map(t => tt.tap(t));
+      if (got.join() !== ',,120,120,120,120') problems.push('taps every 500 ms: ' + got.map(v => v === null ? '·' : v).join(' ') + ' (expected · · 120 120 120 120)');
+      const s1 = tt.tap(2700), s2 = tt.tap(3000);
+      if (s1 !== 120 || s2 !== 120) problems.push('a stray tap moves the tempo (' + s1 + ' / ' + s2 + ')');
+      const again = [6000, 6400, 6800].map(t => tt.tap(t));
+      if (again.join() !== ',,150') problems.push('after a 3 s pause: ' + again.map(v => v === null ? '·' : v).join(' ') + ' (expected a new count: · · 150)');
+      tt.reset(); const fast = [0, 100, 200].map(t => tt.tap(t))[2];
+      tt.reset(); const slow = [0, 1900, 3800].map(t => tt.tap(t))[2];
+      if (fast !== 220 || slow !== 40) problems.push('clamp: ' + fast + ' / ' + slow + ' (expected 220 / 40)');
+      // (3)
+      const sw = document.getElementById('clickSw'), swOn = () => !!sw && sw.lastElementChild.classList.contains('active');
+      if (!sw || !document.getElementById('tapBtn')) problems.push('no Click switch or Tap button on the keyboard bar');
+      else if (part().ready) {
+        sw.querySelector('button:not(.active)').click();
+        const live = clockOf(part().ctx), mt = metronome();
+        if (!swOn() || !mt || !mt.running || !live.users.has(mt)) problems.push('the switch does not start the click as a user of the common clock');
+        sw.querySelector('button:not(.active)').click();
+        if (swOn() || (mt && (mt.running || live.users.has(mt)))) problems.push('the switch does not stop the click');
+      }
+      console.log('metronome: clicks at ' + ms.map(t => t.toFixed(1)).join(' / ') + ' ms');
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
+    } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+    push(r);
   }
   {
     // Activity LEDs (ui/activity.js): every section it lists has its LED in the title. They are found by

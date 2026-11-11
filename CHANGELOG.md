@@ -6,6 +6,37 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## [Unreleased]
+
+- **Panels with relief.** The light falls from above on the panels as it does on the knobs: a bevel
+  that is lit on the top edge and shaded on the bottom one, a face that barely fades downwards and a
+  shadow cast on a background that is a notch lighter. Corners are a little tighter, the sections of
+  a band are separated by a milled groove instead of a line, and the glass of every visualizer sits
+  sunk in its panel. Both themes, all from the tokens. The Amp Env graph marks where A, D, S and R
+  end, the FM4 title carries a legend — carrier, modulator — with the selected operator keeping its
+  role's color, and Octave and Stack line up with the knobs around them.
+- **The keyboard is a module, with touch strips.** The bar under the keys is gone: its controls sit
+  in a section to the left of the keys, and the keys are a third longer. Two **touch strips**
+  replace the wheel slider: **pitch bend** (new on screen: drag, let go and it springs back; the ±
+  selector is its range) and **modulation** (the matrix's «Wheel (CC1)» source; it stays where you
+  leave it, double-click = 0). Their chevrons light up to where the finger is, and both follow a
+  MIDI keyboard's wheels. Touch, Seq Rec, Click and Tap are icon buttons: Touch draws the velocity
+  curve in use and each click takes the next one.
+- **Click and Tap on the keyboard bar.** **Click** is a metronome on the shared clock: a tick on
+  every beat, the 1 of each bar accented, at the clock's tempo. It counts the bars of whatever is
+  already playing (an arpeggio, a phrase, the players) and, on its own, it sets the grid the next one
+  lands on. It goes straight to the output — no echo, no reverb, and the WAV recorder does not hear
+  it — and its label blinks with it, so with the sound down it is a visual metronome. **Tap** takes
+  the tempo from your hand: tap it to the beat and from the third tap on the clock takes the median
+  of the last intervals, so one early or late tap does not pull it; keep tapping to refine it; a
+  pause of two seconds starts a new count; a run of taps is one undo step.
+- **Seq Rec switches Latch on, and choosing another part ends the take instead of dropping it.**
+  The loop you had just recorded died the moment the take ended unless Latch happened to be on;
+  now arming the take switches Latch on along with the Mode (one undo step for both), so the loop
+  goes on. And choosing another part in the middle of a take dropped it — the phrase back as it
+  was, the loop stopped —; now it ends it as Enter would, on the part that recorded it: the phrase
+  stays, its loop goes on, and you record the next part on top.
+
 ## [1.9.0] — 2026-11-07
 
 The part's Dist · Flanger becomes a way to **destroy** a sound — four drive types, a bit and rate

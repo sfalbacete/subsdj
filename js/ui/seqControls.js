@@ -309,9 +309,11 @@ function initLock() {
 // writes over it, for as long as you like. 0 is the C of the octave the take starts in: holding any C
 // later plays it as you played it. A chord struck at once is one step with its lowest note; with the
 // units on a scale each note goes to its nearest degree. Space = a rest (a silent step), Backspace =
-// back one step, Enter, Esc or the switch = done: with Latch the loop goes on (as if latched on its C),
-// without it, it stops. The take is ONE undo step; nothing recorded leaves the phrase as it was. The
-// phrase ITSELF is the take's buffer, so Steps and the phrase list still work in the middle of it.
+// back one step, Enter, Esc, the switch or choosing another part = done: the loop goes on, latched on
+// its C — arming the take switches Latch on along with the Mode (2026-11-08; one undo step for both): a
+// loop that died the moment the take ended was the surprise, and the part you move to is recorded on
+// top of it. The take is ONE undo step; nothing recorded leaves the phrase as it was. The phrase ITSELF
+// is the take's buffer, so Steps and the phrase list still work in the middle of it.
 const CHORD_MS = 35;   // keys closer than this are one chord: the step keeps the lowest
 // Columns the editor draws: during a take that is still growing, one more — the empty slot the next key fills
 const colsOf = n => n + (rec && rec.cur >= n && n < SEQ_MAX_STEPS ? 1 : 0);
@@ -356,7 +358,10 @@ function initRec() {
   const start = () => {
     endGesture();                                    // the click that arms it is not a gesture: the take is one step, recorded at the end
     const e = part();
-    if (asModeOf(e.S) !== 'seq') record('Mode · Seq (Seq Rec)', () => CONTROLS.asMode.set('seq'));   // recording means the Seq
+    // recording means the Seq, and a loop that goes on when the take ends means Latch: both in ONE undo step
+    const needMode = asModeOf(e.S) !== 'seq', needLatch = e.S.seqLatch !== 'on';
+    if (needMode || needLatch) record([needMode && 'Mode · Seq', needLatch && 'Latch'].filter(Boolean).join(' + ') + ' (Seq Rec)',
+      () => { if (needMode) CONTROLS.asMode.set('seq'); if (needLatch) CONTROLS.seqLatch.set('on'); });
     const before = CONTROLS.seqPat.get();
     if (e.seq && e.seq.timer) e.seq.stop();         // the phrase playing goes: the loop comes back from the first key, over the take's C
     rec = { cur: 0, n: 0, ref: null, vel: 1, lastT: 0, lastOff: null, lastIdx: 0, before, part: e };
@@ -365,8 +370,9 @@ function initRec() {
     paint(true);
     say('Seq Rec: every key adds a step and the phrase loops from the first one · Space = rest · Backspace = back · Enter, Esc or the switch = done');
   };
-  // abort: something else took the module (a preset, a scene, another part): the take is dropped. On a
-  // part change the old part gets its phrase back; a preset or a scene brought their own (not touched)
+  // abort: something else took the module (a preset, a scene): the take is dropped; they brought their own
+  // phrase, which is not touched. (restore: a part change by a path other than the rack's selector — the
+  // old part gets its phrase back, the take had been writing into it.)
   const stop = (abort = false, restore = false) => {
     if (!rec) return;
     endGesture();                                    // the click that stops it is not a gesture either (it would store the half take)
@@ -411,7 +417,11 @@ function initRec() {
   }, true);
   document.addEventListener('escape-first', e => { if (rec) { e.preventDefault(); stop(); } });   // Esc ends the take before being «panic»
   for (const ev of ['scene-changed', 'preset-loaded']) document.addEventListener(ev, () => { if (rec) stop(true); });
-  document.addEventListener('part-changed', () => { if (rec) stop(true, true); });
+  // another part chosen in the rack (2026-11-08): the take ENDS as with Enter, BEFORE the rack moves — the
+  // controls still write the part that recorded, and the undo step lands on its stack —, so its loop goes
+  // on there (Latch) while you record the next part. It used to be dropped, and its loop stopped.
+  document.addEventListener('part-changing', () => { if (rec) stop(); });
+  document.addEventListener('part-changed', () => { if (rec) stop(true, true); });   // any other path: dropped, the phrase back
 }
 
 // Step editor: columns = pattern tokens; vertical drag = pitch

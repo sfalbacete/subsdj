@@ -3340,3 +3340,59 @@ bits and 17 kHz (not the SP-1200's 12 / 26), Rhodes A — as it was, no key scal
 its crush, Fuzz Lead on HARD (over Fuzz and Soft), Steel Drum with the blip DOWN. Applied, re-leveled, the
 fingerprints renewed; the coverage still names every feature (Fuzz Bass keeps `dist:fuzz`, Fuzz Lead and
 Crushed Arp `dist:hard`, DX E-Piano, Lo-Fi Keys and Steel Drum the FM4 key scaling).
+
+## Click, Tap, and a take that survives a part change (2026-11-08)
+
+Sergio brought a conversation with another assistant about playing SubSDJ live — recording a
+phrase while others loop, moving to another part, keeping the whole thing in time. Most of what it
+proposed was already here (the common clock, the parts, the phrase bank, Seq Rec, Latch, Steps as
+per-step locks); what was not, and was clearly worth it: a metronome, a tap tempo, and a snag in
+Seq Rec that the live flow ran straight into. The rest (a timed take, phrase slots that switch on the
+bar, parts on demand) he keeps to think about.
+
+**The click is a user of the common clock, not a timer of its own.** `engine/Metronome.js` runs the
+same scheduler as the Arp and the Seq: a 25 ms ticker that wakes a 120 ms look-ahead, and
+`Clock.begin / sync / advance` for its step, with a division of one beat. That is the whole point:
+switched on with nothing else in tempo, its first click is beat 0 and the next arpeggio or phrase
+lands on ITS grid; switched on over a loop, it lands on the loop's grid and counts its bars; when the
+conductor starts and anchors a new origin, `sync` relocates it to the conductor's bars, as it does
+the Arp/Seq. The accent is beat 0 modulo 4: the bar as the conductor and the Steps count it. The BPM
+is read on every tick from the Room (`part().bpm`), so a change from the clock cell, a preset or the
+tap reaches it from the current beat — the clock re-anchors at the beat of now, nothing jumps.
+
+**Straight to the destination.** The click does not go through the Room: it would pick up the echo
+and the reverb, the limiter would duck the music for it, and the WAV recorder (which hangs off the
+analyser) would print it. So it connects to `ctx.destination` on its own — the only thing in SubSDJ
+that does. The sound is a sine burst with a 1 ms attack (without it the sine starts with a step and
+thumps) and a 25 ms decay to −60 dB: a tick, not a beep; 1 kHz at −12 dB, and 1.5 kHz at −8 dB on
+the 1. Constants at the top of the file. No subdivisions, no sound menu, no count-in: a count-in only
+means something before a take that is timed, and Seq Rec's is not (a key is the next step, whenever
+it comes); if the timed take ever arrives, the count-in comes with it.
+
+**The label is the beat light.** The metronome keeps the clicks it scheduled (`beatNow` hands the
+UI the one that has just sounded) and `ui/tempo.js` flashes the «Click» label on each, more on the
+1: with the sound down it is still a metronome. A `requestAnimationFrame` loop runs only while the
+click is on.
+
+**Tap: the median, from the third tap.** `TapTempo` is pure (no DOM, no audio, checked in the
+selftest with numbers): the last six presses, their intervals sorted, the middle one — a mean would
+let one early or late tap pull the tempo, the median ignores it until the taps around it agree. Two
+presses give one interval and a nervous number, so the tempo comes out from the third; a pause of
+two seconds starts a new count (40 BPM is 1.5 s between taps and still counts). Whole beats,
+clamped to the Room's range. The BPM is written through `CONTROLS.bpm` — the clock cell — so the
+engine, the Output display and undo see it as they do a drag; the first tap of a run opens an undo
+gesture and the pause closes it, so a run is one step, not six. Neither the click nor the tap are
+parameters: nothing of them goes into presets, scenes or MIDI learn.
+
+**Seq Rec: Latch goes on with the take, and a part change ends it instead of dropping it.** The
+live flow is: record a loop on part 1, choose part 2, record on top. Two things broke it. The loop
+died the moment the take ended unless Latch happened to be on — the preset's default is off, and
+the 1.9.0 note said so as a feature: «with Latch it keeps playing». A loop you have just recorded
+dying is the surprise, not the other way round, so arming the take now switches Latch on along with
+the Mode, in the same `record()`: two undos still take everything back. And choosing another part
+in the middle of a take dropped it: the `part-changed` event fires after the rack has moved to the
+new part, so the only safe thing then was to give the old part its phrase back directly. Now
+`partsControls.choose` dispatches `part-changing` BEFORE `selectPart`, while `CONTROLS` still write
+the part that recorded and the undo stack is still its own, and Seq Rec ends the take there exactly
+as Enter would — the phrase stays, the loop goes on latched, the take is one undo step on that part.
+The `part-changed` listener stays as the fallback for any other path.

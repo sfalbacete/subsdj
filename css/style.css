@@ -12,7 +12,7 @@
 :root{
   --theme-id:"cinescapes"; --theme-name:"Carbon";   /* the base block IS the default theme (theme.js lists it); the id is the usual one: the remembered choice isn't lost */
   /* surfaces, from the outside in: flat carbon, no halo */
-  --bg:#15171c;          /* page */
+  --bg:#1b1e25;          /* page: the chassis behind the panels, a notch lighter than the wells so the panels' shadow reads on it */
   --bg-glow:var(--bg);   /* radial halo at the top of the background (none here: flat) */
   --panel:#22252d; --panel2:var(--panel);   /* module face (flat) */
   --well:#1a1d23;        /* well: inputs, selects, flat buttons, kbd, tooltip */
@@ -46,8 +46,13 @@
   --key-w:#e9ebef; --key-w-edge:#b4b9c2; --key-w-ink:#6b7280;
   --key-b:#1b1e24; --key-b-edge:#0b0d10; --key-b-ink:#8b919d;
   --felt:#27505e;
+  /* panel relief: the light falls from above, as on the knobs. The face is an IMAGE (a color could not be
+     a non-final background layer) that barely fades downwards; the bevel is the 1px border-box layer
+     under a transparent border — lit on top, the plain edge on the sides, shadow at the bottom; the
+     shadow token adds the inner glint under the top edge and the shadow the panel casts below itself */
+  --panel-face:linear-gradient(180deg,color-mix(in srgb,white 3%,var(--panel)),var(--panel) 40%,color-mix(in srgb,black 7%,var(--panel)));
+  --panel-bevel:linear-gradient(180deg,color-mix(in srgb,white 24%,var(--panel)),var(--edge) 30%,var(--edge) 70%,color-mix(in srgb,black 50%,var(--panel)));
   /* composite faces (flat here; Classic makes them gradients) */
-  --panel-face:var(--panel);
   --btn-face:var(--well);
   --btn-face-hi:color-mix(in srgb,var(--well) 84%,white);
   --seg-on:var(--accent); --seg-on2:var(--accent2);
@@ -56,10 +61,10 @@
   --key-w-on:color-mix(in srgb,var(--accent) 45%,var(--key-w));
   --key-b-face:var(--key-b);
   --key-b-on:color-mix(in srgb,var(--accent2) 55%,var(--key-b));
-  --shadow-panel:none;
+  --shadow-panel:inset 0 1px 0 rgba(255,255,255,.05),0 1px 0 rgba(0,0,0,.55),0 5px 12px rgba(0,0,0,.38);
   --shadow-pop:0 10px 30px rgba(0,0,0,.6);
   /* shape and font: pills, soft corners, lowercase labels */
-  --r-panel:14px; --r-ctl:8px; --r-btn:999px;
+  --r-panel:9px; --r-ctl:8px; --r-btn:999px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
   --lab-case:none; --lab-space:0;            /* control labels */
   --title-case:none; --title-space:.3px;     /* tabs, preset bar */
@@ -72,7 +77,7 @@
    cover everything: if something can't be brought back from here, it is hard-coded. */
 :root[data-theme="clasico"]{
   --theme-name:"Classic";
-  --bg:#0d1014; --bg-glow:#1a2230; --panel:#161b22; --panel2:#1b222c; --well:#0f141a; --screen:#05080b;
+  --bg:#11151b; --bg-glow:#1e2836; --panel:#161b22; --panel2:#1b222c; --well:#0f141a; --screen:#05080b;
   --edge:#2a3340; --edge-hi:#3d4a5c; --line:#0a0e12;
   --ink:#c9d4e0; --dim:#7d8a99; --ink-on-accent:#04140e; --ink-on-accent2:#04121a;
   --accent:#39d4a3; --accent2:#34c0ff; --hot:#ff5d73; --star:#ffd166;
@@ -87,7 +92,7 @@
   --key-w:#fdfefe; --key-w-edge:#98a1ab; --key-w-ink:#6b7683;
   --key-b:#11151a; --key-b-edge:#05070a; --key-b-ink:#8f9aa7;
   --felt:#8e2740;
-  --panel-face:linear-gradient(180deg,var(--panel),var(--panel2));
+  --panel-face:linear-gradient(180deg,var(--panel2),var(--panel) 55%,color-mix(in srgb,black 10%,var(--panel)));   /* the old one ran dark → light: against the light from above */
   --btn-face:linear-gradient(180deg,var(--panel2),var(--well) 85%);
   --btn-face-hi:linear-gradient(180deg,color-mix(in srgb,var(--panel2) 90%,white),color-mix(in srgb,var(--well) 92%,white) 85%);
   --seg-on:linear-gradient(180deg,color-mix(in srgb,var(--accent) 70%,black),var(--accent) 60%,color-mix(in srgb,var(--accent) 75%,white));
@@ -97,8 +102,8 @@
   --key-w-on:linear-gradient(180deg,color-mix(in srgb,var(--accent) 25%,var(--key-w-edge)) 0%,color-mix(in srgb,var(--accent) 45%,var(--key-w)) 28%,color-mix(in srgb,var(--accent) 75%,var(--key-w)) 72%,var(--accent) 100%);
   --key-b-face:linear-gradient(180deg,color-mix(in srgb,var(--key-b) 78%,white) 0%,color-mix(in srgb,var(--key-b) 93%,white) 10%,var(--key-b) 70%,color-mix(in srgb,var(--key-b) 86%,white) 78%,color-mix(in srgb,var(--key-b) 97%,white) 96%);
   --key-b-on:linear-gradient(180deg,color-mix(in srgb,var(--accent2) 20%,var(--key-b)) 0%,color-mix(in srgb,var(--accent2) 15%,var(--key-b)) 55%,color-mix(in srgb,var(--accent2) 75%,var(--key-b)) 76%,var(--accent2) 100%);
-  --shadow-panel:0 6px 18px rgba(0,0,0,.35); --shadow-pop:0 10px 30px rgba(0,0,0,.6);
-  --r-panel:10px; --r-ctl:6px; --r-btn:6px;
+  --shadow-panel:inset 0 1px 0 rgba(255,255,255,.05),0 1px 0 rgba(0,0,0,.6),0 6px 16px rgba(0,0,0,.45); --shadow-pop:0 10px 30px rgba(0,0,0,.6);
+  --r-panel:7px; --r-ctl:6px; --r-btn:6px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
   --lab-case:uppercase; --lab-space:.5px; --title-case:uppercase; --title-space:1.5px;
 }
@@ -160,7 +165,7 @@ h1{font-size:18px;margin:0;letter-spacing:2px;
    with Parts on there is room to spare at 1920: nothing wraps, and if anything had to give it would
    be the preset picker (down to 200 px), never a button */
 header{position:relative;z-index:6;flex:none;height:46px;display:flex;align-items:center;gap:18px;padding:0 12px;
-  background:var(--panel-face);border:1px solid var(--edge);border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
+  background:var(--panel-face) padding-box,var(--panel-bevel) border-box;border:1px solid transparent;border-radius:var(--r-panel);box-shadow:var(--shadow-panel);}
 header .sp{flex:1;}
 header .btn,header .seg,header nav,header #partsBar{white-space:nowrap;flex:none;}
 header #presetBar{flex:0 1 auto;min-width:0;}
@@ -389,14 +394,15 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #screens{flex:none;height:744px;display:flex;}   /* the body measures the same on every screen; the keyboard keeps the rest */
 .screen{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
 .screen[hidden]{display:none;}
-.band{flex:none;display:flex;min-width:0;background:var(--panel-face);border:1px solid var(--edge);
+.band{flex:none;display:flex;min-width:0;background:var(--panel-face) padding-box,var(--panel-bevel) border-box;border:1px solid transparent;
   border-radius:var(--r-panel);box-shadow:var(--shadow-panel);overflow:hidden;}
 #bandSource{height:238px;} #bandVoice{height:236px;} #bandModFx{height:254px;}
 #bandSeq{height:262px;} #bandRoom{height:236px;} #bandScene{height:230px;}
 .band-full{flex:1;min-height:0;}
 .slot{display:contents;}
-.panel{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;padding:8px 10px;border-left:1px solid var(--edge);}
-.band > .panel:first-child,.band > .slot:first-child > .panel{border-left:none;}
+.panel{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;padding:8px 10px;
+  border-left:1px solid rgba(0,0,0,.62);box-shadow:inset 1px 0 0 rgba(255,255,255,.08);}   /* between sections, a groove milled in the panel: the dark cut and the glint on its far wall */
+.band > .panel:first-child,.band > .slot:first-child > .panel{border-left:none;box-shadow:none;}
 .panel.grow{flex:1 1 auto;}
 .panel h2{font-size:10px;font-weight:600;text-transform:var(--sec-case);letter-spacing:var(--sec-space);color:var(--accent);
   margin:0 0 6px;white-space:nowrap;}
@@ -516,6 +522,13 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .seg.rot button svg{display:block;width:13px;height:10px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
 .seg.rot .knob{position:absolute;left:30px;top:20px;--knob-arc:0px;--knob-line:9px;--knob-line-top:6px;--knob-dot:0px;}
 .ctl.rotc{width:auto;gap:0;}
+/* up to six positions print nothing under the knob (the arc ends above its base): the box ends WITH the knob and the
+   caption sits 4 px under it, exactly as under any other knob */
+.seg.rot.short{height:64px;margin-bottom:4px;}
+/* a row that mixes selectors and plain knobs (the oscillators): everything hangs from the top and the plain knobs drop the
+   20 px the selector spends on its positions, so all the knobs — and their captions — share a line */
+.hrow.rotrow{align-items:flex-start;}
+.hrow.rotrow > .ctl:not(.rotc){margin-top:20px;width:51px;}   /* 51 + 2 + 51 + 2 = a selector and its gap: Stack lands right under Octave */
 .ctl.rotc .rcap{font-size:9px;color:var(--dim);min-height:11px;margin-top:2px;}
 /* FM4 algorithm graph (ui/fm4Graph.js): carriers in the module's accent, modulators dimmed */
 .fm4g{margin-top:4px;line-height:0;}
@@ -542,7 +555,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .f4-graph svg{display:block;overflow:visible;}
 .f4-graph rect{fill:var(--well);stroke:var(--dim);stroke-width:1;}
 .f4-graph .car rect{stroke:var(--accent2);}
-.f4-graph .sel rect{fill:color-mix(in srgb,var(--accent2) 30%,var(--well));stroke:var(--accent2);stroke-width:1.5;}
+/* selected = filled and a thicker line, in ITS ROLE's color (accent = carrier, ink = modulator): the legend stays true */
+.f4-graph .sel rect{fill:color-mix(in srgb,var(--ink) 20%,var(--well));stroke:var(--ink);stroke-width:1.5;}
+.f4-graph .car.sel rect{fill:color-mix(in srgb,var(--accent2) 30%,var(--well));stroke:var(--accent2);}
 .f4-graph .op{cursor:pointer;}
 .f4-graph .op:hover rect{stroke:var(--ink);}
 .f4-graph text{fill:var(--ink);font-size:9px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none;}
@@ -565,10 +580,19 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .f4-box{width:18px;height:14px;box-sizing:border-box;padding:0;border:1px solid var(--dim);border-radius:2px;background:var(--well);
   font-family:inherit;font-size:9px;font-weight:600;line-height:1;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .f4-box.car{border-color:var(--accent2);}
-.f4-box.sel{background:color-mix(in srgb,var(--accent2) 30%,var(--well));border-color:var(--accent2);border-width:1.5px;}
+.f4-box.sel{background:color-mix(in srgb,var(--ink) 20%,var(--well));border-color:var(--ink);border-width:1.5px;}
+.f4-box.car.sel{background:color-mix(in srgb,var(--accent2) 30%,var(--well));border-color:var(--accent2);}
 .f4-env{display:block;width:116px;height:22px;padding:0;border:none;border-radius:3px;background:var(--well);cursor:pointer;line-height:0;}
 .f4-env svg{display:block;width:116px;height:22px;}
-.f4-env.sel{outline:1.5px solid var(--accent2);outline-offset:0;}
+.f4-env.sel{outline:1.5px solid var(--ink);outline-offset:0;}
+.f4-env.car.sel{outline-color:var(--accent2);}
+/* the legend, in the module's title: the two box outlines of the graph and what each one is */
+.f4-leg{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:400;color:var(--dim);
+  text-transform:var(--lab-case);letter-spacing:var(--lab-space);cursor:help;}
+.f4-leg i{width:11px;height:8px;box-sizing:border-box;border:1px solid var(--dim);border-radius:2px;background:var(--well);}
+.f4-leg i.car{border-color:var(--accent2);}
+.f4-leg i.mod{margin-left:6px;}
+.f4-leg + .qmark{margin-left:8px;}
 .f4-env path.f{fill:color-mix(in srgb,var(--dim) 18%,transparent);stroke:none;}
 .f4-env path.l{fill:none;stroke:var(--dim);stroke-width:1.2;}
 .f4-env path.amp{stroke-dasharray:2 2;opacity:.75;}
@@ -679,6 +703,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 
 .panel h2{display:flex;align-items:center;}   /* LED · title · «?» · «room» tag */
 
+/* The glass of every visualizer sits SUNK in the panel: the top lip shades it, the bottom lip catches the light */
+#adsrCanvas,#seqCanvas,#wsCanvas,#weCanvas,.readout,.vizrow canvas,.mt-bars{box-shadow:inset 0 2px 5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.055);
+  border-color:color-mix(in srgb,black 35%,var(--edge));}
 #adsrCanvas{display:block;width:250px;height:52px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);margin-bottom:6px;}
 #seqCanvas,#wsCanvas{display:block;width:100%;flex:1;min-height:0;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
   touch-action:none;cursor:crosshair;}
@@ -734,9 +761,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #mtLed.on{color:var(--hot);border-color:var(--hot);box-shadow:0 0 6px color-mix(in srgb,var(--hot) 50%,transparent);}
 
 /* Keyboard: part of the instrument, scales with it */
-#kbWrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
-#keyboard{flex:1;min-height:0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
-  border-radius:8px;padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6);}
+/* a module like the others: one band — the performance section on the left, the keys sunk in the rest */
+#kbWrap{flex:1;min-height:0;}
+#keyboard{flex:1;min-width:0;min-height:0;margin:8px 8px 8px 0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
+  border-radius:var(--r-panel);padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.05);border-color:color-mix(in srgb,black 35%,var(--edge));}
 #kbKeys{position:relative;height:100%;display:flex;touch-action:none;}   /* a finger on the keys plays, it doesn't scroll or zoom */
 #kbKeys::before{ /* red felt behind the keys */
   content:'';position:absolute;left:0;right:0;top:0;height:4px;z-index:4;pointer-events:none;
@@ -769,10 +797,52 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .bkey.on .klab{color:var(--ink-on-accent2);background:rgba(255,255,255,.3);border-color:color-mix(in srgb,var(--ink-on-accent2) 35%,transparent);}
 .kname{pointer-events:none;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--dim);}
 .wkey.on .kname{color:var(--ink-on-accent);}
-/* Under the keyboard: the octave by mouse (− / + and the visible range); the rest lives in the tooltip */
-#kbBar{flex:none;display:flex;align-items:center;gap:8px;}
-#kbBar .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
-#kbBar .num{min-width:52px;}
+/* Beside the keys, the PERFORMANCE section of the keyboard module (the hardware's left cheek): a column —
+   the octave, four icon buttons (touch, Seq Rec, click, tap), the bend range — and the two touch strips */
+#kbSide{flex:none;display:flex;gap:12px;padding:8px 12px 8px 10px;}
+.kb-col{display:flex;flex-direction:column;align-items:center;justify-content:space-between;}
+#kbSide .stepper .num{min-width:50px;}
+.kb-ico{display:grid;grid-template-columns:repeat(2,32px);gap:6px;}
+/* an icon button: either a real .btn.hico (touch, tap) or a switch — the Off · On .seg.sw laid invisible over an
+   icon, so whatever binds the switch never notices; lit = the icon in the accent, with its halo */
+.kb-btn{position:relative;display:flex;width:32px;height:28px;}
+.kb-btn > .btn{width:100%;height:100%;justify-content:center;padding:0;border-radius:var(--r-ctl);}
+.kb-btn.swc{align-items:center;justify-content:center;gap:0;box-sizing:border-box;background:var(--well);border:1px solid var(--edge);
+  border-radius:var(--r-ctl);color:var(--dim);transition:color .15s,border-color .15s,box-shadow .15s;}
+.kb-btn.swc:hover{color:var(--ink);border-color:var(--edge-hi);}
+.kb-btn.swc > svg{display:block;width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+.kb-btn svg .f{fill:currentColor;stroke:none;}
+.kb-btn .seg.sw,.kb-btn .seg.sw:has(button:last-child.active){position:absolute;inset:0;width:auto;height:auto;border:none;background:none;box-shadow:none;animation:none;}
+.kb-btn .seg.sw::after{display:none;}
+.kb-btn.swc:has(button:last-child.active){color:var(--accent);border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 35%,transparent);}
+/* Seq Rec (ui/seqControls.js): armed, the button takes the alarm color and breathes */
+#kbRec > svg .f{fill:var(--hot);}
+#kbRec:has(button:last-child.active){color:var(--hot);border-color:var(--hot);animation:recArmed 1.2s ease-in-out infinite;}
+@keyframes recArmed{50%{box-shadow:0 0 12px color-mix(in srgb,var(--hot) 70%,transparent);}}
+/* Click (ui/tempo.js): the icon flashes on every beat, more on the 1 — a visual metronome with the sound down */
+#kbClick.beat > svg{animation:clickBeat .18s ease-out;}
+#kbClick.bar > svg{animation:clickBar .24s ease-out;}
+@keyframes clickBeat{from{color:var(--ink);filter:drop-shadow(0 0 4px var(--accent));}}
+@keyframes clickBar{from{color:var(--hot);filter:drop-shadow(0 0 6px var(--hot));}}
+/* Touch: the button draws the velocity curve in use (soft bulges up, hard sags); the three-option .seg stays in the DOM, unseen */
+#kbTouch{display:none;}
+#touchBtn svg path{display:none;}
+#touchBtn svg .ax{display:block;opacity:.35;}
+#touchBtn[data-touch="soft"] .c-soft,#touchBtn[data-touch="linear"] .c-linear,#touchBtn[data-touch="hard"] .c-hard{display:block;stroke:var(--accent);}
+.kb-bend select{padding:2px 6px;font-size:11px;}
+/* Touch strips (ui/keyboard.js): a glass strip sunk in the panel, a ladder of chevrons printed on it. The chevrons
+   light up from the rest point to where the finger is (--p, 0..1 from the bottom) and a line of light marks the
+   spot. Bend (the oscillators' color) rests at the center and springs back; Mod (the rack's) rests at the bottom and stays */
+.tstrips{display:flex;gap:8px;}
+.tstrip{position:relative;width:32px;height:100%;box-sizing:border-box;border:1px solid color-mix(in srgb,black 35%,var(--edge));border-radius:var(--r-ctl);
+  background:var(--screen);box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.055);cursor:ns-resize;touch-action:none;overflow:hidden;--c:var(--accent);}
+.tstrip.bend{--c:var(--accent2);}
+.tstrip svg{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;}
+.tstrip svg path{fill:none;stroke:var(--edge-hi);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;transition:stroke .12s;}
+.tstrip svg path.on{stroke:var(--c);filter:drop-shadow(0 0 2px var(--c));}
+.tstrip::after{content:"";position:absolute;left:3px;right:3px;height:2px;border-radius:1px;bottom:calc(6px + var(--p,0) * (100% - 14px));
+  background:var(--c);box-shadow:0 0 6px var(--c),0 0 14px color-mix(in srgb,var(--c) 60%,transparent);opacity:.9;pointer-events:none;}
+.tstrip:hover{border-color:var(--edge-hi);}
 
 /* MIDI learn */
 #midiBar[hidden]{display:none;}  /* the display:flex below would win over the hidden attribute */
@@ -933,16 +1003,6 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 /* «Undo» after a deletion (no confirm dialogs) */
 .undo{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:6px;pointer-events:auto;}
 
-/* mod wheel under the keyboard (Roadmap 5.0 · block 4): the matrix's «Wheel (CC1)» source */
-#kbBar .wheel{display:flex;align-items:center;gap:8px;margin-left:18px;}
-#kbBar .wheel input[type=range]{width:140px;}
-#kbBar .kb-grp{display:flex;align-items:center;gap:8px;margin-left:18px;}
-#kbBar .kb-grp select{padding:2px 6px;font-size:11px;}
-/* Seq Rec (ui/seqControls.js): while a take is armed the switch and its label take the alarm color, and the switch breathes */
-#kbRec:has(.seg.sw button:last-child.active) .lab{color:var(--hot);}
-#kbRec .seg.sw:has(button:last-child.active){background:var(--hot);border-color:var(--hot);animation:recArmed 1.2s ease-in-out infinite;}
-@keyframes recArmed{50%{box-shadow:inset 0 1px 3px rgba(0,0,0,.3),0 0 10px color-mix(in srgb,var(--hot) 60%,transparent);}}
-#kbTouch button{padding:3px 8px;font-size:10px;}
 
 /* WELCOME WINDOW (ui/splash.js): a modal window centered over the
    instrument, which shows behind it dimmed (darkened and desaturated). On top, the

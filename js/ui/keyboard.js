@@ -48,6 +48,7 @@ export function setTouch(t) {
   touch = t;
   try { localStorage.setItem(TOUCH_KEY, t); } catch (_) {}
   document.querySelectorAll('#kbTouch button').forEach(b => b.classList.toggle('active', b.dataset.touch === t));
+  const tb = document.getElementById('touchBtn'); if (tb) tb.dataset.touch = t;   // the button draws the curve in use
 }
 
 // Semitone (from the base octave) -> PC key, to paint it on the key. Where the bottom/top
@@ -229,6 +230,46 @@ function shiftOctave(d) {
 export function pressNote(midi, vel = 1) { hold(midi, 'midi', vel); }
 export function releaseNote(midi) { unhold(midi, 'midi'); }
 
+// A touch strip (the hardware's ribbon instead of a wheel): a ladder of chevrons that lights up from the rest point
+// to the finger. Unipolar (0..1, rests at the bottom, stays) or bipolar (−1..1, rests at the center); spring = on
+// release it glides back to rest (SPRING_MS). The strip only publishes: --p (0..1 from the bottom, for the line of
+// light) and .on on each lit chevron — the CSS draws. Double click = rest. Returns { show(v) } for outside changes (MIDI).
+const SPRING_MS = 140, STRIP_PAD = 7;   // px of glass above and below the travel (style.css: .tstrip::after)
+function touchStrip(el, { rows = 9, bipolar = false, spring = false, onInput }) {
+  if (!el) return null;
+  const W = 32, H = 16 * rows + 12, mid = (rows - 1) / 2;
+  // row 0 = top. Bipolar: chevrons point away from the center row, which is a bar; unipolar: all point up
+  const d = i => { const y = 6 + 16 * i + 8, up = !bipolar || i < mid;
+    return bipolar && i === mid ? 'M9 ' + y + 'H23' : 'M9 ' + (y + (up ? 3 : -3)) + 'L16 ' + (y + (up ? -3 : 3)) + 'L23 ' + (y + (up ? 3 : -3)); };
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + Array.from({ length: rows }, (_, i) => '<path d="' + d(i) + '"/>').join('') + '</svg>';
+  const marks = [...el.querySelectorAll('path')];
+  const show = v => {
+    const p = bipolar ? (v + 1) / 2 : v;
+    el.style.setProperty('--p', p.toFixed(4));
+    marks.forEach((mk, i) => { const r = rows - 1 - i;   // row from the bottom
+      const on = bipolar ? (r === mid || (r > mid ? v > 0 && v >= (r - mid - .5) / mid : v < 0 && -v >= (mid - r - .5) / mid)) : v > 0 && v >= (r + .5) / rows - .5 / rows;
+      mk.classList.toggle('on', on); });
+  };
+  let val = 0, raf = 0, down = false;
+  const set = v => { val = v; show(v); onInput(v); };
+  const at = e => { const r = el.getBoundingClientRect(), pad = STRIP_PAD * r.height / el.offsetHeight;
+    const p = Math.max(0, Math.min(1, 1 - (e.clientY - r.top - pad) / (r.height - 2 * pad)));
+    let v = bipolar ? p * 2 - 1 : p;
+    if (bipolar && Math.abs(v) < .04) v = 0;            // a small detent at the center
+    return Math.round(v * 200) / 200; };
+  el.addEventListener('pointerdown', e => { down = true; cancelAnimationFrame(raf); el.setPointerCapture(e.pointerId); e.preventDefault(); set(at(e)); });
+  el.addEventListener('pointermove', e => { if (down) set(at(e)); });
+  const end = () => { if (!down) return; down = false;
+    if (!spring || !val) return;
+    const v0 = val, t0 = performance.now();
+    const step = now => { const x = Math.min(1, (now - t0) / SPRING_MS); set(Math.abs(v0 * (1 - x) * (1 - x)) < .005 || x === 1 ? 0 : v0 * (1 - x) * (1 - x)); if (x < 1 && val) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step); };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, end);
+  el.addEventListener('dblclick', () => set(0));
+  show(0);
+  return { show: v => { if (!down) { val = v; show(v); } } };
+}
+
 export function initKeyboard() {
   kb = document.getElementById('keyboard');
   numOctaves = octavesForWidth();
@@ -239,16 +280,20 @@ export function initKeyboard() {
   // On-screen mod wheel: the matrix's «Wheel (CC1)» source
   // (parts.setPerf → all parts). It also follows the MIDI wheel via
   // 'perf-change' (ui/midi.js). Double click = rest. Not a preset control.
+  // #kbWheel is the wheel's VALUE (a hidden range: what MIDI and the selftest read); #modStrip is its face.
   const wheel = document.getElementById('kbWheel');
-  if (wheel) {
-    wheel.addEventListener('input', () => { part().resume(); setPerf('wheel', +wheel.value); });
-    wheel.addEventListener('dblclick', () => { wheel.value = 0; setPerf('wheel', 0); });
-    document.addEventListener('perf-change', e => { if (e.detail.id === 'wheel') wheel.value = e.detail.value; });
-  }
-  // Bend range (the preset's) and touch (yours), next to the wheel
+  const mod = touchStrip(document.getElementById('modStrip'), { rows: 9, onInput: v => { part().resume(); if (wheel) wheel.value = v; setPerf('wheel', v); } });
+  document.addEventListener('perf-change', e => { if (e.detail.id !== 'wheel') return; if (wheel) wheel.value = e.detail.value; if (mod) mod.show(e.detail.value); });
+  // Pitch bend: −1..1 to every part (each scales it by its preset's range), as the MIDI one does; it springs back
+  const bendS = touchStrip(document.getElementById('bendStrip'), { rows: 9, bipolar: true, spring: true, onInput: v => { part().resume(); eachPart(e => e.setBend(v)); } });
+  document.addEventListener('bend-change', e => { if (bendS) bendS.show(e.detail.value); });
+  // Bend range (the preset's) and touch (yours)
   const bend = document.getElementById('bendRangeSel');
   if (bend) bindSelect(bend, 'bendRange', BEND_RANGES.map(n => ({ id: n, label: '±' + n })));
   document.querySelectorAll('#kbTouch button').forEach(b => b.addEventListener('click', () => setTouch(b.dataset.touch)));
+  const tb = document.getElementById('touchBtn'), order = Object.keys(TOUCH);   // one button: each click, the next curve
+  if (tb) tb.addEventListener('click', () => { tb.blur(); setTouch(order[(order.indexOf(touch) + 1) % order.length]);
+    document.dispatchEvent(new CustomEvent('display-show', { detail: { who: 'Keyboard · Touch', val: touch } })); });
   setTouch(touch);
 
   // When the width changes, recompute how many octaves fit and rebuild.

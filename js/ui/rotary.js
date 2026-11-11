@@ -18,6 +18,7 @@ export function initRotaries(root = document) {
   for (const seg of root.querySelectorAll('.seg.rot')) {
     if (seg.dataset.rot) continue;
     seg.dataset.rot = '1';
+    seg.classList.toggle('short', seg.querySelectorAll('button').length <= 6);   // nothing printed under the knob: the caption sits closer (style.css)
     const btns = [...seg.querySelectorAll('button')], n = btns.length;
     const spread = Math.min(ARC, (n - 1) * STEP);
     const ang = i => (n < 2 ? 0 : -spread / 2 + i * spread / (n - 1));

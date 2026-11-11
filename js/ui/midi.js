@@ -53,7 +53,9 @@ export function handleMidi(data) {
   } else if (cmd === 0xc0) {                           // program change → bank preset
     loadPresetIndex(d1);
   } else if (cmd === 0xe0) {                           // pitch bend: −1..1 (the preset sets the range)
-    eachPart(e => e.setBend((((d2 << 7) | d1) - 8192) / 8192));
+    const b = (((d2 << 7) | d1) - 8192) / 8192;
+    eachPart(e => e.setBend(b));
+    document.dispatchEvent(new CustomEvent('bend-change', { detail: { value: b } }));   // the on-screen strip follows it
   }
 }
 function onMsg(e) { handleMidi(e.data); }

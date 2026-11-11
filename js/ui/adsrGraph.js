@@ -27,6 +27,14 @@ export function initADSRGraph(canvas) {
     ctx.strokeStyle = tint('--dim', .18); ctx.lineWidth = 1;
     ctx.strokeRect(pad, pad, w - 2 * pad, h - 2 * pad);
 
+    // stage boundaries of the amp envelope: where A, D, S and R end (dotted, behind the curves)
+    ctx.save(); ctx.setLineDash([2, 3]); ctx.strokeStyle = tint('--dim', .38); ctx.beginPath();
+    for (const t of [flam + a, flam + a + d, flam + a + d + susT, flam + a + d + susT + r]) {
+      const x = Math.round(X(t)) + .5;   // on the pixel: a crisp 1px line
+      if (x < w - pad - 1) { ctx.moveTo(x, pad); ctx.lineTo(x, h - pad); }   // the last one is the frame itself unless the filter envelope runs longer
+    }
+    ctx.stroke(); ctx.restore();
+
     // A and D segments with the same RC curve as the engine (envCurve 0 = straight lines)
     const k = 6 * (S.envCurve || 0), den = 1 - Math.exp(-k);
     const seg = (t0, t1, v0, v1) => { const n = k > 0 ? 14 : 1, out = [];

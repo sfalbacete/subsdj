@@ -18,7 +18,7 @@ const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application
 const q = process.argv[2] || 'selftest=1';
 const BASE = process.env.BASE || null;
 const BATCHES = /(^|&)batch=/.test(q) ? [null] : ['checks', 'factory'];
-const BATCH_MAX_MS = 300000;   // how long a batch may take
+const BATCH_MAX_MS = +process.env.BATCH_MAX_MS || 300000;   // how long a batch may take (BATCH_MAX_MS=900000 on a busy machine: the checks took >5 min with another process eating the CPU, 2026-11-08)
 const EV_MAX_MS = 15000;       // how long the page may take to answer a question
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',

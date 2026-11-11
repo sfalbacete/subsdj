@@ -102,6 +102,7 @@ function refreshCurrent() {
 
 function choose(i) {
   const sc = getScene(); if (!sc || i === sc.sel) return;
+  document.dispatchEvent(new CustomEvent('part-changing', { detail: { from: sc.sel, to: i } }));   // BEFORE the rack moves: a Seq Rec take ends on the part that recorded it
   selectPart(i);
   syncControls(part().S);                     // the rack shows the part (without cutting its notes)
   const p = sc.parts[i];

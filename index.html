@@ -155,7 +155,7 @@
 <div class="band" id="bandSource">
   <div class="panel osc">
     <h2>Osc A<button type="button" class="h2tog" id="syncA" aria-pressed="false" title="Hard sync: A restarts its cycle with every cycle of B. B sets the note (it can sit at level 0: it keeps time without sounding) and A's pitch becomes TIMBRE: sweep «Pitch A» from the matrix (Filter env, LFO, Steps, wheel, macro) for the classic screaming sync lead">Sync</button></h2>
-    <div class="hrow">
+    <div class="hrow rotrow">
       <div class="ctl rotc"><div class="seg rot waves" id="waveA">
         <button data-w="sawtooth" title="Sawtooth"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/></svg></button>
         <button data-w="square" title="Square (PWM)"><svg viewBox="0 0 16 12"><polyline points="1,10 1,2 8,2 8,10 15,10 15,2"/></svg></button>
@@ -170,7 +170,7 @@
         <button data-oct="-2" title="−2 octaves">32'</button><button data-oct="-1" title="−1 octave (sub-oscillator)">16'</button><button data-oct="0" title="Natural octave">8'</button><button data-oct="1" title="+1 octave">4'</button><button data-oct="2" title="+2 octaves">2'</button>
       </div><div class="lab">Octave</div></div>
     </div>
-    <div class="hrow">
+    <div class="hrow rotrow">
       <div class="ctl"><div class="knob" data-knob="detuneA"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="phaseA"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
       <div class="ctl rotc"><div class="seg rot" id="oscAStack">
@@ -181,7 +181,7 @@
   </div>
   <div class="panel osc">
     <h2>Osc B</h2>
-    <div class="hrow">
+    <div class="hrow rotrow">
       <div class="ctl rotc"><div class="seg rot waves" id="waveB">
         <button data-w="sawtooth" title="Sawtooth"><svg viewBox="0 0 16 12"><polyline points="1,10 8,2 8,10 15,2"/></svg></button>
         <button data-w="square" title="Square (PWM)"><svg viewBox="0 0 16 12"><polyline points="1,10 1,2 8,2 8,10 15,10 15,2"/></svg></button>
@@ -196,7 +196,7 @@
         <button data-oct="-2" title="−2 octaves">32'</button><button data-oct="-1" title="−1 octave (sub-oscillator)">16'</button><button data-oct="0" title="Natural octave">8'</button><button data-oct="1" title="+1 octave">4'</button><button data-oct="2" title="+2 octaves">2'</button>
       </div><div class="lab">Octave</div></div>
     </div>
-    <div class="hrow">
+    <div class="hrow rotrow">
       <div class="ctl"><div class="knob" data-knob="detuneB"><div class="ind"></div></div><div class="lab">Detune</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="phaseB"><div class="ind"></div></div><div class="lab">Phase</div><div class="val"></div></div>
       <div class="ctl rotc"><div class="seg rot" id="oscBStack">
@@ -239,7 +239,7 @@
     <div class="help"><b>2-operator FM (sine).</b> It only bites on oscillators set to «Sine» — the module dims if there is none. Integer ratio = harmonic (brass, e-piano); non-integer = bell. Index = amount of modulation; in the matrix it is the «FM index» destination (env→FM = DX pluck and bell, velocity→FM = the DX7's touch). Feedback = the modulator feeds back into itself (the DX7's op 6): its sine turns into a saw and, at full, into noise (FM hats). Feedback also drives op 4 of the FM4 module.</div>
   </div>
   <div class="panel osc" id="fm4Panel">
-    <h2>FM4</h2>
+    <h2>FM4<span class="f4-leg" title="Carrier: an operator you hear — it goes to the output (the bottom row of the graph). Modulator: an operator you don't hear — it bends the phase of the one below it, which is what adds the harmonics. The same operator changes role with the algorithm"><i class="car"></i><span>carrier</span><i class="mod"></i><span>modulator</span></span></h2>
     <div class="f4">
       <div class="f4-alg" id="fm4AlgBox">
         <div class="f4-algsel">
@@ -828,18 +828,27 @@
 </main>
 
 <!-- KEYBOARD: part of the instrument (scales with it) -->
-<div id="kbWrap">
-  <div id="keyboard"></div>
-  <div id="kbBar">
-    <span class="lab">Octave</span>
-    <div class="stepper" id="kbOct" title="Computer keyboard octave: from Z (the C on the left) to P (the E two octaves up), from C0–E2 to C7–E9 (Page Up / Page Down too); the on-screen keyboard scrolls to show it. Each key shows its computer key, tracker style in two rows: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U (by position: the same physical keys on any layout; with Ctrl or Alt they don't play, they are shortcuts). Polyphonic. With the mouse, how high on the key you click is the velocity: top of the key soft, bottom hard (the computer keyboard is always at full).">
+<div id="kbWrap" class="band">
+  <div id="kbSide">
+    <div class="kb-col">
+      <div class="stepper" id="kbOct"title="Computer keyboard octave: from Z (the C on the left) to P (the E two octaves up), from C0–E2 to C7–E9 (Page Up / Page Down too); the on-screen keyboard scrolls to show it. Each key shows its computer key, tracker style in two rows: Z S X D C V G B H N J M · Q 2 W 3 E R 5 T 6 Y 7 U (by position: the same physical keys on any layout; with Ctrl or Alt they don't play, they are shortcuts). Polyphonic. With the mouse, how high on the key you click is the velocity: top of the key soft, bottom hard (the computer keyboard is always at full).">
       <button data-kbo="-1" title="Computer keyboard octave down (Page Down)">−</button><span class="num" id="kbOctNum"></span><button data-kbo="1" title="Computer keyboard octave up (Page Up)">+</button>
     </div>
-    <label class="wheel" title="Modulation wheel: the matrix source «Wheel (CC1)» (0 = at rest). A MIDI keyboard's wheel (CC1) moves it too. Double-click = 0"><span class="lab">Wheel</span><input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0"></label>
-    <label class="kb-grp" title="Pitch bend range in semitones (saved with the preset): ±2 is usual; ±12 for basses and effects that drop an octave. In Parts mode, each part has its own"><span class="lab">Bend</span><select id="bendRangeSel"></select></label>
-    <span class="kb-grp" title="Touch response of YOUR keyboard (not the preset's; remembered in this browser): soft = a light touch already sounds loud · linear = velocity as it comes · hard = you have to dig in to reach the top. Applies to the MIDI keyboard and the mouse (how high you click); the computer keyboard is always at full"><span class="lab">Touch</span><span class="seg" id="kbTouch"><button type="button" data-touch="soft">Soft</button><button type="button" data-touch="linear">Linear</button><button type="button" data-touch="hard">Hard</button></span></span>
-    <span class="kb-grp swc" id="kbRec" title="Seq Rec: record a phrase into the sequencer from the keys, on any screen. On: the Arpeggiator / Sequencer goes to Seq, the phrase starts empty and every key you play (QWERTY, the screen or MIDI) adds a step instead of transposing. It loops from the first key, so you hear it grow; at 16 steps it goes back to the first and writes over it. 0 is the C of the octave you start in. Space = rest · Backspace = back · Enter, Esc or Off = done (the Mode stays on Seq; with Latch it keeps playing). A chord struck at once is one step (its lowest note); on a scale, each note goes to its nearest degree. One undo step"><span class="lab">Seq Rec</span><span class="seg sw" id="seqRecSw"><button type="button">Off</button><button type="button">On</button></span></span>
+      <div class="kb-ico">
+        <span class="kb-btn" id="kbTouchGrp" title="Touch response of YOUR keyboard (not the preset's; remembered in this browser): soft = a light touch already sounds loud · linear = velocity as it comes · hard = you have to dig in to reach the top. Applies to the MIDI keyboard and the mouse (how high you click); the computer keyboard is always at full · click = the next one"><button type="button" class="btn hico" id="touchBtn" aria-label="Touch response"><svg viewBox="0 0 16 16"><path class="ax" d="M2 2V14H14"/><path class="c-soft" d="M2 14Q2 3 14 2"/><path class="c-linear" d="M2 14L14 2"/><path class="c-hard" d="M2 14Q13 14 14 2"/></svg></button><span class="seg" id="kbTouch"><button type="button" data-touch="soft">Soft</button><button type="button" data-touch="linear">Linear</button><button type="button" data-touch="hard">Hard</button></span></span>
+        <span class="kb-btn swc" id="kbRec" title="Seq Rec: record a phrase into the sequencer from the keys, on any screen. On: the Arpeggiator / Sequencer goes to Seq, the phrase starts empty and every key you play (QWERTY, the screen or MIDI) adds a step instead of transposing. It loops from the first key, so you hear it grow; at 16 steps it goes back to the first and writes over it. 0 is the C of the octave you start in. Space = rest · Backspace = back · Enter, Esc, Off or choosing another part = done: the Mode stays on Seq and Latch goes on, so the loop keeps playing while you play or record the next part. A chord struck at once is one step (its lowest note); on a scale, each note goes to its nearest degree. One undo step"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="f" cx="4.6" cy="8" r="3.1"/><path d="M10 12.5V9M13.5 12.5V3.5"/></svg><span class="seg sw" id="seqRecSw"><button type="button">Off</button><button type="button">On</button></span></span>
+        <span class="kb-btn swc" id="kbClick" title="Click: a metronome on every beat at the clock's tempo, the 1 of each bar accented. It counts the bars of whatever is already playing (an arpeggio, a phrase, the players); on its own, it sets the grid the next one lands on. Straight to the output: no echo or reverb, and the WAV recorder does not hear it. The icon blinks with it, so it works as a visual metronome with the sound down"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 14L6.8 2.5H9.2L10.8 14Z"/><path d="M8 11L12.6 4.2"/></svg><span class="seg sw" id="clickSw"><button type="button">Off</button><button type="button">On</button></span></span>
+        <span class="kb-btn" id="kbTap" title="Tap tempo: click it to the beat and the clock takes that tempo — from the third tap on, the median of the last intervals, so one early or late tap does not pull it. Keep tapping to refine it; a pause of two seconds starts a new count. A run of taps is one undo step"><button type="button" class="btn hico tap" id="tapBtn" aria-label="Tap tempo"><svg viewBox="0 0 16 16"><path d="M6.4 14.5V6.2a1.6 1.6 0 0 1 3.2 0V14.5M3.8 3.4A4.6 4.6 0 0 0 3.8 8.6M12.2 3.4A4.6 4.6 0 0 1 12.2 8.6"/></svg></button></span>
+      </div>
+      <label class="kb-bend" title="Pitch bend range in semitones (saved with the preset): ±2 is usual; ±12 for basses and effects that drop an octave. In Parts mode, each part has its own"><select id="bendRangeSel"></select></label>
+    </div>
+    <div class="tstrips">
+      <div class="tstrip bend" id="bendStrip" title="Pitch bend: drag up or down and everything that sounds bends with it; let go and it springs back to the center. How far it goes is the ± selector beside it (saved with the preset). A MIDI keyboard's bend wheel moves it too"></div>
+      <div class="tstrip mod" id="modStrip" title="Modulation strip: the matrix source «Wheel (CC1)», 0 at the bottom. It stays where you leave it; double-click = 0. On its own it does nothing: pick «Wheel (CC1)» as the source of a Matrix row and it moves that destination (vibrato, cutoff, FM index…). A MIDI keyboard's wheel (CC1) moves it too"></div>
+      <input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0" hidden>
+    </div>
   </div>
+  <div id="keyboard"></div>
 </div>
 </div><!-- /inst -->
 
