@@ -506,6 +506,7 @@ export class Voice {
     return g;
   }
   ensurePitch() { if (this._connPitch || this.disposed) return; this._connPitch = true; this.oscs.forEach(o => this.mod.pitchOffset.connect(o.detune)); }
+  ensureWheelVib() { if (this._connWv || this.disposed) return; this._connWv = true; this.oscs.forEach(o => this.mod.wheelVib.connect(o.detune)); }   // the wheel's default vibrato (AudioEngine._wheelVibSync)
   ensureVib() {
     if (this._connVib || this.disposed) return; this._connVib = true;
     this.vibFade = this._lfoFadeGain();

@@ -844,7 +844,7 @@
     </div>
     <div class="tstrips">
       <div class="tstrip bend" id="bendStrip" title="Pitch bend: drag up or down and everything that sounds bends with it; let go and it springs back to the center. How far it goes is the ± selector beside it (saved with the preset). A MIDI keyboard's bend wheel moves it too"></div>
-      <div class="tstrip mod" id="modStrip" title="Modulation strip: the matrix source «Wheel (CC1)», 0 at the bottom. It stays where you leave it; double-click = 0. On its own it does nothing: pick «Wheel (CC1)» as the source of a Matrix row and it moves that destination (vibrato, cutoff, FM index…). A MIDI keyboard's wheel (CC1) moves it too"></div>
+      <div class="tstrip mod" id="modStrip" title="Modulation strip: a mod wheel, 0 at the bottom. On its own it is vibrato — up to ±50 cents at the top, at the Speed and shape of the Vibrato LFO, added to the preset's own. Pick «Wheel (CC1)» as the source of a Matrix row and it does that instead (cutoff, FM index, a macro of several…). It stays where you leave it; double-click = 0. A MIDI keyboard's wheel (CC1) moves it too"></div>
       <input type="range" id="kbWheel" min="0" max="1" step="0.01" value="0" hidden>
     </div>
   </div>
@@ -860,7 +860,7 @@
   <button class="btn" id="mmExp" title="Download the mapping as JSON">⇩ Map</button>
   <button class="btn" id="mmImp" title="Load a mapping from JSON">⇧ Map</button>
   <input type="file" id="mmFile" accept="application/json,.json" style="display:none">
-  <button class="btn" id="mmDef" title="Factory mapping: CC1 vibrato · CC74 cutoff · CC71 resonance">⟲ Factory</button>
+  <button class="btn" id="mmDef" title="Factory mapping: CC74 cutoff · CC71 resonance (the mod wheel, CC1, needs no mapping: it is the modulation strip)">⟲ Factory</button>
   <span id="mmMsg"></span>
   <button class="btn" id="mmClose" title="Leave learn mode">✕</button>
 </div>

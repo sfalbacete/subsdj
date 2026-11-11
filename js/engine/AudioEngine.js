@@ -61,6 +61,10 @@ const budgets = new WeakMap();
 const budgetOf = ctx => { let s = budgets.get(ctx); if (!s) budgets.set(ctx, (s = new Set())); return s; };
 // Performance sources (wheel, aftertouch, expression): smoothing of MIDI's 1/127 jumps
 const PERF_TAU = 0.02;
+// The wheel's DEFAULT job (2026-11-11): while no matrix row takes «Wheel (CC1)» as its source, the wheel
+// is what a mod wheel is on any keyboard — vibrato. Cents of pitch at the top of the wheel, ADDED to the
+// preset's own vibrato (same LFO: its Speed and its shape; the global one, so a chord moves as one).
+export const WHEEL_VIB_CT = 50;
 // AC coupling of each part's output (polish, 2026-10-25): a one-pole high-pass
 // at AC_HZ, like the output capacitor of an analog synth. A pulse with a width other than
 // 50 % has a mean ≠ 0 (the «Square Lead» carried 57 % of its level as DC): it ate
@@ -203,6 +207,10 @@ export class AudioEngine {
     // as sources 'wheel' / 'at' / 'expr' (Voice._mxSrcNode). They arrive via MIDI
     // (ui/midi.js) or via the on-screen wheel (ui/keyboard.js); in Parts mode
     // they go to all the parts (parts.setPerf), like the bend.
+    // wheel → vibrato by default: the vibrato LFO, raw (±1), through a gain the wheel opens (_wheelVibSync);
+    // hooked to a voice's oscillators only once it has been opened (Voice.ensureWheelVib)
+    this.wheelVib = ctx.createGain(); this.wheelVib.gain.value = 0; this.freqLFO.out.connect(this.wheelVib);
+    this._wvOn = false; this._wvCt = 0;
     this.perf = {};
     for (const k in this.perfVal) { const c = ctx.createConstantSource(); c.offset.value = this.perfVal[k]; c.start(); this.perf[k] = c; }
     // Macros (Roadmap 7.0 · 2.5): same path as the performance ones, but their value
@@ -213,7 +221,7 @@ export class AudioEngine {
     this.modStats = { worklets: 0 };     // counter of live worklet oscillators (HUD)
     this.mod = {
       voicesBus: this.voicesBus, noiseBuffer: this.noiseBuffer, wanderBuffer: this.wanderBuffer,
-      pitchOffset: this.pitchOffset, macroCut: this.macroCut, macroOn: () => this._macroOn, perf: this.perf,
+      pitchOffset: this.pitchOffset, wheelVib: this.wheelVib, macroCut: this.macroCut, macroOn: () => this._macroOn, perf: this.perf,
       lfoHz: k => this._lfoHz(k),        // effective speed of LFO k (in tempo: the division at the BPM)
       stepSrc: (i, t) => this.steps.source(i, t),   // Steps i (continuous): the engine's source
       stepVal: (i, t) => this.steps.valueAt(i, t),  // Steps i · note: the step's value at t
@@ -239,6 +247,7 @@ export class AudioEngine {
     // and the matrix slots that point at it (part level) wired
     if (S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || S.flAmt > 0) this._ensureFx(true);
     for (let i = 1; i <= MX_SLOTS; i++) this.fxRewire(i, new Set(), true);
+    this._wheelVibSync();                // a wheel already up before init()
     if (!this.offline) console.info('SubSDJ · note look-ahead', (this.mod.lookahead * 1000).toFixed(1), 'ms (baseLatency', ((ctx.baseLatency || 0) * 1000).toFixed(1), 'ms · outputLatency', ((ctx.outputLatency || 0) * 1000).toFixed(1), 'ms)');
 
     this.ready = true;
@@ -298,6 +307,7 @@ export class AudioEngine {
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
     if (this._bend) v.ensurePitch();     // bend active: hooks the global pitch to the new voice
+    this._wheelVibSync(); if (this._wvOn) v.ensureWheelVib();   // the state may have changed under the wheel (a preset loaded with it up)
     this.wseq.attach(v);                 // wave sequence: each voice starts its phrase at its noteOn
     this.voices.set(id, v);
     this.lastFreq = freq;
@@ -351,6 +361,7 @@ export class AudioEngine {
     const v = new Voice(this.ctx, this.S, this.mod, { freq, vel, acc, startFreq: this.lastFreq, startAt: when });
     v.cost = cost;
     if (this._bend) v.ensurePitch();
+    this._wheelVibSync(); if (this._wvOn) v.ensureWheelVib();
     this.wseq.attach(v);               // in legato the voice is NOT recreated: the phrase carries on (like the Seq)
     this.monoVoice = v; this.voices.set('mono', v);
     this.lastFreq = freq;
@@ -582,7 +593,8 @@ export class AudioEngine {
     const mx = /^mx(\d)(src|dst|amt)$/.exec(name);
     if (mx) {
       this._forVoices(v => mx[2] === 'amt' ? v.mxSetAmt(+mx[1]) : v.mxRewire(+mx[1]));
-      if (mx[2] === 'amt') this.fxSetAmt(+mx[1]); else this.fxRewire(+mx[1]);   // the slots that point at the part's insert
+      if (mx[2] === 'amt') this.fxSetAmt(+mx[1]); else this.fxRewire(+mx[1]);
+      if (mx[2] === 'src') this._wheelVibSync();   // a row took the wheel (or let go of it)   // the slots that point at the part's insert
       return;
     }
     if (name.startsWith('fm4')) { this._forVoices(v => v.setFm4(name, value)); return; }   // FM4: worklet params by name
@@ -713,6 +725,17 @@ export class AudioEngine {
     if (!(id in this.perfVal)) return;
     v = Math.max(0, Math.min(1, +v || 0)); this.perfVal[id] = v;
     if (this.ready) this.perf[id].offset.setTargetAtTime(v, this.ctx.currentTime, PERF_TAU);
+    if (id === 'wheel') this._wheelVibSync();
+  }
+  // The wheel with no row of its own in the matrix = vibrato (WHEEL_VIB_CT). Called whenever the wheel or a
+  // row's source moves, and before each new voice. Connected to the voices only from the first time it opens.
+  wheelFree() { for (let i = 1; i <= MX_SLOTS; i++) if (this.S['mx' + i + 'src'] === 'wheel') return false; return true; }
+  _wheelVibSync() {
+    if (!this.ready || !this.wheelVib) return;
+    const ct = this.wheelFree() ? WHEEL_VIB_CT * this.perfVal.wheel : 0;
+    if (ct === this._wvCt) return;
+    this._wvCt = ct; this.wheelVib.gain.setTargetAtTime(ct, this.ctx.currentTime, PERF_TAU);
+    if (ct && !this._wvOn) { this._wvOn = true; this._forVoices(v => v.ensureWheelVib()); }
   }
 
   // MIDI pitch bend, normalized (−1..1). It goes outside CONTROLS/presets: it is

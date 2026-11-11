@@ -27,7 +27,8 @@ const LS_PREFIX = 'subsdj.midimap.v1:';
 
 // Factory mapping (what used to be hard-wired in midi.js).
 const DEFAULT_CCS = {
-  1:  { id: 'freqLfoLvl', lo: 0, hi: 0.5 },   // mod wheel → restrained vibrato
+  // CC1 is NOT mapped (2026-11-11): the wheel is a performance source (ui/midi.js) and, with no matrix row of its
+  // own, the engine turns it into vibrato — it used to turn the Vibrato knob, which wrote on the preset
   74: { id: 'cutoff' },                       // brightness (GM convention)
   71: { id: 'reso' },                         // harmonic content (GM)
 };
@@ -238,7 +239,7 @@ export function initMidiMap() {
   const def = document.getElementById('mmDef');
   if (def) def.addEventListener('click', () => {
     map = sanitize({ ccs: DEFAULT_CCS }); ccState = {};
-    save(); syncUI(); msg('factory mapping (CC1 · CC74 · CC71)');
+    save(); syncUI(); msg('factory mapping (CC74 · CC71)');
   });
 
   // mapping export/import (same pattern as the preset bank)

@@ -22,6 +22,12 @@ scenes, libraries, MIDI maps). The why behind each module is in
   leave it, double-click = 0). Their chevrons light up to where the finger is, and both follow a
   MIDI keyboard's wheels. Touch, Seq Rec, Click and Tap are icon buttons: Touch draws the velocity
   curve in use and each click takes the next one.
+- **The mod wheel is vibrato by default.** With no Matrix row using «Wheel (CC1)», the modulation
+  strip — and a MIDI keyboard's wheel — adds vibrato: up to ±50 cents at the top, at the Speed and
+  shape of the Vibrato LFO, on top of the preset's own. Route the wheel in the Matrix and it does
+  that instead. It is a gesture: it no longer turns the Vibrato knob (the old factory CC1 mapping,
+  now gone), so it does not change the preset. A MIDI map you saved yourself is left as it is;
+  **⟲ Factory** in MIDI learn brings the new one.
 - **Click and Tap on the keyboard bar.** **Click** is a metronome on the shared clock: a tick on
   every beat, the 1 of each bar accented, at the clock's tempo. It counts the bars of whatever is
   already playing (an arpeggio, a phrase, the players) and, on its own, it sets the grid the next one

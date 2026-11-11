@@ -15,7 +15,7 @@
    control->engine mapping (logCut, ranges), not only the DSP.
    Results: on-screen panel + console.table + the tab title.
    ===================================================================== */
-import { AudioEngine, engine, loadWorklets, VOICE_BUDGET } from './engine/AudioEngine.js';
+import { AudioEngine, engine, loadWorklets, VOICE_BUDGET, WHEEL_VIB_CT } from './engine/AudioEngine.js';
 import { Voice } from './engine/Voice.js';
 import { Room, ROOM_KEYS, plateDecay, reverbEnergyGain, HEADROOM_DB, LIM_LOOKAHEAD, LIM_CEIL_DB, LIM_MAKEUP_DB } from './engine/Room.js';
 const HR = Math.pow(10, HEADROOM_DB / 20);   // fixed master headroom (1.1.0): the ABSOLUTE level thresholds include it
@@ -4769,6 +4769,19 @@ export async function runSelfTest() {
       const e1 = await perfRender({ ...sine, mx1src: 'expr', mx1dst: 'amp', mx1amt: -0.8 }, 'expr', 1);
       const qe = rmsW(e1, 0.3, 1.1) / Math.max(1e-9, rmsW(e0, 0.3, 1.1));
       if (!(qe > 0.15 && qe < 0.25)) problems.push('expression does not attenuate (×' + qe.toFixed(3) + ', expected 0.20)');
+      // the wheel's default job: with no matrix row of its own it is vibrato — ±WHEEL_VIB_CT at the top, the
+      // Vibrato LFO's speed (per-cycle frequency from interpolated zero crossings); a row that takes the wheel ends it
+      const devCt = buf => { const d = buf.getChannelData(0), zs = [];
+        for (let i = Math.floor(0.3 * SR) + 1; i < Math.floor(1.1 * SR); i++) if (d[i - 1] < 0 && d[i] >= 0) zs.push(i - 1 + d[i - 1] / (d[i - 1] - d[i]));
+        let lo = Infinity, hi = 0; for (let i = 1; i < zs.length; i++) { const f = SR / (zs[i] - zs[i - 1]); lo = Math.min(lo, f); hi = Math.max(hi, f); }
+        return 1200 * Math.log2(hi / lo) / 2; };
+      const v0 = devCt(await perfRender(sine, 'wheel', 0)), v1 = devCt(await perfRender(sine, 'wheel', 1));
+      const vHalf = devCt(await perfRender(sine, 'wheel', 0.5)), vRow = devCt(await perfRender({ ...sine, mx1src: 'wheel', mx1dst: 'pan', mx1amt: 0.5 }, 'wheel', 1));
+      if (!(v0 < 0.5)) problems.push('wheel at rest: the pitch moves ±' + v0.toFixed(1) + ' ct');
+      if (!(Math.abs(v1 - WHEEL_VIB_CT) < 4)) problems.push('wheel at the top: vibrato ±' + v1.toFixed(1) + ' ct (expected ±' + WHEEL_VIB_CT + ')');
+      if (!(Math.abs(vHalf - WHEEL_VIB_CT / 2) < 3)) problems.push('wheel at half: vibrato ±' + vHalf.toFixed(1) + ' ct (expected ±' + WHEEL_VIB_CT / 2 + ')');
+      if (!(vRow < 0.5)) problems.push('a matrix row took the wheel and the vibrato stays (±' + vRow.toFixed(1) + ' ct)');
+      console.log('wheel vibrato: rest ±' + v0.toFixed(2) + ' ct · half ±' + vHalf.toFixed(1) + ' · top ±' + v1.toFixed(1) + ' · with a row ±' + vRow.toFixed(2));
       // synthetic MIDI on the live engine (no device): CC1 at full, pressure 64, CC11 at 0
       handleMidi([0xb0, 1, 127]); handleMidi([0xd0, 64]); handleMidi([0xb0, 11, 0]);
       const pv = { ...engine.perfVal }, wheelEl = document.getElementById('kbWheel');

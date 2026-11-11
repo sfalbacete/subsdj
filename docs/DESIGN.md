@@ -491,7 +491,8 @@ LFO shapes, octaves): the control's travel is split into N zones.
   **⇩/⇧ Map** exports/imports it as JSON (`{formato:'subsdj-midimap-v1',
   ccs:{74:{id:'cutoff',lo:0,hi:1}}}` — `lo/hi` bound the stretch of the range that
   the control sweeps, editable by hand). **⟲ Factory** restores the default
-  mapping: CC1 (mod wheel) → vibrato, CC74 → cutoff, CC71 → resonance.
+  mapping: CC74 → cutoff, CC71 → resonance. (Until 2026-11-11 it also had CC1 → the Vibrato
+  knob; the mod wheel is now the modulation strip and needs no mapping — see below.)
 - **Pickup** (checkbox): the control doesn't act until it reaches or crosses the on-screen
   value — no jumps when changing preset with absolute knobs.
 - **Presets from the device**: the bank's **‹ ›** buttons are also
@@ -1422,8 +1423,14 @@ engine (0 = rest: a preset sounds the same as long as they aren't touched), one
 MIDI arrives in jumps of 1/127). They are GESTURES, outside CONTROLS and the presets,
 like the bend; in Parts they go to all the parts (`parts.setPerf`). They come in through
 `ui/midi.js` (`handleMidi`, exported for the probe): CC1 and CC11 ALWAYS feed
-their source, in addition to whatever they have mapped (factory CC1 → vibrato;
-removing that mapping leaves the wheel only for the matrix); channel aftertouch and
+their source, in addition to whatever they have mapped. **The wheel's default job
+(2026-11-11):** while no matrix row takes «Wheel (CC1)» as its source, the wheel is
+vibrato — the Vibrato LFO, raw, through a gain the wheel opens up to ±50 cents
+(`WHEEL_VIB_CT`, `AudioEngine._wheelVibSync`), added to the preset's own vibrato and
+hooked to a voice only once it has been opened. It is a gesture: nothing is written on
+the preset (the old factory mapping turned the Vibrato knob, which did). A row that takes
+the wheel ends it: the matrix rules. Measured: ±49.9 ct at the top, ±24.9 at half, 0 at
+rest and 0 with a row. Channel aftertouch and
 polyphonic aftertouch feed `at` (the source is per engine, not per note). And an
 **on-screen wheel** below the keyboard, next to the octave stepper, to play
 with the mouse: it moves `wheel` and follows the MIDI wheel ('perf-change'); double click

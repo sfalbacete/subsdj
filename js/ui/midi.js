@@ -5,13 +5,13 @@
    Normalized pitch bend (−1..1) -> setBend of each part, which scales it by
    its preset's range (bendRange). Sustain (CC64) is held here, unless the user
    remaps it. The rest of the CCs go through the midimap.js map (MIDI learn);
-   factory: CC1 -> vibrato, CC74/CC71 -> cutoff/resonance (the
+   factory: CC74/CC71 -> cutoff/resonance (the
    controls turn on screen: same philosophy as an analog panel).
    Program change n -> preset n of the bank (modulo the bank size).
    PERFORMANCE sources of the matrix (Roadmap 5.0 · block 4): the wheel (CC1)
    and expression (CC11) ALWAYS feed their source ('wheel', 'expr'), on top
-   of whatever they are mapped to (factory: CC1 → vibrato; removing that mapping leaves
-   the wheel for the matrix only); channel aftertouch (and polyphonic, which
+   of whatever they are mapped to (the wheel, with no matrix row of its own, is vibrato: AudioEngine
+   WHEEL_VIB_CT); channel aftertouch (and polyphonic, which
    is treated the same: the source is per engine) feeds 'at'.
    ===================================================================== */
 import { part, eachPart, setPerf } from '../engine/parts.js';
