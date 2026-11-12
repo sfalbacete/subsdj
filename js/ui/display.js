@@ -10,6 +10,7 @@
    HEADER: the «File ▾» menu (Theme, Delete, Export, Import, SFZ: the same
    buttons with their ids, just folded away) and #presetMsg as a floating notice
    (it no longer has a fixed spot in the row). */
+import { tipOf } from './tips.js';
 const $ = id => document.getElementById(id);
 const TOUCH_MS = 2500;   // after a gesture, changes arriving within this margin are «from the gesture» (a <select> changes on release)
 // Fitting to the box: the value shrinks from VAL_PX down to MIN_PX (the font is monospaced:
@@ -37,7 +38,7 @@ function fit(box, max, min) {
 // name is the title) and, separately, what it means (the rest of the title, without repeating
 // the label: «Legato: the note…» → «the note…»). The whole title doesn't fit as a value.
 function segValue(b) {
-  const txt = (b.dataset.txt || b.textContent).trim(), titleText = (b.title || '').trim(), cap = b.dataset.cap || '';   // data-txt: a button drawn with an SVG (the FM4 algorithms) says its own label
+  const txt = (b.dataset.txt || b.textContent).trim(), titleText = tipOf(b).trim(), cap = b.dataset.cap || '';   // data-txt: a button drawn with an SVG (the FM4 algorithms) says its own label
   if (!txt) { const i = titleText.indexOf(':'); return i > 0 ? { val: titleText.slice(0, i), det: titleText.slice(i + 1).trim() } : { val: titleText, det: '' }; }
   const det = titleText.toLowerCase().startsWith(txt.toLowerCase() + ':') ? titleText.slice(txt.length + 1).trim() : titleText;
   return { val: cap ? txt + ' · ' + cap : txt, det };
@@ -52,7 +53,7 @@ function describe(el) {
   const sec = textOf(panel.querySelector('h2'));
   const row = el.closest('[data-name]');                                  // row of a bank (LFO PWM…)
   const lab = el.dataset.lab || el.querySelector(':scope > .lab, .head .lab')?.textContent
-           || el.parentElement?.querySelector(':scope > .lab, :scope > .fieldlab')?.textContent || el.title || el.dataset.title0 || '';   // .fieldlab: switches with LED (voice, trigger) · title0: a dimmed control's title (ui/deps.js)
+           || el.parentElement?.querySelector(':scope > .lab, :scope > .fieldlab')?.textContent || tipOf(el) || el.dataset.title0 || '';   // .fieldlab: switches with LED (voice, trigger) · title0: a dimmed control's title (ui/deps.js)
   let val = '', det = '';
   if (el.matches('.seg')) { const b = el.querySelector('button.active'); if (b) ({ val, det } = segValue(b)); }
   else if (el.matches('select')) val = el.selectedOptions[0]?.textContent || '';

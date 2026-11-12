@@ -24,6 +24,7 @@ import { initActivity } from './ui/activity.js';
 import { initHelp } from './ui/help.js';
 import { initPartsControls } from './ui/partsControls.js';
 import { initPlayerControls } from './ui/playerControls.js';
+import { initPatternEditor } from './ui/patternEditor.js';
 import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
@@ -68,13 +69,14 @@ initLibraryScreen(); // Presets screen: the Library (sections, ★, search, drag
 initRecorder();      // recording of the output to WAV
 initSfzExport();     // current preset → SFZ multisample (zip)
 initADSRGraph(document.getElementById('adsrCanvas'));
-initScreens();       // Design / Sequencing / Presets tabs (one fixed panel each; they remember the choice)
+initScreens();       // Design / Sequencing / Pattern / Presets tabs (one fixed panel each; they remember the choice)
 initActivity();      // activity LEDs (after the binders: reads engine.S already populated)
 initWaveEditor();    // editor of the «user» table (its own state, outside CONTROLS)
 initHelp();          // «?» tooltips per module (the texts no longer take up surface)
 initTips();          // the header's icons and clock: their own tooltip, at once (the title moves to data-tip)
 initPartsControls(); // Parts mode: selector in the header + Part Mixer (after help: it tags the h2s)
 initPlayerControls(); // the scene's harmony + players (listens to scene-changed / part-changed)
+initPatternEditor();  // the Pattern screen's grid: the loop of the part's Pattern player
 initDisplay();       // Output display (last parameter touched), File menu and bank notices
 initDeps();          // dims (still touchable) what does nothing with the current settings, with its reason
 initEnablers();      // over a dimmed control: the reason at once, and what turns it on pulses

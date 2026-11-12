@@ -58,8 +58,12 @@ export class NoteRouter {
 }
 const router = new NoteRouter();
 const keyTargets = () => scene && layer ? scene.parts.filter(p => !p.mute).map(p => p.engine) : [current];
-export function playOn(id, freq, vel = 1) { router.on(id, keyTargets(), freq, vel); }
-export function playOff(id) { router.off(id, [current]); }
+// The tap: whoever records what is PLAYED (the player's pattern take, ui/playerControls.js) hears every live
+// key here — (true, id, freq, vel) / (false, id) — before it sounds. It only listens: the note goes its usual way.
+let noteTap = null;
+export function setNoteTap(fn) { noteTap = fn; }
+export function playOn(id, freq, vel = 1) { if (noteTap) noteTap(true, id, freq, vel); router.on(id, keyTargets(), freq, vel); }
+export function playOff(id) { if (noteTap) noteTap(false, id); router.off(id, [current]); }
 export function forgetSounding() { router.clear(); }   // after a general allNotesOff (panic): nothing is sounding any more
 
 // Builds a scene on `ctx` (pure: used by enableScene and the selftest).

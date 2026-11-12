@@ -17,7 +17,7 @@
    arrangement and each player's configuration).
    ===================================================================== */
 import { Harmony } from './Harmony.js';
-import { Player, PLAYER_DEF } from './Player.js';
+import { Player, PLAYER_DEF, clonePat } from './Player.js';
 import { Arrangement } from './Arrangement.js';
 import { clockOf } from './Clock.js';
 
@@ -48,10 +48,12 @@ export class Conductor {
 
   setSeed(seed) { this.seed = seed; this.harmony.setSeed(seed); this.players.forEach(p => p.reset()); }
 
-  start() {
+  // at: the audio time of beat 0 (a pattern take starts the players on the first key: that key IS beat 0)
+  start(at = this.ctx.currentTime + 0.05) {
     if (this.timer) return;
-    this.clock.anchor(this, this.ctx.currentTime + 0.05, this.bpm);
+    this.clock.anchor(this, at, this.bpm);
     this.players.forEach(p => p.reset());
+    this.harmony.offset = 0;                                // beat 0 again: the loops start there, and the progression with them
     this.running = true; this._slowT = -1;
     this._tick();
     this.timer = setInterval(() => this._tick(), TICK_MS);
@@ -101,16 +103,18 @@ export class Conductor {
   toJSON() {
     const h = this.harmony;
     return { seed: this.seed, harmony: { root: h.root, scale: h.scale, prog: [...h.prog], bars: h.bars, mode: h.mode },
-             arrangement: { ...this.arr.cfg }, players: this.players.map(p => ({ ...p.cfg })) };
+             arrangement: { ...this.arr.cfg }, players: this.players.map(p => ({ ...p.cfg, pat: clonePat(p.cfg.pat) })) };   // the loop, copied: the JSON is a photo, not the live one
   }
   fromJSON(j) {
     if (!j) return;
     if (this.running) this.stop();
     if (j.harmony) Object.assign(this.harmony, j.harmony);
+    this.harmony.offset = 0;
     if (j.arrangement) Object.assign(this.arr.cfg, j.arrangement);
     (j.players || []).forEach((cfg, i) => {
       const p = this.players[i]; if (!p) return;
       p.cfg = { ...PLAYER_DEF, ...cfg }; p.driftKey = 'off'; p.driftBase = undefined;
+      p.cfg.pat = cfg.pat && Array.isArray(cfg.pat.notes) ? clonePat(cfg.pat) : null; p.clearHist();
       if (p.cfg.drift === 'mix') p.cfg.drift = 'levelB';   // scenes from before the mixer (1.2.0)
     });
     this.setSeed(+j.seed || 1);         // resets the players and the walk with the saved seed

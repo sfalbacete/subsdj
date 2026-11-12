@@ -539,7 +539,8 @@ js/ui/
 scenes/*.json                 the repo's scenes (⇧ Scene in the Arrangement module): night ambient, dorian
                                dawn, hypnotic techno, robot choir — the selftest renders them all
   frame.js                     the fixed-size instrument scaled to the window (zoom); fitCanvas/uiZoom for the canvases
-  screens.js                   Design / Sequencing / Presets tabs: one fixed panel each; moves the shared ones (data-slot)
+  patternEditor.js             the Pattern screen's grid: the loop of the part's Pattern player, edited by dragging (see «Pattern»)
+  screens.js                   Design / Sequencing / Pattern / Presets tabs: one fixed panel each; moves the shared ones (data-slot)
   rotary.js                    rotary selector: a .seg.rot with its buttons in an arc around a knob
   session.js                   the session: unsaved work kept while you play, offered back by the welcome window (compares, like the ●)
   display.js                   Output display (last parameter touched and, if it is switched off, why), File menu and bank notices
@@ -3403,3 +3404,171 @@ new part, so the only safe thing then was to give the old part its phrase back d
 the part that recorded and the undo stack is still its own, and Seq Rec ends the take there exactly
 as Enter would — the phrase stays, the loop goes on latched, the take is one undo step on that part.
 The `part-changed` listener stays as the fallback for any other path.
+
+## Pattern: the player that plays what you played (2026-11-12)
+
+**Why.** Sergio builds a phrase in the Seq, plays roots over it and finds a bass line worth keeping —
+and there was nowhere to keep it. The four players are generative; the nearest thing, Root, follows
+the scene's progression: degrees of a scale (not «normal notes» unless you know them), equal
+durations, and shared by every part. A score for one part was missing. The plan said «nobody writes
+notes»; the line moved to **a loop per part, yes; a timeline, no**.
+
+**What.** A sixth player mode. `cfg.pat = { bars, notes: [{ b, len, m, v }] }`: start and length in
+beats from the loop's start, MIDI note, velocity. It goes through the same `_on` / `_off` as the other
+players, which is what makes one mechanism cover both uses: with the part's Seq on, the notes are
+the roots that transpose its phrase (Sergio's case, the same path as Root); with it off they sound as
+they are — a melody, chords. It ignores the harmony: the notes are the ones played. The
+arrangement still applies (Enters, the energy on the velocity), as to any player.
+
+**Nothing is destroyed.** The take keeps the timing as played; **Quantize** is a playback setting
+(`cfg.quant`, in beats, 0 = off; on a grid the clock's swing applies), so the grid can be changed
+after recording. **Bars** is too: a note beyond the loop's length is skipped, not deleted — shortening
+truncates and lengthening brings it back (Sergio: fixing the length before recording is of no use;
+changing it afterwards is). A note quantized onto the loop's end is its beat 0.
+
+**The take.** `startTake(origin)` → `recOn` / `recOff` with audio time → `endTake(t)`. The UI listens to
+the live keys through a tap in `parts.playOn/playOff` (QWERTY, screen and MIDI all pass there) and
+only writes them down: the notes sound their usual way. The take starts on a BAR LINE — from a
+standstill the players start and bar 1 is the count-in; playing, it is the next bar — and a key up
+to half a beat before it counts as its beat 0 (one lands early on the 1). The length is what was
+played rounded to the NEAREST bar: stopping a little after the bar line does not add an empty bar,
+stopping a little before does not lose one. The Click goes on for a new take and off again after
+(a first loop has nothing else to play against); an overdub has the loop itself.
+No latency compensation: a key is written at the audio time it was struck, which is when its note
+sounded, so the loop replays what was HEARD.
+
+**Overdub.** The loop keeps playing and each key is added at the loop position where it was played.
+A just-played note quantized FORWARD would fall in a window not yet scheduled and sound twice, so it
+is kept out of playback for one beat (`PAT_FRESH`): it comes in on the next lap.
+
+**Scheduling.** The loop is read in windows of a sixteenth (`PAT_STEP`): each call schedules the notes
+whose (quantized) start falls in the window, at `cycle start + start`. The loop's phase is
+`(beat − patOrigin) mod length`: `patOrigin` is the take's bar line, so the loop goes on seamlessly
+from the take, and 0 when the conductor starts.
+
+**Undo.** One level, of the take: `prevPat` is the loop before the last take, clear or overdub, and
+↶ swaps it with the current one (again = redo). Conductor settings are not in the rack's history.
+
+**JSON.** The loop travels in the scene with the player's settings; `toJSON` / `fromJSON` copy it
+(the «is there work to lose» of the session compares photos: a shared array would never differ).
+
+**Evidence.** Selftest: «pattern player» (dry conductor: grid and as played, truncation, a take with
+count-in, early 1 and whole bars, overdub not replayed on its lap, undo, JSON) and «pattern player
+panel» (● Rec arms mode, players and Click; the keys are written; closing; ↶, Clear, Bars, Quantize;
+■ Stop ends a take). Live in headless Chrome at 240 bpm: four keys off the grid → a 1-bar loop that
+plays on the sixteenths, an overdubbed note at 2.5, ↶ takes it away.
+
+**Stage 2, the same day: the first key and the Pattern screen.** Sergio, after using it: recorded
+notes never land perfectly, so the loop must be fixable; and the count-in felt like waiting.
+
+*The first key.* ● Rec only ARMS (`rec.armed` in ui/playerControls.js); the take starts in
+`beginTake`, on the first live key. With the players stopped, `Conductor.start(at)` anchors beat 0
+AT that key (with the Click already running, at its nearest beat: you were playing to it) and the
+take's bar line is beat 0; with them running, the take is the bar the key falls in — or the next,
+if it comes within `PAT_EARLY` of its line. The count-in is gone, not optional: one way to start.
+What the take replaces keeps playing until that key.
+
+*The screen.* The Player module had 110 px for the loop; an editor there would be born cramped, so
+it got a screen of its own (`SCREENS` has four: Design · Sequencing · Pattern · Presets): one band
+with the take's controls in a row and a grid that takes the rest (≈1850 × 640 px: four octaves at
+13 px a row, 16 bars at 115 px a bar). The controls exist twice (Player module and screen), so they
+are found by `data-pat`, not by id, and painted together. The part is the one the rack edits — the
+header's 1 2 3 4 — so the screen needs no selector of its own.
+
+*The editor* (`ui/patternEditor.js`). No tools and no zoom: what a gesture does depends on where
+you grab — the body of a note moves it (time on the Quantize grid, pitch by rows, and it sounds as
+it changes), its right edge is its length, the wheel its velocity, a double click adds or deletes.
+Two rules keep «nothing is destroyed» true while editing: a note is DRAWN where it will sound
+(quantized) and moving it in time WRITES that position, so what is fixed by hand stays fixed; a
+drag that only changes the pitch does not touch the timing as played. A double click on an empty
+grid writes the first note of a loop (and puts the player on Pattern): the loop can be written
+without recording. During a take the grid is read-only and shows the take growing.
+
+*Undo.* The single «loop before the last take» became a stack (`Player.pushUndo / undo / redo`,
+40 whole copies — a loop is small): a take, Clear and each gesture of the editor are one step each
+(a run of wheel notches is one). Undo swaps the live loop for a copy, so the editor lets go of its
+selection on `pattern-changed`.
+
+**Evidence.** Selftest: «pattern player panel» now checks that ● Rec only arms, that the first key
+starts players, Click and take at beat 0, and the bar rule with the players running; «pattern
+editor» drives the canvas with synthetic pointers (move, pitch alone, edge, wheel, double clicks,
+Delete, seven gestures = seven undo steps, read-only when armed, the first note on an empty grid).
+
+**Open.** Several notes at once, copy / paste, more than one loop per part — only if using it asks
+for them.
+
+## After using it: zoom, the header's undo, saving scenes (2026-11-12)
+
+Sergio's notes after a session, and what each became.
+
+**Zoom and scroll.** The grid always showed the whole loop; a long take made its notes too small to
+grab by the edge. The time now zooms (`zoomK` px per beat, 0 = fit; Ctrl + wheel around the pointer,
+− + and Fit) and scrolls (`scrollX`; Shift + wheel). A narrow note gives its right 40 % to the
+length, so it can be stretched even at fit. Zoomed, the view follows the take's end while recording
+and the playhead while playing, a page at a time — but stays put for `HANDS_OFF_MS` after you move
+the view or grab a note: the first version followed only with the pointer off the grid, and Sergio
+(pointer on the grid) saw the playhead leave by the right.
+
+**«It loops vertically».** It did not — it scrolled over the ten MIDI octaves, which look alike, with
+nothing to say where the notes were. The bar on the right is the whole range: the thumb is the rows
+in view and every note of the loop leaves a mark at its height. The bar below is the time in view.
+Both are drawn on the canvas and can be dragged.
+
+**«I have no undo».** The loop's ↶ ↷ worked; Ctrl+Z and the header's buttons undid the PRESET. On the
+Pattern screen there is no preset to edit, so there the header's undo is the loop's:
+`history.setUndoAlt(fn)` lets another history take charge while `fn()` returns one. The rack's own
+is untouched meanwhile.
+
+**The small view went stale.** Its draw loop stops while its screen is hidden and nothing restarted
+it on coming back: `screen-changed` now repaints it.
+
+**The Pattern tab needs Parts.** `data-needs="parts"` on the tab: dimmed, a tooltip that says why, a
+click does nothing, and Sequencing takes over if Parts go off while it shows. `showScreen()` itself
+does not refuse (the selftest walks every screen).
+
+**★ Save for scenes.** With loops inside, a scene is work worth keeping, and the only way was the
+file. `saveSceneToLibrary(name)` adds it to «Scenes»; the same name writes over YOURS, never over a
+seeded one (the library refreshes those when the bank changes — your work would go with it). The
+name field squeezed the Player module until its knobs spilled (the selftest caught it): ⇩ ⇧ became
+icons and the field takes the room left.
+
+**Not done, on purpose.** Aftertouch, wheel and bend are not recorded: velocity and release are. That
+would be automation per part; to be thought about, not slipped in.
+
+## Harmony from a pattern (2026-11-13)
+
+**Why.** Sergio: «if a part is a pattern, could the Harmony module be inferred from its notes, to
+harmonize the scene?» The generative players only know the scene's key; a loop played by ear has
+one too, and nobody should have to name it.
+
+**What.** `engine/inferHarmony.js`, pure: loops in, candidates out, best first — { root, scale,
+prog, bars }. It is a guess and behaves like one: the same notes are C major and A minor, so the
+button walks the candidates and the ear chooses.
+
+**Key.** Each note weighs its length (0.25–2 beats: one drone must not drown the rest), more on a
+beat, more on a bar line. Every scale of the synth on every root scores
+`fit − 1.5·(1 − fit)` (the weight inside the scale, a note outside costing more than one inside
+gives) `+ 0.5·tonic(root)` + a small prior (major, minor first) − 0.02 per scale note never played
+(five notes that fit a pentatonic: the pentatonic says it more exactly). The tonic evidence is what
+separates relatives: the pitch the loop STARTS on (weight 1 — a line begins at home), its share of
+the bar lines (0.4) and of everything (0.5).
+
+**Progression.** Per bar, the degree whose triad — stacked on the scale, as `Harmony.chordAt` does —
+holds most of what sounds: its root counts 1, the other two 0.5, the bar's lowest note being the
+root adds 0.75 (Sergio's case, a bass of roots, is the easy one), a note on the bar's 1 counts
+double, a tie keeps the previous chord, a silent bar too. Then the bars are paired while every chord
+lasts two, and a progression that repeats is written once.
+
+**Where it starts.** A loop recorded with the players running starts on the bar its take began, not
+on the conductor's bar 0; the progression read from it must start there too: `Harmony.offset`
+(bars), set on applying, zero again when the conductor starts or a scene loads (the loops start at
+0 then). Several loops are unrolled over the longest one, each from where ITS bar 0 falls.
+
+**UI.** Harmony module: **From pattern** (again = the next candidate, shown as «2/6 · C major · 6 4
+1 5», with the share of notes left outside if any) and **All parts** (off: the loop of the part the
+rack edits; on: every part whose player is on Pattern). It sets List mode.
+
+**Evidence.** Selftest «harmony from a pattern»: a bass A F C G → A minor · 1 6 3 7; arpeggios C F G
+C → C major · 1 4 5 1, and at two bars a chord the same «at 2 bars»; a pentatonic riff offers its
+pentatonic; two loops of different length and start; empty loops give nothing; `offset`. The panel
+check presses the button, takes the second candidate and flips All parts.

@@ -32,9 +32,16 @@ steps, effects, parts and generative music.
 - The audio starts with the first click or the first key: browsers don't let a
   page make sound before that.
 - `Escape` or **Panic** cut every note.
-- Three screens: **Design** (the sound), **Sequencing** (arpeggiator,
-  sequencer, the looping envelope, Steps, parts and scenes) and **Presets** (the
+- Four screens: **Design** (the sound), **Sequencing** (arpeggiator,
+  sequencer, the looping envelope, Steps, parts and scenes), **Pattern** (the loop
+  of your own notes that a part repeats — with Parts on) and **Presets** (the
   library).
+- **Pattern**: with Parts on, **● Rec** in the Player module (or on the Pattern
+  screen) arms a take that starts with your first key; ● again closes the loop.
+  On the Pattern screen, drag the notes to fix them, double-click to add or delete,
+  `Ctrl` + wheel to zoom. **From pattern** in Harmony reads the key from the loop so
+  the other players follow it, and **★ Save** in Arrangement keeps the scene in the
+  Library.
 - The **preset picker** in the header searches (ignoring accents and case) and
   filters by category; a click or `↑` `↓` loads to audition, `Enter` picks and
   closes, and **Browse all** opens the Presets screen.

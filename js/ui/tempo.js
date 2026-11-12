@@ -16,6 +16,10 @@ import { begin as beginGesture, end as endGesture } from './history.js';
 
 let metro = null;
 export const metronome = () => metro;   // the live one (null before the first use) — the selftest looks at it
+// The Click from code: a pattern take (ui/playerControls.js) switches it on while it records and off again after
+let setClickFn = null;
+export const clickOn = () => !!(metro && metro.running);
+export function setClick(on) { if (setClickFn && on !== clickOn()) setClickFn(on); }
 
 function initClick() {
   const grp = document.getElementById('kbClick'), sw = document.getElementById('clickSw');
@@ -40,6 +44,7 @@ function initClick() {
   // the inactive button lies on top (the .seg.sw switch), so any click toggles; blurred: Space must not «click» it again
   for (const b of [offBtn, onBtn]) b.addEventListener('click', () => { part().resume(); b.blur(); set(!(metro && metro.running)); });
   paint(false);
+  setClickFn = set;
 }
 
 function initTap() {

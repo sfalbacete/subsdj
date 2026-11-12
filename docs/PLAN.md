@@ -1177,7 +1177,17 @@ tempo-synced LFO.
 ## What we will NOT do (decided)
 
 - **Piano roll / timeline** with written notes: that is what DAWs are for and the SFZ is the bridge.
-  The generative side is players, not scores.
+  The generative side is players, not scores. *Revised 2026-11-12 (Sergio): **a loop per part, yes;
+  a timeline, no.** The «Pattern» player plays a loop of your own notes, recorded live — what was
+  missing was a way to keep the line you improvise over a phrase. Still out: clips in a row, song
+  position, regions, per-track automation. Stage 1 (record · overdub · quantize on playback · length ·
+  undo) and stage 2 (the **Pattern screen**: a grid to move, re-pitch, lengthen, add and delete notes,
+  with undo / redo; the take starts with the first key instead of a count-in) DONE 2026-11-12. The
+  screen is the place to grow it (Sergio: «a mechanism to improvise and enjoy, before exporting to a
+  real DAW»); not decided yet: several notes at once, copy, more than one loop per part. Also done, 2026-11-12/13:
+  zoom and scroll bars, the header's undo on that screen, the tab off without Parts, ★ Save for scenes,
+  and **Harmony «From pattern»** (the key and the progression read from the loops, with candidates).
+  Not recorded, on purpose so far: aftertouch, wheel and bend (that would be per-part automation).*
 - **Duplicating the rack per part**: the rack edits the selected part.
 - **DAW-style multitrack sequencer** (a Roadmap 3.0 decision, still in force).
 - **Seq phase 2** (ties, accents, quantization, step-record): only as a separate project. *Revised

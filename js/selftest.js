@@ -41,7 +41,11 @@ import { PANELS as LED_PANELS } from './ui/activity.js';
 import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from './engine/nodes.js';
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony, SCALES } from './engine/Harmony.js';
-import { euclid, Player, PLAYER_DEF } from './engine/Player.js';
+import { euclid, Player, PLAYER_DEF, patStart } from './engine/Player.js';
+import { patRecording, patArmed, harmonyFromPattern, setHarmonyFromAll } from './ui/playerControls.js';
+import { inferHarmony } from './engine/inferHarmony.js';
+import { patEdGeom, patZoom, patView } from './ui/patternEditor.js';
+import { playOn, playOff } from './engine/parts.js';
 import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState, snapshot } from './ui/registry.js';
 import { encodeWav } from './ui/recorder.js';
@@ -3624,6 +3628,386 @@ export async function runSelfTest() {
             problems: ['exception: ' + ((e2 && e2.message) || e2)] };
     }
     push(r);
+  }
+
+  {
+    // The Pattern player (2026-11-12): a loop of notes of your own. The engine side, with no audio (dry conductor,
+    // 120 bpm: a beat = 0.5 s): playback on the grid and as played, the loop's length truncating without losing
+    // notes, a take from its bar line (early keys, the count-in, the length in whole bars), overdub, undo and redo,
+    // and the loop through the scene's JSON.
+    const NAME = 'pattern player (the loop on the grid and as played · Bars truncates and keeps · a take: count-in, early 1, whole bars · overdub · undo · scene JSON)';
+    const problems = [];
+    try {
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(ctx, [FX.pluckBass], { roomS: { bpm: 120 } });
+      const mk = () => { const cd = new Conductor(sc, { seed: 3 }); cd.dry = true; Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 }); return cd; };
+      const NOTES = [{ b: 0.04, len: 0.9, m: 36, v: 1 }, { b: 1.1, len: 0.4, m: 39, v: 0.7 }, { b: 2.46, len: 1, m: 41, v: 0.8 }, { b: 3.95, len: 0.3, m: 43, v: 0.9 }, { b: 5.5, len: 0.5, m: 48, v: 1 }];
+      const run = (bars, quant, secs) => {
+        const cd = mk(), pl = cd.players[0];
+        pl.setMode('pattern'); pl.cfg.pat = { bars, notes: NOTES.map(n => ({ ...n })) }; pl.cfg.quant = quant; pl.log = [];
+        cd.scheduleAll(secs);
+        return pl.log;
+      };
+      const ons = log => log.filter(e => e[1] === 'on').map(e => +(e[0] / 0.5).toFixed(3) + ':' + e[2]).join(' ');
+      const beats = a => a.map(x => (+x[0].toFixed(3)) + ':' + x[1]).join(' ');
+      // 2 bars on sixteenths, two laps (8 s): 0.04 → 0, 1.1 → 1, 2.46 → 2.5, 3.95 → 4, 5.5 stays
+      const g = ons(run(2, 0.25, 8)), gExp = beats([[0, 36], [1, 39], [2.5, 41], [4, 43], [5.5, 48], [8, 36], [9, 39], [10.5, 41], [12, 43], [13.5, 48]]);
+      if (g !== gExp) problems.push('2 bars at 1/16: ' + g + ' (expected ' + gExp + ')');
+      // as played
+      const raw = run(2, 0, 4).filter(e => e[1] === 'on').map(e => +(e[0] / 0.5).toFixed(3) + ':' + e[2]).join(' '), rawExp = '0.04:36 1.1:39 2.46:41 3.95:43 5.5:48';
+      if (raw !== rawExp) problems.push('as played: ' + raw + ' (expected ' + rawExp + ')');
+      // 1 bar: the note at 5.5 is beyond the loop and the one at 3.95, quantized to the loop's end, is its start
+      const one = ons(run(1, 0.25, 4)), oneExp = beats([[0, 36], [0, 43], [1, 39], [2.5, 41], [4, 36], [4, 43], [5, 39], [6.5, 41]]);
+      if (one.split(' ').sort().join(' ') !== oneExp.split(' ').sort().join(' ')) problems.push('1 bar at 1/16: ' + one + ' (expected ' + oneExp + ')');
+      if (patStart({ b: 3.95 }, 0.25, 4) !== 0) problems.push('a note quantized to the loop\'s end does not come round to its start');
+      // note lengths: the off of the first note, 0.9 beats after its on
+      const lg = run(2, 0.25, 3), i0 = lg.findIndex(e => e[1] === 'on');
+      if (!(Math.abs(lg[i0 + 1][0] - lg[i0][0] - 0.45) < 1e-6)) problems.push('length of the first note: ' + (lg[i0 + 1][0] - lg[i0][0]) + ' s (expected 0.45)');
+
+      // a take from the bar line at beat 4 (count-in = bar 1): t in seconds, beat = t / 0.5
+      const cd = mk(), pl = cd.players[0];
+      cd.clock.anchor(cd, 0, 120); pl.setMode('pattern');
+      pl.startTake(4, false);
+      if (pl.recOn('a', 30, 1, 0.6) !== false) problems.push('a key during the count-in is recorded');
+      pl.recOn('b', 36, 0.9, 1.9); pl.recOff('b', 2.4);                  // beat 3.8: a little early on the 1 → beat 0, 0.8 beats long from the bar line
+      pl.recOn('c', 39.02, 0.5, 3.03); pl.recOff('c', 3.28);             // beat 6.06 → 2.06
+      pl.recOn('d', 43, 2, 5.5);                                         // beat 11 → 7; still held when the take ends (5.9 s = beat 11.8)
+      const changed = pl.endTake(5.9);
+      const pat = pl.cfg.pat;
+      if (!changed || !pat) problems.push('the take leaves no loop');
+      else {
+        if (pat.bars !== 2) problems.push('take of 7.8 beats: ' + pat.bars + ' bars (expected 2)');
+        const got = pat.notes.map(n => [n.b, n.len, n.m, n.v].map(x => +x.toFixed(3)).join('/')).join(' ');
+        if (got !== '0/0.8/36/0.9 2.06/0.5/39/0.5 7/0.8/43/1') problems.push('take: ' + got);
+      }
+      if (pl.take) problems.push('the take is still open after endTake');
+      // a take stopped just after the bar line does not add a bar; an empty take changes nothing
+      pl.startTake(16, false); pl.recOn('e', 50, 1, 8.1); pl.recOff('e', 8.3);
+      pl.endTake(10.2);                                                 // beat 20.4: 4.4 beats → 1 bar
+      if (pl.cfg.pat.bars !== 1 || pl.cfg.pat.notes.length !== 1) problems.push('take of 4.4 beats: ' + pl.cfg.pat.bars + ' bars, ' + pl.cfg.pat.notes.length + ' notes (expected 1 and 1)');
+      pl.startTake(24, false);
+      if (pl.endTake(14) || pl.cfg.pat.notes.length !== 1) problems.push('an empty take replaces the loop');
+      // undo: the loop before the last take, and back
+      pl.undo(); if (!(pl.cfg.pat && pl.cfg.pat.bars === 2 && pl.cfg.pat.notes.length === 3)) problems.push('↶ does not bring back the loop before the take');
+      pl.redo(); if (pl.cfg.pat.notes.length !== 1) problems.push('↷ does not bring the take back');
+      pl.undo();                                                        // the 2-bar loop (origin: beat 16, the last take's)
+      // overdub: a key at beat 16 + 8 + 3.3 lands at 3.3 of the loop, and is not played back on the lap it was played in
+      pl.startTake(0, true);
+      if (!pl.take || !pl.take.dub) problems.push('+ Dub on a loop with notes is not an overdub');
+      pl.recOn('f', 60, 1, (16 + 8 + 3.3) * 0.5); pl.recOff('f', (16 + 8 + 3.6) * 0.5);
+      const nf = pl.cfg.pat.notes[pl.cfg.pat.notes.length - 1];
+      if (!(Math.abs(nf.b - 3.3) < 1e-6 && nf.m === 60)) problems.push('overdub: the note lands at ' + nf.b + ' (expected 3.3)');
+      pl.cfg.quant = 0.25; pl.log = []; pl.nextBeat = 27.25; pl.schedule(36);   // the rest of this lap and the next one
+      const dubOn = pl.log.filter(e => e[1] === 'on' && e[2] === 60).map(e => +(e[0] / 0.5).toFixed(3)).join(' ');
+      if (dubOn !== '35.25') problems.push('overdubbed note played back at beats ' + (dubOn || '—') + ' (expected only 35.25: not on the lap it was played in)');
+      pl.endTake(18);
+      if (pl.cfg.pat.notes.length !== 4) problems.push('overdub: ' + pl.cfg.pat.notes.length + ' notes (expected 4)');
+      pl.undo(); if (pl.cfg.pat.notes.length !== 3) problems.push('↶ does not take the overdub away');
+      pl.startTake(0, true); pl.endTake(19); pl.redo();                 // an empty overdub is no change: the redo is still there
+      if (pl.cfg.pat.notes.length !== 4) problems.push('an overdub with no notes counts as a change (it ate the redo)');
+      pl.clearPat(); pl.undo();
+      if (!pl.cfg.pat || pl.cfg.pat.notes.length !== 4) problems.push('↶ does not bring a cleared loop back');
+      for (let i = 0; i < 60; i++) pl.pushUndo();
+      if (pl.hist.length !== 40) problems.push('the undo stack keeps ' + pl.hist.length + ' copies (expected 40)');
+      // Bars: shorter truncates, the notes stay; a take does not survive leaving the mode
+      pl.setPatBars(1); if (pl.cfg.pat.notes.length !== 4 || pl.cfg.pat.bars !== 1) problems.push('Bars 1 loses notes');
+      pl.setPatBars(99); if (pl.cfg.pat.bars !== 16) problems.push('Bars above the maximum: ' + pl.cfg.pat.bars);
+      pl.setPatBars(2);
+      // scene JSON: a copy going out and coming in
+      const j = cd.toJSON(), cd2 = mk();
+      j.players[0].pat.notes[0].m = 99;
+      if (pl.cfg.pat.notes[0].m === 99) problems.push('toJSON shares the loop with the live player');
+      j.players[0].pat.notes[0].m = pl.cfg.pat.notes[0].m;
+      cd2.fromJSON(JSON.parse(JSON.stringify(j)));
+      const p2 = cd2.players[0];
+      if (p2.cfg.mode !== 'pattern' || JSON.stringify(p2.cfg.pat) !== JSON.stringify(pl.cfg.pat) || p2.cfg.quant !== 0.25) problems.push('the loop does not come back from the scene JSON');
+      cd2.fromJSON({ seed: 1, players: [{ mode: 'pattern', pat: { bars: 2 } }] });
+      if (cd2.players[0].cfg.pat !== null) problems.push('a broken loop in the JSON is not dropped');
+      pl.startTake(40, false); pl.setMode('root');
+      if (pl.take) problems.push('the take survives leaving the Pattern mode');
+      console.log('pattern: grid', g, '· raw', raw, '· 1 bar', one);
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
+    // The harmony FROM a pattern (engine/inferHarmony.js): known lines give the key and the progression one would write —
+    // a bass of roots A F C G is A minor · 1 6 3 7; arpeggios C F G C are C major · 1 4 5 1, and with each chord two
+    // bars, the same at 2 bars each; the candidates are several and different; the best one holds all the notes; a
+    // pentatonic riff offers its pentatonic; an empty loop gives nothing. Harmony.offset moves where the progression starts.
+    const NAME = 'harmony from a pattern (a bass of roots → A minor 1 6 3 7 · arpeggios → C major 1 4 5 1 · two bars a chord · several candidates · a second loop · empty · the progression starts where the loop does)';
+    const problems = [];
+    try {
+      const top = (pats, n = 0) => { const r = inferHarmony(pats)[n]; return r ? [r.root, r.scale, r.prog.join(' '), r.bars].join('|') : '—'; };
+      const arp = (b, ms) => ms.map((m, i) => ({ b: b + i + 0.02, len: 0.9, m, v: 1 }));
+      const bass = [{ bars: 4, quant: 0.25, notes: [[0.02, 45], [4, 41], [8.03, 48], [12, 43]].map(([b, m]) => ({ b, len: 3.5, m, v: 1 })) }];
+      if (top(bass) !== '9|minor|1 6 3 7|1') problems.push('a bass A F C G: ' + top(bass) + ' (expected A minor · 1 6 3 7)');
+      const C = [60, 64, 67], F = [65, 69, 72], G = [67, 71, 74];
+      const maj = [{ bars: 4, quant: 0.25, notes: [...arp(0, C), ...arp(4, F), ...arp(8, G), ...arp(12, C)] }];
+      if (top(maj) !== '0|major|1 4 5 1|1') problems.push('arpeggios C F G C: ' + top(maj) + ' (expected C major · 1 4 5 1)');
+      const maj2 = [{ bars: 8, quant: 0.25, notes: [C, C, F, F, G, G, C, C].flatMap((ch, i) => arp(i * 4, ch)) }];
+      if (top(maj2) !== '0|major|1 4 5 1|2') problems.push('the same, two bars a chord: ' + top(maj2) + ' (expected C major · 1 4 5 1 at 2 bars)');
+      const list = inferHarmony(maj);
+      if (list.length < 3 || new Set(list.map(c => c.root + c.scale)).size !== list.length) problems.push('candidates: ' + list.map(c => c.label).join(' / '));
+      if (!list[0] || Math.abs(list[0].fit - 1) > 1e-9) problems.push('the best candidate leaves notes outside (fit ' + (list[0] && list[0].fit) + ')');
+      if (!list.every((c, i) => !i || c.score <= list[i - 1].score + 1e-12)) problems.push('the candidates are not in order');
+      const riff = [{ bars: 2, quant: 0.25, notes: [[0, 40], [1, 43], [1.5, 45], [2.5, 47], [3, 50], [4, 40], [5, 47], [6, 45], [7, 43]].map(([b, m]) => ({ b, len: 0.5, m, v: 1 })) }];
+      const rl = inferHarmony(riff).slice(0, 2).map(c => c.root + '|' + c.scale);
+      if (!rl.every(x => x.startsWith('4|')) || !rl.includes('4|minor penta')) problems.push('an E minor pentatonic riff: ' + rl.join(' / ') + ' (expected E, with the minor pentatonic among the first two)');
+      // a second loop, one bar long and recorded a bar later, sounds against both bars of the first: still A minor · 1 6
+      const two = [{ bars: 2, quant: 0, origin: 0, notes: [{ b: 0, len: 3.5, m: 45, v: 1 }, { b: 4, len: 3.5, m: 41, v: 1 }] },
+                   { bars: 1, quant: 0, origin: 4, notes: [{ b: 0, len: 1, m: 72, v: 1 }, { b: 1, len: 1, m: 76, v: 1 }, { b: 2, len: 2, m: 74, v: 1 }] }];
+      if (top(two) !== '9|minor|1 6|1') problems.push('two loops: ' + top(two) + ' (expected A minor · 1 6)');
+      if (inferHarmony([{ bars: 1, notes: [] }]).length || inferHarmony([]).length) problems.push('an empty loop gives candidates');
+      if (inferHarmony([{ bars: 1, quant: 0, notes: [{ b: 6, len: 1, m: 60, v: 1 }] }]).length) problems.push('a loop whose only note is beyond its end gives candidates');
+      // the progression starts where the loop does
+      const h = new Harmony({ root: 9, scale: 'minor', prog: [1, 6, 3, 7], bars: 1 });
+      h.offset = 3;
+      const degs = [0, 1, 2, 3, 4, 5, 6, 7].map(b => h.degreeAt(b)).join(' ');
+      if (degs !== '6 3 7 1 6 3 7 1') problems.push('offset 3: degrees ' + degs + ' (expected 6 3 7 1 6 3 7 1)');
+      h.offset = 0; if (h.degreeAt(0) !== 1 || h.degreeAt(5) !== 6) problems.push('offset 0 changed the progression');
+      console.log('harmony from a pattern:', inferHarmony(bass).slice(0, 3).map(c => c.label + ' ' + c.score.toFixed(2)).join(' / '));
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
+    // The Pattern player from its panel: ● Rec switches the mode and ARMS; the first live key (the same path as QWERTY,
+    // the screen and MIDI: parts.playOn) starts the players, the Click and the take — it is beat 0 — and the keys are
+    // written down; ● again closes the loop and gives the Click back; with the players running, the take is the bar the
+    // first key falls in; ↶, Clear, Bars and Quantize act on the loop; stopping the players ends a take.
+    const NAME = 'pattern player panel (● Rec arms · the first key starts players, Click and take · ● closes the loop, the Click goes back off · playing: the key\'s bar · ↶ · Clear · Bars · Quantize · ■ Stop ends a take · ★ Save keeps the scene with its loop in the Library)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen();
+    try {
+      showScreen('sequencing');
+      if (!wasOn) { $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      const sc = getScene();
+      if (!sc) problems.push('the Parts do not turn on');
+      else {
+        const c = sc.conductor, pl = c.players[sc.sel], keep = { ...pl.cfg }, click0 = !!(metronome() && metronome().running);
+        $('patRec').click();
+        if (pl.cfg.mode !== 'pattern' || $('playerPat').hidden || !$('playerKnobs').hidden) problems.push('● Rec does not show the Pattern mode');
+        if (c.running || pl.take || !patArmed()) problems.push('● Rec does not just arm (players ' + c.running + ' · take ' + !!pl.take + ' · armed ' + patArmed() + ')');
+        if (!$('patRec').classList.contains('rec') || !$('patDub').disabled) problems.push('the buttons do not show the armed take');
+        if (!/Armed/.test($('patInfo').textContent)) problems.push('armed, the line says «' + $('patInfo').textContent + '»');
+        playOn('pt1', 220, 0.8);
+        if (!c.running) problems.push('the first key does not start the players');
+        if (!pl.take || patArmed()) problems.push('the first key does not start the take');
+        else {
+          if (pl.take.origin !== 0) problems.push('from a standstill the take starts at beat ' + pl.take.origin + ' (expected 0: the first key)');
+          if (Math.abs(c.beatAt(c.ctx.currentTime)) > 0.25) problems.push('the first key is beat ' + c.beatAt(c.ctx.currentTime).toFixed(2) + ' of the players (expected 0)');
+          if (!(metronome() && metronome().running)) problems.push('the Click does not go on for the take');
+          await wait(60); playOff('pt1');
+          $('patRec').click();
+          const pat = pl.cfg.pat;
+          if (pl.take || patRecording()) problems.push('● again does not close the take');
+          if (!pat || pat.notes.length !== 1 || pat.notes[0].m !== 57 || Math.abs(pat.notes[0].v - 0.8) > 1e-9) problems.push('the key is not in the loop: ' + JSON.stringify(pat));
+          else if (pat.bars !== 1 || pat.notes[0].b > 0.1) problems.push('the loop is ' + pat.bars + ' bars and its key at beat ' + pat.notes[0].b.toFixed(2) + ' (expected 1 and 0)');
+          if (!!(metronome() && metronome().running) !== click0) problems.push('the Click is not given back after the take');
+          if ($('patUndo').disabled || $('patClear').disabled || $('patDub').disabled) problems.push('↶, Clear or + Dub off with a loop');
+          if (!/1 note/.test($('patInfo').textContent)) problems.push('the line under the loop: «' + $('patInfo').textContent + '»');
+          if (pat) {
+            const b0 = pat.bars;
+            document.querySelector('#patBarsBox [data-pat="bar+"]').click();
+            if (pl.cfg.pat.bars !== b0 + 1 || $('patBars').textContent !== String(b0 + 1)) problems.push('Bars + does not lengthen the loop');
+            document.querySelector('#patQuant [data-q="0.5"]').click();
+            if (pl.cfg.quant !== 0.5 || !document.querySelector('#patQuant [data-q="0.5"]').classList.contains('active')) problems.push('Quantize does not take 1/8');
+            $('patClear').click();
+            if (pl.cfg.pat !== null) problems.push('Clear leaves the loop');
+            $('patUndo').click();
+            if (!pl.cfg.pat || pl.cfg.pat.notes.length !== 1) problems.push('↶ does not bring the cleared loop back');
+          }
+          // with the players running, an armed take is the bar its first key falls in
+          $('patRec').click();
+          if (!patArmed() || !c.running || pl.take) problems.push('● Rec with the players running does not arm');
+          const bNow = c.beatAt(c.ctx.currentTime);
+          playOn('pt3', 330, 1);
+          if (!pl.take || pl.take.origin % 4 !== 0 || pl.take.origin > bNow + 0.6 || pl.take.origin < bNow - 4.1) problems.push('playing, the take starts at beat ' + (pl.take && pl.take.origin) + ' with the key at ' + bNow.toFixed(2));
+          await wait(40); playOff('pt3'); $('patRec').click();
+          if (!pl.cfg.pat || pl.cfg.pat.notes.length !== 1 || pl.cfg.pat.notes[0].m !== 64) problems.push('the second take does not replace the loop');
+          $('patUndo').click();
+          if (!pl.cfg.pat || pl.cfg.pat.notes[0].m !== 57) problems.push('↶ does not bring back the loop before the take');
+          $('patRec').click(); $('patRec').click();
+          if (patRecording() || pl.take) problems.push('● again on an armed take does not cancel it');
+          // a take ends when the players stop, with what was played
+          $('patDub').click();
+          if (!pl.take || !pl.take.dub) problems.push('+ Dub arms no overdub');
+          playOn('pt2', 440, 1); await wait(40); playOff('pt2');
+          $('playBtn').click();
+          if (pl.take || patRecording() || c.running) problems.push('■ Stop does not end the take');
+          if (!pl.cfg.pat || pl.cfg.pat.notes.length !== 2) problems.push('the overdub is lost on ■ Stop');
+        }
+        if (c.running) $('playBtn').click();
+        // «From pattern» in the Harmony module: the loop's key into the harmony; again = the next candidate; «All parts»
+        {
+          const h = c.harmony, h0 = { root: h.root, scale: h.scale, prog: h.prog.slice(), bars: h.bars, mode: h.mode }, pat0 = pl.cfg.pat, q0 = pl.cfg.quant;
+          pl.cfg.pat = { bars: 4, notes: [[0, 45], [4, 41], [8, 48], [12, 43]].map(([b, m]) => ({ b, len: 3.5, m, v: 1 })) };
+          h.mode = 'functions';
+          $('harmFrom').click();
+          if (h.root !== 9 || h.scale !== 'minor' || h.prog.join(' ') !== '1 6 3 7' || h.bars !== 1 || h.mode !== 'list') problems.push('From pattern: ' + [h.root, h.scale, h.prog.join(' '), h.bars, h.mode].join(' · ') + ' (expected A minor · 1 6 3 7 · List)');
+          if (+$('harmRoot').value !== 9 || $('harmScale').value !== 'minor' || $('harmProg').value !== '1 6 3 7') problems.push('From pattern does not show in the Harmony module');
+          if (!/^1\/\d+ · A minor/.test($('harmFromInfo').textContent)) problems.push('From pattern says «' + $('harmFromInfo').textContent + '»');
+          $('harmFrom').click();
+          if (h.root === 9 && h.scale === 'minor') problems.push('From pattern again does not take the next candidate');
+          if (!/^2\//.test($('harmFromInfo').textContent)) problems.push('the second candidate says «' + $('harmFromInfo').textContent + '»');
+          const other = c.players[(sc.sel + 1) % c.players.length], om = other.cfg.mode, op = other.cfg.pat;
+          other.cfg.mode = 'pattern'; other.cfg.pat = { bars: 4, notes: [{ b: 0, len: 2, m: 61, v: 1 }, { b: 2, len: 2, m: 63, v: 1 }, { b: 4, len: 2, m: 66, v: 1 }, { b: 6, len: 2, m: 68, v: 1 }, { b: 8, len: 2, m: 70, v: 1 }] };
+          $('harmFrom').click(); const alone = [h.root, h.scale].join();
+          document.querySelector('#harmFromAll button').click();
+          $('harmFrom').click();
+          if ([h.root, h.scale].join() === alone && /^1\//.test($('harmFromInfo').textContent) && !/outside/.test($('harmFromInfo').textContent)) problems.push('All parts on reads the same as one part (' + alone + ')');
+          setHarmonyFromAll(false);
+          if (document.querySelector('#harmFromAll button:last-child').classList.contains('active')) problems.push('the All parts switch does not go off');
+          pl.cfg.pat = null; $('harmFrom').click();
+          if (!/no pattern/i.test($('harmFromInfo').textContent)) problems.push('with no loop, From pattern says «' + $('harmFromInfo').textContent + '»');
+          other.cfg.mode = om; other.cfg.pat = op; pl.cfg.pat = pat0; pl.cfg.quant = q0; Object.assign(h, h0, { offset: 0 });
+        }
+        // ★ Save: the scene, with the loop inside, into the Library's «Scenes»; again under the same name, over it
+        const SN = 'Selftest pattern scene', mine = () => library.items().filter(it => it.type === 'scene' && it.name === SN.slice(0, MAX_NAME));
+        for (const it of mine()) library.remove(it.id);
+        $('sceneName').value = SN; $('sceneSave').click();
+        const saved = mine();
+        const patIn = it => it && it.data && it.data.conductor && it.data.conductor.players[sc.sel] && it.data.conductor.players[sc.sel].pat;
+        if (saved.length !== 1) problems.push('★ Save leaves ' + saved.length + ' scenes of that name in the Library');
+        else if (!patIn(saved[0]) || patIn(saved[0]).notes.length !== (pl.cfg.pat ? pl.cfg.pat.notes.length : -1)) problems.push('the saved scene does not carry the loop');
+        if (pl.cfg.pat) pl.cfg.pat.notes.push({ b: 1, len: 0.5, m: 70, v: 1 });
+        $('sceneSave').click();
+        if (mine().length !== 1 || !patIn(mine()[0]) || patIn(mine()[0]).notes.length !== pl.cfg.pat.notes.length) problems.push('★ Save again does not write over the saved scene');
+        for (const it of mine()) library.remove(it.id);
+        sc.name = undefined; $('sceneName').value = '';
+        pl.setMode(keep.mode); Object.assign(pl.cfg, keep); pl.clearHist();
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (!wasOn && isOn()) $('partsBtn').click();
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
+    // The Pattern screen's editor (ui/patternEditor.js), with synthetic pointers on its canvas: a note dragged a beat to
+    // the right and two rows up lands on the grid and two semitones higher; a drag that only changes the pitch leaves the
+    // timing as played; the right edge is the length; the wheel is the velocity (a run of notches, one undo step); a double
+    // click adds on empty space and deletes on a note; Delete removes the selected one; each gesture is ONE undo step;
+    // armed for a take, the grid does not edit.
+    // ZOOM: zoomed in, a drag of one beat's width is still one beat, Ctrl + wheel zooms, Fit goes back to the whole loop,
+    // and the pitch bar on the right takes the view to where you point. The Pattern TAB is off without Parts.
+    const NAME = 'pattern editor (drag: time on the grid and pitch · pitch alone keeps the timing · the edge is the length · wheel = velocity · double click adds and deletes · Delete · one undo step each · zoom and the scroll bars · read-only while recording · the tab needs Parts)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen();
+    const tab = document.querySelector('#screenTabs [data-screen="pattern"]');
+    try {
+      if (!wasOn) {
+        showScreen('design');
+        if (!tab.classList.contains('off')) problems.push('the Pattern tab is not off without Parts');
+        tab.click();
+        if (currentScreen() !== 'design') problems.push('the Pattern tab opens without Parts');
+        $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100);
+      }
+      if (tab.classList.contains('off')) problems.push('the Pattern tab stays off with Parts on');
+      const sc = getScene();
+      if (!sc) problems.push('the Parts do not turn on');
+      else {
+        const pl = sc.conductor.players[sc.sel], keep = { ...pl.cfg }, cv = $('patEd');
+        showScreen('pattern');
+        pl.setMode('pattern'); pl.clearHist(); pl.cfg.quant = 0.25;
+        pl.cfg.pat = { bars: 2, notes: [{ b: 0.03, len: 1, m: 60, v: 0.8 }, { b: 2.48, len: 0.5, m: 64, v: 0.8 }, { b: 5, len: 1, m: 67, v: 0.8 }] };
+        const [n0, n1, n2] = pl.cfg.pat.notes;
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));   // the grid centers on these notes
+        await frames();
+        const pe = (type, p, buttons = 1) => cv.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, pointerId: 9, button: 0, buttons }));
+        const dragBy = (p, dx, dy) => { pe('pointerdown', p); pe('pointermove', { x: p.x + dx, y: p.y + dy }); pe('pointerup', { x: p.x + dx, y: p.y + dy }, 0); };
+        const near = (a, b) => Math.abs(a - b) < 1e-6;
+        let G = patEdGeom(n1);
+        if (!G || !(G.beatPx > 20)) problems.push('the grid has no size: ' + JSON.stringify(G));
+        else {
+          dragBy(G.mid, G.beatPx, -2 * G.rowPx);                  // drawn at 2.5 (1/16): a beat later, two semitones up
+          if (!near(n1.b, 3.5) || n1.m !== 66) problems.push('drag: the note lands at beat ' + n1.b + ', note ' + n1.m + ' (expected 3.5 and 66)');
+          if (pl.hist.length !== 1) problems.push('a drag is ' + pl.hist.length + ' undo steps');
+          G = patEdGeom(n0); dragBy(G.mid, 0, G.rowPx);           // pitch only: a semitone down
+          if (n0.m !== 59 || !near(n0.b, 0.03)) problems.push('a pitch drag: note ' + n0.m + ' at beat ' + n0.b + ' (expected 59, and its timing as played: 0.03)');
+          G = patEdGeom(n2); dragBy(G.edge, G.beatPx / 2, 0);
+          if (!near(n2.len, 1.5) || !near(n2.b, 5)) problems.push('dragging the edge: length ' + n2.len + ' at beat ' + n2.b + ' (expected 1.5 at 5)');
+          G = patEdGeom(n2);
+          const wh = () => cv.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: G.mid.x, clientY: G.mid.y, deltaY: -100 }));
+          wh(); wh();
+          if (!near(n2.v, 0.9)) problems.push('two notches of the wheel: velocity ' + n2.v + ' (expected 0.9)');
+          if (pl.hist.length !== 4) problems.push('after a move, a pitch, a length and a run of the wheel: ' + pl.hist.length + ' undo steps (expected 4)');
+          const empty = { x: G.left + 6.3 * G.beatPx, y: G.top + (G.topNote - 72 + 0.5) * G.rowPx };
+          cv.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: empty.x, clientY: empty.y }));
+          const added = pl.cfg.pat.notes[3];
+          if (!added || !near(added.b, 6.25) || added.m !== 72 || !near(added.len, 0.25)) problems.push('double click on empty: ' + JSON.stringify(added) + ' (expected beat 6.25, note 72, a sixteenth)');
+          else {
+            const Ga = patEdGeom(added);
+            cv.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: Ga.mid.x, clientY: Ga.mid.y }));
+            if (pl.cfg.pat.notes.length !== 3) problems.push('double click on a note does not delete it');
+          }
+          G = patEdGeom(n0); pe('pointerdown', G.mid); pe('pointerup', G.mid, 0);                 // select
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+          if (pl.cfg.pat.notes.length !== 2 || pl.cfg.pat.notes.includes(n0)) problems.push('Delete does not remove the selected note');
+          if (pl.hist.length !== 7) problems.push('seven gestures: ' + pl.hist.length + ' undo steps');
+          const undoBtn = document.querySelector('.pat-top [data-pat="undo"]'), redoBtn = document.querySelector('.pat-top [data-pat="redo"]');
+          if (undoBtn.disabled) problems.push('↶ off after editing');
+          undoBtn.click();
+          if (pl.cfg.pat.notes.length !== 3) problems.push('↶ does not bring the deleted note back');
+          redoBtn.click();
+          if (pl.cfg.pat.notes.length !== 2) problems.push('↷ does not delete it again');
+          // on this screen the header's ↶ ↷ and Ctrl+Z / Ctrl+Y are the loop's too (the rack's history is the preset's)
+          await frames();
+          if ($('undoBtn').disabled) problems.push('the ↶ of the header is off with loop steps to undo');
+          window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'z', ctrlKey: true, bubbles: true }));
+          if (pl.cfg.pat.notes.length !== 3) problems.push('Ctrl+Z on the Pattern screen does not undo the loop');
+          await frames();                                    // the header's buttons are repainted on the next frame
+          $('redoBtn').click();
+          if (pl.cfg.pat.notes.length !== 2) problems.push('the ↷ of the header does not redo the loop');
+          if (!/2 notes/.test(document.querySelector('.pat-top [data-pat="info"]').textContent)) problems.push('the line above the grid: «' + document.querySelector('.pat-top [data-pat="info"]').textContent + '»');
+          // zoom: in twice, a drag of one beat's width is one beat; Ctrl + wheel out; Fit; the pitch bar
+          const z0 = pl.cfg.pat.notes[0], zb = z0.b, k0 = patEdGeom(z0).beatPx;
+          patZoom('+'); patZoom('+');
+          G = patEdGeom(z0);
+          if (!(patView().zoomK > 0) || !(G.beatPx > k0 * 1.2)) problems.push('Zoom + does not zoom in (' + k0.toFixed(1) + ' → ' + G.beatPx.toFixed(1) + ' px per beat)');
+          if (!(G.mid.x >= G.gridLeft && G.mid.x <= G.gridLeft + G.gridW)) patZoom('fit');   // (the note scrolled out of view: nothing to grab)
+          G = patEdGeom(z0); dragBy(G.mid, -G.beatPx, 0);
+          if (!near(z0.b, zb - 1)) problems.push('zoomed, a drag of one beat moves the note from ' + zb + ' to ' + z0.b);
+          cv.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: G.gridLeft + 50, clientY: G.top + 50, deltaY: 100, ctrlKey: true }));
+          if (!(patEdGeom(z0).beatPx < G.beatPx)) problems.push('Ctrl + wheel does not zoom out');
+          patZoom('fit');
+          if (patView().zoomK !== 0 || patView().scrollX !== 0 || Math.abs(patEdGeom(z0).beatPx - k0) > 0.01) problems.push('Fit does not go back to the whole loop');
+          G = patEdGeom(z0);
+          pe('pointerdown', { x: G.barX, y: G.barY(24) }); pe('pointerup', { x: G.barX, y: G.barY(24) }, 0);
+          const tp = patView().top;
+          if (!(tp >= 24 && tp < 24 + 60) || tp === G.topNote) problems.push('the pitch bar does not take the view to C1 (first row: note ' + tp + ', was ' + G.topNote + ')');
+          document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } })); await frames();   // back on the notes
+          // armed for a take: the grid does not edit
+          const m1 = pl.cfg.pat.notes[0], b1 = m1.b, p1 = m1.m;
+          document.querySelector('.pat-top [data-pat="rec"]').click();
+          G = patEdGeom(m1); dragBy(G.mid, G.beatPx, -G.rowPx);
+          if (!near(m1.b, b1) || m1.m !== p1) problems.push('the grid edits while a take is armed');
+          document.querySelector('.pat-top [data-pat="rec"]').click();
+          if (patRecording()) problems.push('● on the Pattern screen does not cancel the armed take');
+          // a player on another mode: writing a note puts it on Pattern
+          pl.setMode('root'); pl.cfg.pat = null;
+          document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } })); await frames();
+          const Ge = patEdGeom({ b: 0, len: 1, m: 60, v: 1 });
+          cv.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: Ge.left + 1.1 * Ge.beatPx, clientY: Ge.top + (Ge.topNote - 60 + 0.5) * Ge.rowPx }));
+          if (pl.cfg.mode !== 'pattern' || !pl.cfg.pat || pl.cfg.pat.notes.length !== 1 || pl.cfg.pat.notes[0].m !== 60 || !near(pl.cfg.pat.notes[0].b, 1)) problems.push('a double click on an empty grid does not write the first note: ' + pl.cfg.mode + ' ' + JSON.stringify(pl.cfg.pat));
+        }
+        pl.setMode(keep.mode); Object.assign(pl.cfg, keep); pl.clearHist();
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (!wasOn && isOn()) {
+        showScreen('pattern'); $('partsBtn').click();
+        if (currentScreen() !== 'sequencing') problems.push('Parts off while on the Pattern screen: it stays on «' + currentScreen() + '» (expected Sequencing)');
+      }
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
   }
 
   {

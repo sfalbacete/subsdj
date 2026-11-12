@@ -119,7 +119,7 @@ function choose(i) {
 function setUI(on) {
   $('partsBtn').classList.toggle('on', on);
   $('partSel').hidden = !on;
-  for (const id of ['mixer', 'harmony', 'player', 'arrange']) $(id).classList.toggle('parts-off', !on);
+  for (const id of ['mixer', 'harmony', 'player', 'arrange', 'pattern']) $(id).classList.toggle('parts-off', !on);
   if (!on) { $('mixStrips').innerHTML = ''; strips = []; }
   document.body.classList.toggle('parts', on);
   document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));

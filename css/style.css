@@ -53,8 +53,8 @@
   --panel-face:linear-gradient(180deg,color-mix(in srgb,white 3%,var(--panel)),var(--panel) 40%,color-mix(in srgb,black 7%,var(--panel)));
   --panel-bevel:linear-gradient(180deg,color-mix(in srgb,white 24%,var(--panel)),var(--edge) 30%,var(--edge) 70%,color-mix(in srgb,black 50%,var(--panel)));
   /* composite faces (flat here; Classic makes them gradients) */
-  --btn-face:var(--well);
-  --btn-face-hi:color-mix(in srgb,var(--well) 84%,white);
+  --btn-face:linear-gradient(180deg,color-mix(in srgb,white 9%,var(--well)),color-mix(in srgb,white 2%,var(--well)) 55%,color-mix(in srgb,black 10%,var(--well)));
+  --btn-face-hi:linear-gradient(180deg,color-mix(in srgb,white 20%,var(--well)),color-mix(in srgb,white 12%,var(--well)) 55%,color-mix(in srgb,white 3%,var(--well)));
   --seg-on:var(--accent); --seg-on2:var(--accent2);
   --thumb-face:radial-gradient(circle at 40% 35%,color-mix(in srgb,var(--accent) 55%,white),var(--accent) 65%);
   --key-w-face:var(--key-w);
@@ -63,6 +63,12 @@
   --key-b-on:color-mix(in srgb,var(--accent2) 55%,var(--key-b));
   --shadow-panel:inset 0 1px 0 rgba(255,255,255,.05),0 1px 0 rgba(0,0,0,.55),0 5px 12px rgba(0,0,0,.38);
   --shadow-pop:0 10px 30px rgba(0,0,0,.6);
+  --tip-alpha:66%;       /* how much of the well a tooltip's glass keeps (the rest is the blurred instrument behind it) */
+  /* raised buttons: the panels' relief at button size — a bevel lit on top (border-box layer under a transparent
+     border), a face that fades downwards (it must be an IMAGE) and a short shadow. What you press stands OUT of the
+     panel; what you read or pick from (selects, inputs, screens) stays sunk or flat */
+  --btn-bevel:linear-gradient(180deg,color-mix(in srgb,white 26%,var(--well)),var(--edge) 45%,color-mix(in srgb,black 45%,var(--well)));
+  --btn-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 1px 2px rgba(0,0,0,.5),0 2px 5px rgba(0,0,0,.22);
   /* shape and font: pills, soft corners, lowercase labels */
   --r-panel:9px; --r-ctl:8px; --r-btn:999px;
   --font:13px/1.4 "Segoe UI",system-ui,sans-serif;
@@ -218,20 +224,23 @@ header #presetNav{flex:0 1 auto;min-width:0;}
 /* The three tooltips (header, dimmed, «?») live in the body, OUTSIDE the scaled instrument (ui/frame.js):
    they grow with it through --ui-zoom (130 % on a 4K at 150 %), or they would read small beside it */
 #hdrTip,#depTip,#helpTip{--tz:var(--ui-zoom,1);}
-#hdrTip{position:fixed;z-index:60;max-width:calc(330px * var(--tz));background:var(--well);border:1px solid var(--edge);border-radius:calc(8px * var(--tz));
-  padding:calc(6px * var(--tz)) calc(10px * var(--tz));font-size:calc(12px * var(--tz));line-height:1.4;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);
-  pointer-events:none;white-space:pre-line;}
+/* ONE look for the three (2026-11-12): frosted glass — the well at --tip-alpha over a blur of whatever lies
+   behind, a hairline of light for an edge and a glint under the top one. The rules below only add what differs */
+#hdrTip,#depTip,#helpTip{position:fixed;z-index:60;max-width:calc(340px * var(--tz));pointer-events:none;
+  background:color-mix(in srgb,var(--well) var(--tip-alpha),transparent);backdrop-filter:blur(14px) saturate(1.5);-webkit-backdrop-filter:blur(14px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.13);border-radius:calc(10px * var(--tz));padding:calc(8px * var(--tz)) calc(12px * var(--tz));
+  font-size:calc(12px * var(--tz));line-height:1.5;color:color-mix(in srgb,var(--ink) 72%,var(--dim));
+  box-shadow:0 12px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);}
+#hdrTip b,#depTip b,#helpTip b{color:var(--ink);font-weight:600;}
+#hdrTip{white-space:pre-line;}
 #hdrTip[hidden]{display:none;}
-#hdrTip b{color:var(--ink);font-weight:400;}
 /* Who turns it on (ui/enablers.js): over a dimmed control, its tooltip — why (the name in ink), what
    turns it on (in the accent, like the rings) and its own title, dimmer — and a breathing ring on each
    enabler: a fixed overlay, so neither a dimmed section's opacity nor a container's overflow touches it */
-#depTip{position:fixed;z-index:60;max-width:calc(380px * var(--tz));background:var(--well);border:1px solid var(--edge);border-radius:calc(8px * var(--tz));
-  padding:calc(7px * var(--tz)) calc(11px * var(--tz));font-size:calc(12px * var(--tz));line-height:1.5;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
+#depTip{max-width:calc(380px * var(--tz));}
 #depTip[hidden]{display:none;}
-#depTip b{color:var(--ink);font-weight:400;}
 #depTip .en{color:var(--accent);font-weight:600;}
-#depTip .own{margin-top:calc(4px * var(--tz));padding-top:calc(4px * var(--tz));border-top:1px solid var(--edge);font-size:calc(11px * var(--tz));}
+#depTip .own{margin-top:calc(4px * var(--tz));padding-top:calc(4px * var(--tz));border-top:1px solid rgba(255,255,255,.12);font-size:calc(11px * var(--tz));}
 .dep-ring{position:fixed;z-index:55;pointer-events:none;border-radius:12px;animation:depRing 1.4s ease-in-out infinite;}
 .dep-ring.pill{border-radius:999px;}
 @keyframes depRing{
@@ -253,10 +262,10 @@ header #presetNav{flex:0 1 auto;min-width:0;}
    controls don't inherit it on their own) and a FIXED line-height, so they all measure
    the same (16 + 2·5 + 2 = 28 px). With line-height «normal» each one came out of
    its font: the button 26 px, the select 29 px. */
-.btn{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);
-  padding:5px 12px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;letter-spacing:.5px;}
+.btn{background:var(--btn-face) padding-box,var(--btn-bevel) border-box;border:1px solid transparent;color:var(--ink);border-radius:var(--r-btn);
+  padding:5px 12px;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;letter-spacing:.5px;box-shadow:var(--btn-shadow);}
 .btn:hover{border-color:var(--accent);color:var(--accent);}
-.btn:active{transform:translateY(1px);}
+.btn:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);}   /* pressed: it sinks and loses its shadow */
 .btn.rec{color:var(--hot);border-color:var(--hot);}
 .btn.ico{padding:7px 11px;line-height:0;}   /* icon button (Wave Editor): the SVG measures what a 12 px line of text does */
 .row.we-bar{flex-wrap:nowrap;}   /* the Wave Editor, narrow since the String module came in: the bar on one row… */
@@ -315,12 +324,37 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #harmProg{width:110px;}
 #harmSeed{width:76px;}
 .harmlay{gap:18px;align-items:flex-start;}
+.harm-from{gap:12px;align-items:center;flex-wrap:nowrap;margin-top:9px;}
+#harmFromInfo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .harmlay .vcol{gap:7px;min-width:200px;}
 #harmRoot{width:70px;flex:none;}
 #playBtn.on{color:var(--hot);border-color:var(--hot);}
 /* The part's arrangement (in the Arrangement panel): compact row like the footers of the Matrix and the Delay */
 .arr-part{gap:10px;margin-top:6px;align-items:center;}
 .arr-part .fieldlab{flex:none;color:var(--accent);}   /* whose row it is */
+/* Player · Pattern: the take's buttons, the loop's length and grid, and the loop itself (read-only) */
+#playerKnobs[hidden],#playerPat[hidden]{display:none;}
+#playerPat{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.pat-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.pat-bar .btn:disabled{opacity:.4;cursor:default;}
+.pat-f{display:flex;align-items:center;gap:6px;margin-left:6px;}
+.pat-f .fieldlab{margin-bottom:0;}
+[data-pat="quant"]{flex:none;}
+#pattern [data-pat="quant"] button,#playerPat [data-pat="quant"] button{flex:none;padding:3px 8px;}
+#patCanvas{display:block;width:100%;height:58px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.055);}
+[data-pat="rec"]{color:var(--hot);}
+[data-pat="rec"].rec,[data-pat="dub"].rec{color:var(--hot);border-color:var(--hot);animation:recArmed 1.2s ease-in-out infinite;}
+[data-pat]:disabled{opacity:.4;cursor:default;}
+/* The Pattern screen: the same controls in one row, and the grid takes the rest */
+.pat-top{flex:none;display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.pat-top .pat-who{color:var(--accent);margin-right:6px;}
+.pat-top .pat-info{margin-left:12px;}
+#patEdNote{margin-left:auto;color:var(--ink);white-space:nowrap;}
+#patEd{flex:1;min-height:0;width:100%;display:block;touch-action:none;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.055);}
+#sceneName{flex:1;width:0;min-width:60px;background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-btn);padding:4px 8px;font:inherit;font-size:11px;}
+#sceneName:focus{outline:none;border-color:var(--accent);}
 #playerArr{gap:10px;align-items:center;}
 #playerArr .ks .th{width:auto;}
 #playerArr .ks .val{width:30px;}
@@ -658,9 +692,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .as-sws{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding:0 6px;}
 #seqLenCtl{margin-left:auto;flex:none;}
 .stepper{display:flex;align-items:center;gap:6px;}
-.stepper button{width:22px;height:22px;border-radius:5px;border:1px solid var(--edge);color:var(--ink);cursor:pointer;font-size:14px;line-height:1;
-  background:var(--btn-face);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.4);}
+.stepper button{width:22px;height:22px;border-radius:5px;border:1px solid transparent;color:var(--ink);cursor:pointer;font-size:14px;line-height:1;
+  background:var(--btn-face) padding-box,var(--btn-bevel) border-box;
+  box-shadow:var(--btn-shadow);}
+.stepper button:hover{color:var(--accent);}
 .stepper button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);}
 .stepper .num{min-width:14px;text-align:center;font-size:13px;}
 .fieldlab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);margin-bottom:4px;}
@@ -697,11 +732,23 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .panel .seg button,.panel .rn,.lfoShape,.noshape,.panel .btn,.panel .badge,.panel .chk,#mtLed,#kbTouch button{
   text-transform:var(--lab-case);}
 .lfo-foot,.mx-foot,.dly-foot{gap:14px;margin-top:8px;align-items:center;}
-.dly-foot{margin-top:2px;}   /* the Delay also lives in Sequencing, whose band is lower: it just fits */
 .lfo-foot .seg.tog{gap:2px;}
 .note{font-size:9px;color:var(--dim);margin:2px 0 10px;}
 
-.panel h2{display:flex;align-items:center;}   /* LED · title · «?» · «room» tag */
+.panel h2{display:flex;align-items:center;height:16px;}   /* LED · title · «?» · «room» tag. A fixed height: a title with a button in it (Sync, Bow, Lock) used to sit 2 px lower than its neighbours */
+/* ---- ONE GRID PER BAND (2026-11-12): the knobs of neighbouring modules share their lines ----
+   A rotary selector spends 20 px on the positions printed over its knob, so a row that has one starts its plain
+   knobs 20 px down (.rotrow, or — bottom-aligned rows — the selector's own 18 px foot, which is the value line it
+   lacks). Source and Voice: knob tops at 20 and 114 in every module (the oscillators' rows set it: 94 px of Wave +
+   20). Mod·FX and the Room: 0 and 100 (the second row carries the selectors). Cutoff, the one big knob, grows UP
+   from the common caption line. */
+#bandSource .g,#bandVoice .g{padding-top:20px;row-gap:14px;}
+#bandSource .vcol{gap:20px;}                                   /* Unison: Voices (a full selector) over Detune */
+.hrow:not(.rotrow) > .ctl.rotc:has(> .seg.rot.short){margin-bottom:18px;}
+#bandVoice .hrow.narrow{margin-top:14px;}                      /* Filter, second row */
+[data-slot="cinta"] .vcol{gap:20px;}                           /* Tape: Saturation over Wow, on the Delay's and the Reverb's lines */
+.ch-mode{margin-top:26px;align-self:flex-start;}               /* Chorus: its mode, level with the neighbours' second row */
+.ks-col{display:flex;flex-direction:column;gap:8px;justify-content:center;align-self:stretch;margin-left:10px;padding-bottom:18px;}   /* Delay: Fdbk and Sat, small, beside the first row */
 
 /* The glass of every visualizer sits SUNK in the panel: the top lip shades it, the bottom lip catches the light */
 #adsrCanvas,#seqCanvas,#wsCanvas,#weCanvas,.readout,.vizrow canvas,.mt-bars{box-shadow:inset 0 2px 5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.055);
@@ -807,9 +854,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
    icon, so whatever binds the switch never notices; lit = the icon in the accent, with its halo */
 .kb-btn{position:relative;display:flex;width:32px;height:28px;}
 .kb-btn > .btn{width:100%;height:100%;justify-content:center;padding:0;border-radius:var(--r-ctl);}
-.kb-btn.swc{align-items:center;justify-content:center;gap:0;box-sizing:border-box;background:var(--well);border:1px solid var(--edge);
-  border-radius:var(--r-ctl);color:var(--dim);transition:color .15s,border-color .15s,box-shadow .15s;}
-.kb-btn.swc:hover{color:var(--ink);border-color:var(--edge-hi);}
+.kb-btn.swc{align-items:center;justify-content:center;gap:0;box-sizing:border-box;background:var(--btn-face) padding-box,var(--btn-bevel) border-box;border:1px solid transparent;
+  border-radius:var(--r-ctl);color:var(--dim);box-shadow:var(--btn-shadow);transition:color .15s,border-color .15s,box-shadow .15s;}
+.kb-btn.swc:hover{color:var(--ink);}
 .kb-btn.swc > svg{display:block;width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
 .kb-btn svg .f{fill:currentColor;stroke:none;}
 .kb-btn .seg.sw,.kb-btn .seg.sw:has(button:last-child.active){position:absolute;inset:0;width:auto;height:auto;border:none;background:none;box-shadow:none;animation:none;}
@@ -829,7 +876,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #touchBtn svg path{display:none;}
 #touchBtn svg .ax{display:block;opacity:.35;}
 #touchBtn[data-touch="soft"] .c-soft,#touchBtn[data-touch="linear"] .c-linear,#touchBtn[data-touch="hard"] .c-hard{display:block;stroke:var(--accent);}
-.kb-bend select{padding:2px 6px;font-size:11px;}
+#bendRangeSel{display:none;}   /* the range's VALUE (bound like any select: preset, undo, MIDI); its face is the stepper */
 /* Touch strips (ui/keyboard.js): a glass strip sunk in the panel, a ladder of chevrons printed on it. The chevrons
    light up from the rest point to where the finger is (--p, 0..1 from the bottom) and a line of light marks the
    spot. Bend (the oscillators' color) rests at the center and springs back; Mod (the rack's) rests at the bottom and stays */
@@ -902,10 +949,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   border:1px solid var(--edge);color:var(--dim);font-size:9px;font-weight:600;
   display:inline-flex;align-items:center;justify-content:center;cursor:help;text-transform:none;}
 .qmark:hover{color:var(--accent);border-color:var(--accent);}
-#helpTip{position:fixed;z-index:60;max-width:calc(330px * var(--tz));background:var(--well);border:1px solid var(--edge);
-  border-radius:calc(8px * var(--tz));padding:calc(9px * var(--tz)) calc(12px * var(--tz));font-size:calc(11.5px * var(--tz));line-height:1.55;color:var(--dim);
-  box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none;}
-#helpTip b{color:var(--ink);}
+#helpTip[hidden]{display:none;}
 
 /* Waveform icons (inline SVG with currentColor: immune to the theme) */
 .seg.waves button svg{display:block;margin:0 auto;width:17px;height:12px;
@@ -952,7 +996,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .mx-arrow{color:var(--dim);font-size:11px;text-align:center;}
 
 /* Screen tabs (ui/screens.js): each one shows ITS fixed panel */
-#screenTabs{margin-left:4px;border-radius:var(--r-btn);}   /* the tabs are pills: they have air */
+#screenTabs{margin-left:4px;border-radius:var(--r-btn);}
+#screenTabs button.off{opacity:.38;cursor:default;}        /* a screen that has nothing to show right now (Pattern without Parts) */   /* the tabs are pills: they have air */
 #screenTabs button{flex:none;padding:6px 14px;font-size:11px;letter-spacing:var(--title-space);text-transform:var(--title-case);}
 
 /* Presets screen: the Library by sections, in columns (ui/libraryScreen.js) */

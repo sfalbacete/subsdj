@@ -23,7 +23,13 @@ import { attachKnob } from './knobs.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern, scaleOfNotes, toDegrees } from '../engine/Seq.js';
 import { record, end as endGesture } from './history.js';
 
-const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };   // the header's floating notice
+const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };
+// Seq Rec on the Output display: a take is recorded with the eyes on the keys, so each step written, blanked or
+// taken back says so there (the step, what went into it, how long the phrase is now)
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const noteName = midi => NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+const showRec = (who, val, det = '') => document.dispatchEvent(new CustomEvent('display-show', { detail: { who: 'Seq Rec' + (who ? ' · ' + who : ''), val, det } }));
+const lenText = n => n + (n === 1 ? ' step' : ' steps');   // the header's floating notice
 let rec = null;   // the step recording in progress (initRec), or null: the editor draws its cursor
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
@@ -325,13 +331,14 @@ function initRec() {
   const tokenOf = off => { const I = scaleOfNotes(CONTROLS.seqNotes.get()); return String(I ? toDegrees(off, I).deg : off); };
   // writes a step: at the end while the phrase can grow (the loop gets one step longer); full, over the
   // step under the cursor, which goes back to the first after the last
-  const write = tok => {
+  const write = (tok, what) => {   // what: how the display names it (the note, «rest»); the token itself if not given
     const tk = tokensOf();
     let i;
     if (rec.cur >= tk.length && tk.length < SEQ_MAX_STEPS) { tk.push(tok); i = tk.length - 1; rec.cur = tk.length; }
     else { i = rec.cur % tk.length; tk[i] = tok; rec.cur = i + 1; }
     rec.lastIdx = i; rec.n++;
     CONTROLS.seqPat.set(tk.join(' '));
+    showRec('step ' + (i + 1), what || tok, lenText(tk.length));
     return i;
   };
   // the loop, from the first key on (Mode = Seq only); true = it started on step i, so it plays the key
@@ -350,8 +357,8 @@ function initRec() {
     while (off < SEQ_OFF_MIN) off += 12;
     let i = rec.lastIdx;
     if (rec.lastOff !== null && t - rec.lastT < CHORD_MS) {         // a chord struck at once: one step, its lowest note
-      if (off < rec.lastOff) { const tk = tokensOf(); if (i < tk.length) { tk[i] = tokenOf(off); CONTROLS.seqPat.set(tk.join(' ')); } rec.lastOff = off; }
-    } else { i = write(tokenOf(off)); rec.lastOff = off; }
+      if (off < rec.lastOff) { const tk = tokensOf(); if (i < tk.length) { tk[i] = tokenOf(off); CONTROLS.seqPat.set(tk.join(' ')); showRec('step ' + (i + 1), noteName(rec.ref + off), 'chord: its lowest note'); } rec.lastOff = off; }
+    } else { i = write(tokenOf(off), noteName(rec.ref + off)); rec.lastOff = off; }
     rec.lastT = t;
     return loop(i);
   };
@@ -368,6 +375,7 @@ function initRec() {
     e.recHook = onKey;
     CONTROLS.seqPat.set('');                         // an empty phrase: it grows with every key
     paint(true);
+    showRec('', 'armed', 'play: every key is a step');
     say('Seq Rec: every key adds a step and the phrase loops from the first one · Space = rest · Backspace = back · Enter, Esc or the switch = done');
   };
   // abort: something else took the module (a preset, a scene): the take is dropped; they brought their own
@@ -384,7 +392,7 @@ function initRec() {
     paint(false);
     if (abort) {
       if (restore) e.set('seqPat', r.before);
-      say('Recording stopped: the take was dropped.');
+      say('Recording stopped: the take was dropped.'); showRec('', 'dropped');
       document.dispatchEvent(new CustomEvent('param-change', { detail: { target: 'seqPat' } }));
       return;
     }
@@ -393,7 +401,8 @@ function initRec() {
       record('Recorded phrase', () => CONTROLS.seqPat.set(fin));
       const len = fin.trim().split(/\s+/).length;
       say('Phrase recorded: ' + len + (len > 1 ? ' steps' : ' step') + (goesOn ? ' · it keeps playing (Latch)' : '') + '.');
-    } else say('Nothing recorded: the phrase is as it was.');
+      showRec('', lenText(len) + ' recorded', goesOn ? 'it keeps playing (Latch)' : '');
+    } else { say('Nothing recorded: the phrase is as it was.'); showRec('', 'nothing recorded'); }
   };
   // the inactive button lies on top (the .seg.sw switch), so any click toggles; blurred: Space must not «click» it again
   for (const b of [offBtn, onBtn]) b.addEventListener('click', () => { part().resume(); b.blur(); if (rec) stop(); else start(); });
@@ -402,16 +411,18 @@ function initRec() {
     if (!rec) return;
     const t = e.target, txt = t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text') || t.isContentEditable);
     if (txt || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'Space') { e.preventDefault(); write('.'); rec.lastOff = null; }
+    if (e.code === 'Space') { e.preventDefault(); write('.', 'rest'); rec.lastOff = null; }
     else if (e.key === 'Backspace') {
       e.preventDefault();
       if (!rec.n) return;                            // nothing written yet: nothing to take back
       const tk = tokensOf();
       if (!tk.length) return;
-      if (rec.cur >= tk.length) { tk.pop(); rec.cur = tk.length; }                    // growing: the last step goes (the loop shrinks)
-      else { rec.cur = (rec.cur - 1 + tk.length) % tk.length; tk[rec.cur] = '.'; }   // writing over a full phrase: back one, blanked
+      let told;
+      if (rec.cur >= tk.length) { tk.pop(); rec.cur = tk.length; told = ['step ' + (tk.length + 1), 'removed']; }                    // growing: the last step goes (the loop shrinks)
+      else { rec.cur = (rec.cur - 1 + tk.length) % tk.length; tk[rec.cur] = '.'; told = ['step ' + (rec.cur + 1), 'blanked']; }   // writing over a full phrase: back one, blanked
       rec.n--; rec.lastOff = null;
       CONTROLS.seqPat.set(tk.join(' '));
+      showRec(told[0], told[1], lenText(tk.length));
     }
     else if (e.key === 'Enter') { e.preventDefault(); stop(); }
   }, true);

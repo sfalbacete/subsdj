@@ -1,7 +1,7 @@
 /* SubSDJ · on-screen keyboard + PC keyboard (polyphonic) */
 import { part, playOn, playOff, eachPart, forgetSounding, setPerf } from '../engine/parts.js';
 import { setStatus } from './status.js';
-import { bindSelect } from './registry.js';
+import { bindSelect, CONTROLS } from './registry.js';
 import { BEND_RANGES } from '../engine/params.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -234,6 +234,7 @@ export function releaseNote(midi) { unhold(midi, 'midi'); }
 // to the finger. Unipolar (0..1, rests at the bottom, stays) or bipolar (−1..1, rests at the center); spring = on
 // release it glides back to rest (SPRING_MS). The strip only publishes: --p (0..1 from the bottom, for the line of
 // light) and .on on each lit chevron — the CSS draws. Double click = rest. Returns { show(v) } for outside changes (MIDI).
+const WHEEL_STEP = .05, WHEEL_REST_MS = 450;   // mouse wheel on a strip: a notch = 5 % of the travel; a sprung strip lets go after this pause
 const SPRING_MS = 140, STRIP_PAD = 7;   // px of glass above and below the travel (style.css: .tstrip::after)
 function touchStrip(el, { rows = 9, bipolar = false, spring = false, onInput }) {
   if (!el) return null;
@@ -266,6 +267,14 @@ function touchStrip(el, { rows = 9, bipolar = false, spring = false, onInput }) 
     raf = requestAnimationFrame(step); };
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, end);
   el.addEventListener('dblclick', () => set(0));
+  // the mouse wheel: a notch = WHEEL_STEP of the travel (Shift = a fifth of it). A sprung strip goes back by itself
+  // once the wheel has been still for WHEEL_REST_MS — a bend you roll in and let go
+  let rest = 0;
+  el.addEventListener('wheel', e => { e.preventDefault(); if (down) return; cancelAnimationFrame(raf);
+    const lo = bipolar ? -1 : 0, st = (bipolar ? 2 : 1) * WHEEL_STEP * (e.shiftKey ? .2 : 1);
+    set(Math.round(Math.max(lo, Math.min(1, val - Math.sign(e.deltaY || e.deltaX) * st)) * 200) / 200);
+    if (spring) { clearTimeout(rest); rest = setTimeout(() => { down = true; end(); }, WHEEL_REST_MS); }
+  }, { passive: false });
   show(0);
   return { show: v => { if (!down) { val = v; show(v); } } };
 }
@@ -275,7 +284,9 @@ export function initKeyboard() {
   numOctaves = octavesForWidth();
   viewOctave = defaultBase(numOctaves); fitView();
   buildKeyboard(); bindPointer();
-  document.querySelectorAll('#kbOct button[data-kbo]').forEach(b => b.addEventListener('click', () => shiftOctave(+b.dataset.kbo)));
+  // the keyboard section is not a rack module: what its buttons change is announced on the Output display by hand
+  const say = (what, val) => document.dispatchEvent(new CustomEvent('display-show', { detail: { who: 'Keyboard · ' + what, val } }));
+  document.querySelectorAll('#kbOct button[data-kbo]').forEach(b => b.addEventListener('click', () => { shiftOctave(+b.dataset.kbo); say('Octave', document.getElementById('kbOctNum')?.textContent || ''); }));
 
   // On-screen mod wheel: the matrix's «Wheel (CC1)» source
   // (parts.setPerf → all parts). It also follows the MIDI wheel via
@@ -289,11 +300,24 @@ export function initKeyboard() {
   document.addEventListener('bend-change', e => { if (bendS) bendS.show(e.detail.value); });
   // Bend range (the preset's) and touch (yours)
   const bend = document.getElementById('bendRangeSel');
-  if (bend) bindSelect(bend, 'bendRange', BEND_RANGES.map(n => ({ id: n, label: '±' + n })));
+  if (bend) {
+    bindSelect(bend, 'bendRange', BEND_RANGES.map(n => ({ id: n, label: '±' + n })));
+    // its face: − ±n + like the octave's (the select stays, unseen: it is what presets, undo and MIDI learn bind)
+    const box = document.getElementById('kbBend'), num = document.getElementById('bendNum');
+    const paint = () => { if (num) num.textContent = '±' + bend.value; };
+    if (box) { CONTROLS.bendRange.el = box;
+      box.querySelectorAll('button[data-bend]').forEach(b => b.addEventListener('click', () => {
+        const i = Math.max(0, Math.min(bend.options.length - 1, bend.selectedIndex + +b.dataset.bend));
+        if (i === bend.selectedIndex) return;
+        bend.selectedIndex = i; bend.dispatchEvent(new Event('change', { bubbles: true }));
+        say('Bend range', '±' + bend.value + (bend.value === '1' ? ' semitone' : ' semitones')); })); }
+    document.addEventListener('param-change', e => { if (e.detail.target === 'bendRange') paint(); });
+    paint();
+  }
   document.querySelectorAll('#kbTouch button').forEach(b => b.addEventListener('click', () => setTouch(b.dataset.touch)));
   const tb = document.getElementById('touchBtn'), order = Object.keys(TOUCH);   // one button: each click, the next curve
   if (tb) tb.addEventListener('click', () => { tb.blur(); setTouch(order[(order.indexOf(touch) + 1) % order.length]);
-    document.dispatchEvent(new CustomEvent('display-show', { detail: { who: 'Keyboard · Touch', val: touch } })); });
+    say('Touch', touch); });
   setTouch(touch);
 
   // When the width changes, recompute how many octaves fit and rebuild.
@@ -332,7 +356,7 @@ export function initKeyboard() {
       return;
     }
     if (k === 'pageup' || k === 'pagedown') {        // octave up / down (PgUp / PgDn)
-      e.preventDefault(); shiftOctave(k === 'pageup' ? 1 : -1); return;
+      e.preventDefault(); shiftOctave(k === 'pageup' ? 1 : -1); say('Octave', document.getElementById('kbOctNum')?.textContent || ''); return;   // announced like its − / + buttons
     }
     if (!note) return;
     if (held.has(e.code) || e.repeat) { e.preventDefault(); return; }  // auto-repeat must not reach the browser either

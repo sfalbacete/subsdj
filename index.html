@@ -67,6 +67,7 @@
   <nav class="seg" id="screenTabs" title="Screens: each one is a fixed panel with the modules for its job">
     <button data-screen="design" title="Sound design: oscillators, filter, envelopes, modulation and effects">Design</button>
     <button data-screen="sequencing" title="Sequencing: arpeggiator, sequencers, parts, harmony, players and arrangement">Sequencing</button>
+    <button data-screen="pattern" data-needs="parts" title="Pattern: the loop of your own notes that a part's player repeats — record it, fix it, write it" data-off-title="Pattern needs «Parts» on (the layers icon on the right): a pattern is the loop that a part's player repeats">Pattern</button>
     <button data-screen="presets" title="Presets: the whole bank at a glance">Presets</button>
   </nav>
   <div id="presetBar">
@@ -556,11 +557,11 @@
   </div>
   <div class="panel">
     <h2>Chorus</h2>
-    <div class="seg tog" id="chModeSel"><button data-chm="chorus">Chorus</button><button data-chm="ensemble">Ensemble</button></div>
-    <div class="hrow" style="margin-top:6px">
+    <div class="hrow">
       <div class="ctl"><div class="knob" data-knob="chAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="chSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
+    <div class="seg tog ch-mode" id="chModeSel"><button data-chm="chorus">Chorus</button><button data-chm="ensemble">Ensemble</button></div>
     <div class="help"><b>Chorus</b>: stereo, 2 lines · <b>Ensemble</b> = a triple 3-phase chorus in the style of the Solina (string machine). Speed drives the slow LFO; the fast one runs ×10.</div>
   </div>
   <div class="slot" data-slot-host="delay">
@@ -569,6 +570,10 @@
       <div class="hrow">
         <div class="ctl"><div class="knob" data-knob="dlyAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="dlyTime"><div class="ind"></div></div><div class="lab">Time</div><div class="val"></div></div>
+        <div class="ks-col">
+          <div class="ctl ks" data-lab="Feedback" title="Feedback: how many repeats. Above 100 % each echo comes back louder than the last and the delay RUNS AWAY: it grows until the saturation holds it and keeps ringing on its own (move Time for the dub siren; lower it to let it die)"><span class="th">Fdbk</span><div class="knob" data-knob="dlyFb"><div class="ind"></div></div><div class="val"></div></div>
+          <div class="ctl ks" data-lab="Echo saturation" title="Tape saturation inside the loop: every repeat comes out more compressed and dirtier (at 0, the usual clean echoes). Above 90 % feedback it kicks in by itself, so the echo can never blow up"><span class="th">Sat</span><div class="knob" data-knob="dlySat"><div class="ind"></div></div><div class="val"></div></div>
+        </div>
       </div>
       <div class="hrow">
         <div class="ctl"><div class="knob" data-knob="dlyDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
@@ -576,10 +581,6 @@
         <div class="ctl rotc"><div class="seg rot" id="dlySyncSel">
           <button data-sync="free" title="Free: the Time knob rules">Free</button><button data-sync="1/8" title="Eighth note">1/8</button><button data-sync="1/8." title="Dotted eighth">1/8·</button><button data-sync="1/4" title="Quarter note">1/4</button><button data-sync="1/4." title="Dotted quarter">1/4·</button><button data-sync="1/2" title="Half note">1/2</button>
         </div><div class="lab">Sync</div></div>
-      </div>
-      <div class="hrow dly-foot">
-        <div class="ctl ks" data-lab="Feedback" title="Feedback: how many repeats. Above 100 % each echo comes back louder than the last and the delay RUNS AWAY: it grows until the saturation holds it and keeps ringing on its own (move Time for the dub siren; lower it to let it die)"><span class="th">Fdbk</span><div class="knob" data-knob="dlyFb"><div class="ind"></div></div><div class="val"></div></div>
-        <div class="ctl ks" data-lab="Echo saturation" title="Tape saturation inside the loop: every repeat comes out more compressed and dirtier (at 0, the usual clean echoes). Above 90 % feedback it kicks in by itself, so the echo can never blow up"><span class="th">Sat</span><div class="knob" data-knob="dlySat"><div class="ind"></div></div><div class="val"></div></div>
       </div>
       <div class="help"><b>Ping-pong delay</b> (the echoes bounce L↔R). <b>Amount</b> = how much goes into the echo; <b>fdbk</b> = how many repeats (they used to be tied to Amount; presets from back then sound the same). Above <b>100 %</b> each echo comes back louder than the last and the delay <b>runs away</b>: it grows until the tape saturation in the loop holds it and it keeps ringing on its own, as in dub — move Time while it runs away and the pitch slides (the siren); lower the feedback and it dies away. Bound to a knob with MIDI map, you can play it live. <b>sat</b> = tape inside the loop: each repeat more compressed and dirtier (at 0, clean; above 90 % feedback it kicks in by itself, so it never blows up). Time up to 4 s (logarithmic). Synced to a division, the Time knob is ignored and the echo follows the BPM of the clock in the header. <b>Damp</b> = a filter INSIDE the loop: each repeat loses treble (and some bass), like tape or BBDs — at 0 it is exactly transparent. <b>Wow</b> detunes each repeat a hair (slow modulation of the time, different in L and R): the echo gets wider. In <b>Parts</b> mode: Amount is this part's SEND; Time/Damp/Wow and the sync belong to the shared room (and so does the clock's BPM).</div>
     </div>
@@ -738,7 +739,12 @@
         </div>
       </div>
     </div>
-    <div class="help"><b>Scene harmony.</b> Everything the players play is quantized to the scale and the current chord: that is why randomness sounds musical. Progression = scale degrees («1 6 4 5»), each one lasting N bars; «Functions» = a random walk T→S/D→T with common-practice probabilities. The tempo is the clock in the header (BPM and swing). The seed fixes the randomness: same seed, same session.</div>
+    <div class="row harm-from">
+      <button class="btn" id="harmFrom" title="Read the harmony from what you played: it guesses the root, the scale, the progression and the bars per chord from the notes of the Pattern loop, and writes them here — so the other players play in its key. It is a guess: press again for the next candidate (the same notes are C major and A minor) and keep the one that sounds right">From pattern</button>
+      <span class="swc" id="harmFromAllC" title="Which loops it reads: Off = the pattern of the part the instrument is editing · On = the patterns of all the parts whose player is on Pattern, together"><span class="seg sw" id="harmFromAll"><button type="button">Off</button><button type="button">On</button></span><span class="lab">All parts</span></span>
+      <span class="badge" id="harmFromInfo"></span>
+    </div>
+    <div class="help"><b>Scene harmony.</b> Everything the players play is quantized to the scale and the current chord: that is why randomness sounds musical. Progression = scale degrees («1 6 4 5»), each one lasting N bars; «Functions» = a random walk T→S/D→T with common-practice probabilities. The tempo is the clock in the header (BPM and swing). The seed fixes the randomness: same seed, same session. <b>From pattern</b> reads all of this from a Pattern loop — root and scale from which notes weigh most and where the loop starts, the progression from what sounds in each bar (its lowest note above all) — so the generative players follow what you played. It is a guess with several candidates: press again for the next one. <b>All parts</b>: off, the loop of the part the instrument is editing; on, every Pattern loop together.</div>
   </div>
   <div class="panel" id="stepsPanel">
     <h2>Steps</h2>
@@ -785,11 +791,26 @@
           <button data-pm="chord" title="Holds the chord (with Arp: an arpeggio)">Chord</button>
           <button data-pm="melody" title="A walk through the scale, pulled toward the chord">Melody</button>
           <button data-pm="root" title="The root, held (with Seq: the root of the phrase)">Root</button>
+          <button data-pm="pattern" title="A loop of your own notes, recorded from the keys">Pattern</button>
         </div><div class="lab">Mode</div></div>
       </div>
       <div class="g" id="playerKnobs" style="--c:5"></div>
+      <div id="playerPat" hidden>
+        <div class="pat-bar">
+          <button type="button" class="btn" data-pat="rec" id="patRec" title="Record a new loop from the keys (QWERTY, the screen or MIDI). It only arms: the take starts with your FIRST key. With the players stopped, that key is beat 1 of bar 1 and they start with it (with the Click already on, its nearest beat); with them playing, the take is the bar that key falls in. The Click goes on for the take. Press it again to close the loop: its length is what you played, rounded to whole bars. It replaces the loop there was (↶ brings it back)">● Rec</button>
+          <button type="button" class="btn" data-pat="dub" id="patDub" title="Overdub: the loop keeps playing and what you play is added to it, at the point of the loop where you play it. Press it again to finish">+ Dub</button>
+          <button type="button" class="btn" data-pat="undo" id="patUndo" title="Undo the last change to the loop: a take, Clear, an edit">↶</button>
+          <button type="button" class="btn" data-pat="redo" id="patRedo" title="Redo">↷</button>
+          <button type="button" class="btn" data-pat="clear" id="patClear" title="Empty the loop (↶ brings it back)">Clear</button>
+          <button type="button" class="btn" data-pat="edit" title="Open the Pattern screen: the loop on a grid, to fix what was recorded or write it by hand">Edit</button>
+          <span class="pat-f" title="Length of the loop in bars. Shorter cuts the loop there, and the notes beyond are kept: longer brings them back"><span class="fieldlab">Bars</span><span class="stepper" id="patBarsBox"><button type="button" data-pat="bar-">−</button><span class="num" data-pat="bars" id="patBars">–</span><button type="button" data-pat="bar+">+</button></span></span>
+          <span class="pat-f" title="Quantize: on playback each note starts on the nearest point of this grid (with the clock's swing). The take keeps the timing you played: Off plays it as it was, and the grid can be changed at any time. It is also the grid notes move on in the Pattern screen"><span class="fieldlab">Quantize</span><span class="seg" data-pat="quant" id="patQuant"><button type="button" data-q="0">Off</button><button type="button" data-q="1">1/4</button><button type="button" data-q="0.5">1/8</button><button type="button" data-q="0.25">1/16</button></span></span>
+        </div>
+        <canvas id="patCanvas"></canvas>
+        <div class="badge" id="patInfo" data-pat="info"></div>
+      </div>
     </div>
-    <div class="help"><b>Player of the part the instrument is editing</b> (these settings belong to the musician, not the preset). <b>Pulse</b>: E(k, n) spreads k hits over n steps per bar as evenly as possible (Bjorklund): E(3,8) is the tresillo. <b>Breathe</b>: the pulse fills up and empties on its own — the hits rise bar by bar up to k + Breathe and come back, in a swell of <b>Cycle</b> bars. <b>Chord</b>: 3-4 notes of the chord held; with the part's Arp on, it arpeggiates them. <b>Melody</b>: a walk through the scale; Gravity = probability of landing on a chord note on a strong beat; Density shortens the notes; Rest = probability of a pause. <b>Root</b>: the root (+ Fifth) retriggered every N bars; with the Seq on, it is the root that transposes the phrase. Its arrangement (enters, Drift) is in the Arrangement module.</div>
+    <div class="help"><b>Player of the part the instrument is editing</b> (these settings belong to the musician, not the preset). <b>Pulse</b>: E(k, n) spreads k hits over n steps per bar as evenly as possible (Bjorklund): E(3,8) is the tresillo. <b>Breathe</b>: the pulse fills up and empties on its own — the hits rise bar by bar up to k + Breathe and come back, in a swell of <b>Cycle</b> bars. <b>Chord</b>: 3-4 notes of the chord held; with the part's Arp on, it arpeggiates them. <b>Melody</b>: a walk through the scale; Gravity = probability of landing on a chord note on a strong beat; Density shortens the notes; Rest = probability of a pause. <b>Root</b>: the root (+ Fifth) retriggered every N bars; with the Seq on, it is the root that transposes the phrase. <b>Pattern</b>: the one that plays what YOU played — <b>● Rec</b> arms, the take starts with your first key, and ● again closes the loop (its length, what you played in whole bars); <b>+ Dub</b> adds to it while it plays; <b>Quantize</b> snaps the starts to a grid on playback, without touching the take; <b>Bars</b> shortens or lengthens the loop; <b>Edit</b> opens the Pattern screen, where the notes are fixed on a grid. It ignores the harmony; with the part's Seq on, its notes are the roots that transpose the phrase — the line you would play by hand over it. Its arrangement (enters, Drift) is in the Arrangement module.</div>
   </div>
   <div class="panel parts-off" id="arrange">
     <h2>Arrangement</h2>
@@ -797,15 +818,42 @@
     <div class="hrow arr-part"><span class="fieldlab" id="arrPartWho" title="The arrangement of the part the rack is editing: enters = minimum energy for it to play; Drift = a parameter of its preset that wanders slowly, and amt, how much">Part 1</span><div class="hrow" id="playerArr"></div></div>
     <div class="badge" id="arrInfo" style="margin-top:6px">—</div>
     <div class="row" style="gap:6px;margin-top:8px">
-      <button class="btn" id="sceneExp" title="Download the whole scene (presets, mix, room, harmony, players, arrangement, seed) as JSON">⇩ Scene</button>
-      <button class="btn" id="sceneImp" title="Load a scene from a JSON file (the repo's are in scenes/)">⇧ Scene</button>
+      <button class="btn" id="sceneExp" title="Download the whole scene (presets, mix, room, harmony, players, arrangement, seed) as JSON">⇩</button>
+      <button class="btn" id="sceneImp" title="Load a scene from a JSON file (the repo's are in scenes/)">⇧</button>
       <input type="file" id="sceneFile" accept="application/json,.json" style="display:none">
+      <input id="sceneName" type="text" placeholder="scene name…" maxlength="24" aria-label="Name of the scene" autocomplete="off" spellcheck="false" title="The scene's name: the one it is saved under in the Library">
+      <button class="btn" id="sceneSave" title="Save the whole scene — the four sounds with their mix, the room, the harmony, the players with their patterns, the arrangement — into «Scenes» in the Library, under this name. Saving again under the same name writes over yours (a factory scene of that name is left alone: yours is added beside it)">★ Save</button>
     </div>
-    <div class="help"><b>Scene arrangement</b> — the form on a scale of minutes. Energy = the center and Sway = the depth of a cosine swell of Cycle bars (rises, peaks halfway, falls): each part comes in when the energy passes its threshold; energy also scales velocity, pulse probability and melody density. Open = how much energy opens (or closes) the filter of every part (±1 octave at full). Surprise = one-bar silences scattered at random. <b>«Part N» row</b> (the part the instrument is editing): <b>Enters</b> = minimum energy for it to play (0 = always); <b>Drift</b> = a parameter of its preset that wanders slowly around its value, <b>Amt</b> = how much. All deterministic with the seed. <b>Scene</b> = room + harmony + arrangement + players + the 4 presets with their mix: ⇩ exports, ⇧ imports. The scene in progress is never lost on closing the page: when you come back, the welcome window offers it.</div>
+    <div class="help"><b>Scene arrangement</b> — the form on a scale of minutes. Energy = the center and Sway = the depth of a cosine swell of Cycle bars (rises, peaks halfway, falls): each part comes in when the energy passes its threshold; energy also scales velocity, pulse probability and melody density. Open = how much energy opens (or closes) the filter of every part (±1 octave at full). Surprise = one-bar silences scattered at random. <b>«Part N» row</b> (the part the instrument is editing): <b>Enters</b> = minimum energy for it to play (0 = always); <b>Drift</b> = a parameter of its preset that wanders slowly around its value, <b>Amt</b> = how much. All deterministic with the seed. <b>Scene</b> = room + harmony + arrangement + players (with their patterns) + the 4 presets with their mix: <b>★ Save</b> keeps it in the Library's «Scenes» under the name beside it (again under the same name = over yours); ⇩ exports it to a file, ⇧ imports one. The scene in progress is never lost on closing the page: when you come back, the welcome window offers it.</div>
   </div>
 </div>
 
 </div><!-- /secuenciacion -->
+
+<!-- ===================== PATTERN ===================== -->
+<div class="screen" data-screen-body="pattern" hidden>
+<div class="band band-full">
+  <div class="panel grow parts-off" id="pattern">
+    <h2>Pattern</h2>
+    <div class="pat-top">
+      <span class="badge pat-who" data-pat="who" title="The part whose loop this is: the one the instrument is editing (choose another with 1 2 3 4 in the header)">Part 1</span>
+      <button type="button" class="btn" data-pat="play" title="Start / stop the players (the same ▶ Play as the Harmony module)">▶ Play</button>
+          <button type="button" class="btn" data-pat="rec" title="Record a new loop from the keys (QWERTY, the screen or MIDI). It only arms: the take starts with your FIRST key. With the players stopped, that key is beat 1 of bar 1 and they start with it (with the Click already on, its nearest beat); with them playing, the take is the bar that key falls in. The Click goes on for the take. Press it again to close the loop: its length is what you played, rounded to whole bars. It replaces the loop there was (↶ brings it back)">● Rec</button>
+          <button type="button" class="btn" data-pat="dub" title="Overdub: the loop keeps playing and what you play is added to it, at the point of the loop where you play it. Press it again to finish">+ Dub</button>
+          <button type="button" class="btn" data-pat="undo" title="Undo the last change to the loop: a take, Clear, an edit">↶</button>
+          <button type="button" class="btn" data-pat="redo" title="Redo">↷</button>
+          <button type="button" class="btn" data-pat="clear" title="Empty the loop (↶ brings it back)">Clear</button>
+          <span class="pat-f" title="Length of the loop in bars. Shorter cuts the loop there, and the notes beyond are kept: longer brings them back"><span class="fieldlab">Bars</span><span class="stepper"><button type="button" data-pat="bar-">−</button><span class="num" data-pat="bars">–</span><button type="button" data-pat="bar+">+</button></span></span>
+          <span class="pat-f" title="Quantize: on playback each note starts on the nearest point of this grid (with the clock's swing). The take keeps the timing you played: Off plays it as it was, and the grid can be changed at any time. It is also the grid notes move on in the Pattern screen"><span class="fieldlab">Quantize</span><span class="seg" data-pat="quant"><button type="button" data-q="0">Off</button><button type="button" data-q="1">1/4</button><button type="button" data-q="0.5">1/8</button><button type="button" data-q="0.25">1/16</button></span></span>
+      <span class="pat-f" title="Zoom of the time: − + in and out, Fit shows the whole loop. On the grid: Ctrl + wheel zooms around the pointer, Shift + wheel scrolls the time, and the bar below it can be dragged"><span class="fieldlab">Zoom</span><span class="stepper"><button type="button" data-patzoom="-">−</button><button type="button" data-patzoom="+">+</button></span><button type="button" class="btn" data-patzoom="fit">Fit</button></span>
+      <span class="badge pat-info" data-pat="info"></span>
+      <span class="badge" id="patEdNote"></span>
+    </div>
+    <canvas id="patEd"></canvas>
+    <div class="help"><b>Pattern</b> — the loop of your own notes that the player of a part repeats (the part the instrument is editing: 1 2 3 4 in the header; its player goes to the «Pattern» mode). A loop per part, not a timeline. <b>● Rec</b> arms, the take starts with your first key and ● again closes the loop; <b>+ Dub</b> adds to it while it plays. The grid is where you fix it — time across (bars, beats and the Quantize grid), a row per semitone: <b>drag a note</b> sideways to move it in time (on the Quantize grid; Off = free) and up or down to change its pitch; <b>drag its right edge</b> for its length; the <b>mouse wheel</b> over a note is its velocity (brighter = louder), and over empty space it scrolls the pitches; <b>Ctrl + wheel</b> zooms the time around the pointer (− + and Fit above do too) and <b>Shift + wheel</b> scrolls it; the bar below the grid is the time in view and the one on the right the pitches, over the whole range, with a mark at the height of every note — both can be dragged; a <b>double click</b> on empty space adds a note and on a note deletes it (Delete too, for the selected one). <b>↶ ↷</b> undo and redo every change. <b>Quantize</b> acts on playback: a note is drawn where it will sound, and moving it writes that position. <b>Bars</b> cuts or lengthens the loop without losing the notes beyond its end. It ignores the scene's harmony; with the part's Seq on, the notes are the roots that transpose its phrase.</div>
+  </div>
+</div>
+</div><!-- /pattern -->
 
 <!-- ===================== PRESETS ===================== -->
 <div class="screen" data-screen-body="presets" hidden>
@@ -840,7 +888,7 @@
         <span class="kb-btn swc" id="kbClick" title="Click: a metronome on every beat at the clock's tempo, the 1 of each bar accented. It counts the bars of whatever is already playing (an arpeggio, a phrase, the players); on its own, it sets the grid the next one lands on. Straight to the output: no echo or reverb, and the WAV recorder does not hear it. The icon blinks with it, so it works as a visual metronome with the sound down"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 14L6.8 2.5H9.2L10.8 14Z"/><path d="M8 11L12.6 4.2"/></svg><span class="seg sw" id="clickSw"><button type="button">Off</button><button type="button">On</button></span></span>
         <span class="kb-btn" id="kbTap" title="Tap tempo: click it to the beat and the clock takes that tempo — from the third tap on, the median of the last intervals, so one early or late tap does not pull it. Keep tapping to refine it; a pause of two seconds starts a new count. A run of taps is one undo step"><button type="button" class="btn hico tap" id="tapBtn" aria-label="Tap tempo"><svg viewBox="0 0 16 16"><path d="M6.4 14.5V6.2a1.6 1.6 0 0 1 3.2 0V14.5M3.8 3.4A4.6 4.6 0 0 0 3.8 8.6M12.2 3.4A4.6 4.6 0 0 1 12.2 8.6"/></svg></button></span>
       </div>
-      <label class="kb-bend" title="Pitch bend range in semitones (saved with the preset): ±2 is usual; ±12 for basses and effects that drop an octave. In Parts mode, each part has its own"><select id="bendRangeSel"></select></label>
+      <div class="stepper kb-bend" id="kbBend" title="Pitch bend range in semitones (saved with the preset): ±2 is usual; ±12 for basses and effects that drop an octave. In Parts mode, each part has its own"><button type="button" data-bend="-1" title="Narrower bend range">−</button><span class="num" id="bendNum"></span><button type="button" data-bend="1" title="Wider bend range">+</button><select id="bendRangeSel"></select></div>
     </div>
     <div class="tstrips">
       <div class="tstrip bend" id="bendStrip" title="Pitch bend: drag up or down and everything that sounds bends with it; let go and it springs back to the center. How far it goes is the ± selector beside it (saved with the preset). A MIDI keyboard's bend wheel moves it too"></div>

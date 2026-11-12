@@ -21,6 +21,25 @@
      root     holds the root (± the fifth): a drone. Retriggers every N
               bars or on a chord change. With the part's Seq
               on, the held note is the ROOT that transposes its phrase.
+     pattern  the only one that is not generative: a LOOP of notes of your own,
+              recorded live from the keys (2026-11-12). cfg.pat = { bars, notes:
+              [{ b, len, m, v }] } — start and length in beats from the loop's
+              start, MIDI note, velocity — as they were PLAYED: the quantization
+              (cfg.quant, in beats; 0 = off) is applied on playback, so it can be
+              changed after the take, and a note beyond `bars` is not played but
+              not lost either (shortening the loop truncates, lengthening brings
+              it back). It ignores the harmony: the notes are the ones you played.
+              With the part's Seq on they are the roots that transpose its phrase
+              (same path as Root), so one mechanism covers «the bass line I played
+              over the phrase» and a free melody or chords.
+              A loop per part, not a timeline: no clips, no song.
+              TAKE: startTake(origin) records a new loop from the bar line
+              `origin` (the keys up to PAT_EARLY beats before it count as its
+              beat 0); endTake(t) closes it and its length is the time played
+              rounded to whole bars. startTake(_, true) OVERDUBS: the loop keeps
+              playing and the keys add notes to it.
+              UNDO: pushUndo() keeps a copy of the loop before a change (a take,
+              Clear, an edit in ui/patternEditor.js); undo() / redo() walk them.
    Per-part arrangement: «Enters» = the energy threshold from which it plays;
    «Drift» = a preset parameter that wanders slowly (the hands of someone
    improvising): relative to the value it had when it was turned on, with 3 sines of
@@ -33,7 +52,7 @@
 import { mulberry32 } from './Harmony.js';
 import { PARAMS } from './params.js';
 
-export const PLAYER_MODES = ['off', 'pulse', 'chord', 'melody', 'root'];
+export const PLAYER_MODES = ['off', 'pulse', 'chord', 'melody', 'root', 'pattern'];
 export const MODE_OCT = { pulse: 2, chord: 4, melody: 5, root: 2 };   // default octave when choosing the mode
 // levelB: B comes in and out over A (replaces 'mix' since the mixer; Conductor.fromJSON translates the scenes)
 export const DRIFT_KEYS = ['off', 'cutoff', 'morph', 'wtPos', 'levelB', 'pulseWidth', 'fmIndex', 'reverbMix', 'dlyAmt', 'width', 'vocVowel', 'chAmt'];
@@ -44,8 +63,19 @@ export const PLAYER_DEF = {
   notes: 3,                                                 // chord
   density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melody
   fifth: 0, every: 2,                                       // root
+  pat: null, quant: 0.25,                                   // pattern: the loop ({bars, notes}) and the playback grid in beats (0 = as played)
   threshold: 0, drift: 'off', driftAmt: 0.3,                 // the part's arrangement
 };
+export const PAT_MAX_BARS = 16;                // longest loop
+export const PAT_QUANTS = [0, 1, 0.5, 0.25];   // playback grids, in beats: off · 1/4 · 1/8 · 1/16
+const PAT_STEP = 0.25;      // beats scheduled per call: the loop is read in windows of a sixteenth
+export const PAT_EARLY = 0.5;      // beats before the take's bar line in which a key already counts as its beat 0 (you land a bit early on the 1)
+const PAT_MIN_LEN = 0.05;   // beats: shortest note kept (a key struck and released within one audio block)
+const PAT_UNDO = 40;        // copies of the loop kept for undo
+const PAT_FRESH = 1;        // beats after it was played in which an overdubbed note is not played back (quantized forward, it would sound twice)
+export const clonePat = p => (p ? { bars: p.bars, notes: p.notes.map(n => ({ b: n.b, len: n.len, m: n.m, v: n.v })) } : null);
+// Where a note starts in a loop of L beats on the grid q: its own beat, or the nearest grid point (the loop's end is its start)
+export function patStart(n, q, L) { const s = q > 0 ? Math.round(n.b / q) * q : n.b; return s >= L - 1e-9 ? s - L : s; }
 const BAR = 4;            // beats per bar (4/4)
 const GRID_MEL = 0.5;     // melody grid: eighths (in beats)
 const clamp01 = x => x < 0 ? 0 : (x > 1 ? 1 : x);
@@ -68,12 +98,16 @@ export class Player {
     this.log = null;            // [] to log the events (selftest)
     this.driftKey = 'off'; this.driftBase = undefined;
     this.pending = new Map();   // id → {when}: a key already given to the part's Arp/Seq that has not started yet (or has no note-off)
+    this.take = null;           // the recording in progress: {origin, dub, notes, open: id → {n, at}, snap, added}
+    this.hist = []; this.redoStack = [];   // copies of the loop before each change, and the ones undone
+    this.fresh = new WeakMap(); // overdubbed note → the beat from which it may be played back
     this.reset();
   }
   reset() {
     if (this.held && this.held.length) this.releaseHeld(this.c.ctx.currentTime);   // changing the seed on the fly leaves no orphan notes
     if (this.pending) this.clearPending();
     this.nextBeat = 0; this.held = []; this.seq = 0; this.busy = 0; this.melIdx = -1; this.lastKey = null;
+    this.patOrigin = 0; this.take = null;   // the loop starts with the conductor's beat 0; a take does not survive a restart
     this.rng = mulberry32((this.c.seed * 7919 + this.i * 104729 + 13) | 0);
     const rngD = mulberry32((this.c.seed * 31 + this.i * 17 + 5) | 0);
     this.driftPhase = [0, 1, 2].map(() => rngD() * 2 * Math.PI);
@@ -81,6 +115,7 @@ export class Player {
   setMode(mode) {
     if (mode === this.cfg.mode) return;
     this.releaseHeld(this.c.ctx.currentTime); this.clearPending();
+    this.take = null;                                  // a take belongs to the pattern mode: leaving it drops it
     this.cfg.mode = mode;
     if (MODE_OCT[mode] !== undefined) this.cfg.oct = MODE_OCT[mode];
     this.busy = 0; this.melIdx = -1; this.lastKey = null;
@@ -91,7 +126,7 @@ export class Player {
     this.cfg.drift = key; this.driftKey = key;
     this.driftBase = key !== 'off' ? this.part.engine.S[key] : undefined;
   }
-  stop(when) { this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }
+  stop(when) { if (this.take) this.endTake(when); this.releaseHeld(when); this.clearPending(); this.busy = 0; this.lastKey = null; }   // stopping the conductor closes the take: what was played is kept
   releaseHeld(when) { for (const id of this.held) this._off(id, when); this.held = []; }
   // Withdraws from the part's Arp/Seq the keys given to it that have no note-off yet
   // (those not yet started and the held ones): otherwise, after stopping (or
@@ -247,6 +282,82 @@ export class Player {
     this.busy = (len - 1) * step;
     this.nextBeat = b + step;
   }
+
+  // ---------- pattern: the loop and its takes ----------
+  _pattern(nowB) {
+    const c = this.cfg, step = PAT_STEP;
+    if (this.nextBeat < nowB - 1) this.nextBeat = Math.ceil(nowB / step) * step;
+    const b = this.nextBeat, pat = c.pat, tk = this.take;
+    this.nextBeat = b + step;
+    if (tk && !tk.dub && b >= tk.origin - 1e-9) return;        // a new take replaces the loop: silent from its bar line on
+    if (!pat || !pat.notes.length) return;
+    const a = this._arr(b);
+    if (!a.active) return;
+    const L = pat.bars * BAR, q = c.quant, pos = (((b - this.patOrigin) % L) + L) % L, cyc = b - pos;
+    for (const n of pat.notes) {
+      if (n.b >= L - 1e-9) continue;                           // beyond the loop's length: kept, not played
+      const s = patStart(n, q, L);
+      if (s < pos - 1e-9 || s >= pos + step - 1e-9) continue;
+      const at = cyc + s;
+      if (this.fresh.get(n) > at) continue;                    // just played by hand: it comes in on the next lap
+      const t = q > 0 ? this.c.swungTime(at, q) : this.c.timeAt(at);   // on a grid, with the clock's swing
+      const id = this._id();
+      this._on(id, n.m, Math.min(1, n.v * a.velMul), t);
+      this._off(id, t + Math.max(PAT_MIN_LEN, Math.min(n.len, L)) * this.c.beatLen());
+    }
+  }
+  // A take from the bar line `origin` (conductor beats); dub = add to the loop that is playing
+  startTake(origin, dub = false) {
+    const c = this.cfg;
+    if (dub && !(c.pat && c.pat.notes.length)) dub = false;    // nothing to add to: it is a new take
+    this.take = { origin: dub ? this.patOrigin : origin, dub, notes: [], open: new Map(), snap: dub ? clonePat(c.pat) : null, added: 0 };
+    return this.take;
+  }
+  // A live key at audio time t (ui: parts.setNoteTap). It sounds through the usual path; here it is only written down
+  recOn(id, midi, vel, t) {
+    const tk = this.take; if (!tk) return false;
+    const abs = this.c.beatAt(t);
+    let b = abs - tk.origin;
+    if (tk.dub) { const L = this.cfg.pat.bars * BAR; b = ((b % L) + L) % L; }
+    else if (b < -PAT_EARLY) return false;                     // still counting in
+    else if (b < 0) b = 0;
+    const n = { b, len: PAT_MIN_LEN, m: Math.round(midi), v: Math.max(0.05, Math.min(1, vel)) };
+    if (tk.dub) { this.cfg.pat.notes.push(n); this.fresh.set(n, abs + PAT_FRESH); tk.added++; }
+    else tk.notes.push(n);
+    tk.open.set(id, { n, at: Math.max(abs, tk.origin) });
+    return true;
+  }
+  recOff(id, t) {
+    const tk = this.take, o = tk && tk.open.get(id); if (!o) return;
+    tk.open.delete(id);
+    o.n.len = Math.max(PAT_MIN_LEN, this.c.beatAt(t) - o.at);
+  }
+  // Closes the take at t. A new one becomes the loop, as long as what was played, in whole bars (the nearest: stopping
+  // just after the bar line does not add an empty bar); with no notes, the loop there was stays. Returns true if it changed
+  endTake(t) {
+    const tk = this.take; if (!tk) return false;
+    for (const id of [...tk.open.keys()]) this.recOff(id, t);
+    this.take = null;
+    if (tk.dub) { if (tk.added) { this.hist.push(tk.snap); this.redoStack.length = 0; } return tk.added > 0; }
+    if (!tk.notes.length) return false;
+    const bars = Math.max(1, Math.min(PAT_MAX_BARS, Math.round((this.c.beatAt(t) - tk.origin) / BAR)));
+    this.pushUndo();
+    this.cfg.pat = { bars, notes: tk.notes };
+    this.patOrigin = tk.origin;
+    return true;
+  }
+  // Undo: call pushUndo() BEFORE changing the loop. The copies are whole loops (they are small); undo and redo
+  // swap the live one for a copy, so whoever holds a note of the old one (a selection) must let go of it
+  pushUndo() { this.hist.push(clonePat(this.cfg.pat)); if (this.hist.length > PAT_UNDO) this.hist.shift(); this.redoStack.length = 0; }
+  canUndo() { return !this.take && this.hist.length > 0; }
+  canRedo() { return !this.take && this.redoStack.length > 0; }
+  undo() { if (!this.canUndo()) return false; this.redoStack.push(clonePat(this.cfg.pat)); this.cfg.pat = this.hist.pop(); return true; }
+  redo() { if (!this.canRedo()) return false; this.hist.push(clonePat(this.cfg.pat)); this.cfg.pat = this.redoStack.pop(); return true; }
+  clearHist() { this.hist.length = 0; this.redoStack.length = 0; }
+  clearPat() { if (this.take || !this.cfg.pat) return; this.pushUndo(); this.cfg.pat = null; }
+  setPatBars(bars) { const p = this.cfg.pat; if (p) p.bars = Math.max(1, Math.min(PAT_MAX_BARS, Math.round(bars))); }
+  // Where the loop is now, 0..1 (the UI's playhead); −1 if there is none
+  patPhase(t) { const p = this.cfg.pat; if (!p) return -1; const L = p.bars * BAR; return ((((this.c.beatAt(t) - this.patOrigin) % L) + L) % L) / L; }
 
   // Slow drift of the chosen parameter (the conductor calls it every ~100 ms, live).
   // Smooth walk ≈ ±1: 3 sines of prime periods (in beats) with phases from the seed.

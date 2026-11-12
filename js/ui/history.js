@@ -16,6 +16,7 @@
    edit; touching any control while comparing first goes back to your edit
    (what you touch is added to it: it is never lost).
    ===================================================================== */
+import { tipOf } from './tips.js';
 import { CONTROLS, snapshot } from './registry.js';
 import { PARAMS } from '../engine/params.js';
 import { sceneOn, getScene } from '../engine/parts.js';
@@ -51,7 +52,7 @@ function labelOf(keys) {
   const k = keys[0], el = CONTROLS[k] && CONTROLS[k].el;
   if (!el) return k;
   const ctl = el.closest('.ctl') || el;
-  const lab = (ctl.dataset.lab || ctl.querySelector('.lab')?.textContent || el.title || el.dataset.title0 || k).trim();   // title0: dimmed (ui/deps.js)
+  const lab = (ctl.dataset.lab || ctl.querySelector('.lab')?.textContent || tipOf(el) || el.dataset.title0 || k).trim();   // title0: dimmed (ui/deps.js)
   const h2 = el.closest('.panel')?.querySelector('h2');
   const sec = h2 ? [...h2.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() : '';
   return sec ? sec + ' · ' + lab : lab;
@@ -112,8 +113,16 @@ function travel(from, to, side, verb) {
   refresh();
   return step;
 }
-export const undo = () => { const s = stack(); return travel(s.undo, s.redo, 'b', 'Undo'); };
-export const redo = () => { const s = stack(); return travel(s.redo, s.undo, 'a', 'Redo'); };
+// ANOTHER UNDO IN CHARGE. The rack's history is of the preset; on the Pattern screen what you edit is the loop of a
+// player, which keeps its own (engine/Player.js). There the header's ↶ ↷ and Ctrl+Z / Ctrl+Y must undo THAT: whoever
+// owns such a history registers a function that returns it while it is in charge — { canUndo, canRedo, what, undo(),
+// redo() } — or null (ui/playerControls.js). One at a time; the rack's own is untouched meanwhile.
+let altUndo = null;
+export function setUndoAlt(fn) { altUndo = fn; refresh(); }
+export const refreshHistory = () => refresh();
+const alt = () => (altUndo ? altUndo() : null);
+export const undo = () => { const a = alt(); if (a) { if (a.canUndo) a.undo(); refresh(); return null; } const s = stack(); return travel(s.undo, s.redo, 'b', 'Undo'); };
+export const redo = () => { const a = alt(); if (a) { if (a.canRedo) a.redo(); refresh(); return null; } const s = stack(); return travel(s.redo, s.undo, 'a', 'Redo'); };
 export const historyDepth = () => ({ undo: stack().undo.length, redo: stack().redo.length });
 
 // ---------- compare with the saved one ----------
@@ -145,7 +154,8 @@ function refresh() {
   if (pend) return; pend = true;
   requestAnimationFrame(() => {
     pend = false;
-    const s = stack(), u = s.undo[s.undo.length - 1], r = s.redo[s.redo.length - 1];
+    const s = stack(), a = alt();
+    const u = a ? (a.canUndo ? { label: a.what } : null) : s.undo[s.undo.length - 1], r = a ? (a.canRedo ? { label: a.what } : null) : s.redo[s.redo.length - 1];
     if (ui.undo) { ui.undo.disabled = !u; ui.undo.title = u ? 'Undo: ' + u.label + ' (Ctrl+Z)' : 'Nothing to undo'; }
     if (ui.redo) { ui.redo.disabled = !r; ui.redo.title = r ? 'Redo: ' + r.label + ' (Ctrl+Y)' : 'Nothing to redo'; }
     const mod = comparing ? true : isModified();

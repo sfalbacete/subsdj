@@ -6,8 +6,44 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## [Unreleased]
+## [2.0.0] — 2026-11-13
 
+The synth learns to play **what you played**. A new player mode, **Pattern**, keeps a loop of your own
+notes for its part — recorded live from the keys, starting on your first one — and a new **Pattern
+screen** shows it on a grid to fix it or write it by hand. **From pattern** reads the key and the
+progression from that loop so the generative players follow it, and scenes are saved into the Library
+with **★ Save**. Around it: panels and buttons with relief, the keyboard as a module with touch
+strips for bend and modulation, Click and Tap, one tooltip for everything. Nothing saved stops
+loading or sounding the same — the 2 is for what the instrument has become: something to improvise
+with, not only to design sounds on. Still a loop per part, not a timeline.
+
+- **Pattern: a player that plays what you played, and a screen to fix it.** A sixth player mode, the
+  only one that is not generative: a loop of your own notes for its part, recorded live from the keys
+  (QWERTY, the screen or MIDI). **● Rec** arms and the take starts with your **first key** — stopped,
+  that key is beat 1 and the players start with it; playing, the take is the bar it falls in — with
+  the Click on for the take; ● again closes the loop, as long as what you played in whole bars.
+  **+ Dub** adds notes to the loop while it plays, **Bars** shortens or lengthens it (the notes
+  beyond the end are kept, not lost) and **Quantize** (Off · 1/4 · 1/8 · 1/16) snaps the starts on
+  playback without touching the take, so it can be changed afterwards. The new **Pattern** screen
+  shows the loop on a grid — bars and beats across, a row per semitone — to fix what was recorded or
+  write it by hand: drag a note to move it in time (on the Quantize grid) or in pitch, drag its right
+  edge for its length, the mouse wheel is its velocity, a double click adds a note or deletes one,
+  and **↶ ↷** undo and redo every change — the header's undo and Ctrl+Z / Ctrl+Y do too, on that
+  screen. The time **zooms** (Ctrl + wheel, or − + and Fit) and scrolls (Shift + wheel), following
+  the playhead; the bar on the right is the pitch over the whole range, with a mark at the height of
+  every note. The Pattern tab is off while Parts are off. It ignores the scene's harmony — the notes are yours — and
+  with the part's Seq on they are the roots that transpose its phrase: the line you would play by
+  hand over it, kept. Saved with the scene and the session. A loop per part, not a timeline.
+- **Harmony from a pattern.** A new **From pattern** button in the Harmony module reads the root, the
+  scale, the progression and the bars per chord from the notes of a Pattern loop and writes them
+  there, so the generative players — Pulse, Chord, Melody, Root — play in the key of what you
+  played. It is a guess, with candidates: press again for the next one (the same notes are C major
+  and A minor) and keep the one that sounds right. **All parts**: off, it reads the loop of the part
+  the instrument is editing; on, every Pattern loop together.
+- **★ Save for scenes.** The Arrangement module saves the whole scene — sounds, mix, room, harmony,
+  players with their patterns, arrangement — into the Library's «Scenes» under the name beside the
+  button; saving again under the same name writes over yours. ⇩ and ⇧ (export / import a file) are
+  now icons.
 - **Panels with relief.** The light falls from above on the panels as it does on the knobs: a bevel
   that is lit on the top edge and shaded on the bottom one, a face that barely fades downwards and a
   shadow cast on a background that is a notch lighter. Corners are a little tighter, the sections of
@@ -28,6 +64,18 @@ scenes, libraries, MIDI maps). The why behind each module is in
   that instead. It is a gesture: it no longer turns the Vibrato knob (the old factory CC1 mapping,
   now gone), so it does not change the preset. A MIDI map you saved yourself is left as it is;
   **⟲ Factory** in MIDI learn brings the new one.
+- **One tooltip, in glass.** Everything that carries a hint — knobs, switches, buttons, the library —
+  now shows it in the same tooltip as the modules' «?» and the dimmed controls: frosted glass over
+  the instrument, the name in ink and the detail after it. Icons show theirs at once; the rest after
+  a short pause, and not while you drag. The browser's own grey tooltip is gone.
+- **Raised buttons, one grid per band.** Buttons, steppers and the keyboard's icons take the
+  panels' relief (lit bevel, short shadow; pressed, they sink). The knobs of neighbouring modules
+  now share their lines: two rows per band at the same heights, captions and values level across
+  Oscillators, Mixer, Unison, FM and String; Vocal, Resonator, Filter and Voice; Delay, Reverb, Tape
+  and Stereo. Module titles sit on one line; the Delay's Fdbk and Sat moved beside its first row and
+  the Chorus' mode under its knobs.
+- **Keyboard section.** The bend range is a − ±n + stepper like the octave's, and the mouse wheel
+  moves the two touch strips (Shift = fine; the bend lets go by itself after a pause).
 - **Click and Tap on the keyboard bar.** **Click** is a metronome on the shared clock: a tick on
   every beat, the 1 of each bar accented, at the clock's tempo. It counts the bars of whatever is
   already playing (an arpeggio, a phrase, the players) and, on its own, it sets the grid the next one

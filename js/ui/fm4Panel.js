@@ -8,6 +8,7 @@
    - the selected operator in detail: its A D S R, Vel, Key, Detune and Fixed. The four detail
      rows are always in the DOM (MIDI learn, undo, presets, the selftest reach every knob); only
      the selected one shows. Which one is selected is the panel's, not the sound's: it is not saved. */
+import { tipOf } from './tips.js';
 import { CONTROLS } from './registry.js';
 import { FM4_ALGS, svgFor, LARGE } from './fm4Graph.js';
 import { bindSeg } from './oscControls.js';
@@ -53,7 +54,7 @@ export function initFm4Panel() {
     num.textContent = String(ai + 1);
     if (name) name.textContent = b ? b.dataset.name : '';
     graph.innerHTML = svgFor(ai, +CONTROLS.fm4Fb.get() > 0, { ...LARGE, sel });
-    graph.title = b ? b.title + ' · click a box to edit that operator' : '';
+    graph.title = b ? tipOf(b) + ' · click a box to edit that operator' : '';
     for (let i = 0; i < 4; i++) {
       const car = a.car.includes(i), k = n => +CONTROLS[n + (i + 1)].get();
       boxes[i].classList.toggle('car', car); boxes[i].classList.toggle('sel', i === sel);

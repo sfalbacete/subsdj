@@ -13,6 +13,10 @@
    resolves) with common-practice probabilities: from T it goes to S or D, from S
    almost always to D, D resolves to T. Deterministic: seeded PRNG
    (mulberry32) — same seed, same session (the basis of C3's scenes).
+   `offset` (bars): the bar of the conductor where the progression's first
+   chord starts. 0 as a rule; a harmony read from a pattern (engine/
+   inferHarmony.js) starts where that loop does, which is the bar its take
+   began on. Not saved: a scene starts from bar 0, and so does its loop.
    ===================================================================== */
 export const SCALES = {
   'major':          [0, 2, 4, 5, 7, 9, 11],
@@ -65,6 +69,7 @@ export function parseProg(str) {
 export class Harmony {
   constructor({ root = 0, scale = 'minor', prog = [1, 6, 4, 5], bars = 2, mode = 'list', seed = 1 } = {}) {
     this.root = root; this.scale = scale; this.prog = prog; this.bars = bars; this.mode = mode;
+    this.offset = 0;
     this.setSeed(seed);
   }
   setSeed(seed) { this.seed = seed; this._walk = []; this._rng = mulberry32((seed * 7919 + 17) | 0); }
@@ -72,10 +77,10 @@ export class Harmony {
 
   // Current degree at bar `bar` (each chord lasts `bars` bars)
   degreeAt(bar) {
-    const i = Math.max(0, Math.floor(bar / Math.max(1, this.bars)));
-    if (this.mode === 'functions') return this._walkDegree(i);
+    const i = Math.floor((bar - (this.offset || 0)) / Math.max(1, this.bars));
+    if (this.mode === 'functions') return this._walkDegree(Math.max(0, i));
     const p = this.prog && this.prog.length ? this.prog : [1];
-    return p[i % p.length];
+    return p[((i % p.length) + p.length) % p.length];
   }
   // Function walk: generated on demand and stored (deterministic with the seed)
   _walkDegree(i) {
