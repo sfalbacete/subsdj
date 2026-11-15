@@ -88,6 +88,12 @@ const deselect = () => { selected.clear(); sel = null; };
 const selectOnly = n => { selected.clear(); selected.add(n); sel = n; };
 let hover = null;            // { n, edge } under the pointer
 let lastPl = null, raf = 0, prevT = 0, wheelT = 0;
+// The clipboard (P3): notes copied from any part, as they were stored (the timing as played: each part's
+// Quantize applies on playback), with the bars of the loop they came from. The synth's own, not the system's:
+// it lasts while the page is open
+let clip = null;             // { bars, notes: [{ b, len, m, v }] }
+let flash = null;            // { text, until }: a word after Copy / Paste on the line of text
+const FLASH_MS = 1800;
 
 const viewW = () => W - KEY_W - SB, viewH = () => H - RULER_H - SB;
 const rows = () => Math.max(1, Math.floor(viewH() / ROW_H));
@@ -245,6 +251,7 @@ function describe(n, lp) {
 function say(pl) {
   const el = document.getElementById('patEdNote'); if (!el) return;
   if (!pl) { el.textContent = ''; return; }
+  if (flash && performance.now() < flash.until && !drag) { el.textContent = flash.text; return; }
   const lp = loopOf(pl), list = selList(lp);
   const n = drag && drag.n ? drag.n : (hover && hover.n) || (list.length === 1 ? list[0] : null);
   if (n) { el.textContent = describe(n, lp); return; }
@@ -385,11 +392,44 @@ function wheel(e) {
     edited(); say(pl);
   } else { const r = rows(); top = clamp(top + dir * SCROLL_ROWS, r - 1, 127); }
 }
+const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
+function tell(pl, text) { flash = { text, until: performance.now() + FLASH_MS }; say(pl); setTimeout(() => say(patPlayer()), FLASH_MS + 50); }
+// Copy: the selection, or the whole loop if nothing is selected
+export function patCopy() {
+  const pl = patPlayer(); if (!pl || !pl.cfg.pat) return false;
+  const lp = loopOf(pl), list = selected.size ? selList(lp) : inLoop(lp);
+  if (!list.length) return false;
+  clip = { bars: pl.cfg.pat.bars, notes: list.map(n => ({ b: n.b, len: n.len, m: n.m, v: n.v })) };
+  paintClip();
+  tell(pl, 'Copied ' + plural(list.length, 'note') + (selected.size ? '' : ' (the whole loop)'));
+  return true;
+}
+// Paste: ADDED to the loop of the part being edited, at the same places, and selected (a part without a loop gets
+// one as long as the one they came from, and its player goes to Pattern). One undo step
+export function patPaste() {
+  const pl = patPlayer(); if (!clip || !editable(pl)) return false;
+  if (pl.cfg.mode !== 'pattern') pl.setMode('pattern');
+  pl.pushUndo();
+  if (!pl.cfg.pat) pl.cfg.pat = { bars: clip.bars, notes: [] };
+  const L = pl.cfg.pat.bars * BAR, copies = clip.notes.map(n => ({ ...n }));
+  pl.cfg.pat.notes.push(...copies);
+  selected.clear(); sel = null;
+  for (const c of copies) if (c.b < L - 1e-9) selected.add(c);
+  const out = copies.length - selected.size;
+  edited();
+  tell(pl, 'Pasted ' + plural(copies.length, 'note') + (out ? ' (' + out + ' beyond this loop: Bars + shows them)' : ''));
+  return true;
+}
+function paintClip() { document.querySelectorAll('[data-patclip="paste"]').forEach(b => { b.disabled = !clip; b.title = clip ? 'Paste (Ctrl+V): ' + plural(clip.notes.length, 'note') + ' added to the loop of this part, at the same places' : 'Paste (Ctrl+V): nothing copied yet'; }); }
+
 // Keys on the Pattern screen (not while typing, nor on a selector or a slider: those keep their arrows)
 function key(e) {
   if (currentScreen() !== 'pattern') return;
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.code === 'KeyC' || e.code === 'KeyV')) {   // copy / paste (a part without a loop can take one)
+    e.preventDefault(); if (e.code === 'KeyC') patCopy(); else patPaste(); return;
+  }
   const pl = patPlayer(); if (!editable(pl) || !pl.cfg.pat) return;
   const lp = loopOf(pl), ctl = e.ctrlKey || e.metaKey;
   if (ctl && !e.altKey && e.code === 'KeyA') {             // all
@@ -474,6 +514,8 @@ export function initPatternEditor() {
   cv.addEventListener('dblclick', dbl);
   cv.addEventListener('wheel', wheel, { passive: false });
   window.addEventListener('keydown', key);
+  document.querySelectorAll('[data-patclip]').forEach(b => b.addEventListener('click', () => { b.blur(); if (b.dataset.patclip === 'copy') patCopy(); else patPaste(); }));
+  paintClip();
   document.querySelectorAll('[data-patzoom]').forEach(b => b.addEventListener('click', () => { b.blur(); patZoom(b.dataset.patzoom); }));
   const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
   document.addEventListener('screen-changed', kick);

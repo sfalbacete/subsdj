@@ -3619,3 +3619,20 @@ undo step, as with the arrows.
 **Evidence.** Selftest «pattern loop operations»: ×2 with a note beyond and an early 1, ▸ ◂ and
 Ctrl+← round the ends, Off keeps the timing, four gestures four steps and ↶ ×4 back to the start, ×2
 off past 16 bars.
+
+## Pattern 2.0, P3: copy and paste between parts (2026-11-16)
+
+A clipboard of notes in `ui/patternEditor.js`, the synth's own (not the system's: nothing to
+parse, and it lasts while the page is open). Copy takes the selection, or the whole loop with
+nothing selected; each note goes as it is STORED — the timing as played — because Quantize is a
+setting of each part and applies on playback: the same notes pasted into a part on 1/8 sound on
+1/8. Paste ADDS to the loop of the part being edited, at the same places, and selects what came in,
+so the next gesture (Shift+↓ for a bass, a drag) acts on it; to replace, Clear first. A part with no
+loop takes one as long as the source (and its player goes to Pattern, as with a double click on an
+empty grid). Notes that land beyond a shorter loop are kept, like everything beyond the end, and
+the line of text says so. One undo step. Ctrl+C / Ctrl+V are only taken on the Pattern screen and
+outside text fields.
+
+**Evidence.** Selftest «pattern copy and paste between parts»: the whole loop into a part without
+one (mode, bars, timing kept, selected), an octave down without touching the original, a selection
+copied and added, a note beyond a shorter loop kept and said, ↶.

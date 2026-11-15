@@ -20,6 +20,10 @@ scenes, libraries, MIDI maps). The why behind each module is in
   vary its ending (the notes kept beyond the end stay beyond; up to 16 bars). **Rotate ◂ ▸** (Ctrl
   + ← → on the grid) shifts the whole loop a grid step, what leaves at one end coming in at the
   other — the same notes on another part of the beat. One undo step each.
+- **Pattern screen: Copy and Paste between parts.** **Copy** (Ctrl+C) takes the selected notes, or the
+  whole loop; **Paste** (Ctrl+V) adds them to the loop of the part being edited, at the same places,
+  selected — so the same line can go to another sound, and Shift+↓ takes it an octave down for a
+  bass. A part without a loop gets one (and its player goes to Pattern). One undo step.
 
 ## [2.0.0] — 2026-11-13
 

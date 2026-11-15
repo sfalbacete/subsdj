@@ -4161,6 +4161,75 @@ export async function runSelfTest() {
   }
 
   {
+    // Copy and paste between parts (Pattern 2.0, P3): Copy with nothing selected takes the whole loop; Ctrl+V in a part
+    // without a loop gives it one as long as the original, puts its player on Pattern and selects what was pasted (so
+    // Shift+↓ takes it an octave down, and the original does not move); Copy with a selection takes only that; pasting
+    // ADDS; notes beyond a shorter loop are kept and said; one undo step each.
+    const NAME = 'pattern copy and paste between parts (the whole loop or the selection · a part without a loop takes one · added, selected, independent of the original · beyond a shorter loop · one undo step)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen();
+    let sc = null, keeps = null, sel0 = 0;
+    try {
+      if (!wasOn) { $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      sc = getScene();
+      if (!sc || sc.conductor.players.length < 2) problems.push('no scene with two parts');
+      else {
+        sel0 = sc.sel;
+        const P = sc.conductor.players, pick = i => document.querySelector('#partSel button[data-p="' + i + '"]').click();
+        keeps = P.map(p => ({ ...p.cfg }));
+        showScreen('pattern');
+        pick(0);
+        const p0 = P[0], p1 = P[1];
+        p0.setMode('pattern'); p0.clearHist(); p0.cfg.quant = 0.25;
+        p0.cfg.pat = { bars: 1, notes: [{ b: 0.02, len: 1, m: 60, v: 0.8 }, { b: 0, len: 1, m: 64, v: 0.7 }, { b: 0.03, len: 1, m: 67, v: 0.6 }, { b: 2, len: 1, m: 62, v: 0.5 }] };
+        p1.setMode('root'); p1.cfg.pat = null; p1.clearHist();
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: 0 } })); await frames();
+        const keyDown = (key, o = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...o }));
+        const ms = p => p.cfg.pat ? p.cfg.pat.notes.map(n => n.m).join(' ') : '–';
+        document.querySelector('.pat-top [data-patclip="copy"]').click();             // nothing selected: the whole loop
+        pick(1); await frames();
+        keyDown('v', { code: 'KeyV', ctrlKey: true });
+        if (p1.cfg.mode !== 'pattern' || !p1.cfg.pat || p1.cfg.pat.bars !== 1 || ms(p1) !== '60 64 67 62') problems.push('Ctrl+V in a part without a loop: ' + p1.cfg.mode + ', ' + JSON.stringify(p1.cfg.pat));
+        else {
+          if (p1.cfg.pat.notes[0].b !== 0.02) problems.push('the paste does not keep the timing as played: ' + p1.cfg.pat.notes[0].b);
+          if (patEdSelection().length !== 4) problems.push('the pasted notes are not the selection (' + patEdSelection().length + ')');
+          keyDown('ArrowDown', { shiftKey: true });
+          if (ms(p1) !== '48 52 55 50' || ms(p0) !== '60 64 67 62') problems.push('an octave down after pasting: part 2 ' + ms(p1) + ', part 1 ' + ms(p0) + ' (expected 48 52 55 50, and the original untouched)');
+          if (p1.hist.length !== 2) problems.push('paste and an octave: ' + p1.hist.length + ' undo steps (expected 2)');
+          // Copy with a selection: only that (Ctrl+A, and Shift+click takes the D out), and pasting adds
+          document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: 1 } })); await frames();   // the view on the notes, an octave down
+          keyDown('a', { code: 'KeyA', ctrlKey: true });
+          const G = patEdGeom(p1.cfg.pat.notes[3]);
+          const pe = (type, o) => $('patEd').dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 9, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: G.mid.x, clientY: G.mid.y, ...o }));
+          pe('pointerdown', { shiftKey: true }); pe('pointerup', { shiftKey: true });
+          keyDown('c', { code: 'KeyC', ctrlKey: true });
+          keyDown('v', { code: 'KeyV', ctrlKey: true });
+          if (ms(p1) !== '48 52 55 50 48 52 55') problems.push('copy of a selection and paste: ' + ms(p1) + ' (expected the chord added: 48 52 55 50 48 52 55)');
+          // beyond a shorter loop: a note at beat 5 of a 2-bar loop pasted in a 1-bar one is kept, not selected, and said
+          p1.cfg.pat = { bars: 2, notes: [{ b: 5, len: 1, m: 70, v: 0.8 }] }; document.dispatchEvent(new CustomEvent('pattern-changed'));
+          keyDown('a', { code: 'KeyA', ctrlKey: true }); keyDown('c', { code: 'KeyC', ctrlKey: true });
+          pick(0); await frames();
+          const h0 = p0.hist.length;
+          keyDown('v', { code: 'KeyV', ctrlKey: true });
+          if (p0.cfg.pat.notes.length !== 5 || patEdSelection().length !== 0 || !/beyond/.test($('patEdNote').textContent)) problems.push('a paste beyond the loop: ' + p0.cfg.pat.notes.length + ' notes, ' + patEdSelection().length + ' selected, «' + $('patEdNote').textContent + '»');
+          document.querySelector('.pat-top [data-pat="undo"]').click();
+          if (p0.cfg.pat.notes.length !== 4 || p0.hist.length !== h0) problems.push('↶ does not take the paste out');
+        }
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (sc && keeps) {
+        sc.conductor.players.forEach((p, i) => { p.setMode(keeps[i].mode); Object.assign(p.cfg, keeps[i]); p.clearHist(); });
+        const b = document.querySelector('#partSel button[data-p="' + sel0 + '"]'); if (b) b.click();
+      }
+      if (!wasOn && isOn()) { showScreen('design'); $('partsBtn').click(); }
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
     // Arrangement and scenes (Roadmap 4.0 · C3): (1) energy: bounded, starts at
     // energy − sway/2 and peaks halfway through the cycle; a part with a high
     // threshold is silent at the start and comes in at the peak; the surprise is

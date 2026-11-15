@@ -586,7 +586,7 @@ stops today at step 6: duplicate and vary the end, variants, switch on the next 
   content: from a motif to a phrase with a different ending), **rotate ← →** one grid step
   (circular: what leaves at the end comes back at the start), **transpose** ±1 / ±12. A few lines
   over `cfg.pat` each, one undo step each.
-- **P3 · Copy / paste the loop between parts.** The same line on another instrument, or an octave
+- **P3 · Copy / paste the loop between parts.** ✔ DONE 2026-11-16 (Copy / Paste, Ctrl+C / Ctrl+V: the selection or the whole loop, added at the same places). The same line on another instrument, or an octave
   down as a bass.
 
 ### Batch 2 · Live, where it is distinctive
