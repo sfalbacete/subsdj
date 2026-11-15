@@ -6,6 +6,17 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased
+
+- **Pattern screen: several notes at once.** A rubber band on empty space selects the notes it touches
+  (Shift adds or takes out, Ctrl+A takes the whole loop, a click on empty space lets go). Dragging a
+  selected note moves, re-pitches or lengthens the whole block, and the block stops whole at the
+  loop's edges so a chord never gets out of shape; **Alt + drag** leaves a copy behind. Arrows
+  transpose (↑ ↓ a semitone, Shift an octave) and move it a grid step (← →), **Ctrl+D** copies it
+  right after itself, the wheel over a selected note changes the velocity of all of them and Delete
+  deletes them. A block of up to six notes is heard as a chord while you move it. Every gesture is
+  one undo step.
+
 ## [2.0.0] — 2026-11-13
 
 The synth learns to play **what you played**. A new player mode, **Pattern**, keeps a loop of your own

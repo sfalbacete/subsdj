@@ -3572,3 +3572,30 @@ rack edits; on: every part whose player is on Pattern). It sets List mode.
 C → C major · 1 4 5 1, and at two bars a chord the same «at 2 bars»; a pentatonic riff offers its
 pentatonic; two loops of different length and start; empty loops give nothing; `offset`. The panel
 check presses the button, takes the second candidate and flips All parts.
+
+## Pattern 2.0, P1: several notes at once (2026-11-15)
+
+The first point of «Pattern 2.0» (docs/PLAN.md, from docs/PATTERN_EDITOR_IDEAS.md): fixing a chord
+note by note was the slowest thing on the screen. The selection is a set of note objects in
+`ui/patternEditor.js`; the engine does not change. The gestures of stage 2 stay as they were and
+only gain a plural: a press on empty space becomes a rubber band after 3 px (a plain click still lets
+go, a double click still adds), Shift adds or takes out, Ctrl+A takes the loop, Alt + drag leaves a
+copy behind, arrows transpose and move a grid step, Ctrl+D copies the block right after itself
+(its span rounded up to the grid), and the wheel over a selected note is the velocity of all.
+
+*The block moves as ONE piece.* The shift in time and in pitch is clamped for the block, not for each
+note: if one note would leave the loop or the MIDI range, the whole block stops, so a chord never
+gets out of shape. The same two rules as for one note: moving in time writes the position where it
+sounds (the grid), a pitch-only change keeps the timing as played.
+
+*Decided with Sergio:* ← → do not wrap round the loop (that is P2's rotation, for the whole loop);
+Ctrl+D does not lengthen the loop — the copies that do not fit are kept beyond its end, as when Bars
+shortens it (×2 in P2 is the way to lengthen). Escape stays the panic, not «deselect»: on a live
+instrument the key that cuts everything must never do something milder first.
+
+*Undo.* Every gesture is one step; a held arrow (key repeat) is one step too, so the 40 copies are
+not flooded.
+
+**Evidence.** Selftest «pattern editor: selection», with synthetic pointers and keys: rubber band,
+block drag on the grid, the block stopped whole at the loop's start, arrows and a held arrow, Ctrl+D
+and its copies selected, Shift+click in and out, Alt + drag, the wheel, Ctrl+A + Delete and ↶.

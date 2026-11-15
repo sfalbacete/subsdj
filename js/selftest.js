@@ -44,7 +44,7 @@ import { Harmony, SCALES } from './engine/Harmony.js';
 import { euclid, Player, PLAYER_DEF, patStart } from './engine/Player.js';
 import { patRecording, patArmed, harmonyFromPattern, setHarmonyFromAll } from './ui/playerControls.js';
 import { inferHarmony } from './engine/inferHarmony.js';
-import { patEdGeom, patZoom, patView } from './ui/patternEditor.js';
+import { patEdGeom, patZoom, patView, patEdSelection } from './ui/patternEditor.js';
 import { playOn, playOff } from './engine/parts.js';
 import { Conductor } from './engine/Conductor.js';
 import { CONTROLS, loadState, snapshot } from './ui/registry.js';
@@ -4005,6 +4005,106 @@ export async function runSelfTest() {
         showScreen('pattern'); $('partsBtn').click();
         if (currentScreen() !== 'sequencing') problems.push('Parts off while on the Pattern screen: it stays on «' + currentScreen() + '» (expected Sequencing)');
       }
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
+    // The Pattern screen's SELECTION (Pattern 2.0, P1): a rubber band takes the notes it touches; dragging one of them
+    // moves the whole block (in time on the grid and in pitch); the block stops whole at the loop's start, a chord never
+    // gets out of shape; ↓ a semitone, Shift+↑ an octave, → a grid step; Ctrl+D copies the block right after itself and
+    // selects the copies; Shift+click adds and takes out; Alt + drag leaves a copy behind; the wheel over a selected note
+    // is the velocity of all; Ctrl+A takes the whole loop and Delete deletes it; a click on empty lets go; every gesture
+    // is ONE undo step and ↶ brings the deleted block back.
+    const NAME = 'pattern editor: selection (rubber band · the block moves whole and stops whole · arrows · Ctrl+D · Shift+click · Alt + drag copies · wheel · Ctrl+A · Delete · one undo step each)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen();
+    try {
+      if (!wasOn) { $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      const sc = getScene();
+      if (!sc) problems.push('the Parts do not turn on');
+      else {
+        const pl = sc.conductor.players[sc.sel], keep = { ...pl.cfg }, cv = $('patEd');
+        showScreen('pattern');
+        pl.setMode('pattern'); pl.clearHist(); pl.cfg.quant = 0.25;
+        pl.cfg.pat = { bars: 2, notes: [{ b: 0.03, len: 1, m: 60, v: 0.5 }, { b: 0.02, len: 1, m: 64, v: 0.5 }, { b: 0.04, len: 1, m: 67, v: 0.5 },
+                                         { b: 2.48, len: 0.5, m: 62, v: 0.5 }, { b: 5, len: 1, m: 69, v: 0.5 }] };
+        const [c0, c1, c2, d0, a0] = pl.cfg.pat.notes, chord = [c0, c1, c2];
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+        await frames();
+        const opt = (o = {}) => ({ bubbles: true, cancelable: true, pointerId: 9, button: 0, ...o });
+        const pe = (type, p, o = {}) => cv.dispatchEvent(new PointerEvent(type, opt({ clientX: p.x, clientY: p.y, buttons: type === 'pointerup' ? 0 : 1, ...o })));
+        const dragTo = (p, q, o = {}) => { pe('pointerdown', p, o); pe('pointermove', { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, o); pe('pointermove', q, o); pe('pointerup', q, o); };
+        const click = (p, o = {}) => { pe('pointerdown', p, o); pe('pointerup', p, o); };
+        const keyDown = (key, o = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...o }));
+        const near = (a, b) => Math.abs(a - b) < 1e-6;
+        const selOf = () => patEdSelection();
+        const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+        let G = patEdGeom(c0);
+        const cell = (beat, m) => ({ x: G.left + beat * G.beatPx, y: G.top + (G.topNote - m + 0.5) * G.rowPx });
+        if (!G || !(G.beatPx > 20)) problems.push('the grid has no size: ' + JSON.stringify(G));
+        else {
+          // rubber band from empty space over the chord (beats 0.5–1.5, notes 59–72): the chord, not the D at 2.5
+          dragTo(cell(1.5, 72), cell(0.5, 59));
+          if (!same(selOf(), chord)) problems.push('the rubber band selects ' + selOf().map(n => n.m).join(' ') + ' (expected 60 64 67)');
+          if (pl.hist.length !== 0) problems.push('a rubber band is an undo step');
+          // drag the E a beat right and two semitones up: the whole chord goes, on the grid
+          G = patEdGeom(c1); dragTo(G.mid, { x: G.mid.x + G.beatPx, y: G.mid.y - 2 * G.rowPx });
+          if (!chord.every(n => near(n.b, 1)) || c0.m !== 62 || c1.m !== 66 || c2.m !== 69) problems.push('dragging the block: ' + JSON.stringify(chord) + ' (expected all at beat 1, notes 62 66 69)');
+          if (pl.hist.length !== 1) problems.push('a block drag is ' + pl.hist.length + ' undo steps');
+          // five beats to the left: it stops whole at the loop's start
+          G = patEdGeom(c0); dragTo(G.mid, { x: G.mid.x - 5 * G.beatPx, y: G.mid.y });
+          if (!chord.every(n => near(n.b, 0)) || c1.m - c0.m !== 4 || c2.m - c0.m !== 7) problems.push('the block at the loop\'s start: ' + JSON.stringify(chord) + ' (expected all at 0, the chord whole)');
+          // arrows: ↓ a semitone, Shift+↑ an octave, → a sixteenth
+          keyDown('ArrowDown'); keyDown('ArrowUp', { shiftKey: true }); keyDown('ArrowRight');
+          if (c0.m !== 73 || c1.m !== 77 || c2.m !== 80 || !chord.every(n => near(n.b, 0.25))) problems.push('arrows: ' + JSON.stringify(chord) + ' (expected 73 77 80 at beat 0.25)');
+          if (pl.hist.length !== 5) problems.push('two drags and three arrows: ' + pl.hist.length + ' undo steps (expected 5)');
+          // a held arrow (repeat) is still one step
+          keyDown('ArrowDown'); keyDown('ArrowDown', { repeat: true }); keyDown('ArrowUp', { repeat: true }); keyDown('ArrowUp', { repeat: true });
+          if (pl.hist.length !== 6 || c0.m !== 73) problems.push('a held arrow: ' + pl.hist.length + ' undo steps, note ' + c0.m + ' (expected 6 and 73)');
+          // Ctrl+D: a copy right after the block (it is a beat long: at 1.25), and the copies are the selection
+          keyDown('d', { code: 'KeyD', ctrlKey: true });
+          const cps = pl.cfg.pat.notes.slice(5);
+          if (pl.cfg.pat.notes.length !== 8 || !cps.every(n => near(n.b, 1.25)) || cps.map(n => n.m).join() !== '73,77,80') problems.push('Ctrl+D: ' + JSON.stringify(cps) + ' (expected 73 77 80 at beat 1.25)');
+          if (!same(selOf(), cps)) problems.push('after Ctrl+D the copies are not the selection');
+          // Shift+click adds the D, and takes it out again
+          G = patEdGeom(d0); click(G.mid, { shiftKey: true });
+          if (selOf().length !== 4 || !selOf().includes(d0)) problems.push('Shift+click does not add a note to the selection');
+          click(G.mid, { shiftKey: true });
+          if (selOf().length !== 3 || selOf().includes(d0)) problems.push('Shift+click on a selected note does not take it out');
+          // Alt + drag: the copies stay at 1.25 and the block goes a beat later
+          G = patEdGeom(cps[0]); dragTo(G.mid, { x: G.mid.x + G.beatPx, y: G.mid.y }, { altKey: true });
+          const at125 = pl.cfg.pat.notes.filter(n => near(n.b, 1.25)).map(n => n.m).sort().join();
+          if (pl.cfg.pat.notes.length !== 11 || !cps.every(n => near(n.b, 2.25)) || at125 !== '73,77,80') problems.push('Alt + drag does not leave a copy behind: ' + JSON.stringify(pl.cfg.pat.notes));
+          // the wheel over a selected note: all of them
+          G = patEdGeom(cps[0]);
+          cv.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: G.mid.x, clientY: G.mid.y, deltaY: -100 }));
+          if (!cps.every(n => near(n.v, 0.55))) problems.push('the wheel over a selected note: velocities ' + cps.map(n => n.v).join(' ') + ' (expected 0.55 each)');
+          // Ctrl+A, Delete, ↶
+          const steps = pl.hist.length;
+          keyDown('a', { code: 'KeyA', ctrlKey: true });
+          if (selOf().length !== 11) problems.push('Ctrl+A selects ' + selOf().length + ' of 11');
+          keyDown('Delete');
+          if (pl.cfg.pat.notes.length !== 0 || selOf().length) problems.push('Delete leaves ' + pl.cfg.pat.notes.length + ' notes');
+          if (pl.hist.length !== steps + 1) problems.push('Delete of a block is ' + (pl.hist.length - steps) + ' undo steps');
+          document.querySelector('.pat-top [data-pat="undo"]').click();
+          if (pl.cfg.pat.notes.length !== 11) problems.push('↶ does not bring the deleted block back');
+          // a click on empty lets go
+          await frames();
+          const n0 = pl.cfg.pat.notes[0];
+          G = patEdGeom(n0); click(G.mid);
+          if (selOf().length !== 1) problems.push('a click on a note does not select only it');
+          click(cell(7.5, n0.m));
+          if (selOf().length) problems.push('a click on empty space does not let the selection go');
+        }
+        pl.setMode(keep.mode); Object.assign(pl.cfg, keep); pl.clearHist();
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (!wasOn && isOn()) { showScreen('design'); $('partsBtn').click(); }
       showScreen(before);
     }
     push({ name: NAME, peak: 0, ok: !problems.length, problems });

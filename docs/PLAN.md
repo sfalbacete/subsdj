@@ -562,6 +562,65 @@ without loading (the rest of 1.4), the «909 Kit» loose end is done.
     alike.
   - Demos and tests OUTSIDE the main bank: loadable from their .json, but not seeded into the library.
 
+## Pattern 2.0 «a loop you can play with» (agreed 2026-11-15)
+
+**Origin:** docs/PATTERN_EDITOR_IDEAS.md (Sergio, 2026-11-15), read against the code of the
+Pattern player (`engine/Player.js`) and its screen (`ui/patternEditor.js`). The question for every
+point, from that document: *does it get to a musical idea, or transform one, in fewer steps, without
+losing control of what is sounding?* Still a loop per part, not a timeline (see «What we will NOT do»).
+
+**Already there (stages 1 and 2, 2026-11-12):** explicit length (Bars; an empty loop keeps its
+bars), overdub (+ Dub) with the whole pass as ONE undo step, quantize on playback (the take keeps
+the timing as played), the clock's swing (never applied twice), notes that cross the loop's end,
+monitoring apart from playback (an overdubbed note does not sound twice on its pass), note-offs by
+origin (NoteRouter), Panic, the loop saved in the scene. The document's practical test (its §13)
+stops today at step 6: duplicate and vary the end, variants, switch on the next bar, transpose.
+
+### Batch 1 · Quick editing (low cost, high value)
+
+- **P1 · Multiple selection.** Rubber band on empty space, Shift to add/remove, Ctrl+A; drag,
+  re-pitch, lengthen, delete and duplicate the whole selection; arrows ↑↓ a semitone (Shift: an
+  octave) and ←→ a grid step. Today a single note can be selected: fixing a chord is note by note.
+  Every gesture stays one undo step.
+- **P2 · Operations on the whole loop**, next to Bars: **×2** (double the length copying the
+  content: from a motif to a phrase with a different ending), **rotate ← →** one grid step
+  (circular: what leaves at the end comes back at the start), **transpose** ±1 / ±12. A few lines
+  over `cfg.pat` each, one undo step each.
+- **P3 · Copy / paste the loop between parts.** The same line on another instrument, or an octave
+  down as a bass.
+
+### Batch 2 · Live, where it is distinctive
+
+- **P4 · The pattern follows the harmony.** The loop transposed by the Conductor's chord (or by a
+  held key, like the Seq's phrase), optionally by degree (5.2 «notes by degree»). What turns a
+  recorded loop into one more player; the most interesting point of the plan.
+- **P5 · Non-destructive performance controls:** Transp, Gate %, Vel %, Mute (with tails), Restart
+  phase; a double click takes each back to neutral. In line with the other players (gate,
+  velocity multiplier).
+- **P6 · MIDI learn** (midimap) for Rec, Dub, Undo and Mute: play without letting go of the
+  controller.
+
+### Batch 3 · Needs a decision from Sergio
+
+- **P7 · Variants A–D per part**, switched on the next bar / the loop's start, with a visible
+  «pending» mark. Close to scenes and the Arrangement; to decide: does a scene keep the active
+  variant or all four. «More than one loop per part» was still undecided (2026-11-12).
+- **P8 · Step entry**, stopped: a cursor on the grid, a key or chord is written and the cursor
+  advances; keys for rest and tie. Step-record was ruled out for the Seq (which is step entry
+  already); here it makes more sense.
+- **P9 · Destructive quantize with strength** (50 / 75 / 100 %, durations apart), to fix a take
+  without making it robotic. Medium value: the playback quantize covers the main case.
+
+### Not doing (for now)
+
+Probability, 1:2 conditions and ratchets (they overlap with 5.1 in the Seq and with Steps: only if
+they bring something those do not); a second step view (the document itself advises against it);
+latency compensation (only if a real offset is measured); punch-in by regions (new take + Dub +
+undo cover it).
+
+**Order:** batch 1 whole (it completes the practical test up to its step 6), then P4; batch 3 waits
+for Sergio. Each point explained (what, how it is played, how it is done) before building it.
+
 ---
 
 # Earlier plans (history)
@@ -1184,7 +1243,7 @@ tempo-synced LFO.
   undo) and stage 2 (the **Pattern screen**: a grid to move, re-pitch, lengthen, add and delete notes,
   with undo / redo; the take starts with the first key instead of a count-in) DONE 2026-11-12. The
   screen is the place to grow it (Sergio: «a mechanism to improvise and enjoy, before exporting to a
-  real DAW»); not decided yet: several notes at once, copy, more than one loop per part. Also done, 2026-11-12/13:
+  real DAW»); not decided yet: several notes at once, copy, more than one loop per part (→ «Pattern 2.0», 2026-11-15). Also done, 2026-11-12/13:
   zoom and scroll bars, the header's undo on that screen, the tab off without Parts, ★ Save for scenes,
   and **Harmony «From pattern»** (the key and the progression read from the loops, with candidates).
   Not recorded, on purpose so far: aftertouch, wheel and bend (that would be per-part automation).*

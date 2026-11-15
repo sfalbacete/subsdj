@@ -10,8 +10,20 @@
      drag its right edge      changes its length, on the grid
      wheel over a note        its velocity
      double click on empty    adds a note one grid step long
-     double click on a note   deletes it (Delete does too, for the selected one)
+     double click on a note   deletes it (Delete does too, for the selected ones)
      wheel over empty         scrolls the pitches
+   SELECTION (Pattern 2.0, P1, 2026-11-15). Several notes are handled as one block:
+     drag on empty            a rubber band selects what it touches (a click there lets go)
+     Shift + click / band     adds to the selection (a selected note: takes it out)
+     Ctrl + A                 every note of the loop
+     drag a selected note     moves (or re-pitches, or lengthens) the whole block; Alt + drag
+                              moves a copy and leaves the original where it was
+     ↑ ↓ (Shift: octave)      transposes the selection · ← → a grid step
+     Ctrl + D                 a copy right after the selection (what does not fit the loop is
+                              kept beyond its end, as when Bars shortens it)
+     wheel over a selected    the velocity of all of them · Delete deletes them
+   The block moves as ONE piece: if a note would leave the loop or the MIDI range, the
+   whole block stops there, so a chord never gets out of shape. Escape stays the panic.
      Ctrl + wheel             zooms the time in and out around the pointer (− + Fit above too)
      Shift + wheel            scrolls the time
    ZOOM AND SCROLL. By default the whole loop fits the width; a long take makes its notes
@@ -55,6 +67,8 @@ const VEL_STEP = 0.05;   // a notch of the wheel
 const WHEEL_GROUP_MS = 700;   // wheel notches closer than this are one undo step
 const SCROLL_ROWS = 3;   // semitones per notch when scrolling the pitches
 const PREVIEW_MS = 180;  // how long a note sounds when you grab or move it
+const PREVIEW_CHORD = 6; // a block of up to this many notes is heard as a chord; more, only the one you grab
+const BAND_PX = 3;       // px the pointer travels before a press on empty space becomes a rubber band
 const CENTER = 60;       // C4: the middle of an empty grid
 const BLACK = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0];
 
@@ -67,8 +81,11 @@ let zoomK = 0;               // px per beat; 0 = the whole loop fits
 let scrollX = 0;             // the beat at the left edge
 let handsT = -1e9;           // when you last moved the view or grabbed a note (performance.now)
 const hands = () => { handsT = performance.now(); };
-let sel = null;              // the selected note (an object of cfg.pat.notes)
-let drag = null;             // { mode: 'move' | 'len', n, b0, m0, len0, x0, y0, saved }
+const selected = new Set();  // the selection (objects of cfg.pat.notes)
+let sel = null;              // of them, the one grabbed last (its line of text)
+let drag = null;             // { mode: 'move' | 'len', n, group: [{ n, b0, m0, len0 }], p0, saved, copy } · { mode: 'band', p0, p1, base } · { mode: 'sx' | 'sy' }
+const deselect = () => { selected.clear(); sel = null; };
+const selectOnly = n => { selected.clear(); selected.add(n); sel = n; };
 let hover = null;            // { n, edge } under the pointer
 let lastPl = null, raf = 0, prevT = 0, wheelT = 0;
 
@@ -86,6 +103,13 @@ const viewBeats = L => viewW() / pxb(L);
 const clampScroll = L => { scrollX = clamp(scrollX, 0, Math.max(0, L - viewBeats(L))); };
 const topAt = y => { const r = rows(); return clamp(Math.round(127 - (y - RULER_H) / viewH() * 128 + r / 2), r - 1, 127); };   // the pitch bar: the view centered where you point
 const startOf = (n, lp) => (lp.live ? n.b : patStart(n, lp.q, lp.L));
+const inLoop = lp => lp.notes.filter(n => n.b < lp.L - 1e-9);   // the notes that play (the ones beyond the end are kept, not shown)
+const selList = lp => inLoop(lp).filter(n => selected.has(n));
+// A note's box on the canvas, in design px (as it is drawn)
+function boxOf(n, lp, k) {
+  const s = startOf(n, lp);
+  return { s, x: KEY_W + (s - scrollX) * k, y: yOf(n.m) + 1, w: Math.max(MIN_PX, Math.min(n.len, lp.L) * k - 1), h: ROW_H - 2 };
+}
 function center(notes) {
   const r = rows();
   if (!notes.length) { top = clamp(CENTER + Math.floor(r / 2), r - 1, 127); return; }
@@ -95,7 +119,7 @@ function center(notes) {
 // The view follows: another part, or notes with none of them in sight (a loaded scene, a take in another octave)
 function follow(pl, lp) {
   const vis = lp.notes.filter(n => n.b < lp.L - 1e-9), r = rows();
-  if (pl !== lastPl) { lastPl = pl; sel = null; center(vis); return; }
+  if (pl !== lastPl) { lastPl = pl; deselect(); center(vis); return; }
   if (drag) return;
   const out = n => n.m > top || n.m < top - r + 1;
   if (vis.length && (lp.live ? vis.some(out) : vis.every(out))) center(vis);
@@ -120,6 +144,7 @@ function draw() {
   clampScroll(lp.L);
   const X = b => KEY_W + (b - scrollX) * k, VW = viewW(), VH = viewH();
   // rows: the black keys' a shade darker, a line under every C
+  const selM = new Set([...selected].map(n => n.m));
   for (let i = 0; i < r; i++) {
     const m = top - i, y = RULER_H + i * ROW_H, pc = ((m % 12) + 12) % 12;
     if (BLACK[pc]) { g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(KEY_W, y, VW, ROW_H); }
@@ -127,8 +152,9 @@ function draw() {
     // the key strip
     g.fillStyle = BLACK[pc] ? token('--screen') : ink; g.globalAlpha = BLACK[pc] ? 1 : 0.2;
     g.fillRect(0, y, KEY_W - 1, ROW_H - 1); g.globalAlpha = 1;
-    if (pc === 0 || (hover && hover.row === m) || (sel && sel.m === m)) {
-      g.fillStyle = ink; g.globalAlpha = pc === 0 && !(sel && sel.m === m) && !(hover && hover.row === m) ? 0.75 : 1; g.font = '10px system-ui, sans-serif'; g.textBaseline = 'middle';
+    const lit = (hover && hover.row === m) || selM.has(m);
+    if (pc === 0 || lit) {
+      g.fillStyle = ink; g.globalAlpha = lit ? 1 : 0.75; g.font = '10px system-ui, sans-serif'; g.textBaseline = 'middle';
       g.fillText(noteName(m), 5, y + ROW_H / 2 + 0.5); g.globalAlpha = 1;
     }
   }
@@ -157,8 +183,13 @@ function draw() {
     g.fillRect(x, y, w, h);
     if (s + len > lp.L + 1e-9) g.fillRect(X(0), y, (s + len - lp.L) * k - 1, h);   // held over the loop's end: it comes round
     g.globalAlpha = 1;
-    if (n === sel) { g.strokeStyle = ink; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5); }
+    if (selected.has(n)) { g.strokeStyle = ink; g.lineWidth = 1.5; g.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5); }
     else if (hover && hover.n === n) { g.strokeStyle = ink; g.globalAlpha = 0.5; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); g.globalAlpha = 1; }
+  }
+  if (drag && drag.mode === 'band' && drag.moved) {        // the rubber band
+    const bx = Math.min(drag.p0.x, drag.p1.x), by = Math.min(drag.p0.y, drag.p1.y), bw = Math.abs(drag.p1.x - drag.p0.x), bh = Math.abs(drag.p1.y - drag.p0.y);
+    g.fillStyle = ink; g.globalAlpha = 0.08; g.fillRect(bx, by, bw, bh);
+    g.globalAlpha = 0.7; g.strokeStyle = ink; g.lineWidth = 1; g.setLineDash([4, 3]); g.strokeRect(bx + 0.5, by + 0.5, bw, bh); g.setLineDash([]); g.globalAlpha = 1;
   }
   g.restore();
   // the scroll bars. Time (below): the thumb is the stretch of the loop in view. Pitch (right): the whole MIDI range,
@@ -196,12 +227,15 @@ function hit(p, pl, lp) {
 }
 const editable = pl => !!pl && !patRecording();
 const edited = () => document.dispatchEvent(new CustomEvent('pattern-edited'));
-function preview(pl, n) {
-  const e = pl.part.engine; if (!e.ready) return;
+// What you hear while editing: a block of a few notes as a chord, a bigger one only through the note you grabbed
+function preview(pl, notes, lead) {
+  const e = pl.part.engine; if (!e.ready || !notes.length) return;
   e.resume();
-  clearTimeout(prevT); e._directOff('patprev');
-  e._directOn('patprev', 440 * Math.pow(2, (n.m - 69) / 12), n.v);
-  prevT = setTimeout(() => e._directOff('patprev'), PREVIEW_MS);
+  clearTimeout(prevT);
+  const off = () => { for (let i = 0; i < PREVIEW_CHORD; i++) e._directOff('patprev' + i); };
+  off();
+  (notes.length <= PREVIEW_CHORD ? notes : [lead || notes[0]]).forEach((n, i) => e._directOn('patprev' + i, 440 * Math.pow(2, (n.m - 69) / 12), n.v));
+  prevT = setTimeout(off, PREVIEW_MS);
 }
 function describe(n, lp) {
   const s = startOf(n, lp), bar = Math.floor(s / BAR + 1e-9), beat = s - bar * BAR + 1;
@@ -210,10 +244,20 @@ function describe(n, lp) {
 }
 function say(pl) {
   const el = document.getElementById('patEdNote'); if (!el) return;
-  const n = drag ? drag.n : (hover && hover.n) || sel;
-  el.textContent = n && pl ? describe(n, loopOf(pl)) : '';
+  if (!pl) { el.textContent = ''; return; }
+  const lp = loopOf(pl), list = selList(lp);
+  const n = drag && drag.n ? drag.n : (hover && hover.n) || (list.length === 1 ? list[0] : null);
+  if (n) { el.textContent = describe(n, lp); return; }
+  if (list.length > 1) {
+    const ms = list.map(x => x.m);
+    el.textContent = list.length + ' notes selected · ' + noteName(Math.min(...ms)) + '–' + noteName(Math.max(...ms));
+  } else el.textContent = '';
 }
 const snap = (v, q) => (q > 0 ? Math.round(v / q) * q : v);
+const minStep = lp => (lp.q > 0 ? lp.q : MIN_LEN);         // the shortest note, and the last start a note can have before the loop's end
+// The shift d (beats) and dm (semitones) that keep a whole block inside the loop and the MIDI range
+const clampD = (d, starts, lp) => clamp(d, -Math.min(...starts), lp.L - minStep(lp) - Math.max(...starts));
+const clampDm = (dm, ms) => clamp(dm, -Math.min(...ms), 127 - Math.max(...ms));
 
 // Dragging a scroll bar: the view goes where the pointer is (its thumb centered there)
 function scrollTo(mode, p, L) {
@@ -229,13 +273,33 @@ function down(e) {
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault(); return;
   }
-  if (!editable(pl)) return;
-  if (!h.n) { sel = null; say(pl); return; }
-  sel = h.n; hands();
-  drag = { mode: h.edge ? 'len' : 'move', n: h.n, b0: startOf(h.n, lp), m0: h.n.m, len0: h.n.len, p0: at(e), saved: false };
+  if (!editable(pl) || h.zone !== 'grid') return;
+  if (!h.n) {                                              // on empty: a rubber band (a plain click lets the selection go)
+    if (!e.shiftKey) deselect();
+    drag = { mode: 'band', p0: p, p1: p, base: new Set(selected), moved: false };
+  } else if (e.shiftKey) {                                 // Shift on a note: in or out of the selection
+    if (selected.has(h.n)) { selected.delete(h.n); if (sel === h.n) sel = null; } else { selected.add(h.n); sel = h.n; }
+    hands(); say(pl); e.preventDefault(); return;
+  } else {
+    if (!selected.has(h.n)) selectOnly(h.n); else sel = h.n;
+    hands();
+    const group = selList(lp).map(n => ({ n, b0: startOf(n, lp), m0: n.m, len0: n.len }));
+    drag = { mode: h.edge ? 'len' : 'move', n: h.n, group, p0: p, saved: false, copy: e.altKey && !h.edge, movedB: false };
+    preview(pl, group.map(o => o.n), h.n);
+  }
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}   // a synthetic pointer (the selftest) can't be captured
   e.preventDefault();
-  preview(pl, h.n); say(pl);
+  say(pl);
+}
+function band(lp) {
+  const k = pxb(lp.L), x0 = Math.min(drag.p0.x, drag.p1.x), x1 = Math.max(drag.p0.x, drag.p1.x);
+  const y0 = Math.min(drag.p0.y, drag.p1.y), y1 = Math.max(drag.p0.y, drag.p1.y);
+  selected.clear(); for (const n of drag.base) selected.add(n);
+  for (const n of inLoop(lp)) {
+    const r = boxOf(n, lp, k);
+    if (r.x <= x1 && r.x + r.w >= x0 && r.y <= y1 && r.y + r.h >= y0) selected.add(n);
+  }
+  sel = null;
 }
 function move(e) {
   const pl = patPlayer(), p = at(e);
@@ -244,22 +308,36 @@ function move(e) {
   if (!drag) {
     const h = hit(p, pl, lp);
     hover = h.zone === 'grid' ? { n: h.n, edge: h.edge, row: h.row } : null;
-    cv.style.cursor = h.zone !== 'grid' || !editable(pl) ? 'default' : h.n ? (h.edge ? 'ew-resize' : 'grab') : 'crosshair';
+    cv.style.cursor = h.zone !== 'grid' || !editable(pl) ? 'default' : h.n ? (h.edge ? 'ew-resize' : (e.altKey ? 'copy' : 'grab')) : 'crosshair';
     say(pl); return;
   }
   if (drag.mode === 'sx' || drag.mode === 'sy') { scrollTo(drag.mode, p, lp.L); return; }
+  if (drag.mode === 'band') {
+    drag.p1 = p;
+    if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) < BAND_PX) return;
+    drag.moved = true; band(lp); say(pl); return;
+  }
   hands();
-  const n = drag.n, k = pxb(lp.L), db = (p.x - drag.p0.x) / k, q = lp.q;
-  const save = () => { if (!drag.saved) { pl.pushUndo(); drag.saved = true; } };
-  if (drag.mode === 'len') {
-    const len = Math.max(q > 0 ? q : MIN_LEN, Math.min(lp.L, snap(drag.len0 + db, q)));
-    if (Math.abs(len - n.len) > 1e-9) { save(); n.len = len; }
+  const n = drag.n, gr = drag.group, g0 = gr.find(o => o.n === n), k = pxb(lp.L), db = (p.x - drag.p0.x) / k, q = lp.q;
+  const save = () => {
+    if (drag.saved) return;
+    pl.pushUndo(); drag.saved = true;
+    if (drag.copy) for (const o of gr) pl.cfg.pat.notes.push({ ...o.n });   // Alt: the copies stay where the block was
+  };
+  if (drag.mode === 'len') {                               // the same change of length for all (the grabbed one lands on the grid)
+    const dl = Math.max(minStep(lp), Math.min(lp.L, snap(g0.len0 + db, q))) - g0.len0;
+    for (const o of gr) {
+      const len = Math.max(minStep(lp), Math.min(lp.L, o.len0 + dl));
+      if (Math.abs(len - o.n.len) > 1e-9) { save(); o.n.len = len; }
+    }
   } else {
     // in time: only if it actually moves a grid step (a pure pitch drag leaves the timing as played)
-    const nb = clamp(snap(drag.b0 + db, q), 0, lp.L - (q > 0 ? q : MIN_LEN));
-    if (Math.abs(nb - drag.b0) > 1e-9 || drag.movedB) { if (Math.abs(nb - startOf(n, lp)) > 1e-9) { save(); n.b = nb; drag.movedB = true; } }
-    const m = clamp(drag.m0 - Math.round((p.y - drag.p0.y) / ROW_H), 0, 127);
-    if (m !== n.m) { save(); n.m = m; preview(pl, n); }
+    const d = clampD(snap(g0.b0 + db, q) - g0.b0, gr.map(o => o.b0), lp);
+    if (Math.abs(d) > 1e-9 || drag.movedB) {
+      if (gr.some(o => Math.abs(o.b0 + d - startOf(o.n, lp)) > 1e-9)) { save(); for (const o of gr) o.n.b = o.b0 + d; drag.movedB = true; }
+    }
+    const dm = clampDm(-Math.round((p.y - drag.p0.y) / ROW_H), gr.map(o => o.m0));
+    if (n.m !== g0.m0 + dm) { save(); for (const o of gr) o.n.m = o.m0 + dm; preview(pl, gr.map(o => o.n), n); }
   }
   say(pl);
 }
@@ -276,7 +354,7 @@ function dbl(e) {
   if (h.n) {                                               // on a note: out
     pl.pushUndo();
     const a = pl.cfg.pat.notes, i = a.indexOf(h.n); if (i >= 0) a.splice(i, 1);
-    if (sel === h.n) sel = null; hover = null;
+    selected.delete(h.n); if (sel === h.n) sel = null; hover = null;
   } else {                                                 // on empty: a note one grid step long, on the step under the pointer
     if (h.row < 0 || h.row > 127) return;
     if (pl.cfg.mode !== 'pattern') pl.setMode('pattern');  // writing a loop for this part means its player plays it
@@ -284,8 +362,8 @@ function dbl(e) {
     if (!pl.cfg.pat) pl.cfg.pat = { bars: 1, notes: [] };
     const gq = lp.q > 0 ? lp.q : NEW_GRID, L = pl.cfg.pat.bars * BAR;
     const n = { b: clamp(Math.floor(h.beat / gq + 1e-9) * gq, 0, L - gq), len: gq, m: h.row, v: NEW_VEL };
-    pl.cfg.pat.notes.push(n); sel = n;
-    preview(pl, n);
+    pl.cfg.pat.notes.push(n); selectOnly(n);
+    preview(pl, [n]);
   }
   edited(); say(pl);
 }
@@ -296,22 +374,60 @@ function wheel(e) {
   if (!dir) return;
   if (e.ctrlKey || e.metaKey) { zoomBy(dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP, lp.L, Math.max(0, p.x - KEY_W)); return; }
   if (e.shiftKey || h.zone === 'sx') { hands(); scrollX -= dir * viewBeats(lp.L) * 0.2; clampScroll(lp.L); return; }
-  if (h.n && editable(pl)) {                               // velocity: a run of notches is one undo step
-    const v = clamp(Math.round((h.n.v + dir * VEL_STEP) * 100) / 100, 0.05, 1);
-    if (v === h.n.v) return;
+  if (h.n && editable(pl)) {                               // velocity (of the whole selection, over one of its notes): a run of notches is one undo step
+    const list = selected.has(h.n) ? selList(lp) : [h.n];
+    const vs = list.map(n => clamp(Math.round((n.v + dir * VEL_STEP) * 100) / 100, 0.05, 1));
+    if (vs.every((v, i) => v === list[i].v)) return;
     if (!wheelT) pl.pushUndo();
     clearTimeout(wheelT); wheelT = setTimeout(() => { wheelT = 0; }, WHEEL_GROUP_MS);
-    h.n.v = v; sel = h.n;
+    list.forEach((n, i) => { n.v = vs[i]; });
+    if (!selected.has(h.n)) selectOnly(h.n); else sel = h.n;
     edited(); say(pl);
   } else { const r = rows(); top = clamp(top + dir * SCROLL_ROWS, r - 1, 127); }
 }
+// Keys on the Pattern screen (not while typing, nor on a selector or a slider: those keep their arrows)
 function key(e) {
-  if (e.key !== 'Delete' || currentScreen() !== 'pattern' || !sel) return;
-  if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+  if (currentScreen() !== 'pattern') return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   const pl = patPlayer(); if (!editable(pl) || !pl.cfg.pat) return;
-  const a = pl.cfg.pat.notes, i = a.indexOf(sel); if (i < 0) return;
+  const lp = loopOf(pl), ctl = e.ctrlKey || e.metaKey;
+  if (ctl && !e.altKey && e.code === 'KeyA') {             // all
+    e.preventDefault(); selected.clear(); for (const n of inLoop(lp)) selected.add(n); sel = null; say(pl); return;
+  }
+  const list = selList(lp); if (!list.length) return;
+  const a = pl.cfg.pat.notes;
+  if (!ctl && !e.altKey && (e.key === 'Delete' || e.key === 'Backspace')) {
+    e.preventDefault(); pl.pushUndo();
+    for (let i = a.length - 1; i >= 0; i--) if (selected.has(a[i])) a.splice(i, 1);
+    deselect(); edited(); say(pl); return;
+  }
+  if (ctl && !e.altKey && e.code === 'KeyD') {             // duplicate: right after the block, rounded up to the grid
+    e.preventDefault(); if (e.repeat) return;
+    const starts = list.map(n => startOf(n, lp)), gq = lp.q > 0 ? lp.q : NEW_GRID;
+    const span = Math.max(...list.map((n, i) => starts[i] + Math.min(n.len, lp.L))) - Math.min(...starts);
+    const off = Math.max(gq, Math.ceil(span / gq - 1e-9) * gq);
+    pl.pushUndo();
+    const copies = list.map((n, i) => ({ ...n, b: starts[i] + off }));
+    a.push(...copies);
+    selected.clear(); sel = null;
+    for (const c of copies) if (c.b < lp.L - 1e-9) selected.add(c);   // the ones beyond the loop are kept, not selected
+    edited(); say(pl); return;
+  }
+  if (ctl || e.altKey || !e.key.startsWith('Arrow')) return;
   e.preventDefault();
-  pl.pushUndo(); a.splice(i, 1); sel = null;
+  const vert = e.key === 'ArrowUp' || e.key === 'ArrowDown', sgn = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : -1;
+  if (vert) {                                              // a semitone (Shift: an octave)
+    const dm = clampDm(sgn * (e.shiftKey ? 12 : 1), list.map(n => n.m)); if (!dm) return;
+    if (!e.repeat) pl.pushUndo();                          // a key held down is one undo step
+    for (const n of list) n.m += dm;
+    preview(pl, list, sel);
+  } else {                                                 // a grid step (Off: a sixteenth, keeping the timing as played)
+    const starts = list.map(n => startOf(n, lp)), d = clampD(sgn * (lp.q > 0 ? lp.q : NEW_GRID), starts, lp);
+    if (Math.abs(d) < 1e-9) return;
+    if (!e.repeat) pl.pushUndo();
+    list.forEach((n, i) => { n.b = starts[i] + d; });
+  }
   edited(); say(pl);
 }
 
@@ -341,6 +457,7 @@ export function patEdGeom(n) {
            barX: r.left + (W - SB / 2) * sx, barY: m => r.top + (RULER_H + (127 - m) / 128 * viewH()) * sy, timeBarY: r.top + (H - SB / 2) * sy, gridLeft: r.left + KEY_W * sx, gridW: viewW() * sx };
 }
 export const patEdSelected = () => sel;
+export const patEdSelection = () => [...selected];
 
 export function initPatternEditor() {
   cv = document.getElementById('patEd'); if (!cv) return;
@@ -356,7 +473,7 @@ export function initPatternEditor() {
   const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
   document.addEventListener('screen-changed', kick);
   window.addEventListener('resize', kick);
-  document.addEventListener('pattern-changed', () => { sel = null; hover = null; drag = null; say(patPlayer()); });   // the loop was replaced: its notes are other objects
-  for (const ev of ['part-changed', 'scene-changed', 'scene-loaded']) document.addEventListener(ev, () => { sel = null; hover = null; drag = null; lastPl = null; say(patPlayer()); kick(); });
+  document.addEventListener('pattern-changed', () => { deselect(); hover = null; drag = null; say(patPlayer()); });   // the loop was replaced: its notes are other objects
+  for (const ev of ['part-changed', 'scene-changed', 'scene-loaded']) document.addEventListener(ev, () => { deselect(); hover = null; drag = null; lastPl = null; say(patPlayer()); kick(); });
   kick();
 }
