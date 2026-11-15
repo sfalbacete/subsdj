@@ -143,6 +143,8 @@ export function paintPat() {
   pats('bars').forEach(e => { e.textContent = pat ? pat.bars : '–'; });
   pats('bar-').forEach(b => { b.disabled = !!rec || !pat || pat.bars <= 1; });
   pats('bar+').forEach(b => { b.disabled = !!rec || !pat || pat.bars >= PAT_MAX_BARS; });
+  pats('x2').forEach(b => { b.disabled = !!rec || !pl.canDoublePat(); });
+  ['rot-', 'rot+'].forEach(k => pats(k).forEach(b => { b.disabled = !!rec || !(pat && pat.notes.length); }));
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.classList.toggle('active', +b.dataset.q === pl.cfg.quant));
   pats('play').forEach(b => { b.textContent = pl.c.running ? '■ Stop' : '▶ Play'; b.classList.toggle('on', pl.c.running); });
   pats('who').forEach(e => { const sc = getScene(), p = sc.parts[sc.sel]; e.textContent = 'Part ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : ''); });
@@ -344,6 +346,9 @@ export function initPlayerControls() {
   click('clear', pl => { if (pl && !rec) { pl.clearPat(); edited(); } });
   click('bar-', pl => { if (pl && !rec && pl.cfg.pat) { pl.setPatBars(pl.cfg.pat.bars - 1); edited(); } });
   click('bar+', pl => { if (pl && !rec && pl.cfg.pat) { pl.setPatBars(pl.cfg.pat.bars + 1); edited(); } });
+  click('x2', pl => { if (pl && !rec && pl.doublePat()) edited(); });
+  click('rot-', pl => { if (pl && !rec && pl.rotatePat(-1)) edited(); });
+  click('rot+', pl => { if (pl && !rec && pl.rotatePat(1)) edited(); });
   click('play', () => setPlaying(!isPlaying()));
   click('edit', () => showScreen('pattern'));
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.addEventListener('click', () => {

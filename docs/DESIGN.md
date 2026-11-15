@@ -3599,3 +3599,23 @@ not flooded.
 **Evidence.** Selftest «pattern editor: selection», with synthetic pointers and keys: rubber band,
 block drag on the grid, the block stopped whole at the loop's start, arrows and a held arrow, Ctrl+D
 and its copies selected, Shift+click in and out, Alt + drag, the wheel, Ctrl+A + Delete and ↶.
+
+## Pattern 2.0, P2: ×2 and Rotate (2026-11-16)
+
+Two operations on the whole loop, in `engine/Player.js` (`doublePat`, `rotatePat`) so that they can be
+tested without the screen, with their buttons on the Pattern screen only (the Player module's band is
+full). **×2** appends a copy of the notes that play, a loop further on, and doubles Bars; the notes
+kept beyond the end move a loop further too, so they stay beyond. One trap: a note played a hair
+before the 1 is stored near the loop's end and quantized it comes round to 0; in a loop twice as long
+it would land in the middle. It is written at 0 first — what you heard is what is kept.
+**Rotate** writes each note at its quantized start plus a grid step, modulo the loop (with Quantize
+Off: a sixteenth, keeping the offsets as played).
+
+*Not added:* buttons to transpose the loop — Ctrl+A and ↑ ↓ already do it (P1), and the criterion
+is not to duplicate. Ctrl + ← → is rotate rather than «move the selection further»: plain ← → move
+the selection and stop at the edges, Ctrl makes it the loop and round the ends. A held key is one
+undo step, as with the arrows.
+
+**Evidence.** Selftest «pattern loop operations»: ×2 with a note beyond and an early 1, ▸ ◂ and
+Ctrl+← round the ends, Off keeps the timing, four gestures four steps and ↶ ×4 back to the start, ×2
+off past 16 bars.

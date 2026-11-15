@@ -356,6 +356,38 @@ export class Player {
   clearHist() { this.hist.length = 0; this.redoStack.length = 0; }
   clearPat() { if (this.take || !this.cfg.pat) return; this.pushUndo(); this.cfg.pat = null; }
   setPatBars(bars) { const p = this.cfg.pat; if (p) p.bars = Math.max(1, Math.min(PAT_MAX_BARS, Math.round(bars))); }
+  // ×2 (Pattern 2.0, P2): twice as long, the second half a copy of the first. The notes kept beyond the end move
+  // with it and stay beyond; a note that sounds on the 1 because it was played a hair early (quantized, it comes
+  // round to 0) is written at 0 first, or in a loop twice as long it would sound in the middle
+  canDoublePat() { const p = this.cfg.pat; return !this.take && !!p && p.notes.length > 0 && p.bars * 2 <= PAT_MAX_BARS; }
+  doublePat() {
+    if (!this.canDoublePat()) return false;
+    const p = this.cfg.pat, L = p.bars * BAR, q = this.cfg.quant;
+    this.pushUndo();
+    const inside = [];
+    for (const n of p.notes) {
+      if (n.b >= L - 1e-9) { n.b += L; continue; }
+      if (q > 0 && patStart(n, q, L) < n.b - L / 2) n.b = 0;
+      inside.push(n);
+    }
+    p.notes.push(...inside.map(n => ({ ...n, b: n.b + L })));
+    p.bars *= 2;
+    return true;
+  }
+  // Rotate (P2): the whole loop a grid step later (dir 1) or earlier (−1), what leaves at one end comes in at the
+  // other. On a grid the notes land on it (where they sound); Off, a sixteenth, keeping the timing as played
+  rotatePat(dir, undo = true) {   // undo = false: one more step of the same gesture (a held key)
+    const p = this.cfg.pat; if (this.take || !p || !p.notes.length) return false;
+    const L = p.bars * BAR, q = this.cfg.quant, d = Math.sign(dir) * (q > 0 ? q : 0.25);
+    if (undo) this.pushUndo();
+    for (const n of p.notes) {
+      if (n.b >= L - 1e-9) continue;                           // beyond the loop: kept as it is
+      let b = (((patStart(n, q, L) + d) % L) + L) % L;
+      if (b >= L - 1e-9) b = 0;
+      n.b = b;
+    }
+    return true;
+  }
   // Where the loop is now, 0..1 (the UI's playhead); −1 if there is none
   patPhase(t) { const p = this.cfg.pat; if (!p) return -1; const L = p.bars * BAR; return ((((this.c.beatAt(t) - this.patOrigin) % L) + L) % L) / L; }
 

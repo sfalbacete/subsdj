@@ -4111,6 +4111,56 @@ export async function runSelfTest() {
   }
 
   {
+    // The loop's operations (Pattern 2.0, P2): ×2 doubles it with a copy of itself — the notes beyond the end move with
+    // it and stay beyond, and a note played a hair before the 1 (it sounds on the 1) is written at 0 so it does not end
+    // up in the middle —; Rotate ◂ ▸ and Ctrl + ← → shift the whole loop a grid step, coming round at the ends (Off: a
+    // sixteenth, keeping the timing as played); one undo step each, a held key one too; ×2 is off past 16 bars.
+    const NAME = 'pattern loop operations (×2 with the notes beyond and the early 1 · Rotate on the grid and round the ends · Off keeps the timing · Ctrl + ← → · one undo step each · ×2 off past 16 bars)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen();
+    try {
+      if (!wasOn) { $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      const sc = getScene();
+      if (!sc) problems.push('the Parts do not turn on');
+      else {
+        const pl = sc.conductor.players[sc.sel], keep = { ...pl.cfg };
+        showScreen('pattern');
+        pl.setMode('pattern'); pl.clearHist(); pl.cfg.quant = 0.25;
+        pl.cfg.pat = { bars: 1, notes: [{ b: 0.02, len: 1, m: 60, v: 0.8 }, { b: 1.5, len: 0.5, m: 62, v: 0.8 }, { b: 3.95, len: 0.5, m: 64, v: 0.8 }, { b: 5, len: 1, m: 65, v: 0.8 }] };
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+        const [A, B, W, X] = pl.cfg.pat.notes, btn = k => document.querySelector('.pat-top [data-pat="' + k + '"]');
+        const near = (a, b) => Math.abs(a - b) < 1e-6, bs = () => pl.cfg.pat.notes.map(n => +n.b.toFixed(3)).join(' ');
+        const keyDown = (key, o = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...o }));
+        if (!btn('x2') || !btn('rot-') || !btn('rot+')) problems.push('×2 or Rotate missing from the Pattern screen');
+        else {
+          btn('x2').click();
+          if (pl.cfg.pat.bars !== 2 || bs() !== '0.02 1.5 0 9 4.02 5.5 4') problems.push('×2: ' + pl.cfg.pat.bars + ' bars, beats ' + bs() + ' (expected 2 bars, 0.02 1.5 0 9 4.02 5.5 4)');
+          btn('rot+').click();
+          if (bs() !== '0.25 1.75 0.25 9 4.25 5.75 4.25') problems.push('▸: beats ' + bs() + ' (expected 0.25 1.75 0.25 9 4.25 5.75 4.25)');
+          btn('rot-').click();
+          keyDown('ArrowLeft', { ctrlKey: true });
+          if (!near(A.b, 7.75) || !near(B.b, 1.25) || !near(W.b, 7.75) || !near(X.b, 9)) problems.push('◂ and Ctrl+←: beats ' + bs() + ' (expected A and the early 1 round the end at 7.75, B at 1.25, the one beyond at 9)');
+          keyDown('ArrowLeft', { ctrlKey: true, repeat: true });
+          if (pl.hist.length !== 4) problems.push('×2, ▸, ◂, Ctrl+← and a held Ctrl+←: ' + pl.hist.length + ' undo steps (expected 4)');
+          for (let i = 0; i < 4; i++) btn('undo').click();
+          if (pl.cfg.pat.bars !== 1 || bs() !== '0.02 1.5 3.95 5') problems.push('four ↶ do not bring the loop back: ' + pl.cfg.pat.bars + ' bars, ' + bs());
+          pl.cfg.quant = 0; pl.cfg.pat.notes[0].b = 0.03; btn('rot+').click();
+          if (!near(pl.cfg.pat.notes[0].b, 0.28)) problems.push('Off: ▸ moves 0.03 to ' + pl.cfg.pat.notes[0].b + ' (expected 0.28, a sixteenth, the timing kept)');
+          pl.cfg.pat.bars = 9; document.dispatchEvent(new CustomEvent('pattern-edited'));
+          if (!btn('x2').disabled || pl.doublePat()) problems.push('×2 works on a loop of 9 bars (more than 16)');
+        }
+        pl.setMode(keep.mode); Object.assign(pl.cfg, keep); pl.clearHist();
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (!wasOn && isOn()) { showScreen('design'); $('partsBtn').click(); }
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
     // Arrangement and scenes (Roadmap 4.0 · C3): (1) energy: bounded, starts at
     // energy − sway/2 and peaks halfway through the cycle; a part with a high
     // threshold is silent at the start and comes in at the peak; the surprise is

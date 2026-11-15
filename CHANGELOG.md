@@ -16,6 +16,10 @@ scenes, libraries, MIDI maps). The why behind each module is in
   right after itself, the wheel over a selected note changes the velocity of all of them and Delete
   deletes them. A block of up to six notes is heard as a chord while you move it. Every gesture is
   one undo step.
+- **Pattern screen: ×2 and Rotate.** **×2** makes the loop twice as long with a copy of itself, to
+  vary its ending (the notes kept beyond the end stay beyond; up to 16 bars). **Rotate ◂ ▸** (Ctrl
+  + ← → on the grid) shifts the whole loop a grid step, what leaves at one end coming in at the
+  other — the same notes on another part of the beat. One undo step each.
 
 ## [2.0.0] — 2026-11-13
 

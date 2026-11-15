@@ -395,6 +395,11 @@ function key(e) {
   if (ctl && !e.altKey && e.code === 'KeyA') {             // all
     e.preventDefault(); selected.clear(); for (const n of inLoop(lp)) selected.add(n); sel = null; say(pl); return;
   }
+  if (ctl && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {   // rotate the whole loop (the selection stays with its notes)
+    e.preventDefault();
+    if (pl.rotatePat(e.key === 'ArrowRight' ? 1 : -1, !e.repeat)) { edited(); say(pl); }
+    return;
+  }
   const list = selList(lp); if (!list.length) return;
   const a = pl.cfg.pat.notes;
   if (!ctl && !e.altKey && (e.key === 'Delete' || e.key === 'Backspace')) {

@@ -578,11 +578,11 @@ stops today at step 6: duplicate and vary the end, variants, switch on the next 
 
 ### Batch 1 · Quick editing (low cost, high value)
 
-- **P1 · Multiple selection.** Rubber band on empty space, Shift to add/remove, Ctrl+A; drag,
+- **P1 · Multiple selection.** ✔ DONE 2026-11-16 (f015966). Rubber band on empty space, Shift to add/remove, Ctrl+A; drag,
   re-pitch, lengthen, delete and duplicate the whole selection; arrows ↑↓ a semitone (Shift: an
   octave) and ←→ a grid step. Today a single note can be selected: fixing a chord is note by note.
   Every gesture stays one undo step.
-- **P2 · Operations on the whole loop**, next to Bars: **×2** (double the length copying the
+- **P2 · Operations on the whole loop** ✔ DONE 2026-11-16 (×2 and Rotate; transpose dropped: Ctrl+A + ↑ ↓ from P1 does it), next to Bars: **×2** (double the length copying the
   content: from a motif to a phrase with a different ending), **rotate ← →** one grid step
   (circular: what leaves at the end comes back at the start), **transpose** ±1 / ±12. A few lines
   over `cfg.pat` each, one undo step each.
