@@ -116,6 +116,9 @@ node tools/serve.mjs
 or headless with `node tools/run-selftest.mjs` (Node ≥ 22 and Chrome), which runs
 it in two batches (`?selftest=1&batch=checks` and `&batch=factory`): all in a
 single page can hang the browser with so many renders.
+`node tools/stress.mjs [scene.json …]` plays a few extreme loads live (and the scenes
+given) and counts the audio dropouts: a measure to compare before and after a change of the
+engine on the same machine, not a pass/fail test.
 
 ## Documentation
 

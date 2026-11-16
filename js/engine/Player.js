@@ -144,6 +144,7 @@ export class Player {
   _on(id, midi, vel, when) {
     if (this.log) this.log.push([+when.toFixed(4), 'on', midi, +vel.toFixed(2)]);
     if (this.c.dry) return;
+    if (this.part.mute) return;   // a muted part's player keeps its place in time but starts nothing (unheard, its voices cost CPU and budget); its note-offs still go out
     const e = this.part.engine, f = 440 * Math.pow(2, (midi - 69) / 12);
     if (this._routed()) { e.noteOn(id, f, vel, when); this.pending.set(id, { when }); }
     else e._directOn(id, f, vel, when);

@@ -3678,3 +3678,11 @@ before freeing, each killed voice rendered ~140 ms more, and with 68 notes a sec
 voices alive. Trying the fade and the pad: 80/60 ms → 185 underruns (Pattern alone); counting the fading
 voices → 59 (and fewer notes); 30/20 ms → 6; 20/15 ms → 0-2. Chosen 20/15: the whole scene 1-16
 underruns in 8 s (from 409), 8 notes of each chord sounding.
+
+*Afterwards (Sergio): mute stops the player, and a stress tool.* A muted part's player starts nothing
+(`Player._on`), its note-offs still go out and its place in time goes on; a muted part had been playing
+unheard and taking the shared budget. `tools/stress.mjs` turns the probe into a tool: three built-in
+extremes (FM chords of 8 on sixteenths, pad chords of 8 with long notes, four parts at once) plus any scene
+file, each in a fresh page, counting `playbackStats` underruns, notes a second and voices alive. Checked
+against the commit before the fix: 922 / 77 / 659 underruns → 1 / 0 / 0. A measure, not a test: it depends
+on the machine; compare A/B on the same one.

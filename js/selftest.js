@@ -3661,6 +3661,33 @@ export async function runSelfTest() {
   }
 
   {
+    // A muted part's player starts nothing (2026-11-16, Sergio: mute stops the player). Its voices were unheard
+    // but rendered, and took the shared CPU budget from the parts that are heard. It keeps its place in time:
+    // unmuted, it comes in on its next note.
+    const NAME = 'a muted part\'s player starts nothing (and keeps its place: unmuted, it plays on)';
+    const problems = [];
+    try {
+      const ctx = new OfflineAudioContext(2, SR * 4, SR);
+      const sc = await createScene(ctx, [FX.pluckBass, FX.pluckBass], { roomS: { bpm: 120 } });
+      const cd = new Conductor(sc, { seed: 3 }); Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 });
+      const pat = { bars: 1, notes: [0, 1, 2, 3].map(b => ({ b, len: 0.5, m: 48, v: 1 })) };
+      cd.players.forEach(p => { p.setMode('pattern'); p.cfg.pat = structuredClone(pat); p.cfg.quant = 0.25; });
+      sc.parts[1].mute = true;
+      const n = e => e.voices.size + e.tails.size;
+      cd.scheduleAll(2);
+      const [a0, b0] = sc.parts.map(p => n(p.engine));
+      if (!(a0 >= 4)) problems.push('the part that is heard started ' + a0 + ' notes in 2 s (expected 4)');
+      if (b0) problems.push('the muted part started ' + b0 + ' notes');
+      sc.parts[1].mute = false;
+      cd.players[1].log = [];
+      cd.players[1].schedule(8);                             // two more seconds: it plays on from where it was
+      const ons = cd.players[1].log.filter(x => x[1] === 'on').length;
+      if (ons !== 4) problems.push('unmuted, the player starts ' + ons + ' notes in the next bar (expected 4)');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
     // The Pattern player (2026-11-12): a loop of notes of your own. The engine side, with no audio (dry conductor,
     // 120 bpm: a beat = 0.5 s): playback on the grid and as played, the loop's length truncating without losing
     // notes, a take from its bar line (early keys, the count-in, the length in whole bars), overdub, undo and redo,

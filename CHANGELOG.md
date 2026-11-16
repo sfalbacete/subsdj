@@ -31,6 +31,11 @@ scenes, libraries, MIDI maps). The why behind each module is in
   counts as a tail only once its release has started, a tail faded by the budget fades in 20 ms and
   is freed right after, and the budget never drops a note that has not started yet. Measured on the loop
   that broke (8-note chords on sixteenths at 128 BPM): from ~400 audio dropouts in 8 s to a handful.
+- **Muting a part stops its player.** A muted part's player used to keep playing unheard: its voices
+  cost CPU and took the shared voice budget from the parts that are heard. Now it starts nothing while
+  muted and keeps its place in time, so unmuted it comes in on its next note.
+- **`tools/stress.mjs`**: plays a few extreme loads (and any scene given) live in headless Chrome and
+  counts the audio dropouts — to see whether a change of the engine makes things better or worse.
 
 ## [2.0.0] — 2026-11-13
 
