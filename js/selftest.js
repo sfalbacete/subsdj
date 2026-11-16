@@ -1521,6 +1521,36 @@ export async function runSelfTest() {
     } catch (e) { problems.push('exception: ' + (e.message || e)); }
     push({ name: 'voice budget shared by the parts (tails first; never another part\'s held note; offline without a cap)', peak: 0, ok: !problems.length, problems });
   }
+  {
+    // The players' notes and the limits (2026-11-16, Sergio: a Pattern of 8-note DX E-Piano chords «sounds a
+    // fraction of a second and then stutters, and never recovers»). A player schedules the note-off together with
+    // the note-on, so its notes enter `tails` while they still sound. (1) MAX_TAILS counts only the tails really in
+    // their release: 24 scheduled notes are not trimmed, 20 released ones are, down to 16. (2) The CPU budget never
+    // fades out a note that has not started (that only swaps a note for another): with a costly sound and 30
+    // notes scheduled ahead, none is touched. (3) A tail faded by the budget lasts what it had left, at most
+    // BUDGET_FADE — not 350 ms more (fading voices still render). Live simulated without rendering, as above.
+    const problems = [];
+    try {
+      const mk = async st => { const ctx = new OfflineAudioContext(2, SR, SR), e = new AudioEngine(); e.S = { ...e.S, ...st }; await e.init(ctx); e.offline = false; return e; };
+      const st = { waveA: 'sawtooth', waveB: 'sawtooth', levelA: 0.5, levelB: 0.5 };
+      const e = await mk(st), f = k => 110 * Math.pow(2, (k % 24) / 12);
+      for (let k = 0; k < 24; k++) { e._directOn('s' + k, f(k), 0.7, 0.5); e._directOff('s' + k, 1); }   // a player's chord: on at 0.5 s, off at 1 s
+      const scheduled = [...e.tails], cut = scheduled.filter(v => v._going).length;
+      if (cut) problems.push(cut + ' of 24 scheduled notes (still to sound) faded out as if they were tails');
+      for (const v of scheduled) { if (v._timer) clearTimeout(v._timer); v.dispose(); } e.tails.clear();
+      for (let k = 0; k < 20; k++) { e._directOn('r' + k, f(k), 0.7); e._directOff('r' + k); }      // 20 keys released now: real tails
+      const rel = [...e.tails].filter(v => !v._going).length;
+      if (rel !== 16) problems.push('20 real tails: ' + rel + ' left (expected MAX_TAILS = 16)');
+      e.offline = true; e.allNotesOff();
+      const costly = await mk({ waveA: 'fm4', waveB: 'fm4', levelA: 0.5, levelB: 0.5, vocAmt: 0.6 });
+      for (let k = 0; k < 30; k++) { costly._directOn('c' + k, f(k), 0.7, 0.5); costly._directOff('c' + k, 0.6); }
+      const lost = [...costly.tails, ...costly.going].filter(v => v._going).length;
+      if (lost) problems.push(lost + ' notes that had not started were faded out by the budget (cost ' + Voice.cost(costly.S).toFixed(2) + ' each)');
+      costly.offline = true; costly.allNotesOff();
+      console.log('players and limits: scheduled notes cut ' + cut + '/24 · real tails kept ' + rel + '/20 · not-started notes lost ' + lost + '/30');
+    } catch (e2) { problems.push('exception: ' + (e2.message || e2)); }
+    push({ name: 'players\' notes and the limits (a scheduled note-off is not a tail · MAX_TAILS on real tails · the budget never drops a note that has not started)', peak: 0, ok: !problems.length, problems });
+  }
 
   {
     // skin (10): the ONLY source of color is the token block of style.css

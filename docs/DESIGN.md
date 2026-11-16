@@ -3636,3 +3636,45 @@ outside text fields.
 **Evidence.** Selftest «pattern copy and paste between parts»: the whole loop into a part without
 one (mode, bars, timing kept, selected), an octave down without touching the original, a selection
 copied and added, a note beyond a shorter loop kept and said, ↶.
+
+## Dense patterns and the voice limits (2026-11-16)
+
+Sergio, with a Pattern of 8-note DX E-Piano chords on short notes: «it sounds for a fraction of a second,
+then it stutters quickly and never recovers», with the CPU at 7 %. Measured headless with
+`ctx.playbackStats` (underruns of the audio output) on a loop of 8-note chords every eighth at 120 BPM.
+
+*Cause.* A player schedules a note's note-off together with its note-on, ~120 ms ahead; the engine
+then moves the voice to `tails` at once (with `_relAt` in the future), although it still sounds. Two
+limits read `tails` as «released»: MAX_TAILS (16) faded out the «oldest» tail whenever there were more
+— with chords of 8 that was nearly every note (≈ 95 % of them ended by a forced fade) — and each fade
+lasted TAIL_FADE, 350 ms, longer than the 0.4 s release had left. The CPU budget does not count fading
+voices («they free CPU as soon as their fade ends»), so 8-16 voices more than the budget were rendering
+at any moment: 24-32 FM4 voices where the measured capacity is ~20. The 7 % is the whole processor; the
+audio is one thread, and it was missing its deadlines (~250 underruns in 11 s, 3 s of silence).
+
+*Fix* (`engine/AudioEngine.js`). (1) MAX_TAILS counts only the tails whose release has started, and fades
+the oldest of those. (2) A tail faded by the budget lasts at most what it had left, and at most
+BUDGET_FADE (20 ms, a voice steal), and it is freed FADE_PAD (15 ms) after the fade instead of 60 ms: the voice stops rendering soon, so fading voices can stay uncounted — counting them
+was tried: every fade made the budget fade more, and a dense loop ended with 1 note sounding and 23
+fading. (3) When there are no released tails, the budget takes a note of this part's players that is
+sounding (the one that ends soonest) before a held key, and never one that has not started — that only
+swapped a note of the chord for another. (4) Ending the stolen note exactly when the new one starts
+(instead of ~120 ms before) was tried and discarded: both chords render together for those 120 ms and
+the underruns came back (635 in 16 s).
+
+*Result* (same loop, A/B with a worktree of the previous commit): DX E-Piano short notes 231-267 → 0
+underruns (three runs each), 1-beat notes 221 → 0, Warm Pad 130 → 1, Init 44 → 15; 16 notes sounding
+throughout. When a loop asks for more voices than the budget, the oldest chord's release is shortened —
+and, past that, the oldest chord itself — instead of the whole output breaking up.
+
+**Evidence.** Selftest «players' notes and the limits»: 24 scheduled notes are not trimmed, 20 real tails
+are trimmed to 16, and with FM4 voices far over the budget no note that has not started is dropped.
+
+*Second round, with Sergio's scene* (the same day: «it still crackles»; exported as JSON). That loop is twice
+as dense as the probe: 8-note DX E-Piano chords on every sixteenth at 128 BPM, ~68 FM4 notes a second, with
+three more players (two of them on muted parts — they still play and render). With the first fix: 409
+underruns in 8 s (185 with the Pattern alone). What remained was the forced fades: at 80 ms plus 60 ms
+before freeing, each killed voice rendered ~140 ms more, and with 68 notes a second that was a third of the
+voices alive. Trying the fade and the pad: 80/60 ms → 185 underruns (Pattern alone); counting the fading
+voices → 59 (and fewer notes); 30/20 ms → 6; 20/15 ms → 0-2. Chosen 20/15: the whole scene 1-16
+underruns in 8 s (from 409), 8 notes of each chord sounding.

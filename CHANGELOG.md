@@ -24,6 +24,13 @@ scenes, libraries, MIDI maps). The why behind each module is in
   whole loop; **Paste** (Ctrl+V) adds them to the loop of the part being edited, at the same places,
   selected — so the same line can go to another sound, and Shift+↓ takes it an octave down for a
   bass. A part without a loop gets one (and its player goes to Pattern). One undo step.
+- **Fix: dense patterns stuttered.** A loop of 8-note chords (DX E-Piano) sounded for a moment and then
+  the whole output broke up, and never recovered. The notes of the players were counted as release
+  tails while they still sounded, so the cap on tails faded out almost every note with a 350 ms fade,
+  and those fading voices — not counted by the CPU budget — overloaded the audio thread. Now a note
+  counts as a tail only once its release has started, a tail faded by the budget fades in 20 ms and
+  is freed right after, and the budget never drops a note that has not started yet. Measured on the loop
+  that broke (8-note chords on sixteenths at 128 BPM): from ~400 audio dropouts in 8 s to a handful.
 
 ## [2.0.0] — 2026-11-13
 

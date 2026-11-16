@@ -30,6 +30,15 @@ const MAX_TAILS = 16;   // live release tails; above that, the oldest one fades 
 // when its turn to go comes, and a 10 ms cut is heard as a pad click. 350 ms
 // among 16 tails and the reverb can't be told apart from the natural decay.
 const TAIL_FADE = 0.35;
+// Fade of a tail faded out by the CPU budget (_makeRoom): as short as a voice steal, because a fading
+// voice still renders and the budget does not count it (counted, every fade made it fade more: a dense
+// pattern ended with 1 note sounding and 23 fading). With TAIL_FADE every forced fade kept a voice alive
+// 350 ms more; at 80 ms, a loop of 8-note FM4 chords on sixteenths still broke up (2026-11-16)
+const BUDGET_FADE = 0.02;
+// After a forced fade the voice is freed this much later (it was 60 ms: with ~70 notes a second, those
+// silent voices still rendering were a third of the load). Enough for the main thread's clock to lag the
+// audio thread's by a render quantum without cutting the fade short
+const FADE_PAD = 0.015;
 // Mono with trigger «Retrig»: the sounding voice fades out while the attack of the
 // new one rises (handover at the same instant, max(MONO_XF, attack)). It's what an
 // analog ADSR does when retriggered from its current level, without the dip back to 0.
@@ -96,7 +105,9 @@ export class AudioEngine {
     this.ready = false;
     this.S = makeDefaultState();
     this.voices = new Map();      // id -> Voice (HELD voices)
-    this.tails = new Set();       // released voices playing their release
+    this.tails = new Set();       // released voices playing their release — and the players' notes, whose note-off is
+                                  // scheduled with the note-on: a tail with _relAt in the future is still SOUNDING
+    this.going = new Set();       // tails being faded out by force (TAIL_FADE): they still cost CPU until freed
     this.voiceCount = 0;
     this.lastFreq = null;         // for glide
     this.heldStack = [];          // notes held in mono mode (top = sounding)
@@ -407,24 +418,44 @@ export class AudioEngine {
   // MAX_TAILS bounds the cost of piling up long tails when playing fast.
   _scheduleTail(v, rel, when = null) {
     this.tails.add(v);
-    v._relAt = when !== null ? when : this.ctx.currentTime;   // age of the tail: the budget fades out the oldest first
-    const end = v.release(rel, when);
+    v._relAt = when !== null ? when : this.ctx.currentTime;   // when its release starts: the budget fades out the oldest first
+    const end = v._end = v.release(rel, when);
     if (this.offline) return;                     // offline: the tail lives until the end of the render
     const ms = Math.max(20, (end - this.ctx.currentTime) * 1000 + 60);
     v._timer = setTimeout(() => { this.tails.delete(v); this._dispose(v); this._maybeIdle(); }, ms);
-    if (this.tails.size > MAX_TAILS) this._fadeKill(this.tails.values().next().value);
+    this._trimTails();
   }
-  _fadeKill(v) {            // TAIL_FADE fade-out and free (see above)
+  // MAX_TAILS counts only the tails that are really in their release (_relAt already past). A player
+  // schedules the note-off together with the note-on (~120 ms ahead), so its notes enter `tails` while they
+  // still sound: counted as tails, a dense pattern (chords of 8) filled the 16 places with notes that had not
+  // even started, and every new one faded out a sounding one — almost every note cut (2026-11-16)
+  _trimTails() {
+    const now = this.ctx.currentTime, rel = v => !v._going && v._relAt <= now + 0.005;
+    let n = 0; for (const v of this.tails) if (rel(v)) n++;
+    for (; n > MAX_TAILS; n--) {
+      let old = null; for (const v of this.tails) if (rel(v) && (!old || v._relAt < old._relAt)) old = v;
+      if (!old) break;
+      this._fadeKill(old);
+    }
+  }
+  // Fade out and free (see TAIL_FADE). Never longer than what the tail had left (a forced fade must not keep
+  // a short release alive longer than it would have lived), and at once for a note that has not started yet.
+  // (Ending a sounding note only when the new one starts — a player schedules ~120 ms ahead — was tried and
+  // discarded: both chords render together for those 120 ms and the audio thread misses its deadlines.)
+  _fadeKill(v, tau = TAIL_FADE) {
     if (!v) return;
     v._going = true;
     this.tails.delete(v);
     if (v._timer) clearTimeout(v._timer);
     if (v.disposed) return;
-    v.fadeOut(TAIL_FADE);
-    v._timer = setTimeout(() => { this._dispose(v); this._maybeIdle(); }, TAIL_FADE * 1000 + 60);
+    const now = this.ctx.currentTime;
+    tau = v.t0 > now ? 0.005 : Math.min(tau, Math.max(0.02, (v._end || Infinity) - 0.03 - now));
+    v.fadeOut(tau);
+    this.going.add(v);
+    v._timer = setTimeout(() => { this.going.delete(v); this._dispose(v); this._maybeIdle(); }, (tau + FADE_PAD) * 1000);
   }
   // All silent (no voices, no tails): the Steps let go of the clock (reset «on play»)
-  _maybeIdle() { if (!this.voices.size && !this.tails.size) this.steps.idle(); }
+  _maybeIdle() { if (!this.voices.size && !this.tails.size && !this.going.size) this.steps.idle(); }
   // ---------- insert effects on demand (see init) ----------
   // Dist · Flanger (worklets/destroy-processor.js): ONE worklet per part with the whole
   // destruction (Lows → Drive by type → Crush) and the flanger. Born the first time something
@@ -546,8 +577,13 @@ export class AudioEngine {
   // oldest tail of any of them; if there are no tails left, it steals the oldest
   // held voice of THIS engine (the part asking for the note). What is already
   // on its way out (_going) doesn't count: it frees CPU as soon as its fade ends.
+  // Fading voices (`going`) COUNT until they are freed: they still render. Uncounted, a dense pattern kept a
+  // third more voices alive than the budget and the audio thread missed its deadlines (underruns) — 2026-11-16.
+  // Order: (1) the oldest tail really in its release, of any part; (2) a note of THIS part's players that is
+  // still sounding (its note-off scheduled), the one that ends soonest; (3) the oldest held voice of this part.
   _makeRoom(cost) {
     if (this.offline) return;
+    const now = this.ctx.currentTime;
     const live = v => v && !v.disposed && !v._going;
     let used = 0;
     for (const e of this.budget) {
@@ -557,8 +593,10 @@ export class AudioEngine {
     }
     while (used + cost > VOICE_BUDGET + 1e-9) {          // (margin: so that rounding in the sum doesn't fade out one tail too many)
       let old = null, owner = null;
-      for (const e of this.budget) for (const v of e.tails) if (live(v) && (!old || v._relAt < old._relAt)) { old = v; owner = e; }
-      if (old) { used -= old.cost || 1; owner._fadeKill(old); continue; }
+      for (const e of this.budget) for (const v of e.tails) if (live(v) && v._relAt <= now + 0.005 && (!old || v._relAt < old._relAt)) { old = v; owner = e; }
+      if (old) { used -= old.cost || 1; owner._fadeKill(old, BUDGET_FADE); continue; }
+      for (const v of this.tails) if (live(v) && v.t0 <= now && (!old || v._relAt < old._relAt)) old = v;   // never one that has not started: that would only swap a note for another
+      if (old) { used -= old.cost || 1; this._fadeKill(old, 0.02); continue; }
       const id = [...this.voices.keys()].find(k => live(this.voices.get(k)));
       if (id === undefined) break;                          // nothing else to release: the voice goes in anyway
       const v = this.voices.get(id);
@@ -772,8 +810,8 @@ export class AudioEngine {
   dispose() {
     if (!this.ready) return;
     this.allNotesOff();
-    for (const v of this.tails) { if (v._timer) clearTimeout(v._timer); this._dispose(v); }
-    this.tails.clear();
+    for (const v of [...this.tails, ...this.going]) { if (v._timer) clearTimeout(v._timer); this._dispose(v); }
+    this.tails.clear(); this.going.clear();
     clearInterval(this.wseq.timer); this.wseq.timer = null; this.wseq.looping.clear();
     const lfos = [this.ampLFO, this.cutLFO, this.resLFO, this.freqLFO, this.pwmLFO, this.flLFO,
                   this.chLFO1, this.chLFO2, this.panLFO, ...this.ensSlow, ...this.ensFast].filter(Boolean);   // the effects' ones, if they were ever born
