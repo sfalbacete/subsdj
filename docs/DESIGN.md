@@ -3575,7 +3575,7 @@ check presses the button, takes the second candidate and flips All parts.
 
 ## Pattern 2.0, P1: several notes at once (2026-11-15)
 
-The first point of «Pattern 2.0» (docs/PLAN.md, from docs/PATTERN_EDITOR_IDEAS.md): fixing a chord
+The first point of «Pattern 2.0» (docs/PLAN.md, from Sergio's notes of 2026-11-15): fixing a chord
 note by note was the slowest thing on the screen. The selection is a set of note objects in
 `ui/patternEditor.js`; the engine does not change. The gestures of stage 2 stay as they were and
 only gain a plural: a press on empty space becomes a rubber band after 3 px (a plain click still lets

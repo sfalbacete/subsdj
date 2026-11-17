@@ -564,7 +564,7 @@ without loading (the rest of 1.4), the «909 Kit» loose end is done.
 
 ## Pattern 2.0 «a loop you can play with» (agreed 2026-11-15)
 
-**Origin:** docs/PATTERN_EDITOR_IDEAS.md (Sergio, 2026-11-15), read against the code of the
+**Origin:** Sergio's notes on the pattern editor (2026-11-15), read against the code of the
 Pattern player (`engine/Player.js`) and its screen (`ui/patternEditor.js`). The question for every
 point, from that document: *does it get to a musical idea, or transform one, in fewer steps, without
 losing control of what is sounding?* Still a loop per part, not a timeline (see «What we will NOT do»).
