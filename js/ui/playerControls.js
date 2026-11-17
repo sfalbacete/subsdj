@@ -146,6 +146,7 @@ export function paintPat() {
   pats('x2').forEach(b => { b.disabled = !!rec || !pl.canDoublePat(); });
   ['rot-', 'rot+'].forEach(k => pats(k).forEach(b => { b.disabled = !!rec || !(pat && pat.notes.length); }));
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.classList.toggle('active', +b.dataset.q === pl.cfg.quant));
+  document.querySelectorAll('[data-pat="follow"] button').forEach(b => b.classList.toggle('active', b.dataset.f === (pl.cfg.follow || 'off')));
   pats('play').forEach(b => { b.textContent = pl.c.running ? '■ Stop' : '▶ Play'; b.classList.toggle('on', pl.c.running); });
   pats('who').forEach(e => { const sc = getScene(), p = sc.parts[sc.sel]; e.textContent = 'Part ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : ''); });
   const info = patInfo(pl);
@@ -224,10 +225,12 @@ function buildPlayerUI() {
 let fromAll = false, fromState = null;   // { key, list, i }: the candidates of the last reading and which one is in
 const loopOfPl = pl => ({ bars: pl.cfg.pat.bars, notes: pl.cfg.pat.notes, quant: pl.cfg.quant, origin: pl.patOrigin });
 const hasLoop = pl => !!(pl && pl.cfg.pat && pl.cfg.pat.notes.some(n => n.b < pl.cfg.pat.bars * BAR - 1e-9));
+const follows = pl => !!pl && (pl.cfg.follow || 'off') !== 'off';   // a loop that follows the harmony is not read: it would read the harmony it is moved by
 export function harmonyFromPattern() {
   const c = conductor(), cur = currentPlayer(); if (!c || !cur) return null;
-  const pls = fromAll ? [cur, ...c.players.filter(p => p !== cur)].filter(p => hasLoop(p) && (p === cur || p.cfg.mode === 'pattern')) : [cur].filter(hasLoop);
+  const pls = (fromAll ? [cur, ...c.players.filter(p => p !== cur)].filter(p => hasLoop(p) && (p === cur || p.cfg.mode === 'pattern')) : [cur].filter(hasLoop)).filter(p => !follows(p));
   const say = t => { $('harmFromInfo').textContent = t; return null; };
+  if (!pls.length && (fromAll ? c.players.some(p => hasLoop(p) && follows(p)) : hasLoop(cur) && follows(cur))) { fromState = null; return say('On Follow, a pattern is moved by the harmony and cannot tell it: set Follow to Off to read it'); }
   if (!pls.length) { fromState = null; return say(fromAll ? 'No pattern in any part: record one first' : 'This part has no pattern: record one first'); }
   const pats = pls.map(loopOfPl), key = JSON.stringify([fromAll, pats]);
   if (fromState && fromState.key === key) fromState.i = (fromState.i + 1) % fromState.list.length;
@@ -257,8 +260,11 @@ export function saveSceneToLibrary(name) {
   sc.name = name;
   const j = sceneToJSON(sc);
   const old = library.items().find(it => it.type === 'scene' && it.name === name && !it.seed);
-  if (old) { library.update(old.id, j); return { id: old.id, name, over: true }; }
-  return { id: library.add({ type: 'scene', name, section: library.ensureSection(SEC_SCENES), data: j, origin: 'user' }), name, over: false };
+  const r = old ? { id: old.id, name, over: true }
+    : { id: library.add({ type: 'scene', name, section: library.ensureSection(SEC_SCENES), data: j, origin: 'user' }), name, over: false };
+  if (old) library.update(old.id, j);
+  document.dispatchEvent(new CustomEvent('scene-saved', { detail: r }));   // the session: from here on, «edited» is counted from this save
+  return r;
 }
 function syncHarmonyUI() {
   const c = conductor(); if (!c) return;
@@ -351,6 +357,10 @@ export function initPlayerControls() {
   click('rot+', pl => { if (pl && !rec && pl.rotatePat(1)) edited(); });
   click('play', () => setPlaying(!isPlaying()));
   click('edit', () => showScreen('pattern'));
+  document.querySelectorAll('[data-pat="follow"] button').forEach(b => b.addEventListener('click', () => {   // Follow (P4): on playback, from the next note
+    const pl = currentPlayer(); if (!pl) return;
+    pl.cfg.follow = b.dataset.f; b.blur(); paintPat();
+  }));
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.addEventListener('click', () => {
     const pl = currentPlayer(); if (!pl) return;
     pl.cfg.quant = +b.dataset.q; b.blur(); edited();

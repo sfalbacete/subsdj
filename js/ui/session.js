@@ -56,6 +56,8 @@ let restoring = false;   // putting a session back: its events are not new refer
 let wasOn = false;       // Parts on before this scene-changed (panic sends one too: it is no new reference)
 let armed = false, lastBody = null;
 
+// The single engine's preset while Parts is on (null: none, or deleted): Parts off marks it again
+export const soloPreset = () => (presetExists(solo.preset) ? solo.preset : null);
 const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };
 const presetExists = id => { const it = id && library.item(id); return !!(it && it.type === 'preset'); };
 const differs = (a, b) => diffKeys(a, b).length > 0;
@@ -101,6 +103,10 @@ function near(a, b, k) {
   return a === b;
 }
 export const sceneDirty = (core, ref) => !ref || !ref.ok || !near(core, ref.core);
+// Has the scene been EDITED since it was started, loaded or saved? What turning Parts off (or a new
+// scene) would throw away, so what they ask about first (ui/partsControls.js). Not sceneDirty: a scene
+// started over an unsaved rack is «dirty» for the session, but Parts off brings that rack back intact.
+export const sceneEdited = () => { const sc = getScene(); return !!sc && (!sceneRef || !near(sceneCore(sc), sceneRef.core)); };
 
 // ---------- the session as it would be stored now ----------
 export function captureSession() {
@@ -203,14 +209,16 @@ function listen() {
     wasOn = on;
   });
   document.addEventListener('scene-loaded', () => { if (!restoring && getScene()) sceneRef = { core: sceneCore(getScene()), ok: true }; });
+  // ★ Save: the scene is in the Library as it is now — it can be loaded again, like one loaded from there
+  document.addEventListener('scene-saved', () => { if (getScene()) sceneRef = { core: sceneCore(getScene()), ok: true }; });
 }
 
 // At startup, once the rack is on Init (main.js). audioReady: the engine's init (Parts needs it).
 export function initSession(audioReady) {
   const q = new URLSearchParams(location.search);
-  if (q.has('selftest') || q.has('nosplash')) return;    // tests and tools: never read, never write
   startup = snapshot();
-  listen();
+  listen();                                              // the scene's reference is kept always: Parts off asks with it (sceneEdited)
+  if (q.has('selftest') || q.has('nosplash')) return;    // tests and tools: never read, never write
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(SESSION_LS) || 'null'); } catch (e) { /* unreadable: as if there were none */ }
   if (!stored || stored.format !== SESSION_FORMAT || !stored.solo || !stored.solo.state) { arm(); return; }

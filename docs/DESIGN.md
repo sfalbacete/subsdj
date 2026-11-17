@@ -3686,3 +3686,58 @@ extremes (FM chords of 8 on sixteenths, pad chords of 8 with long notes, four pa
 file, each in a fresh page, counting `playbackStats` underruns, notes a second and voices alive. Checked
 against the commit before the fix: 922 / 77 / 659 underruns → 1 / 0 / 0. A measure, not a test: it depends
 on the machine; compare A/B on the same one.
+
+## Pattern 2.0, P4: the pattern follows the harmony (2026-11-16)
+
+What turns a recorded loop into one more player: a riff recorded over the key's I sounds over the chord of
+each bar of the conductor's harmony. `followNote` in `engine/Player.js`, applied in `_pattern` when a note
+is scheduled (the chord of the bar it starts in); the stored loop never changes, so Off gives it back as
+recorded and the grid keeps showing what was played.
+
+*Two ways.* **Degree** moves each note by (degree − 1) scale steps: the line stays inside the key and the
+chord quality comes from the scale (C-E-G-B over V is G-B-D-F, a dominant seventh; over vi A-C-E-G). A note
+outside the scale keeps its distance to the scale note below it. **Root** moves by the chord's root in
+semitones: the riff keeps its exact intervals (over vi in C, a major A-C#-E), for basses and harder riffs.
+
+*The direction is chosen once per chord*, the nearer way for the chord's root (up to a tritone up, else
+down): over V the whole loop goes down a fourth rather than up a fifth, and it stays in its register.
+Choosing per note split voicings (in C over V, B is a tritone away both ways and went up while the rest
+went down).
+
+*From pattern* reads the harmony out of the loops; a loop on Follow is moved by that harmony, so it is left
+out (and the line says why if it was the only one). A loop either holds the progression or follows it.
+
+*Not done:* following a held key, as the Seq's phrase does: in Pattern the keys sound and are recorded, so
+they cannot also transpose. The selector is on the Pattern screen only (the Player module's band is full).
+
+**Evidence.** Selftest «pattern Follow»: C-E-G over I IV V vi in C major — Degree 60 64 67 | 65 69 72 |
+55 59 62 | 57 60 64, Root the same but 57 61 64 over vi, Off unchanged, the stored loop untouched; the
+selector on the Pattern screen writes the player's cfg.
+
+## Discarding a scene asks first (2026-11-17)
+
+Turning Parts off disposes the four engines and the Room: the scene is gone, and the header's undo
+only knows the rack. Switching Parts off and on was also the only way to start a scene over, which
+nothing explained. Two changes:
+
+- **The question is conditional.** `sceneEdited()` (ui/session.js) compares the scene with its
+  reference — as Parts started it, as loaded, or as last ★ Saved — with the same `sceneCore` and
+  tolerance the session uses. Untouched: Parts go off at once. A question that always comes up is
+  answered without reading. It is NOT `sceneDirty`: a scene started over an unsaved rack is dirty
+  for the session, but Parts off brings that rack back intact, so there is nothing to ask about.
+  For that reference to exist everywhere, the session's listeners now run with `?selftest` and
+  `?nosplash` too (they only track references; reading and writing storage stay off), and ★ Save
+  announces `scene-saved`, which moves the reference — a saved scene can be loaded again, like one
+  loaded from the Library.
+- **«New»** (Arrangement module) is the explicit gesture: the same Parts-off-and-on, behind the same
+  question. Part 1 gets the single engine's sound, the one from before Parts — not the current
+  part 1: that is exactly what off and on always did.
+
+The question itself is ui/confirm.js, a small generic modal: the last button is the way back, it
+has the focus, and Escape or a click outside press it — Enter alone never discards. Its key
+listener is registered when the module loads, before the keyboard's, so no note plays while it is
+up (the welcome window's trick). In the selftest the question is off unless a check turns it on
+(`setDiscardAsk`): dozens of checks switch Parts on and off.
+
+Found on the way: Parts off left the preset picker on the last part's preset while the rack showed
+the single engine's sound. It marks the single engine's preset again (`soloPreset`).

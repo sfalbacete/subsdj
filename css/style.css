@@ -339,8 +339,8 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .pat-bar .btn:disabled{opacity:.4;cursor:default;}
 .pat-f{display:flex;align-items:center;gap:6px;margin-left:6px;}
 .pat-f .fieldlab{margin-bottom:0;}
-[data-pat="quant"]{flex:none;}
-#pattern [data-pat="quant"] button,#playerPat [data-pat="quant"] button{flex:none;padding:3px 8px;}
+[data-pat="quant"],[data-pat="follow"]{flex:none;}
+#pattern [data-pat="quant"] button,#playerPat [data-pat="quant"] button,#pattern [data-pat="follow"] button{flex:none;padding:3px 8px;}
 #patCanvas{display:block;width:100%;height:58px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);
   box-shadow:inset 0 2px 5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.055);}
 [data-pat="rec"]{color:var(--hot);}
@@ -1067,6 +1067,15 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
   backdrop-filter:saturate(.45) brightness(.82);transition:opacity .4s ease;}
 #splash.out{opacity:0;pointer-events:none;}
 #splash[hidden]{display:none;}   /* closed: the display:grid above would override the browser's [hidden] */
+/* A QUESTION (ui/confirm.js): same dimming as the welcome, a plain card in the theme's colors */
+#confirm{position:fixed;inset:0;z-index:1001;display:grid;place-items:center;background:var(--sp-dim);backdrop-filter:saturate(.45) brightness(.82);}
+#confirm[hidden]{display:none;}
+.cf-card{width:400px;box-sizing:border-box;padding:16px 18px 14px;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-panel);
+  box-shadow:var(--shadow-pop);animation:spIn .2s ease both;}
+.cf-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+.cf-text{font-size:12px;line-height:1.5;color:var(--dim);white-space:pre-line;}
+.cf-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
+.cf-btns .btn:focus-visible{outline:none;border-color:var(--accent);color:var(--accent);}
 #aboutBtn,#verBadge{cursor:pointer;}   /* the header title opens «About» */
 .sp-card{width:336px;overflow:hidden;border:1px solid var(--sp-edge);border-radius:10px;
   background:linear-gradient(180deg,var(--sp-card-top),var(--sp-card-bot));

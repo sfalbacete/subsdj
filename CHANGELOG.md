@@ -24,6 +24,19 @@ scenes, libraries, MIDI maps). The why behind each module is in
   whole loop; **Paste** (Ctrl+V) adds them to the loop of the part being edited, at the same places,
   selected — so the same line can go to another sound, and Shift+↓ takes it an octave down for a
   bass. A part without a loop gets one (and its player goes to Pattern). One undo step.
+- **Pattern: Follow the harmony.** A loop recorded over the key's I plays over the chord of each bar of the
+  Harmony module, without being recorded again: one bar of riff walks the whole progression. **Degree**
+  moves it by scale steps, inside the key (C-E-G over IV is F-A-C, over ii D-F-A); **Root** by the
+  chord's root in semitones, keeping its intervals; **Off** plays it as recorded. The loop itself is not
+  changed, and **From pattern** does not read a loop on Follow (it would read the harmony that moves it).
+- **Parts off asks before throwing a scene away, and «New» starts one over.** Turning Parts off discards
+  the scene — the four sounds, the mix, the room, the harmony, the players with their patterns, the
+  arrangement — with no undo, and nothing said so. Now it asks first, but only when the scene has
+  changes since it was started, loaded or saved: **★ Save and turn off**, **Turn off** or **Cancel**
+  (Cancel has the focus, Escape is Cancel). An untouched scene still goes off at once. **New**, in the
+  Arrangement module, starts the scene over the same way (part 1 with the sound you had before Parts,
+  the others on Init) instead of doing it by switching Parts off and on. Parts off also marks the
+  rack's own preset again (the picker used to keep showing the last part's).
 - **Fix: dense patterns stuttered.** A loop of 8-note chords (DX E-Piano) sounded for a moment and then
   the whole output broke up, and never recovered. The notes of the players were counted as release
   tails while they still sounded, so the cap on tails faded out almost every note with a 350 ms fade,

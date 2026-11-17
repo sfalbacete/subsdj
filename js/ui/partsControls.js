@@ -16,6 +16,9 @@ import { attachKnob } from './knobs.js';
 import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
 import { currentPreset, markPreset, markPresetByName, initItem, initData } from './presetBank.js';
+import { sceneEdited, soloPreset } from './session.js';
+import { saveSceneToLibrary } from './playerControls.js';
+import { askConfirm } from './confirm.js';
 
 const ROOM_PANELS = ['Delay', 'Reverb', 'Tape'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
@@ -131,13 +134,40 @@ function setUI(on) {
   }
 }
 
-async function toggle(btn) {
-  if (sceneOn()) {
-    disableScene(); setUI(false); syncControls(part().S);
-    const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts off: single engine';
-    return;
-  }
-  if (!part().ready) return;
+// Turning Parts off — and «New» — THROW THE SCENE AWAY with no undo: the four sounds, the mix, the Room, the
+// harmony, the players with their patterns, the arrangement. They ask first, but only when there is something
+// to lose: a scene edited since it was started, loaded or saved (session.js · sceneEdited). A question that
+// always comes up gets answered without reading. The selftest's other checks switch Parts on and off all the
+// time: there the question is off unless a check turns it on (setDiscardAsk).
+let asking = !new URLSearchParams(location.search).has('selftest');
+export function setDiscardAsk(on) { asking = !!on; }
+const say = t => { const msg = $('presetMsg'); if (msg) msg.textContent = t; };
+// → null (stay), or { saved } (go on; saved = the name it was saved under first, if it was)
+const mustAsk = () => asking && sceneEdited();
+async function mayDiscard(off) {
+  const a = await askConfirm({
+    title: off ? 'Turn Parts off?' : 'Start a new scene?',
+    text: 'This scene has unsaved changes, and ' + (off ? 'turning Parts off' : 'a new scene') + ' discards it: the four sounds, the mix, the room, ' +
+      'the harmony, the players with their patterns and the arrangement. There is no undo.\n' +
+      (off ? 'The rack goes back to the sound you had before Parts.' : 'Part 1 starts with the sound you had before Parts, the others on Init.'),
+    buttons: [
+      { id: 'save', label: off ? '★ Save and turn off' : '★ Save and start new', title: 'Saves the scene in the Library\'s «Scenes» first, under the name in the Arrangement module (or today\'s date if it has none)' },
+      { id: 'go', label: off ? 'Turn off' : 'Start new' },
+      { id: 'back', label: 'Cancel' },
+    ],
+  });
+  if (!a || !sceneOn()) return null;
+  if (a !== 'save') return {};
+  const r = saveSceneToLibrary($('sceneName').value);
+  return r ? { saved: r.name } : null;
+}
+const savedMsg = d => (d.saved ? 'Scene saved as «' + d.saved + '» · ' : '');
+
+function partsOff() {
+  disableScene(); setUI(false); syncControls(part().S);
+  markPreset(soloPreset());   // the rack is the single engine's again: its preset, not the last part's
+}
+async function partsOn(btn) {
   btn.disabled = true;
   try { await enableScene(initData()); } finally { btn.disabled = false; }   // the other parts are born with Init (the blank page)
   buildStrips(); setUI(true); syncControls(part().S);
@@ -145,13 +175,32 @@ async function toggle(btn) {
   if (cur) { p0.presetVal = cur.id; p0.presetName = cur.name; }
   if (init) for (const p of sc.parts.slice(1)) { p.presetVal = init.id; p.presetName = init.name; }
   refreshNames();
-  const msg = $('presetMsg'); if (msg) msg.textContent = 'Parts: part 1 takes over the current sound';
+}
+async function toggle(btn) {
+  if (sceneOn()) {
+    const d = mustAsk() ? await mayDiscard(true) : {}; if (!d) return;   // nothing to ask: off AT ONCE (no await: whoever clicked can count on it)
+    partsOff();
+    say(savedMsg(d) + 'Parts off: single engine');
+    return;
+  }
+  if (!part().ready) return;
+  await partsOn(btn);
+  say('Parts: part 1 takes over the current sound');
+}
+// «New» (Arrangement module): the scene starts over, exactly as Parts off and on again does
+async function newScene() {
+  if (!sceneOn()) return;
+  const d = mustAsk() ? await mayDiscard(false) : {}; if (!d) return;
+  partsOff();
+  await partsOn($('partsBtn'));
+  say(savedMsg(d) + 'New scene: part 1 has the sound you had before Parts');
 }
 
 export function initPartsControls() {
   const btn = $('partsBtn'); if (!btn) return;
   roomPanels = ROOM_PANELS.map(panelByTitle).filter(Boolean);
   btn.addEventListener('click', () => toggle(btn));
+  $('sceneNew')?.addEventListener('click', e => { e.currentTarget.blur(); newScene(); });
   // Panic: the conductor stops and cancels what is pending, and all parts release everything
   const pb = $('panicBtn');
   if (pb) pb.addEventListener('click', () => { const sc = getScene(); if (sc) sc.conductor.panic(); panic(); document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on: sceneOn() } })); });

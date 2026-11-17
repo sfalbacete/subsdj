@@ -64,6 +64,7 @@ export const PLAYER_DEF = {
   density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melody
   fifth: 0, every: 2,                                       // root
   pat: null, quant: 0.25,                                   // pattern: the loop ({bars, notes}) and the playback grid in beats (0 = as played)
+  follow: 'off',                                            // pattern: 'off' | 'degree' | 'root' — transposed on playback by the harmony's chord (see followNote)
   threshold: 0, drift: 'off', driftAmt: 0.3,                 // the part's arrangement
 };
 export const PAT_MAX_BARS = 16;                // longest loop
@@ -74,6 +75,29 @@ const PAT_MIN_LEN = 0.05;   // beats: shortest note kept (a key struck and relea
 const PAT_UNDO = 40;        // copies of the loop kept for undo
 const PAT_FRESH = 1;        // beats after it was played in which an overdubbed note is not played back (quantized forward, it would sound twice)
 export const clonePat = p => (p ? { bars: p.bars, notes: p.notes.map(n => ({ b: n.b, len: n.len, m: n.m, v: n.v })) } : null);
+// FOLLOW (Pattern 2.0, P4, 2026-11-16): a loop recorded over the key's I sounds over the chord of each bar. The
+// stored loop does not change: it is a transformation on playback, taken back with Off.
+//   degree  by scale steps (degree − 1), inside the key: C-E-G over IV is F-A-C, over ii D-F-A (minor)
+//   root    by the chord's root in semitones, keeping the intervals: over vi, A-C#-E
+// The direction (up or down) is chosen ONCE per chord, the nearer way for the chord's root (up to a tritone up),
+// so the line stays in its register and a voicing is never split. Notes outside the scale (degree) keep their
+// distance to the scale note below them.
+export function followNote(m, h, chord, how) {
+  if (!chord || (how !== 'degree' && how !== 'root')) return m;
+  const sc = h.notes, len = sc.length, steps = ((chord.degree - 1) % len + len) % len;
+  const up = sc[steps];                                      // semitones from the key's root to the chord's root, upward
+  if (how === 'root') {
+    let d = (((chord.rootPc - h.root) % 12) + 12) % 12; if (d > 6) d -= 12;
+    return Math.max(0, Math.min(127, m + d));
+  }
+  if (!steps) return m;
+  const k = up > 6 ? steps - len : steps;                    // scale steps to move (negative: down)
+  const rel = m - h.root, oct = Math.floor(rel / 12), pc = rel - 12 * oct;
+  let i = len - 1; while (i > 0 && sc[i] > pc) i--;          // the scale degree at or below the note
+  const j = i + k, o = Math.floor(j / len);
+  return Math.max(0, Math.min(127, h.root + 12 * (oct + o) + sc[j - o * len] + (pc - sc[i])));
+}
+
 // Where a note starts in a loop of L beats on the grid q: its own beat, or the nearest grid point (the loop's end is its start)
 export function patStart(n, q, L) { const s = q > 0 ? Math.round(n.b / q) * q : n.b; return s >= L - 1e-9 ? s - L : s; }
 const BAR = 4;            // beats per bar (4/4)
@@ -303,7 +327,8 @@ export class Player {
       if (this.fresh.get(n) > at) continue;                    // just played by hand: it comes in on the next lap
       const t = q > 0 ? this.c.swungTime(at, q) : this.c.timeAt(at);   // on a grid, with the clock's swing
       const id = this._id();
-      this._on(id, n.m, Math.min(1, n.v * a.velMul), t);
+      const m = c.follow === 'off' ? n.m : followNote(n.m, this.c.harmony, this.c.chordAtBeat(at), c.follow);   // Follow: the chord of the bar the note starts in
+      this._on(id, m, Math.min(1, n.v * a.velMul), t);
       this._off(id, t + Math.max(PAT_MIN_LEN, Math.min(n.len, L)) * this.c.beatLen());
     }
   }

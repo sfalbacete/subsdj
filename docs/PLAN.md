@@ -591,7 +591,7 @@ stops today at step 6: duplicate and vary the end, variants, switch on the next 
 
 ### Batch 2 · Live, where it is distinctive
 
-- **P4 · The pattern follows the harmony.** The loop transposed by the Conductor's chord (or by a
+- **P4 · The pattern follows the harmony.** ✔ DONE 2026-11-16 (Follow: Off · Degree · Root; From pattern skips loops on Follow; a held key: not done). The loop transposed by the Conductor's chord (or by a
   held key, like the Seq's phrase), optionally by degree (5.2 «notes by degree»). What turns a
   recorded loop into one more player; the most interesting point of the plan.
 - **P5 · Non-destructive performance controls:** Transp, Gate %, Vel %, Mute (with tails), Restart

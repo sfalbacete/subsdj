@@ -42,7 +42,7 @@ import { lfoBuffers, makeIR, mkLFO, setLfoShape, seedRender, ctxRandom } from '.
 import { Arrangement } from './engine/Arrangement.js';
 import { Harmony, SCALES } from './engine/Harmony.js';
 import { euclid, Player, PLAYER_DEF, patStart } from './engine/Player.js';
-import { patRecording, patArmed, harmonyFromPattern, setHarmonyFromAll } from './ui/playerControls.js';
+import { patRecording, patArmed, harmonyFromPattern, setHarmonyFromAll, saveSceneToLibrary } from './ui/playerControls.js';
 import { inferHarmony } from './engine/inferHarmony.js';
 import { patEdGeom, patZoom, patView, patEdSelection } from './ui/patternEditor.js';
 import { playOn, playOff } from './engine/parts.js';
@@ -62,7 +62,8 @@ import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION, RELEASE } from './version.js';
 import { splashDate, SplashFx, openSplash, askOnWelcome } from './ui/splash.js';
-import { captureSession, soloDirty, sceneCore, sceneDirty, restoreSession, describe as describeSession } from './ui/session.js';
+import { captureSession, soloDirty, sceneCore, sceneDirty, sceneEdited, restoreSession, describe as describeSession } from './ui/session.js';
+import { setDiscardAsk } from './ui/partsControls.js';
 import { setAsLock, asLocked } from './ui/seqControls.js';
 import { diffKeys } from './ui/history.js';
 import { FM4_ALGS, layout as fm4Layout, svgFor as fm4Svg } from './ui/fm4Graph.js';
@@ -3661,6 +3662,33 @@ export async function runSelfTest() {
   }
 
   {
+    // Follow (Pattern 2.0, P4): the loop transposed on playback by the harmony's chord of each bar, the stored loop
+    // untouched. A C-E-G on beat 1 of a 1-bar loop over C major I IV V vi (a chord a bar). Degree: by scale steps,
+    // inside the key — IV F-A-C, V G-B-D (DOWN: the nearer way, chosen once per chord so a voicing is never split),
+    // vi A-C-E (minor); Root: by the chord's root in semitones, keeping the intervals — vi A-C#-E. Off: as recorded.
+    const NAME = 'pattern Follow (Degree: scale steps, the nearer way for the whole chord · Root: semitones · Off · the loop untouched)';
+    const problems = [];
+    try {
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(ctx, [FX.pluckBass], { roomS: { bpm: 120 } });
+      const run = how => {
+        const cd = new Conductor(sc, { seed: 3 }); cd.dry = true; Object.assign(cd.arr.cfg, { energy: 1, sway: 0, surprise: 0, open: 0 });
+        Object.assign(cd.harmony, { root: 0, scale: 'major', prog: [1, 4, 5, 6], bars: 1, mode: 'list', offset: 0 });
+        const pl = cd.players[0];
+        pl.setMode('pattern'); pl.cfg.pat = { bars: 1, notes: [60, 64, 67].map(m => ({ b: 0, len: 1, m, v: 1 })) }; pl.cfg.quant = 0.25; pl.cfg.follow = how; pl.log = [];
+        cd.scheduleAll(8);                                   // four bars at 120 BPM
+        if (pl.cfg.pat.notes.map(n => n.m).join() !== '60,64,67') problems.push(how + ': the stored loop changed');
+        const bars = [[], [], [], []];
+        for (const e of pl.log) if (e[1] === 'on') bars[Math.floor(e[0] / 2 + 1e-6)]?.push(e[2]);
+        return bars.map(b => b.sort((x, y) => x - y).join(' ')).join(' | ');
+      };
+      const exp = { off: '60 64 67 | 60 64 67 | 60 64 67 | 60 64 67', degree: '60 64 67 | 65 69 72 | 55 59 62 | 57 60 64', root: '60 64 67 | 65 69 72 | 55 59 62 | 57 61 64' };
+      for (const how of ['off', 'degree', 'root']) { const got = run(how); if (got !== exp[how]) problems.push(how + ': ' + got + ' (expected ' + exp[how] + ')'); }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
     // A muted part's player starts nothing (2026-11-16, Sergio: mute stops the player). Its voices were unheard
     // but rendered, and took the shared CPU budget from the parts that are heard. It keeps its place in time:
     // unmuted, it comes in on its next note.
@@ -4205,6 +4233,9 @@ export async function runSelfTest() {
           if (!near(pl.cfg.pat.notes[0].b, 0.28)) problems.push('Off: ▸ moves 0.03 to ' + pl.cfg.pat.notes[0].b + ' (expected 0.28, a sixteenth, the timing kept)');
           pl.cfg.pat.bars = 9; document.dispatchEvent(new CustomEvent('pattern-edited'));
           if (!btn('x2').disabled || pl.doublePat()) problems.push('×2 works on a loop of 9 bars (more than 16)');
+          const fb = document.querySelector('.pat-top [data-pat="follow"] [data-f="degree"]');   // Follow (P4): the selector writes the player's cfg and shows it
+          if (!fb) problems.push('no Follow on the Pattern screen');
+          else { fb.click(); if (pl.cfg.follow !== 'degree' || !fb.classList.contains('active')) problems.push('Follow Degree: cfg ' + pl.cfg.follow); }
         }
         pl.setMode(keep.mode); Object.assign(pl.cfg, keep); pl.clearHist();
         document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
@@ -6477,6 +6508,85 @@ export async function runSelfTest() {
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally {
       setAsLock(false);
+      if (id0) loadPresetId(id0);
+      loadState(keep); refreshDeps();
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Discarding a scene (2026-11-17): turning Parts off — and «New» in the Arrangement module — throw the scene
+    // away with no undo, so they ASK first, but only when the scene was edited since it was started, loaded or
+    // saved (the part chosen and the names are not edits). Cancel has the focus (Enter alone discards nothing)
+    // and Escape is Cancel too; «★ Save and…» puts the scene in the Library first; after a ★ Save nothing is
+    // asked. Parts off brings the rack back with ITS preset marked, not the last part's.
+    const NAME = 'discarding a scene (Parts off and New ask only with unsaved changes · Cancel focused, Escape keeps · ★ Save first · no question after a save · Parts off marks the rack\'s preset again)';
+    const problems = [], $ = id => document.getElementById(id), wait = ms => new Promise(r => setTimeout(r, ms));
+    const isOn = () => document.body.classList.contains('parts'), up = () => !$('confirm').hidden;
+    const until = async fn => { for (let k = 0; k < 60 && !fn(); k++) await wait(100); return !!fn(); };
+    const key = k => document.body.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    const cb = id => document.querySelector('#confirm .cf-btns [data-id="' + id + '"]');
+    const keep = snapshot(), id0 = currentPresetId(), SCN = 'Selftest discard';
+    try {
+      if (isOn()) throw new Error('Parts are on before the check');
+      if (!part().ready) throw new Error('the audio is not ready: Parts cannot be switched on');
+      setDiscardAsk(true);
+      const warm = library.presets().find(it => it.name === 'Warm Pad');
+      if (!warm) throw new Error('no Warm Pad');
+      loadPresetId(warm.id);
+      $('partsBtn').click();
+      if (!await until(isOn)) throw new Error('the Parts do not turn on');
+      // (1) untouched: no question, and the rack's preset comes back
+      if (sceneEdited()) problems.push('a scene just started counts as edited');
+      document.querySelector('#partSel button[data-p="1"]').click();        // another part, on Init: not an edit
+      if (sceneEdited()) problems.push('choosing another part counts as an edit');
+      $('partsBtn').click(); await wait(60);
+      if (up()) { problems.push('an untouched scene asks before Parts off'); cb('go').click(); }
+      if (!await until(() => !isOn())) throw new Error('untouched scene: Parts do not turn off');
+      if (currentPresetId() !== warm.id) problems.push('Parts off: the rack\'s preset is not marked again (' + (currentPreset()?.name || 'none') + ')');
+      // (2) edited: it asks; Enter (Cancel focused) and Escape keep the scene
+      $('partsBtn').click();
+      if (!await until(isOn)) throw new Error('the Parts do not turn on again');
+      const sc = getScene(); sc.parts[1].pan = 0.5;
+      if (!sceneEdited()) problems.push('a pan moved is not an edit');
+      $('partsBtn').click(); await wait(60);
+      if (!up()) throw new Error('an edited scene does not ask before Parts off');
+      if (document.activeElement !== cb('back')) problems.push('Cancel does not have the focus');
+      if (!/unsaved/.test($('cfText').textContent) || !/before Parts/.test($('cfText').textContent)) problems.push('the question does not explain itself: ' + $('cfText').textContent.slice(0, 60));
+      key('Enter'); await wait(60);
+      if (up() || !isOn() || getScene() !== sc) problems.push('Enter on the question does not keep the scene');
+      $('partsBtn').click(); await wait(60); key('Escape'); await wait(60);
+      if (up() || !isOn() || getScene() !== sc) problems.push('Escape does not keep the scene');
+      // (3) New + «★ Save and start new»: saved as it was, then a scene as Parts starts it
+      $('sceneName').value = SCN;
+      $('sceneNew').click(); await wait(60);
+      if (!up()) throw new Error('New does not ask with an edited scene');
+      cb('save').click();
+      if (!await until(() => isOn() && getScene() && getScene() !== sc)) throw new Error('New does not start a new scene');
+      const it = library.items().find(x => x.type === 'scene' && x.name === SCN);
+      if (!it) problems.push('«★ Save and start new» saved nothing');
+      else if (it.data.parts[1].pan !== 0.5) problems.push('the scene was saved without its edit (pan ' + it.data.parts[1].pan + ')');
+      if (getScene().parts[1].pan !== 0) problems.push('the new scene keeps the old pan');
+      if (sceneEdited()) problems.push('a new scene counts as edited');
+      $('sceneNew').click(); await wait(60);
+      if (up()) { problems.push('New asks on an untouched scene'); key('Escape'); }
+      await until(() => isOn() && !$('partsBtn').disabled);
+      // (4) after a ★ Save there is nothing to ask; edited again, «Turn off» discards
+      getScene().parts[2].pan = -0.3;
+      if (!sceneEdited()) problems.push('an edit on the new scene is not seen');
+      saveSceneToLibrary(SCN);
+      if (sceneEdited()) problems.push('a scene just saved still counts as edited');
+      getScene().parts[2].pan = 0.2;
+      $('partsBtn').click(); await wait(60);
+      if (!up()) problems.push('edited after a save: no question');
+      else cb('go').click();
+      if (!await until(() => !isOn())) problems.push('«Turn off» does not turn Parts off');
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      setDiscardAsk(false);
+      if (up()) key('Escape');
+      if (isOn()) { $('partsBtn').click(); await until(() => !isOn()); }
+      for (const x of library.items().filter(x => x.type === 'scene' && x.name === SCN)) library.remove(x.id);
+      $('sceneName').value = '';
       if (id0) loadPresetId(id0);
       loadState(keep); refreshDeps();
     }
