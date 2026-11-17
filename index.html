@@ -487,9 +487,9 @@
     <div class="panel grow" id="salida" data-slot="salida">
       <h2>Output</h2>
       <div class="readout"><span class="who" id="dispWho">Preset</span><span class="side" id="dispWhy"><span></span></span><span class="v" id="dispVal"><span>—</span></span></div>
-      <div class="vizrow"><canvas id="scope"></canvas><canvas id="spectrum"></canvas>
-        <div class="meter" id="meter" title="Output meter: L and R peaks of what comes out (−48 to 0 dBFS; yellow from −12, red from −1, where the limiter ceiling is; the tick, the peak from 1 s ago). The violet bar is the limiter's gain reduction (full = 12 dB). Below, the highest recent peak in dBFS">
-          <div class="mt-bars"><div class="mt-ch"><i></i><b></b></div><div class="mt-ch"><i></i><b></b></div><div class="mt-gr"><i></i></div></div>
+      <div class="vizrow"><canvas id="scope" title="Oscilloscope of the output. Click to switch: «scope» shows the last 43 ms, held still; «cycle» shows one single period, as large as it fits, to read the shape of the wave (with its measured pitch; chords and noise have no period and are drawn as scope)"></canvas><canvas id="spectrum" title="Spectrum of the output: 20 Hz to 20 kHz (each octave the same width), −96 to −12 dB. The violet line keeps the peaks and falls slowly"></canvas>
+        <div class="meter" id="meter" title="Output meter: L and R peaks of what comes out (−48 to 0 dBFS, 2 dB per segment; yellow from −12, red the top one, where the limiter ceiling is; the segment that stays lit, the peak from 1 s ago). The violet bar is the limiter's gain reduction (full = 12 dB). Below, the highest recent peak in dBFS">
+          <div class="mt-bars"><div class="mt-scale"><span style="--at:100%">0</span><span style="--at:87.5%">6</span><span style="--at:75%">12</span><span style="--at:50%">24</span><span style="--at:0%">48</span></div><div class="mt-ch"><i></i><b></b></div><div class="mt-ch"><i></i><b></b></div><div class="mt-gr"><i></i></div></div>
           <div class="mt-foot"><span id="mtPk">−∞</span><button type="button" id="mtLed" title="Lights up when the limiter works and stays lit: click to clear it">Lim</button></div>
         </div>
       </div>

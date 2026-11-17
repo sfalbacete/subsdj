@@ -295,11 +295,22 @@ last parameter you TOUCH — with the mouse or with a MIDI control (`ctl-touch`
 from midimap) — and its already formatted value; when a preset is loaded, its name.
 Everything is read from the control itself (its label or `data-lab`, its `.val`, the
 active button, the chosen option) and from its section: there is no other table of
-names. Below, the master's oscilloscope and spectrum, now large.
+names. Below, the master's oscilloscope and spectrum, now large (`ui/scope.js`). The
+oscilloscope has two modes (a click switches): **scope**, the last 2048 samples, and **cycle**, one
+period at full width, normalized. The period is measured on the signal with YIN (difference
+function normalized by its running mean, first dip under 0.15; searched on the signal decimated ×4
+and refined at full rate with a parabola), about ten times a second — not taken from the key, so
+it follows detune, FM and glide. Both modes trigger on the first rising zero crossing after the
+lowest sample of one period: a plain zero-crossing trigger jumps between the several crossings a
+rich wave has. The spectrum is a curve: logarithmic X (20 Hz–20 kHz), Y in dB (−96 to −12), the
+loudest bin where a pixel column holds several and Catmull-Rom between bins where it holds less
+than one (the lows; that is why the analyser is 8192 points, 5.9 Hz per bin), plus a line of
+peaks that falls at 9 dB/s.
 
 **Output meter** (`ui/meter.js`, next to the spectrum): L and R peaks of what
-GOES OUT (after the limiter; from −48 to 0 dBFS, yellow from −12, red
-from −1, which is the ceiling), a line with the peak of the last second, the
+GOES OUT (after the limiter; from −48 to 0 dBFS as LED ladders of 24 segments, 2 dB each: levels
+are rounded up to whole segments; yellow from −12, the top segment red, where the ceiling is), a
+segment that stays lit with the peak of the last second, the
 limiter's gain reduction in violet (full = 12 dB), the highest
 peak in figures and the **lim** LED, which lights up as soon as the limiter takes off
 more than 0.1 dB and stays on until clicked: that way a squeeze that lasts an

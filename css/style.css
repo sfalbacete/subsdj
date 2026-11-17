@@ -791,17 +791,29 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 @keyframes lcdScroll{0%,12%{transform:translateX(0);}88%,100%{transform:translateX(var(--dx,0));}}
 .vizrow{display:flex;gap:8px;margin-top:8px;flex:1;min-height:0;}
 .vizrow canvas{flex:1;min-width:0;height:100%;display:block;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
-/* Output meter (ui/meter.js): two peak bars (−48..0 dBFS; the zones, fixed in the background:
-   −12 dBFS at 75 %, −1 at 97.9 %) that a semi-transparent cover hides from the top, the
-   hold line and the limiter's reduction (violet, from the top). Transform only: no layout */
-.meter{flex:none;width:60px;display:flex;flex-direction:column;gap:4px;}
-.mt-bars{flex:1;min-height:0;display:flex;gap:3px;padding:4px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
-.mt-ch,.mt-gr{position:relative;overflow:hidden;border-radius:2px;}
-.mt-ch{flex:1;background:linear-gradient(to top,var(--accent) 0 75%,var(--star) 75% 97.9%,var(--hot) 97.9%);}
-.mt-ch i{position:absolute;inset:0;background:color-mix(in srgb,var(--screen) 86%,transparent);transform-origin:top;transform:scaleY(1);}
-.mt-ch b{position:absolute;inset:0;border-top:2px solid var(--ink);transform:translateY(100%);}
-.mt-gr{flex:none;width:6px;background:color-mix(in srgb,var(--accent2) 14%,transparent);}
+/* Output meter (ui/meter.js): two peak LED ladders (−48..0 dBFS in --mt-segs segments of 2 dB,
+   cut out by a mask; the zones, fixed in the background: yellow from −12 dBFS, the top segment
+   red) that a semi-transparent cover hides from the top in whole segments, the held peak (one
+   segment that stays lit, in the color of its zone), the limiter's reduction (violet, from the
+   top) and a dB scale. Transform only: no layout */
+.meter{flex:none;width:72px;display:flex;flex-direction:column;gap:4px;--mt-segs:24;--mt-seg:calc(100% / var(--mt-segs));--mt-gap:1.5px;}
+.mt-bars{flex:1;min-height:0;display:flex;gap:3px;padding:5px 4px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
+.mt-ch,.mt-gr{position:relative;overflow:hidden;
+  -webkit-mask:repeating-linear-gradient(to top,#000 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));
+  mask:repeating-linear-gradient(to top,#000 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));}
+.mt-ch{flex:1;background:linear-gradient(to top,var(--accent) 0 75%,var(--star) 75% calc(100% - var(--mt-seg)),var(--hot) 0);}
+/* a LED's dome: lighter down the middle, darker at the sides (under the cover, so only the lit ones shine) */
+.mt-ch::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.22) 45%,rgba(0,0,0,.28));}
+.mt-ch i{position:absolute;inset:0;background:color-mix(in srgb,var(--screen) 82%,transparent);transform-origin:top;transform:scaleY(1);}
+.mt-ch b{position:absolute;inset:0;--c:var(--accent);background:linear-gradient(to bottom,color-mix(in srgb,var(--c) 70%,white) 0 var(--mt-seg),transparent 0);transform:translateY(100%);}
+.mt-ch b[data-z="warn"]{--c:var(--star);}
+.mt-ch b[data-z="hot"]{--c:var(--hot);}
+.mt-gr{flex:none;width:6px;background:color-mix(in srgb,var(--accent2) 16%,transparent);}
 .mt-gr i{position:absolute;inset:0;background:var(--accent2);transform-origin:top;transform:scaleY(0);}
+/* the scale: dBFS of the peak ladders, each number centered on its level */
+.mt-scale{position:relative;flex:none;width:11px;font:600 7px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;color:var(--dim);}
+.mt-scale span{position:absolute;right:0;bottom:var(--at);transform:translateY(50%);}
+#scope{cursor:pointer;}
 .mt-foot{display:flex;align-items:center;justify-content:space-between;gap:2px;font:600 10px/1 Consolas,"Cascadia Mono",ui-monospace,monospace;
   color:var(--dim);font-variant-numeric:tabular-nums;}
 #mtLed{padding:2px 4px;border:1px solid var(--edge);border-radius:4px;background:none;color:var(--dim);font:inherit;cursor:pointer;}

@@ -227,7 +227,7 @@ export class Room {
       processorOptions: { lookahead: LIM_LOOKAHEAD, ceilingDb: LIM_CEIL_DB, makeupDb: LIM_MAKEUP_DB, release: LIM_RELEASE } });
     this.headroom = ctx.createGain(); this.headroom.gain.value = Math.pow(10, HEADROOM_DB / 20);
     this.master = ctx.createGain(); this.master.gain.value = master;
-    this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.8;
+    this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 8192;   /* 5.9 Hz per bin: the spectrum's lows (ui/scope.js) */ this.analyser.smoothingTimeConstant = 0.8;
 
     // --- Tape on the master (see constants TAPE_*): two stages, each exact at 0 ---
     this.tapeIn = ctx.createGain();

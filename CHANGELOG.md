@@ -8,6 +8,18 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Oscilloscope: scope and cycle.** A click on the oscilloscope switches between **scope** (the last
+  43 ms, now triggered so the wave stands still) and **cycle**: one single period stretched to the
+  full width and normalized, to read the shape of the wave, with its measured pitch. The period is
+  measured on the output itself, so it follows detune, octave, FM and glide; a chord shows the
+  period its notes share, and noise, having none, is drawn as scope.
+- **Spectrum as a curve.** The bars give way to a line with a fading fill under it: 20 Hz to 20 kHz
+  on a logarithmic axis (each octave the same width, so a cutoff sweep moves at constant speed) and
+  −96 to −12 dB (a filter's slope is a straight line). A second line keeps the peaks and falls
+  slowly — the trail of a sweep. The analyzer went from 2048 to 8192 points for the lows.
+- **Output meter as LED ladders.** 24 segments of 2 dB per channel (yellow from −12 dBFS, the top one
+  red), the held peak is a segment that stays lit, the limiter's reduction is a ladder too, and there
+  is a dB scale.
 - **Pattern screen: several notes at once.** A rubber band on empty space selects the notes it touches
   (Shift adds or takes out, Ctrl+A takes the whole loop, a click on empty space lets go). Dragging a
   selected note moves, re-pitches or lengthens the whole block, and the block stops whole at the
