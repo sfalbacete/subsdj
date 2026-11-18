@@ -13,11 +13,14 @@ scenes, libraries, MIDI maps). The why behind each module is in
   (Pitch: as played, an octave below, octaves above, fifth, high), some backwards (Reverse) — are
   scattered in stereo beside the dry sound, which is not touched. Density and Size make the character:
   few short high grains are sparks over the sound, many long ones a blurred bed under it. With Sync
-  the grains fall on the tempo grid, one slice per step by chance: a stepped counter-line. Fdbk
-  recycles the grains themselves. It is a third send beside the delay and the reverb (with Parts, each
+  the grains fall on the tempo grid, one slice per step by chance: a stepped counter-line. **Color**
+  sends each grain through its own band-pass, at a different frequency every time: each grain shows
+  another zone of the spectrum instead of being one more copy of the whole sound. It is a third send beside the delay and the reverb (with Parts, each
   part has its Amount and the rest is shared); its grains go into the reverb like the echoes do; with
   Amount at 0 it does not exist and nothing changes. Panic and Escape make it forget its memory.
-  Demo pairs REC 1-6.
+  **Hold** (in its header) makes the memory record only while there is sound: release the keys and the
+  grains stay, hanging over what you played; play again and the new sound is written after the old
+  one, so its grains come from both for a while. Demo pairs REC 1-10.
 - **Room for it.** Dist · Flanger and the Reverb use the dense knob rows, the Reverb's Type sits over
   Freeze, and the Matrix takes whatever is left.
 - **Narrower Matrix, Chorus and Reverb.** The Matrix's selectors measure their longest option instead

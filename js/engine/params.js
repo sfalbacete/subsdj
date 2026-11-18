@@ -212,8 +212,9 @@ export const PARAMS = {
   recSize:  { def: 0.09, min: 0.02, max: 0.6, log: true, fmt: secFmt },             // grain length (in tempo, never longer than the step)
   recMem:   { def: 2, min: 0.25, max: 4, log: true, fmt: secFmt },                  // how far back a grain may reach
   recRev:   { def: 0.2, min: 0, max: 1, fmt: v => Math.round(v * 100) + ' %' },     // chance of a reversed grain
-  recFb:    { def: 0, min: 0, max: 0.9, fmt: v => Math.round(v * 100) + ' %' },     // grains written back into the memory: recycled again
+  recColor: { def: 0, min: 0, max: 1, fmt: v => Math.round(v * 100) + ' %' },       // each grain through its own band-pass at a random frequency: a different zone of the spectrum per grain
   recPitch: { def: 'oct' },                          // the pitches a grain may take: 'uni' | 'sub' | 'oct' | 'fifth' | 'high' (the worklet's SETS)
+  recHold:  { def: 'off' },                          // 'on' = the memory records only while there is sound: release and the grains stay (the worklet's HOLD)
   recSync:  { def: 'free' },                         // 'free' (Density in grains/s) | 1/32 | 1/16 | 1/8 | 1/4: one grain per step, by chance
   dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },   // how much goes into the echo (send)
   // Feedback (Roadmap 7.0 · 4.1): it used to be 0.85·Amount capped at 0.8; now it has its own knob, up to 1.1.

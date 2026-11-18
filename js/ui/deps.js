@@ -220,7 +220,7 @@ export const RULES = [
     : S.flSync && S.flSync !== 'free' ? 'in tempo: the BPM division rules (sync)' : null),
     S => (!(S.flAmt > 0) ? ['flAmt'] : !(S.flDepth > 0) ? ['flDepth'] : ['flSync'])],
   ...live(['chMode', 'chSpd'], S => S.chAmt > 0, 'Amount at 0', ['chAmt']),
-  ...live(['recDens', 'recSize', 'recMem', 'recRev', 'recFb', 'recPitch', 'recSync'], recLive, REC_IDLE, ['recAmt']),
+  ...live(['recDens', 'recSize', 'recMem', 'recRev', 'recColor', 'recPitch', 'recSync', 'recHold'], recLive, REC_IDLE, ['recAmt']),
   ...live(['dlyDamp', 'dlyWow', 'dlySync', 'dlySat'], dlyLive, DLY_IDLE, ['dlyAmt']),
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'in Parts mode the Room\'s Fdbk rules (part mixer)' : null), S => (!dlyLive(S) ? ['dlyAmt'] : [])],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'free' ? 'synced: the BPM division rules' : null), S => (!dlyLive(S) ? ['dlyAmt'] : ['dlySync'])],

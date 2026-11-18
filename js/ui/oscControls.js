@@ -65,14 +65,16 @@ function bindFreeze() {
 
 // Osc A Sync (Roadmap 7.0 · 3.2): a button in the module header that
 // toggles off / on. It doesn't fold the module (a click on the header would).
-function bindSync() {
-  const b = document.getElementById('syncA'); if (!b) return;
+// (the Recycler's Hold is the same kind of button: an off / on key, toggled in its module's header)
+function bindH2Toggle(id, name = id) {
+  const b = document.getElementById(id); if (!b) return;
   const on = () => b.classList.contains('active');
-  const set = v => { b.classList.toggle('active', v === 'on'); b.setAttribute('aria-pressed', String(v === 'on')); applyTarget('syncA', v === 'on' ? 'on' : 'off'); };
+  const set = v => { b.classList.toggle('active', v === 'on'); b.setAttribute('aria-pressed', String(v === 'on')); applyTarget(name, v === 'on' ? 'on' : 'off'); };
   b.addEventListener('click', e => { e.stopPropagation(); part().resume(); set(on() ? 'off' : 'on'); });
-  CONTROLS.syncA = { get: () => (on() ? 'on' : 'off'), set, def: PARAMS.syncA.def, el: b, opts: ['off', 'on'] };
-  set(PARAMS.syncA.def);
+  CONTROLS[name] = { get: () => (on() ? 'on' : 'off'), set, def: PARAMS[name].def, el: b, opts: ['off', 'on'] };
+  set(PARAMS[name].def);
 }
+const bindSync = () => { bindH2Toggle('syncA'); bindH2Toggle('recHold'); };
 
 // String's exciter (2026-11-01): a button in the module header that cycles the modes
 // (pluck → bow → breath). Off = pluck; the text names the mode when on, and the three mini

@@ -316,11 +316,22 @@ plays its real notes and the module only re-uses them. A grain = a start time, a
 a length, a read speed (2 = an octave up; it must start len·rate back so its read head never catches
 the write head), a direction and a pan. Free: a Poisson process of Hann bells (texture). In tempo: one
 flat slice per step of the grid, by chance (a stepped line). Each grain goes at 1/√N (N = density ·
-size, the average overlap) so the level doesn't depend on Density, which also bounds the feedback
-(energy per lap ≤ fb² · 0.375). Routing: its memory hears only the dry sends — granulating echoes or
+size, the average overlap) so the level doesn't depend on Density. **Color** is what gave the grains a
+face: a Chamberlin band-pass per grain (Q 5) at a frequency drawn log-uniformly between 350 Hz and
+6 kHz when the grain is born. Without it N grains are N copies of the same spectrum and their sum
+is the sound again, blurred (Sergio's verdict on the first version: «no interesting grains or
+pigments»); with it each grain shows another zone. Chosen by ear among six rendered variants
+(x/gran-2026-11-17/px_*: skewed windows and a pitch drop were also tried and not picked). The first
+version had a feedback knob (grains written back into the memory); Color took its place — there
+was room for one, and raw feedback only piled up. Routing: its memory hears only the dry sends — granulating echoes or
 a reverb tail is mush —, its grains go to the sum and into the reverb with the echoes' amount, and it
-doesn't feed the delay (two feedbacks multiplying). Born with the first send (at 0 nothing exists:
-old presets are bit-identical). The generator is seeded: same input, same output (selftest). Panic
+doesn't feed the delay. Born with the first send (at 0 nothing exists:
+old presets are bit-identical). **Hold** gates the WRITING, not the grains: the memory records only
+while the input is above −48 dB (closing at −60, so a release gets in whole) and the write head
+waits in between — the memory becomes «the last seconds of SOUND», not of time. That is what makes
+the accompaniment distinguishable: without it the grains come from what is sounding right now and
+hide behind it; with it they outlive the note, and the next note is granulated together with the
+previous one. The generator is seeded: same input, same output (selftest). Panic
 clears the memory. Not done: a send knob on the Part Mixer's strips (the rack's Amount edits the
 selected part's), and the tempo grid is anchored to the audio clock's frame 0, not to the
 sequencers' downbeat.

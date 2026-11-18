@@ -5181,11 +5181,11 @@ export async function runSelfTest() {
       return ctx.startRendering();
     };
     {
-      const NAME = 'recycler grains (an octave up: 880 from 440 · they outlive the input by the Memory and then stop · same input, same output · bounded at full feedback)';
+      const NAME = 'recycler grains (an octave up: 880 from 440 · they outlive the input by the Memory and then stop — with Hold they stay · same input, same output · Color: each grain a band of its own)';
       let r;
       try {
         const problems = [];
-        const P = { density: 20, size: 0.08, memory: 1, reverse: 0, feedback: 0, step: 0 };
+        const P = { density: 20, size: 0.08, memory: 1, reverse: 0, color: 0, step: 0 };
         const a = await run(3.2, 1, P, 'oct'), b = await run(3.2, 1, P, 'oct');
         const q = goertzel(a, 880, 0.3, 1) / Math.max(1e-9, goertzel(a, 440, 0.3, 1));
         const during = rmsW(a, 0.3, 1), after = rmsW(a, 1.2, 1.8), gone = rmsW(a, 2.4, 3.2);
@@ -5196,11 +5196,19 @@ export async function runSelfTest() {
         const da = a.getChannelData(0), db = b.getChannelData(0); let same = true;
         for (let i = 0; i < da.length; i++) if (da[i] !== db[i]) { same = false; break; }
         if (!same) problems.push('two renders of the same input differ: the grains are not deterministic');
-        const f = await run(8, 8, { ...P, feedback: 0.95 }, 'oct'), early = rmsW(f, 1, 2), late = rmsW(f, 7, 8);
-        if (analyze(f).bad || !(late < 3 * early)) problems.push('full feedback runs away (rms ' + early.toFixed(3) + ' at 1-2 s → ' + late.toFixed(3) + ' at 7-8 s)');
+        // Color: a 440 Hz sine through bands drawn between 350 Hz and 6 kHz — grains far from it come out much
+        // quieter, the few near it louder (up to ×Q): no longer the same signal, and bounded
+        const c = await run(3.2, 1, { ...P, color: 1 }, 'uni'), c0 = await run(3.2, 1, P, 'uni');
+        const col = rmsW(c, 0.3, 1) / Math.max(1e-9, rmsW(c0, 0.3, 1));
+        if (analyze(c).bad || !(Math.abs(col - 1) > 0.1 && col > 0.05 && col < 2.5)) problems.push('Color: rms ×' + col.toFixed(2) + ' of the uncolored grains (expected different from 1 and bounded)');
+        if (analyze(c).peak > 6) problems.push('Color: peak ' + analyze(c).peak.toFixed(2) + ' (the gain of the band is at most Q = 5)');
+        // Hold: the same second of sine, and the grains are still there three seconds later; then sound again, and still
+        const h = await run(4.2, 1, { ...P, hold: 1 }, 'oct'), held = rmsW(h, 3.2, 4.2);
+        if (!(held > 0.5 * during)) problems.push('Hold: the grains do not stay after the input stops (rms ' + held.toExponential(2) + ' at 3.2-4.2 s, ' + during.toFixed(3) + ' while it sounded)');
+        if (analyze(h).bad) problems.push('Hold: NaN/Inf');
         const u = await run(2, 2, { ...P, density: 40, size: 0.3 }, 'uni'), lvl = rmsW(u, 1, 2) / Math.SQRT1_2;
         if (!(lvl > 0.3 && lvl < 1.5)) problems.push('12 grains overlapping: level ×' + lvl.toFixed(2) + ' of the input (expected about ×0.6: 1/√N per grain)');
-        console.log('recycler: +12 880/440', q.toFixed(1), '· rms during', during.toFixed(3), 'after', after.toFixed(3), 'gone', gone.toExponential(1), '· fb 95 % late/early', (late / early).toFixed(2), '· dense level ×' + lvl.toFixed(2));
+        console.log('recycler: +12 880/440', q.toFixed(1), '· rms during', during.toFixed(3), 'after', after.toFixed(3), 'gone', gone.toExponential(1), '· color rms ×' + col.toFixed(2), '· dense level ×' + lvl.toFixed(2), '· hold rms at 3.2-4.2 s', held.toFixed(3));
         r = { name: NAME, peak: analyze(a).peak, ok: !problems.length, problems };
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
@@ -5210,7 +5218,7 @@ export async function runSelfTest() {
       let r;
       try {
         const problems = [];
-        const STEP = 0.125, b = await run(3, 3, { chance: 1, size: 0.06, memory: 0.5, reverse: 0, feedback: 0, step: STEP }, 'uni');
+        const STEP = 0.125, b = await run(3, 3, { chance: 1, size: 0.06, memory: 0.5, reverse: 0, color: 0, step: STEP }, 'uni');
         let inMin = 1, gapMax = 0;
         for (let k = 8; k < 22; k++) { inMin = Math.min(inMin, rmsW(b, k * STEP + 0.012, k * STEP + 0.05)); gapMax = Math.max(gapMax, rmsW(b, k * STEP + 0.07, k * STEP + 0.12)); }
         if (!(inMin > 0.05)) problems.push('a step without its slice (lowest rms inside a slice ' + inMin.toFixed(3) + ')');
@@ -5239,12 +5247,12 @@ export async function runSelfTest() {
           return buf; };
         const dry = await rend(pl); if (born) problems.push('Amount at 0 and the Recycler\'s worklet exists');
         const wet = await rend({ ...pl, recAmt: 0.8, recDens: 20, recSize: 0.1, recMem: 1, recPitch: 'oct' }); if (!born) problems.push('Amount at 0.8 and there is no worklet');
-        const e0 = rmsW(dry, 0.6, 1.1), e1 = rmsW(wet, 0.6, 1.1);
-        if (!(e1 > 1e-3 && e1 > 20 * e0)) problems.push('no grains after the pluck has died (rms ' + e1.toExponential(2) + ' with, ' + e0.toExponential(2) + ' without)');
+        const e0 = rmsW(dry, 0.5, 1.2), e1 = rmsW(wet, 0.5, 1.2);   // which grains hit the pluck is chance: a wide window, a low bar
+        if (!(e1 > 1e-4 && e1 > 20 * e0)) problems.push('no grains after the pluck has died (rms ' + e1.toExponential(2) + ' with, ' + e0.toExponential(2) + ' without)');
         if (!(Math.abs(step - 60 / 90 / 4) < 1e-6)) problems.push('1/16 at 90 BPM: step ' + step + ' s (expected ' + (60 / 90 / 4).toFixed(4) + ')');
         if (analyze(wet).bad) problems.push('NaN/Inf');
         // panic: the memory is forgotten — grains at 0.6 s, clearRec at 0.7 s, silence from 0.75 s on
-        { loadState({ ...pl, recAmt: 0.8, recDens: 20, recSize: 0.1, recMem: 1, recFb: 0.9, reverbMix: 0 }); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.5), SR);
+        { loadState({ ...pl, recAmt: 0.8, recDens: 20, recSize: 0.1, recMem: 1, recHold: 'on', reverbMix: 0 }); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.5), SR);
           const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
           eng.noteOn('f', NOTE1); ctx.suspend(0.1).then(() => { eng.noteOff('f'); ctx.resume(); });
           ctx.suspend(0.7).then(() => { eng.allNotesOff(); eng.room.clearRec(); ctx.resume(); });

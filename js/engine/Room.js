@@ -32,7 +32,7 @@ export const HEADROOM_DB = -9;
 
 export const ROOM_KEYS = new Set(['bpm', 'swing', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow', 'dlySat',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
-                                  'tapeSat', 'tapeWow', 'recDens', 'recSize', 'recMem', 'recRev', 'recFb', 'recPitch', 'recSync']);
+                                  'tapeSat', 'tapeWow', 'recDens', 'recSize', 'recMem', 'recRev', 'recColor', 'recPitch', 'recSync', 'recHold']);
 
 // Recycler (worklets/recycle-processor.js): a third send, beside the delay and the reverb. Its memory
 // hears only the dry sends (not the echoes, not the reverb: granulating a tail is mush), its grains go
@@ -335,8 +335,9 @@ export class Room {
     const S = this.S, t = this.ctx.currentTime, p = this.rec.parameters, beats = REC_STEPS[S.recSync];
     const put = (name, v) => { const ap = p.get(name); if (now) ap.value = v; else ap.setTargetAtTime(v, t, 0.02); };
     put('density', S.recDens); put('chance', Math.log(S.recDens / 0.5) / Math.log(40 / 0.5));   // in tempo the knob's travel is the chance per step
-    put('size', S.recSize); put('memory', S.recMem); put('reverse', S.recRev); put('feedback', S.recFb);
+    put('size', S.recSize); put('memory', S.recMem); put('reverse', S.recRev); put('color', S.recColor);
     p.get('step').setValueAtTime(beats ? (60 / S.bpm) * beats : 0, t);        // a step doesn't glide
+    p.get('hold').setValueAtTime(S.recHold === 'on' ? 1 : 0, t);
     this.rec.port.postMessage({ pitch: S.recPitch });
   }
 
@@ -390,7 +391,7 @@ export class Room {
         if (name === 'bpm') this._recParams();             // the Recycler's step follows the tempo
         break; }
       case 'reverbPre': smooth(this.revPre.delayTime, value); break;
-      case 'recDens': case 'recSize': case 'recMem': case 'recRev': case 'recFb': case 'recPitch': case 'recSync': this._recParams(); break;
+      case 'recDens': case 'recSize': case 'recMem': case 'recRev': case 'recColor': case 'recPitch': case 'recSync': case 'recHold': this._recParams(); break;
       case 'reverbSize':                                   // regenerating the IR is costly: we defer it (debounce)
       case 'reverbDamp':                                   // (the damp lives in the IR: same route)
         this._plateParams();                               // the plate changes instantly (they are two params)
