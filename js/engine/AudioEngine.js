@@ -90,11 +90,11 @@ const MACROS = [['mac1', 'macro1'], ['mac2', 'macro2']];   // matrix source ← 
 // The ?v=N breaks the browser's heuristic cache: BUMP IT when worklet code
 // changes (otherwise the browser may pair new modules with an old processor
 // and the new parameters arrive undefined -> crash when creating voices).
-const WK_V = '?v=20';  // v20: destroy-processor (the part's Dist · Flanger: drive types, crush, lows, flanger with feedback and splices); v19: the FM4's operators get a shape (ADSR, key scaling, detune, fixed Hz) and their own feedback (fm4Fb); v18: the breath (a jet into the bore); v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
+const WK_V = '?v=21';  // v21: recycle-processor (the Room's Recycler); v20: destroy-processor (the part's Dist · Flanger: drive types, crush, lows, flanger with feedback and splices); v19: the FM4's operators get a shape (ADSR, key scaling, detune, fixed Hz) and their own feedback (fm4Fb); v18: the breath (a jet into the bore); v17: the String's exciter (bow): excPress/excSpeed/excNoise + the 'lift' message; v16: waves 'wavetable' and 'string' (formerly 'tabla' and 'cuerda'); v15: the pulse comes out centred (without the DC of its width); v14: «string» wave (Karplus-Strong); v13: hard sync (syncRatio, slave) in the oscillator; v12: the limiter sends peaks and reduction to the meter; v11: seeded randomness + key sync of the 2-op FM modulator; v10: shift-processor (shimmer) + plate decay up to 1 (freeze); v9: start gate at t0 + FM4 clock
 const workletsLoaded = new WeakSet();
 export async function loadWorklets(ctx) {
   if (workletsLoaded.has(ctx)) return;
-  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor', 'limiter-processor', 'destroy-processor']
+  await Promise.all(['pulse-processor', 'recorder-processor', 'plate-processor', 'shift-processor', 'limiter-processor', 'destroy-processor', 'recycle-processor']
     .map(n => ctx.audioWorklet.addModule(new URL('./worklets/' + n + '.js' + WK_V, import.meta.url))));
   workletsLoaded.add(ctx);
 }
@@ -172,6 +172,8 @@ export class AudioEngine {
     this.partPan = ctx.createStereoPanner();                                  // part pan (Part Mixer)
     this.sendDly = ctx.createGain(); this.sendDly.gain.value = S.dlyAmt;      // delay send
     this.sendRev = ctx.createGain(); this.sendRev.gain.value = S.reverbMix;   // reverb send
+    this.sendRec = ctx.createGain(); this.sendRec.gain.value = S.recAmt;      // Recycler send
+    if (S.recAmt > 0) this.room.ensureRec();
 
     // Global connections (the wets get hooked when they are created)
     this.acCoup = ctx.createIIRFilter([1, -1], [1, -Math.exp(-2 * Math.PI * AC_HZ / ctx.sampleRate)]);   // no DC (see AC_HZ)
@@ -183,6 +185,7 @@ export class AudioEngine {
     this.muteG.connect(this.partPan); this.partPan.connect(this.room.dry);
     this.muteG.connect(this.sendDly); this.sendDly.connect(this.room.dlyIn);
     this.muteG.connect(this.sendRev); this.sendRev.connect(this.room.revIn);
+    this.muteG.connect(this.sendRec); this.sendRec.connect(this.room.recIn);
 
     // LFOs
     this.ampLFO = mkLFO(ctx, S.ampLfoSpd, S.ampLfoLvl); this.ampLFO.depth.connect(this.amp.gain);
@@ -741,6 +744,7 @@ export class AudioEngine {
       // Amount and the echoes enter the reverb according to the Mix — as always; in
       // Parts mode that is governed by the Room column of the Part Mixer.
       case 'dlyAmt': smooth(this.sendDly.gain, value); break;
+      case 'recAmt': if (value > 0) this.room.ensureRec(); smooth(this.sendRec.gain, value); break;
       case 'dlyFb': if (this.ownsRoom) this.room.setFeedback(value); break;   // in Parts the Room's Fdbk rules (Part Mixer)
       case 'width': this._forVoices(v => v.setWidth(value)); break;
       case 'reverbMix': smooth(this.sendRev.gain, value); if (this.ownsRoom) this.room.setDlyToRev(value); break;
@@ -822,7 +826,7 @@ export class AudioEngine {
     try { this.macroCut.stop(); this.macroCut.disconnect(); } catch (e) {}
     for (const k in this.perf) { try { this.perf[k].stop(); this.perf[k].disconnect(); } catch (e) {} }
     for (const s of this.fxSlots) if (s) { try { s.gain.disconnect(); } catch (e) {} }
-    for (const n of [this.fx, this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev]) { if (!n) continue; try { n.disconnect(); } catch (e) {} }
+    for (const n of [this.fx, this.chOut, this.level, this.muteG, this.partPan, this.sendDly, this.sendRev, this.sendRec]) { if (!n) continue; try { n.disconnect(); } catch (e) {} }
     this.room.engines = this.room.engines.filter(e => e !== this);
     this.budget.delete(this);
     if (this.ownsRoom) this.room.dispose();

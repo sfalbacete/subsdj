@@ -544,13 +544,13 @@
     <div class="seg fx-type" id="distTypeSel" title="Dist type: how the wave is destroyed">
       <button data-dt="soft" title="Soft: tanh, the warm classic saturation (the Dist as it always was)">Soft</button><button data-dt="hard" title="Hard: clips flat — harsher and brighter">Hard</button><button data-dt="fuzz" title="Fuzz: very high gain, asymmetric, with a dead zone: the tail of every note chokes and sputters (a starved fuzz)">Fuzz</button><button data-dt="rect" title="Rect: a rectifier (|x|) — the octave above and a rough edge; on a chord every interval clashes">Rect</button>
     </div>
-    <div class="hrow">
+    <div class="hrow narrow">
       <div class="ctl"><div class="knob" data-knob="dist" title="Dist: drive and blend at once (0 = clean). For the WHOLE part, after the voices are summed: in a chord the notes multiply with each other (intermodulation) — the Filter's Drive saturates each voice on its own instead"><div class="ind"></div></div><div class="lab">Dist</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="crushBits" title="Crush · bits: from 16 down to 1. Few levels: a grainy noise that GROWS as each note fades (the step is fixed and the signal shrinks), until the tails break up"><div class="ind"></div></div><div class="lab">Bits</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="crushRate" title="Crush · rate: the sample rate, from 44.1 kHz down to 150 Hz, with no filter — the harmonics above half of it fold back down: inharmonic, metallic, different on every key (the 8-bit sound). Sweeping it is a sound of its own"><div class="ind"></div></div><div class="lab">Rate</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="distKeep" title="Lows: below this frequency nothing is destroyed — the bass stays whole and round, and the low junk a clipped chord throws down is cleaned away (off = everything goes through)"><div class="ind"></div></div><div class="lab">Lows</div><div class="val"></div></div>
     </div>
-    <div class="hrow">
+    <div class="hrow narrow fl-row">
       <div class="ctl"><div class="knob" data-knob="flAmt" title="Flanger: how much of the delayed copy is added (0 = off)"><div class="ind"></div></div><div class="lab">Flanger</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="flDelay" title="Manual: where the comb sits (the delay at rest, 0.5-20 ms). Still (Depth 0) with high feedback it is a TUNED comb: it rings at 1/delay — 4.5 ms ≈ 220 Hz (A3)"><div class="ind"></div></div><div class="lab">Manual</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="flDepth" title="Depth: how far the LFO swings the delay around Manual (1 = ±2/3: at 3 ms, from 1 to 5 ms, the classic jet). At 0 the LFO does nothing: only Manual and the matrix move it"><div class="ind"></div></div><div class="lab">Depth</div><div class="val"></div></div>
@@ -565,7 +565,7 @@
   </div>
   <div class="panel">
     <h2>Chorus</h2>
-    <div class="hrow">
+    <div class="vcol">
       <div class="ctl"><div class="knob" data-knob="chAmt"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
       <div class="ctl"><div class="knob" data-knob="chSpd"><div class="ind"></div></div><div class="lab">Speed</div><div class="val"></div></div>
     </div>
@@ -593,25 +593,43 @@
       <div class="help"><b>Ping-pong delay</b> (the echoes bounce L↔R). <b>Amount</b> = how much goes into the echo; <b>fdbk</b> = how many repeats (they used to be tied to Amount; presets from back then sound the same). Above <b>100 %</b> each echo comes back louder than the last and the delay <b>runs away</b>: it grows until the tape saturation in the loop holds it and it keeps ringing on its own, as in dub — move Time while it runs away and the pitch slides (the siren); lower the feedback and it dies away. Bound to a knob with MIDI map, you can play it live. <b>sat</b> = tape inside the loop: each repeat more compressed and dirtier (at 0, clean; above 90 % feedback it kicks in by itself, so it never blows up). Time up to 4 s (logarithmic). Synced to a division, the Time knob is ignored and the echo follows the BPM of the clock in the header. <b>Damp</b> = a filter INSIDE the loop: each repeat loses treble (and some bass), like tape or BBDs — at 0 it is exactly transparent. <b>Wow</b> detunes each repeat a hair (slow modulation of the time, different in L and R): the echo gets wider. In <b>Parts</b> mode: Amount is this part's SEND; Time/Damp/Wow and the sync belong to the shared room (and so does the clock's BPM).</div>
     </div>
   </div>
+  <div class="panel">
+    <h2>Recycler</h2>
+    <div class="hrow narrow">
+      <div class="ctl"><div class="knob" data-knob="recAmt" title="Amount: how much of the sound goes into the Recycler's memory (0 = off)"><div class="ind"></div></div><div class="lab">Amount</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="recDens" title="Density: grains per second. With Sync, the chance of a grain on each step (the knob's travel: left = rare, right = every step)"><div class="ind"></div></div><div class="lab">Density</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="recSize" title="Size: how long each grain is — short = sparks, long = a blurred bed. With Sync, never longer than the step"><div class="ind"></div></div><div class="lab">Size</div><div class="val"></div></div>
+    </div>
+    <div class="hrow narrow rec-row2">
+      <div class="ctl"><div class="knob" data-knob="recMem" title="Memory: how far back a grain may reach. Short = it shadows what you just played; long = it brings back things from seconds ago"><div class="ind"></div></div><div class="lab">Memory</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="recRev" title="Reverse: the chance that a grain is played backwards"><div class="ind"></div></div><div class="lab">Reverse</div><div class="val"></div></div>
+      <div class="ctl"><div class="knob" data-knob="recFb" title="Feedback: the grains are written back into the memory and get recycled again — denser, and with Pitch up, a rising cascade"><div class="ind"></div></div><div class="lab">Fdbk</div><div class="val"></div></div>
+    </div>
+    <div class="hrow fx-lfo rec-foot">
+      <span class="th">Pitch</span><select id="recPitchSel" title="Pitch: the notes a grain may take. 0 = as played · −12 = as played and an octave below · +12 = one and two octaves up · +7 = unison, fifth and octave · Hi = octaves and a twelfth, the glitter"></select>
+      <span class="th">Sync</span><select id="recSyncSel" title="Sync: Free scatters the grains at random moments (Density in grains per second). A division puts them on the tempo grid, one per step by chance (Density) — a stepped counter-line"></select>
+    </div>
+    <div class="help"><b>Recycler.</b> An accompaniment made of pieces of what you just played. The Room keeps the last seconds in memory and throws <b>grains</b> cut from it beside the dry sound, which is not touched: from any point of that memory (<b>Memory</b> = how far back), at another pitch (<b>Pitch</b>), some backwards (<b>Reverse</b>), scattered in stereo. It is not an echo: an echo repeats the past whole, in order. <b>Density</b> and <b>Size</b> make the character — few short high grains are sparks over the sound; many long ones, a blurred bed under it. With <b>Sync</b> the grains fall on the tempo grid, one per step by chance: a stepped counter-line. <b>Fdbk</b> recycles the grains themselves. The grains go into the reverb like the echoes do. Like the delay and the reverb it is a send: with Parts, each part has its Amount and the rest is shared.</div>
+  </div>
   <div class="slot" data-slot-host="reverb">
     <div class="panel" data-slot="reverb">
       <h2>Reverb</h2>
-      <div class="hrow">
+      <div class="hrow narrow">
         <div class="ctl"><div class="knob" data-knob="reverbMix"><div class="ind"></div></div><div class="lab">Mix</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="reverbSize"><div class="ind"></div></div><div class="lab">Size</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="reverbDamp"><div class="ind"></div></div><div class="lab">Damp</div><div class="val"></div></div>
         <div class="ctl"><div class="knob" data-knob="reverbPre"><div class="ind"></div></div><div class="lab">Predelay</div><div class="val"></div></div>
-        <div class="togc"><div class="fieldlab">Type</div><div class="seg tog" id="reverbTypeSel">
-          <button data-rt="hall" title="Hall (IR): convolution with a noise IR generated in code">Hall</button>
-          <button data-rt="plate" title="Algorithmic plate (Dattorro, the Lexicon 224 lineage): the density grows over time and the tank is modulated">Plate</button>
-        </div></div>
       </div>
       <div class="hrow">
         <div class="ctl"><div class="knob" data-knob="shimAmt"><div class="ind"></div></div><div class="lab">Shimmer</div><div class="val"></div></div>
         <div class="ctl rotc"><div class="seg rot" id="shimIntSel" title="Shimmer interval: how far the tail rises on each pass">
           <button data-shi="-12" title="Octave down: a low shadow">−12</button><button data-shi="+5" title="Fourth">+5</button><button data-shi="+7" title="Fifth: a denser, less obvious choir">+7</button><button data-shi="+12" title="Octave: the classic shimmer">+12</button>
         </div><div class="lab">Interval</div></div>
-        <button id="freezeBtn" class="btn" title="Freeze (Plate only): closes the input and leaves the tail ringing indefinitely as it is; again to release it. Panic and Escape release it too">❄ Freeze</button>
+        <div class="rev-side"><div class="togc"><div class="fieldlab">Type</div><div class="seg tog" id="reverbTypeSel">
+          <button data-rt="hall" title="Hall (IR): convolution with a noise IR generated in code">Hall</button>
+          <button data-rt="plate" title="Algorithmic plate (Dattorro, the Lexicon 224 lineage): the density grows over time and the tank is modulated">Plate</button>
+        </div></div>
+        <button id="freezeBtn" class="btn" aria-label="Freeze" title="Freeze (Plate only): closes the input and leaves the tail ringing indefinitely as it is; again to release it. Panic and Escape release it too">❄</button></div>
       </div>
       <div class="help"><b>Reverb.</b> «Hall» = convolution with a noise IR generated in code; «Plate» = algorithmic (Dattorro): diffusion allpasses + a modulated figure-eight tank — the echo density GROWS over time and the modulation kills the metallic ring. Size = tail time (RT60 on the plate), up to 20 s: a room that rings longer than the note (a 20 s IR costs CPU accordingly; the plate doesn't) · Damp = the tail loses treble sooner · Predelay separates the attack from the tail (up to 250 ms). <b>Shimmer</b>: the tail is fed back into the reverb pitch-shifted (a granular shifter: two ramping heads with a sine window) and rises by the chosen interval on every pass — the tail turns into a rising choir (Eno/Lanois); the knob is how much ENERGY comes back per pass (0.8 at full: stable, and calibrated against the reverb's energy, so Size and type don't matter). <b>❄ Freeze</b> (Plate only): closes the input and makes the tank almost lossless — whatever was ringing stays, indefinitely, rocked by the tank's modulation; again to release it. The IR doesn't freeze: it is an FIR, it holds nothing. In <b>Parts</b> mode: Mix is this part's SEND; the rest (Shimmer and Freeze too) belongs to the shared room.</div>
     </div>

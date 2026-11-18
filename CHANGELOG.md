@@ -8,6 +8,25 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Recycler: a new module in the Room.** An accompaniment made of pieces of what you just played: the
+  last seconds are kept in memory and grains cut from it — from any point (Memory), at another pitch
+  (Pitch: as played, an octave below, octaves above, fifth, high), some backwards (Reverse) — are
+  scattered in stereo beside the dry sound, which is not touched. Density and Size make the character:
+  few short high grains are sparks over the sound, many long ones a blurred bed under it. With Sync
+  the grains fall on the tempo grid, one slice per step by chance: a stepped counter-line. Fdbk
+  recycles the grains themselves. It is a third send beside the delay and the reverb (with Parts, each
+  part has its Amount and the rest is shared); its grains go into the reverb like the echoes do; with
+  Amount at 0 it does not exist and nothing changes. Panic and Escape make it forget its memory.
+  Demo pairs REC 1-6.
+- **Room for it.** Dist · Flanger and the Reverb use the dense knob rows, the Reverb's Type sits over
+  Freeze, and the Matrix takes whatever is left.
+- **Narrower Matrix, Chorus and Reverb.** The Matrix's selectors measure their longest option instead
+  of stretching with the panel; the Chorus is one column (Amount over Speed, the mode under them); the
+  Reverb's Type sits on the second row with Freeze, which is now just its icon.
+- **Parts: the Room's modules are told by their title's color.** Delay, Reverb and Tape carried a «room»
+  tag that made the Tape wider; now their titles turn to the second accent, with the reason in the tooltip.
+- **Freeze says what turns it on.** On the Hall it was a disabled button, deaf to the pointer; now it is
+  dimmed like everything else that does nothing, with its reason (Plate only), and Type pulses.
 - **Oscilloscope: scope and cycle.** A click on the oscilloscope switches between **scope** (the last
   43 ms, now triggered so the wave stands still) and **cycle**: one single period stretched to the
   full width and normalized, to read the shape of the wave, with its measured pitch. The period is

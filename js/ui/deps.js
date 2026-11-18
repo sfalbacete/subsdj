@@ -86,17 +86,19 @@ const LFO_SRC = { pwm: 'lfoPwm', cut: 'lfoCut', res: 'lfoRes', amp: 'lfoAmp', fr
 const lfoLive = (S, k) => k === 'pan' ? S.panLfoLvl > 0
   : ((S[k + 'LfoLvl'] > 0 && (k !== 'pwm' || has(S, 'square'))) || mxFrom(S, LFO_SRC[k]));
 const dlyLive = S => anyPart(S, s => s.dlyAmt > 0);
+const recLive = S => anyPart(S, s => s.recAmt > 0);
 const destroying = S => S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || ['dist', 'bits', 'rate'].some(d => mxTo(S, d));
 const flSynced = S => S.flAmt > 0 && S.flDepth > 0 && S.flSync && S.flSync !== 'free';   // the flanger's LFO in tempo
 const revLive = S => anyPart(S, s => s.reverbMix > 0);
 const lfoSynced = (S, k) => S[k + 'LfoSync'] && S[k + 'LfoSync'] !== 'free';
-const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'free') || sceneOn()
+const bpmUsed = S => (dlyLive(S) && S.dlySync !== 'free') || (recLive(S) && S.recSync !== 'free') || sceneOn()
   || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || (s.wsOn === 'on' && has(s, 'wavetable'))
     || ['pwm', 'cut', 'res', 'amp', 'freq', 'pan'].some(k => lfoSynced(s, k) && lfoLive(s, k)) || flSynced(s));   // a tempo-synced LFO in use
 // the swing swings what runs in STEPS (Arp, Seq, Steps in the matrix, players); the delay and synced LFOs don't
 const swingUsed = S => sceneOn() || anyPart(S, s => s.arpMode !== 'off' || s.seqOn === 'on' || [1, 2, 3, 4, 5, 6].some(j => /^st\d/.test(s['mx' + j + 'src'] || '') && s['mx' + j + 'amt']));
 const NO = w => 'no sounding oscillator is on ' + w;
 const DLY_IDLE = () => (sceneOn() ? 'no part sends to the delay' : 'Amount at 0: nothing goes into the delay');
+const REC_IDLE = () => (sceneOn() ? 'no part sends to the Recycler' : 'Amount at 0: nothing goes into the Recycler');
 const REV_IDLE = () => (sceneOn() ? 'no part sends to the reverb' : 'Mix at 0: nothing goes into the reverb');
 
 // --- ENABLERS: what the hand has to touch for each target to do something ---
@@ -218,6 +220,7 @@ export const RULES = [
     : S.flSync && S.flSync !== 'free' ? 'in tempo: the BPM division rules (sync)' : null),
     S => (!(S.flAmt > 0) ? ['flAmt'] : !(S.flDepth > 0) ? ['flDepth'] : ['flSync'])],
   ...live(['chMode', 'chSpd'], S => S.chAmt > 0, 'Amount at 0', ['chAmt']),
+  ...live(['recDens', 'recSize', 'recMem', 'recRev', 'recFb', 'recPitch', 'recSync'], recLive, REC_IDLE, ['recAmt']),
   ...live(['dlyDamp', 'dlyWow', 'dlySync', 'dlySat'], dlyLive, DLY_IDLE, ['dlyAmt']),
   ['dlyFb', S => (!dlyLive(S) ? DLY_IDLE() : sceneOn() ? 'in Parts mode the Room\'s Fdbk rules (part mixer)' : null), S => (!dlyLive(S) ? ['dlyAmt'] : [])],
   ['dlyTime', S => (!dlyLive(S) ? DLY_IDLE() : S.dlySync !== 'free' ? 'synced: the BPM division rules' : null), S => (!dlyLive(S) ? ['dlyAmt'] : ['dlySync'])],
@@ -226,7 +229,10 @@ export const RULES = [
     : S.seqNotes === 'harmony' && !sceneOn() ? 'without Parts there is no scene harmony: degrees play in major from the key' : null),
     S => (asModeOf(S) !== 'seq' ? ['asMode'] : ['#partsBtn'])],
   ...live(['swing'], swingUsed, 'nothing in tempo to swing: no arpeggiator, sequencer, Steps or players', ['asMode']),
-  ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', '#freezeBtn'], revLive, REV_IDLE, ['reverbMix']),
+  ...live(['reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt'], revLive, REV_IDLE, ['reverbMix']),
+  // Freeze holds the plate's tank: the Hall is a convolution, with no loop to hold (Room.setFreeze refuses it)
+  ['#freezeBtn', S => (!revLive(S) ? REV_IDLE() : S.reverbType !== 'plate' ? 'Plate only: the Hall is a convolution and has no tail loop to hold' : null),
+    S => (!revLive(S) ? ['reverbMix'] : ['reverbType'])],
   ['shimInt', S => (!revLive(S) ? REV_IDLE() : S.shimAmt > 0 ? null : 'Shimmer at 0'), S => (!revLive(S) ? ['reverbMix'] : ['shimAmt'])],
 
   // ---------- Sequencing ----------

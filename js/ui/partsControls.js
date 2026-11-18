@@ -20,7 +20,7 @@ import { sceneEdited, soloPreset } from './session.js';
 import { saveSceneToLibrary } from './playerControls.js';
 import { askConfirm } from './confirm.js';
 
-const ROOM_PANELS = ['Delay', 'Reverb', 'Tape'];
+const ROOM_PANELS = ['Delay', 'Recycler', 'Reverb', 'Tape'];
 const SEND_KEYS = new Set(['master', 'dlyAmt', 'reverbMix']);
 const $ = id => document.getElementById(id);
 let strips = [], silent = false, roomPanels = [];
@@ -128,9 +128,9 @@ function setUI(on) {
   document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on } }));
   for (const panel of roomPanels) {
     const h2 = panel.querySelector('h2');
-    let tag = h2.querySelector('.tag-room');
-    if (on && !tag) { tag = document.createElement('span'); tag.className = 'tag-room'; tag.textContent = 'room'; tag.title = 'Shared by all parts (except the send)'; h2.appendChild(tag); }
-    if (!on && tag) tag.remove();
+    // shared by all parts: said by the title's color, not by a «room» tag — the tag made the narrow modules (Tape) wider
+    h2.classList.toggle('room-shared', on);
+    if (on) h2.title = 'Room: shared by all parts (except the send)'; else h2.removeAttribute('title');
   }
 }
 

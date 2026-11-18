@@ -44,6 +44,7 @@ export const PANELS = {
   'Dist · Flanger':  S => S.dist > 0 || S.crushBits > 0 || S.crushRate > 0 || S.flAmt > 0 || ['dist', 'bits', 'rate'].some(d => dstUsed(S, d)),
   'Chorus':          S => S.chAmt > 0,
   'Delay':           S => S.dlyAmt > 0,
+  'Recycler':        S => S.recAmt > 0,
   'Reverb':          S => S.reverbMix > 0,
   'Tape':            S => S.tapeSat > 0 || S.tapeWow > 0,
   'Stereo':          S => S.width > 0 || dstUsed(S, 'pan'),

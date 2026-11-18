@@ -315,8 +315,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
 .strip .mute.on{color:var(--hot);border-color:var(--hot);}
 .chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
-.tag-room{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-on-accent);background:var(--accent);
-  border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;}
+.panel h2.room-shared{color:var(--accent2);}   /* Parts: a module of the Room, shared by all parts — its title in the second accent (no tag: no extra width) */
 /* Harmony / Player */
 #harmony input{background:var(--well);border:1px solid var(--edge);color:var(--ink);border-radius:var(--r-ctl);
   padding:5px 8px;font-family:inherit;font-size:12px;line-height:16px;min-width:0;}
@@ -746,8 +745,13 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #bandSource .vcol{gap:20px;}                                   /* Unison: Voices (a full selector) over Detune */
 .hrow:not(.rotrow) > .ctl.rotc:has(> .seg.rot.short){margin-bottom:18px;}
 #bandVoice .hrow.narrow{margin-top:14px;}                      /* Filter, second row */
-[data-slot="cinta"] .vcol{gap:20px;}                           /* Tape: Saturation over Wow, on the Delay's and the Reverb's lines */
-.ch-mode{margin-top:26px;align-self:flex-start;}               /* Chorus: its mode, level with the neighbours' second row */
+[data-slot="cinta"] .vcol,.vcol:has([data-knob="chAmt"]){gap:20px;}   /* Chorus, like the Tape: one knob per line of the neighbours */
+.ch-mode{margin-top:10px;align-self:center;}                   /* Chorus: its mode, under the column */
+.rev-side{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 6px 4px;}   /* Reverb: Type over Freeze, a column at the end of the second row */
+#freezeBtn{padding:4px 9px;font-size:14px;line-height:1;}
+.rec-row2{margin-top:20px;}                                    /* Recycler: second row of knobs, on the neighbours' line */
+.rec-foot{gap:5px;margin-top:8px;align-items:center;}
+.rec-foot select{min-width:0;padding:2px 4px;font-size:10px;}
 .ks-col{display:flex;flex-direction:column;gap:8px;justify-content:center;align-self:stretch;margin-left:10px;padding-bottom:18px;}   /* Delay: Fdbk and Sat, small, beside the first row */
 
 /* The glass of every visualizer sits SUNK in the panel: the top lip shades it, the bottom lip catches the light */
@@ -799,8 +803,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 .meter{flex:none;width:72px;display:flex;flex-direction:column;gap:4px;--mt-segs:24;--mt-seg:calc(100% / var(--mt-segs));--mt-gap:1.5px;}
 .mt-bars{flex:1;min-height:0;display:flex;gap:3px;padding:5px 4px;background:var(--screen);border:1px solid var(--edge);border-radius:var(--r-ctl);}
 .mt-ch,.mt-gr{position:relative;overflow:hidden;
-  -webkit-mask:repeating-linear-gradient(to top,#000 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));
-  mask:repeating-linear-gradient(to top,#000 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));}
+  -webkit-mask:repeating-linear-gradient(to top,var(--line) 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));
+  mask:repeating-linear-gradient(to top,var(--line) 0 calc(var(--mt-seg) - var(--mt-gap)),transparent 0 var(--mt-seg));}
 .mt-ch{flex:1;background:linear-gradient(to top,var(--accent) 0 75%,var(--star) 75% calc(100% - var(--mt-seg)),var(--hot) 0);}
 /* a LED's dome: lighter down the middle, darker at the sides (under the cover, so only the lit ones shine) */
 .mt-ch::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.22) 45%,rgba(0,0,0,.28));}
@@ -1003,7 +1007,8 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .knob.off,.panel.osc .knob.off{--knob-ind:var(--edge-hi);--knob-glow:transparent;}
 
 /* Modulation matrix: rows [source ▾] → [destination ▾] × amount knob */
-.mx-row{display:grid;grid-template-columns:1fr 12px 1fr 76px;align-items:center;gap:6px;}
+/* the selectors measure their longest option (source «Expression (CC11)», destination «Bow pressure»), not the panel */
+.mx-row{display:grid;grid-template-columns:122px 12px 104px 62px;align-items:center;gap:6px;}
 .mx-row select{min-width:0;padding:4px 6px;font-size:11px;}
 .mx-arrow{color:var(--dim);font-size:11px;text-align:center;}
 

@@ -205,6 +205,16 @@ export const PARAMS = {
   chAmt:   { def: 0, min: 0, max: 1, act: true },   // chorus/ensemble (wet mix)
   chSpd:   { def: 0.6, min: 0.05, max: 8, unit: ' Hz' },
   chMode:  { def: 'chorus' },                       // 'chorus' | 'ensemble' (triple chorus, 3 phases)
+  // Recycler (a Room module, worklets/recycle-processor.js): grains cut from the last seconds played,
+  // scattered beside the dry sound. recAmt is the SEND (per part); the rest are ROOM keys
+  recAmt:   { def: 0, min: 0, max: 1, act: true },                                  // how much goes into its memory (0 = the worklet isn't even created)
+  recDens:  { def: 8, min: 0.5, max: 40, log: true, fmt: v => (v < 10 ? v.toFixed(1) : v.toFixed(0)) + ' /s' },   // grains per second; in tempo, the chance of a grain on each step (the knob's travel, 0-100 %)
+  recSize:  { def: 0.09, min: 0.02, max: 0.6, log: true, fmt: secFmt },             // grain length (in tempo, never longer than the step)
+  recMem:   { def: 2, min: 0.25, max: 4, log: true, fmt: secFmt },                  // how far back a grain may reach
+  recRev:   { def: 0.2, min: 0, max: 1, fmt: v => Math.round(v * 100) + ' %' },     // chance of a reversed grain
+  recFb:    { def: 0, min: 0, max: 0.9, fmt: v => Math.round(v * 100) + ' %' },     // grains written back into the memory: recycled again
+  recPitch: { def: 'oct' },                          // the pitches a grain may take: 'uni' | 'sub' | 'oct' | 'fifth' | 'high' (the worklet's SETS)
+  recSync:  { def: 'free' },                         // 'free' (Density in grains/s) | 1/32 | 1/16 | 1/8 | 1/4: one grain per step, by chance
   dlyAmt:  { def: 0, min: 0, max: 0.9, act: true },   // how much goes into the echo (send)
   // Feedback (Roadmap 7.0 · 4.1): it used to be 0.85·Amount capped at 0.8; now it has its own knob, up to 1.1.
   // Above 1 each repeat comes back louder and the echo runs away (held in check by the loop's

@@ -51,16 +51,16 @@ function bindLfoShapes() {
 }
 
 // ❄ Freeze of the Room: a performance gesture, not a preset parameter (a frozen
-// tail makes no sense saved). Plate only: with the IR the button is
-// disabled. Panic/Escape release it (keyboard.panic emits 'freeze-changed').
+// tail makes no sense saved). Plate only: with the IR the button is dimmed by its
+// dependency rule (ui/deps.js), not disabled — a disabled button gets no pointer events and
+// could not say what turns it on. Panic/Escape release it (keyboard.panic emits 'freeze-changed').
 function bindFreeze() {
   const fz = document.getElementById('freezeBtn');
   if (!fz) return;
   const paint = () => { const s = part().room; fz.classList.toggle('on', !!(s && s.frozen)); };
   fz.addEventListener('click', () => { part().resume(); const s = part().room; if (s) s.setFreeze(!s.frozen); paint(); });
   document.addEventListener('freeze-changed', paint);
-  document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') { fz.disabled = e.detail.value !== 'plate'; paint(); } });
-  fz.disabled = PARAMS.reverbType.def !== 'plate';
+  document.addEventListener('param-change', e => { if (e.detail.target === 'reverbType') paint(); });
 }
 
 // Osc A Sync (Roadmap 7.0 · 3.2): a button in the module header that
@@ -124,6 +124,10 @@ export function bindOscControls() {
   const divs = [{ id: 'free', label: 'Free' }, ...Object.keys(LFO_DIVS).map(d => ({ id: d, label: d }))];
   document.querySelectorAll('select.lfoSync').forEach(sel => bindSelect(sel, sel.dataset.sync, divs));   // tempo-synced LFO
   bindSeg('shimIntSel', 'shi', 'shimInt', 'shimInt');      // shimmer: pitch shifter interval (a Room key)
+  // Recycler: the grains' pitches and the tempo grid (Room keys)
+  const rp = document.getElementById('recPitchSel'), rs = document.getElementById('recSyncSel');
+  if (rp) bindSelect(rp, 'recPitch', [{ id: 'uni', label: '0' }, { id: 'sub', label: '−12' }, { id: 'oct', label: '+12' }, { id: 'fifth', label: '+7' }, { id: 'high', label: 'Hi' }]);
+  if (rs) bindSelect(rs, 'recSync', [{ id: 'free', label: 'Free' }, ...['1/32', '1/16', '1/8', '1/4'].map(d => ({ id: d, label: d }))]);
   bindFreeze();
   bindSeg('arpOctSel', 'aoct', 'arpOct', 'arpOct');        // arpeggiator (its Mode, Direction, Division, Gate and Latch: ui/seqControls.js)
   bindLfoShapes();

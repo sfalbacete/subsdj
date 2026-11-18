@@ -210,6 +210,7 @@ export function panic() {
   // and releases the frozen reverb (❄ Freeze of the Room): «cut everything» means that too
   const s = part().room;
   if (s && s.frozen) { s.setFreeze(false); document.dispatchEvent(new CustomEvent('freeze-changed')); }
+  if (s) s.clearRec();   // …and the Recycler forgets its memory: its grains would go on for seconds (with feedback, for ever)
 }
 // Release only what THIS keyboard holds (QWERTY / mouse / MIDI): when the window
 // loses focus the keyups are lost. It used to call panic(), which

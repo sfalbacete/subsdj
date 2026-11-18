@@ -32,7 +32,12 @@ export const HEADROOM_DB = -9;
 
 export const ROOM_KEYS = new Set(['bpm', 'swing', 'dlyTime', 'dlySync', 'dlyDamp', 'dlyWow', 'dlySat',
                                   'reverbSize', 'reverbDamp', 'reverbPre', 'reverbType', 'shimAmt', 'shimInt',
-                                  'tapeSat', 'tapeWow']);
+                                  'tapeSat', 'tapeWow', 'recDens', 'recSize', 'recMem', 'recRev', 'recFb', 'recPitch', 'recSync']);
+
+// Recycler (worklets/recycle-processor.js): a third send, beside the delay and the reverb. Its memory
+// hears only the dry sends (not the echoes, not the reverb: granulating a tail is mush), its grains go
+// to the sum and into the reverb like the echoes do (same amount: dlyToRev), and it doesn't feed the delay.
+export const REC_STEPS = { '1/32': 0.125, '1/16': 0.25, '1/8': 0.5, '1/4': 1 };   // sync: beats per step
 
 // Shimmer (Roadmap 5.0 · block 3): loop tail → HP → LP → pitch shifter
 // (worklets/shift-processor.js) → ×gain → reverb input. Each lap raises
@@ -165,6 +170,10 @@ export class Room {
     this.dlyIn.channelCount = 1; this.dlyIn.channelCountMode = 'explicit';
     this.revIn = ctx.createGain();                   // reverb send (stereo)
     this.sum = ctx.createGain();                     // dry + returns
+    this.recIn = ctx.createGain();                   // Recycler send (stereo); the worklet is born with the first send (ensureRec)
+    this.recRet = ctx.createGain();
+    this.recToRev = ctx.createGain(); this.recToRev.gain.value = dlyToRev;
+    this.rec = null;
 
     // --- Ping-pong delay (stereo): the echoes bounce L<->R ---
     this.dlyL = ctx.createDelay(DLY_MAX); this.dlyL.delayTime.value = this._dlyT = this._effDelay();
@@ -264,6 +273,8 @@ export class Room {
     }
     this.ppMerge.connect(this.dlRet); this.dlRet.connect(this.sum);
     this.dlRet.connect(this.dlyToRev); this.dlyToRev.connect(this.revIn);     // the echoes reverberate too
+    this.recRet.connect(this.sum);
+    this.recRet.connect(this.recToRev); this.recToRev.connect(this.revIn);    // …and so do the grains
     this.revIn.connect(this.revPre);
     this.convA.connect(this.revXA); this.revXA.connect(this.irMix);          // (convB gets no input until the first Size/Damp change)
     this.convB.connect(this.revXB); this.revXB.connect(this.irMix);
@@ -306,6 +317,27 @@ export class Room {
     this.satLin = { ...lin, out };
     if (born) { out.gain.value = dry; this.satDry.gain.value = 0; }
     else { out.gain.value = 0; out.gain.setTargetAtTime(dry, now, 0.01); this.satDry.gain.setTargetAtTime(0, now, 0.01); }
+  }
+
+  // ---------- recycler ----------
+  // On demand, like the shimmer: with every send at 0 there is no worklet and nothing changes.
+  ensureRec() {
+    if (this.rec) return this.rec;
+    this.rec = new AudioWorkletNode(this.ctx, 'recycle-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+    this.recIn.connect(this.rec); this.rec.connect(this.recRet);
+    this._recParams(true);
+    return this.rec;
+  }
+  // Panic: the memory holds seconds of sound (for ever, with feedback) — silence means forgetting it
+  clearRec() { if (this.rec) this.rec.port.postMessage('clear'); }
+  _recParams(now = false) {
+    if (!this.rec) return;
+    const S = this.S, t = this.ctx.currentTime, p = this.rec.parameters, beats = REC_STEPS[S.recSync];
+    const put = (name, v) => { const ap = p.get(name); if (now) ap.value = v; else ap.setTargetAtTime(v, t, 0.02); };
+    put('density', S.recDens); put('chance', Math.log(S.recDens / 0.5) / Math.log(40 / 0.5));   // in tempo the knob's travel is the chance per step
+    put('size', S.recSize); put('memory', S.recMem); put('reverse', S.recRev); put('feedback', S.recFb);
+    p.get('step').setValueAtTime(beats ? (60 / S.bpm) * beats : 0, t);        // a step doesn't glide
+    this.rec.port.postMessage({ pitch: S.recPitch });
   }
 
   // ---------- shimmer ----------
@@ -354,8 +386,11 @@ export class Room {
       case 'dlyTime':                                      // with sync on, the bpm rules, not the knob
       case 'dlySync':
       case 'bpm': { const tt = this._effDelay(), tau = Math.max(0.02, Math.abs(tt - (this._dlyT ?? tt)) / DLY_SLEW);   // initial slope Δ/τ ≤ DLY_SLEW
-        this._dlyT = tt; this.dlyL.delayTime.setTargetAtTime(tt, now, tau); this.dlyR.delayTime.setTargetAtTime(tt, now, tau); break; }
+        this._dlyT = tt; this.dlyL.delayTime.setTargetAtTime(tt, now, tau); this.dlyR.delayTime.setTargetAtTime(tt, now, tau);
+        if (name === 'bpm') this._recParams();             // the Recycler's step follows the tempo
+        break; }
       case 'reverbPre': smooth(this.revPre.delayTime, value); break;
+      case 'recDens': case 'recSize': case 'recMem': case 'recRev': case 'recFb': case 'recPitch': case 'recSync': this._recParams(); break;
       case 'reverbSize':                                   // regenerating the IR is costly: we defer it (debounce)
       case 'reverbDamp':                                   // (the damp lives in the IR: same route)
         this._plateParams();                               // the plate changes instantly (they are two params)
@@ -425,7 +460,7 @@ export class Room {
       apply(s.pre.gain, D / DLY_SAT_RANGE); apply(s.post.gain, 1 / D);
     }
   }
-  setDlyToRev(v)  { this.dlyToRev.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
+  setDlyToRev(v)  { this.dlyToRev.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); this.recToRev.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }   // echoes and grains alike
   setMaster(v)    { this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
 
   // New IR through the back convolver + crossfade; the front one is disconnected
@@ -473,6 +508,8 @@ export class Room {
                      ...(this.satLin ? [this.satLin.input, this.satLin.shaper, this.satLin.out] : [])]) { try { n.disconnect(); } catch (e) {} }
     if (this.plate) { try { this.plate.port.postMessage('stop'); this.plate.disconnect(); } catch (e) {} }
     try { this.comp.port.postMessage('stop'); } catch (e) {}   // the limiter is a worklet: make it stop processing
+    if (this.rec) { try { this.rec.port.postMessage('stop'); this.rec.disconnect(); } catch (e) {} }
+    for (const n of [this.recIn, this.recRet, this.recToRev]) { try { n.disconnect(); } catch (e) {} }
     if (this.shim) { try { this.shim.shift.port.postMessage('stop'); } catch (e) {} for (const n of [this.shim.hp, this.shim.lp, this.shim.shift, this.shim.fb]) { try { n.disconnect(); } catch (e) {} } }
     for (const s of [this.fbSatL, this.fbSatR]) for (const n of [s.dry, s.pre, s.sh, s.post, s.wet]) { try { n.disconnect(); } catch (e) {} }
     for (const n of [this.dry, this.dlyIn, this.revIn, this.sum, this.dlyL, this.dlyR, this.ppFbL, this.ppFbR,

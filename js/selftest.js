@@ -953,7 +953,8 @@ export async function runSelfTest() {
     testCase('Free delay', () => C.dlyAmt.set(0.3), [['dlyTime', null], ['dlyDamp', null], ['bpm', 'tempo']]);
     testCase('Synced delay', () => { C.dlyAmt.set(0.3); C.dlySync.set('1/4'); }, [['dlyTime', 'synced'], ['bpm', null]]);
     testCase('Arpeggiator', () => C.arpMode.set('up'), [['arpGate', null], ['bpm', null]]);
-    testCase('Reverb with shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', null]]);
+    testCase('Reverb with shimmer', () => { C.reverbMix.set(0.3); C.shimAmt.set(0.4); }, [['reverbSize', null], ['shimInt', null], ['#freezeBtn', 'Plate only']]);
+    testCase('Plate reverb', () => { C.reverbMix.set(0.3); C.reverbType.set('plate'); }, [['#freezeBtn', null]]);
     testCase('Flam', () => C.hits.set(3), [['hitGap', null]]);
     testCase('Drive at 0', () => {}, [['driveAsym', 'Drive at 0'], ['driveChar', 'Drive at 0']]);
     testCase('Folded drive', () => { C.filterDrive.set(0.5); C.driveChar.set('fold'); }, [['driveAsym', null], ['driveChar', null]]);
@@ -1348,7 +1349,7 @@ export async function runSelfTest() {
       unhover();
       if (document.querySelector('.dep-ring') || !tip.hidden) problems.push('leaving the dimmed control does not take the rings and the tooltip away');
       if (!frz || frz.hasAttribute('title') || !(frz.dataset.title0 || '').startsWith('Freeze')) problems.push('a dimmed control keeps its title, or loses it (Freeze)');
-      C.reverbMix.set(0.3); refreshDeps();
+      C.reverbMix.set(0.3); C.reverbType.set('plate'); refreshDeps();   // Freeze needs the send AND the plate
       if (!frz.getAttribute('title') || !frz.getAttribute('title').startsWith('Freeze')) problems.push('Freeze does not get its title back when it comes alive');
       // (3) another screen
       loadState({}); refreshDeps(); showScreen('sequencing'); await frames();
@@ -5157,6 +5158,103 @@ export async function runSelfTest() {
         r = { name: NAME, peak: analyze(bA).peak, ok: !problems.length, problems };
       } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
       push(r);
+    }
+  }
+
+  // ---------- Recycler (Room): grains cut from the last seconds played ----------
+  {
+    body.appendChild(el('st-cat', 'Recycler'));
+    const rmsW = (buf, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR));
+      let q = 0; for (let i = i0; i < i1; i++) q += d[i] * d[i]; return Math.sqrt(q / Math.max(1, i1 - i0)); };
+    const goertzel = (buf, f, t0, t1) => { const d = buf.getChannelData(0), i0 = Math.floor(t0 * SR), i1 = Math.min(d.length, Math.floor(t1 * SR)), N = i1 - i0;
+      const c = 2 * Math.cos(2 * Math.PI * f / SR); let s1 = 0, s2 = 0;
+      for (let i = i0; i < i1; i++) { const s0 = d[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+      return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / N; };
+    // The worklet on its own, fed a 440 Hz sine that stops at `stop` s
+    const run = async (secs, stop, params, pitch) => {
+      const ctx = new OfflineAudioContext(2, Math.ceil(SR * secs), SR); await loadWorklets(ctx);
+      const osc = ctx.createOscillator(); osc.frequency.value = 440;
+      const rec = new AudioWorkletNode(ctx, 'recycle-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+      for (const k in params) rec.parameters.get(k).value = params[k];
+      rec.port.postMessage({ pitch });
+      osc.connect(rec); rec.connect(ctx.destination); osc.start(0); osc.stop(stop);
+      return ctx.startRendering();
+    };
+    {
+      const NAME = 'recycler grains (an octave up: 880 from 440 · they outlive the input by the Memory and then stop · same input, same output · bounded at full feedback)';
+      let r;
+      try {
+        const problems = [];
+        const P = { density: 20, size: 0.08, memory: 1, reverse: 0, feedback: 0, step: 0 };
+        const a = await run(3.2, 1, P, 'oct'), b = await run(3.2, 1, P, 'oct');
+        const q = goertzel(a, 880, 0.3, 1) / Math.max(1e-9, goertzel(a, 440, 0.3, 1));
+        const during = rmsW(a, 0.3, 1), after = rmsW(a, 1.2, 1.8), gone = rmsW(a, 2.4, 3.2);
+        if (!(q > 5)) problems.push('+12: 880 Hz / 440 Hz = ' + q.toFixed(1) + ' (expected ≫ 1)');
+        if (!(during > 0.05)) problems.push('no grains while the input sounds (rms ' + during.toExponential(2) + ')');
+        if (!(after > 0.02)) problems.push('the grains do not outlive the input (rms ' + after.toExponential(2) + ' at 1.2-1.8 s)');
+        if (!(gone < 1e-5)) problems.push('grains still sound past the Memory (rms ' + gone.toExponential(2) + ' at 2.4-3.2 s)');
+        const da = a.getChannelData(0), db = b.getChannelData(0); let same = true;
+        for (let i = 0; i < da.length; i++) if (da[i] !== db[i]) { same = false; break; }
+        if (!same) problems.push('two renders of the same input differ: the grains are not deterministic');
+        const f = await run(8, 8, { ...P, feedback: 0.95 }, 'oct'), early = rmsW(f, 1, 2), late = rmsW(f, 7, 8);
+        if (analyze(f).bad || !(late < 3 * early)) problems.push('full feedback runs away (rms ' + early.toFixed(3) + ' at 1-2 s → ' + late.toFixed(3) + ' at 7-8 s)');
+        const u = await run(2, 2, { ...P, density: 40, size: 0.3 }, 'uni'), lvl = rmsW(u, 1, 2) / Math.SQRT1_2;
+        if (!(lvl > 0.3 && lvl < 1.5)) problems.push('12 grains overlapping: level ×' + lvl.toFixed(2) + ' of the input (expected about ×0.6: 1/√N per grain)');
+        console.log('recycler: +12 880/440', q.toFixed(1), '· rms during', during.toFixed(3), 'after', after.toFixed(3), 'gone', gone.toExponential(1), '· fb 95 % late/early', (late / early).toFixed(2), '· dense level ×' + lvl.toFixed(2));
+        r = { name: NAME, peak: analyze(a).peak, ok: !problems.length, problems };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    {
+      const NAME = 'recycler in tempo (one slice per step, on the grid · silence between slices)';
+      let r;
+      try {
+        const problems = [];
+        const STEP = 0.125, b = await run(3, 3, { chance: 1, size: 0.06, memory: 0.5, reverse: 0, feedback: 0, step: STEP }, 'uni');
+        let inMin = 1, gapMax = 0;
+        for (let k = 8; k < 22; k++) { inMin = Math.min(inMin, rmsW(b, k * STEP + 0.012, k * STEP + 0.05)); gapMax = Math.max(gapMax, rmsW(b, k * STEP + 0.07, k * STEP + 0.12)); }
+        if (!(inMin > 0.05)) problems.push('a step without its slice (lowest rms inside a slice ' + inMin.toFixed(3) + ')');
+        if (!(gapMax < 1e-4)) problems.push('sound between slices: they are off the grid (rms ' + gapMax.toExponential(2) + ')');
+        console.log('recycler in tempo: lowest rms inside a slice', inMin.toFixed(3), '· highest between slices', gapMax.toExponential(1));
+        r = { name: NAME, peak: analyze(b).peak, ok: !problems.length, problems };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+      push(r);
+    }
+    // In the engine: a short pluck. Without the send the worklet is not even created; with it, the grains
+    // keep the pluck going after it has died, and Parts / the Room see the same keys.
+    {
+      const NAME = 'recycler in the Room (no send: no worklet · with it, grains after the note has died · the tempo follows the BPM · panic silences it)';
+      let r;
+      try {
+        const problems = [];
+        const pl = { waveA: 'sawtooth', levelA: 1, levelB: 0, cutoff: 6000, reso: 0.7, a: 0.002, d: 0.15, s: 0, r: 0.05, width: 0 };
+        let born = null, step = null;
+        const rend = async st => { loadState(st); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 2.5), SR);
+          const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+          born = !!eng.room.rec;
+          if (born) ctx.suspend(1.5).then(() => { eng.set('recSync', '1/16'); eng.set('bpm', 90); ctx.resume(); });
+          eng.noteOn('f', NOTE1); ctx.suspend(0.1).then(() => { eng.noteOff('f'); ctx.resume(); });
+          const buf = await ctx.startRendering();
+          if (born) step = eng.room.rec.parameters.get('step').value;   // read after the render: a scheduled value shows once the clock has passed it
+          return buf; };
+        const dry = await rend(pl); if (born) problems.push('Amount at 0 and the Recycler\'s worklet exists');
+        const wet = await rend({ ...pl, recAmt: 0.8, recDens: 20, recSize: 0.1, recMem: 1, recPitch: 'oct' }); if (!born) problems.push('Amount at 0.8 and there is no worklet');
+        const e0 = rmsW(dry, 0.6, 1.1), e1 = rmsW(wet, 0.6, 1.1);
+        if (!(e1 > 1e-3 && e1 > 20 * e0)) problems.push('no grains after the pluck has died (rms ' + e1.toExponential(2) + ' with, ' + e0.toExponential(2) + ' without)');
+        if (!(Math.abs(step - 60 / 90 / 4) < 1e-6)) problems.push('1/16 at 90 BPM: step ' + step + ' s (expected ' + (60 / 90 / 4).toFixed(4) + ')');
+        if (analyze(wet).bad) problems.push('NaN/Inf');
+        // panic: the memory is forgotten — grains at 0.6 s, clearRec at 0.7 s, silence from 0.75 s on
+        { loadState({ ...pl, recAmt: 0.8, recDens: 20, recSize: 0.1, recMem: 1, recFb: 0.9, reverbMix: 0 }); const ctx = new OfflineAudioContext(2, Math.ceil(SR * 1.5), SR);
+          const eng = new AudioEngine(); eng.S = structuredClone(engine.S); await eng.init(ctx);
+          eng.noteOn('f', NOTE1); ctx.suspend(0.1).then(() => { eng.noteOff('f'); ctx.resume(); });
+          ctx.suspend(0.7).then(() => { eng.allNotesOff(); eng.room.clearRec(); ctx.resume(); });
+          const b = await ctx.startRendering(), before = rmsW(b, 0.45, 0.7), afterP = rmsW(b, 0.9, 1.5);
+          if (!(before > 1e-3)) problems.push('panic test: no grains before the panic (rms ' + before.toExponential(2) + ')');
+          if (!(afterP < 1e-6)) problems.push('after a panic the Recycler keeps sounding (rms ' + afterP.toExponential(2) + ')'); }
+        console.log('recycler in the Room: rms 0.6-1.1 s with', e1.toExponential(2), 'without', e0.toExponential(2));
+        r = { name: NAME, peak: analyze(wet).peak, ok: !problems.length, problems };
+      } catch (e2) { r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] }; }
+      push(r); loadState({});
     }
   }
 

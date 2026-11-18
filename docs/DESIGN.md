@@ -307,6 +307,24 @@ loudest bin where a pixel column holds several and Catmull-Rom between bins wher
 than one (the lows; that is why the analyser is 8192 points, 5.9 Hz per bin), plus a line of
 peaks that falls at 9 dB/s.
 
+**Recycler** (`engine/worklets/recycle-processor.js`, wired in `Room.js`). A third send of the Room,
+beside the delay and the reverb: a granular accompaniment made of what was just played. Why it is
+built on the PAST: the first sketches cut grains from a pre-rendered sample, which sounded best but
+meant either one sample pitched across the keyboard (sampling, with its artifacts) or a render per
+note on every knob move. Reading only a circular buffer of the last 4 s needs neither: the synth
+plays its real notes and the module only re-uses them. A grain = a start time, a point of the memory,
+a length, a read speed (2 = an octave up; it must start len·rate back so its read head never catches
+the write head), a direction and a pan. Free: a Poisson process of Hann bells (texture). In tempo: one
+flat slice per step of the grid, by chance (a stepped line). Each grain goes at 1/√N (N = density ·
+size, the average overlap) so the level doesn't depend on Density, which also bounds the feedback
+(energy per lap ≤ fb² · 0.375). Routing: its memory hears only the dry sends — granulating echoes or
+a reverb tail is mush —, its grains go to the sum and into the reverb with the echoes' amount, and it
+doesn't feed the delay (two feedbacks multiplying). Born with the first send (at 0 nothing exists:
+old presets are bit-identical). The generator is seeded: same input, same output (selftest). Panic
+clears the memory. Not done: a send knob on the Part Mixer's strips (the rack's Amount edits the
+selected part's), and the tempo grid is anchored to the audio clock's frame 0, not to the
+sequencers' downbeat.
+
 **Output meter** (`ui/meter.js`, next to the spectrum): L and R peaks of what
 GOES OUT (after the limiter; from −48 to 0 dBFS as LED ladders of 24 segments, 2 dB each: levels
 are rounded up to whole segments; yellow from −12, the top segment red, where the ceiling is), a
