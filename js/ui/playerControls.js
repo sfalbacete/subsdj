@@ -19,7 +19,7 @@
    again, and by anything that takes the ground from under it: stopping the players,
    choosing another part, loading a scene, switching Parts off.
    ===================================================================== */
-import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene, setNoteTap } from '../engine/parts.js';
+import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene, setNoteTap, partLabel } from '../engine/parts.js';
 import { SCALES, NOTE_NAMES, DEGREES, parseProg } from '../engine/Harmony.js';
 import { PLAYER_MODES, DRIFT_KEYS, PAT_MAX_BARS, PAT_EARLY, patStart } from '../engine/Player.js';
 import { showScreen, currentScreen } from './screens.js';
@@ -148,7 +148,7 @@ export function paintPat() {
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.classList.toggle('active', +b.dataset.q === pl.cfg.quant));
   document.querySelectorAll('[data-pat="follow"] button').forEach(b => b.classList.toggle('active', b.dataset.f === (pl.cfg.follow || 'off')));
   pats('play').forEach(b => { b.textContent = pl.c.running ? '■ Stop' : '▶ Play'; b.classList.toggle('on', pl.c.running); });
-  pats('who').forEach(e => { const sc = getScene(), p = sc.parts[sc.sel]; e.textContent = 'Part ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : ''); });
+  pats('who').forEach(e => { const sc = getScene(), p = sc.parts[sc.sel]; e.textContent = 'Part ' + (sc.sel + 1) + ' · ' + partLabel(p); });
   const info = patInfo(pl);
   pats('info').forEach(e => { e.textContent = info; });
   if (on && !patRaf) patRaf = requestAnimationFrame(drawPat);
@@ -198,7 +198,7 @@ function drawPat() {
 function buildPlayerUI() {
   const sc = getScene(), pl = currentPlayer(); if (!pl) return;
   const p = sc.parts[sc.sel];
-  $('playerWho').textContent = 'Part ' + (sc.sel + 1) + (p.presetName ? ' · ' + p.presetName : '');
+  $('playerWho').textContent = 'Part ' + (sc.sel + 1) + ' · ' + partLabel(p);
   document.querySelectorAll('#playerMode button').forEach(b => b.classList.toggle('active', b.dataset.pm === pl.cfg.mode));
   knobRow($('playerKnobs'), KNOBS[pl.cfg.mode] || [], pl.cfg);
   paintPat();

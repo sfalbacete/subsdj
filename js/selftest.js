@@ -4376,8 +4376,9 @@ export async function runSelfTest() {
       if (!(cents0 < -400 && cents1 > 500)) problems.push('Open macro: ' + cents0.toFixed(0) + ' / ' + cents1.toFixed(0) + ' ct');   // E 0.3 → −480 · E 0.9 → +960
       // JSON round trip on scene A
       const sc = A.sc, strip = j => { const o = JSON.parse(JSON.stringify(j)); delete o.date; return JSON.stringify(o); };
-      sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.roomCfg.fb = 0.61;
+      sc.parts[1].pan = -0.4; sc.parts[3].mute = true; sc.roomCfg.fb = 0.61; sc.parts[1].label = 'My Pad';   // a part's own name travels with the scene
       const J1 = sceneToJSON(sc);
+      sc.parts[1].label = '';
       sc.conductor.setSeed(1); Object.assign(sc.conductor.harmony, { root: 0, scale: 'major', prog: [1], bars: 2 });
       Object.assign(sc.conductor.arr.cfg, { energy: 0.1, cycle: 8 }); sc.conductor.players.forEach(p => { p.cfg.mode = 'off'; p.cfg.threshold = 0; });
       sc.parts[1].pan = 0; sc.parts[3].mute = false; sc.roomCfg.fb = 0.2; sc.S.reverbSize = 1.0;
@@ -4388,6 +4389,7 @@ export async function runSelfTest() {
       const J3 = sceneToJSON(sc);
       if (strip(J3) !== strip(J1)) problems.push('scene JSON: the round trip is not exact');
       if (sc.parts[0].engine.S.cutoff !== J1.parts[0].state.cutoff) problems.push('import does not restore the part state');
+      if (sc.parts[1].label !== 'My Pad' || sc.parts[0].label !== '' || J1.parts[0].label !== undefined) problems.push('a part\u2019s own name: «' + sc.parts[1].label + '» after the round trip (expected «My Pad»; none on the others)');
       // (4) the repo scenes (scenes/*.json): they load, their presets are
       // applied, they sound with no NaN or clipping, everything emitted is in their scale and
       // the part reserved for the player («keys») is selected and has its player off

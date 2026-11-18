@@ -81,7 +81,7 @@ export async function createScene(ctx, states = [], { roomS = null, fb = 0.45, d
     e.S = applyPreset(makeDefaultState(), states[i] || {});
     for (const k of ROOM_KEYS) e.S[k] = S[k];
     await e.init(ctx, { room });
-    parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', pan: 0, mute: false });
+    parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', label: '', pan: 0, mute: false });
   }
   const scene = { ctx, room, parts, S, sel: 0, roomCfg: { fb, dlyToRev, master } };
   scene.conductor = new Conductor(scene, { seed: 1 });   // harmony + players + arrangement (C2/C3)
@@ -101,6 +101,12 @@ export function applyStateToEngine(e, state) {
   }
 }
 
+// What a part is CALLED. A part holds its whole sound (its state), so it doesn't need the preset it came
+// from; `presetName` / `presetVal` only remember that preset, to mark it in the selector if you still have
+// it. `label` is the part's own name, given by hand and saved with the scene: it wins over the preset's,
+// and loading another preset into the part clears it (the part is called after what it holds again).
+export const partLabel = p => p.label || p.presetName || 'Init';
+
 // ---------- the SCENE as JSON: Room + conductor (seed, harmony, arrangement, players) + parts ----------
 export function sceneToJSON(sc) {
   const room = {}; for (const k of ROOM_KEYS) room[k] = sc.S[k];
@@ -108,7 +114,7 @@ export function sceneToJSON(sc) {
     format: SCENE_FORMAT, name: sc.name || undefined, date: new Date().toISOString(),   // the name travels with the scene (an exported one used to come back as «Imported scene»)
     room: { ...room, ...sc.roomCfg },
     conductor: sc.conductor.toJSON(),
-    parts: sc.parts.map(p => ({ name: p.presetName, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
+    parts: sc.parts.map(p => ({ name: p.presetName, label: p.label || undefined, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
     keys: sc.sel + 1,   // the part the keyboard plays (1-4): a scene can reserve one for the player
   };
 }
@@ -129,6 +135,7 @@ export function applySceneJSON(sc, j) {
     if (!st && pj.preset) st = { ...(factoryPreset(pj.preset) || {}), ...(pj.settings || {}) };
     if (st) { p.engine.allNotesOff(); applyStateToEngine(p.engine, { ...toControls(makeDefaultState()), ...withPresetBase(st) }); }   // clean base + state (over the preset base)
     p.presetName = pj.name || pj.preset || p.presetName;
+    p.label = typeof pj.label === 'string' ? pj.label : '';
     p.presetVal = pj.presetVal || (pj.preset ? 'f:' + pj.preset : p.presetVal);
     if (typeof pj.pan === 'number') { p.pan = pj.pan; p.engine.setPan(pj.pan); }
     p.mute = !!pj.mute; p.engine.setMute(p.mute);

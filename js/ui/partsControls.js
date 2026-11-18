@@ -10,11 +10,12 @@
    The Delay, Reverb and Tape modules carry the «room» tag in a scene:
    except for Amount/Mix (sends), their knobs belong to the shared Room.
    ===================================================================== */
-import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer } from '../engine/parts.js';
+import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer, partLabel } from '../engine/parts.js';
 import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
 import { PARAMS } from '../engine/params.js';
 import { panic } from './keyboard.js';
+import { MAX_NAME } from '../engine/library.js';
 import { currentPreset, markPreset, markPresetByName, initItem, initData } from './presetBank.js';
 import { sceneEdited, soloPreset } from './session.js';
 import { saveSceneToLibrary } from './playerControls.js';
@@ -39,7 +40,7 @@ function buildStrips() {
   sc.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
-    div.innerHTML = `<div class="shead"><button class="pname" title="Edit this part in the rack"></button>` +
+    div.innerHTML = `<div class="shead"><button class="pname" title="Edit this part in the rack · double click to rename it (the name is saved with the scene; loading a preset into the part puts the preset's name back)"></button>` +
       `<button class="mute" title="Mute the part">M</button></div>` +   // the M next to the name: one row less (fixed panel)
       `<div class="row tight">${knobHtml('Level')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
     host.appendChild(div);
@@ -61,7 +62,8 @@ function buildStrips() {
       pan:   attachKnob(kPan, { min: -1, max: 1, def: p.pan, fmt: panFmt }, v => { if (!silent) setPartPan(i, v); }),
     };
     strips.push(st);
-    div.querySelector('.pname').addEventListener('click', () => choose(i));
+    div.querySelector('button.pname').addEventListener('click', () => choose(i));
+    div.querySelector('button.pname').addEventListener('dblclick', () => renamePart(i));
     div.querySelector('.mute').classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
     div.querySelector('.mute').addEventListener('click', e => {
       setPartMute(i, !p.mute);
@@ -84,10 +86,31 @@ function buildStrips() {
   refreshNames();
 }
 
+// Rename a part: double click on its name → a field in its place. Enter or leaving it keeps the name, Escape
+// doesn't; empty (or the preset's own name) goes back to the preset's name. The link to the preset is not
+// touched: the selector still marks it and Save still writes over it.
+function renamePart(i) {
+  const sc = getScene(), p = sc && sc.parts[i], btn = p && strips[i].div.querySelector('button.pname');
+  if (!btn || btn.hidden) return;
+  const inp = document.createElement('input');
+  inp.className = 'pname pname-edit'; inp.maxLength = MAX_NAME; inp.value = partLabel(p); inp.spellcheck = false;
+  let done = false;
+  const end = keep => {
+    if (done) return; done = true;
+    if (keep) { const v = inp.value.trim(); p.label = v && v !== p.presetName ? v : ''; }
+    inp.remove(); btn.hidden = false; refreshNames();
+    document.dispatchEvent(new CustomEvent('part-renamed', { detail: { i } }));
+  };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') end(true); else if (e.key === 'Escape') end(false); });   // typing a name is not playing, and Escape here is not panic
+  inp.addEventListener('keyup', e => e.stopPropagation());
+  inp.addEventListener('blur', () => end(true));
+  btn.hidden = true; btn.before(inp); inp.focus(); inp.select();
+}
+
 function refreshNames() {
   const sc = getScene(); if (!sc) return;
   sc.parts.forEach((p, i) => {
-    strips[i].div.querySelector('.pname').textContent = (i + 1) + ' · ' + (p.presetName || 'Init');
+    strips[i].div.querySelector('button.pname').textContent = (i + 1) + ' · ' + partLabel(p);
     strips[i].div.classList.toggle('cur', i === sc.sel);
   });
   document.querySelectorAll('#partSel button').forEach(b => b.classList.toggle('active', +b.dataset.p === sc.sel));
@@ -111,7 +134,7 @@ function choose(i) {
   const p = sc.parts[i];
   if (p.presetVal) markPreset(p.presetVal);
   if (!currentPreset() && p.presetName) markPresetByName(p.presetName);   // scenes from before the Library ('f:Name'): by name
-  const msg = $('presetMsg'); if (msg) msg.textContent = 'Part ' + (i + 1) + (p.presetName ? ' · ' + p.presetName : '');
+  const msg = $('presetMsg'); if (msg) msg.textContent = 'Part ' + (i + 1) + ' · ' + partLabel(p);
   refreshNames();
   document.dispatchEvent(new CustomEvent('part-changed', { detail: { i } }));   // the Player module follows the part
 }
@@ -210,7 +233,7 @@ export function initPartsControls() {
   document.addEventListener('scene-loaded', () => { if (!sceneOn()) return; buildStrips(); setUI(true); syncControls(part().S); });
   document.addEventListener('preset-loaded', e => {
     const sc = getScene(); if (!sc) return;
-    const p = sc.parts[sc.sel]; p.presetVal = e.detail.value; p.presetName = e.detail.name;
+    const p = sc.parts[sc.sel]; p.presetVal = e.detail.value; p.presetName = e.detail.name; p.label = '';   // a preset loaded into the part: it is called after it again
     refreshNames();
   });
 }

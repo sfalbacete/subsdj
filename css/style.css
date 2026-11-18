@@ -311,6 +311,7 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .strip.room{flex:0 1 200px;}
 .strip .shead{display:flex;gap:6px;align-items:center;}   /* name + M on one row */
 .strip .shead .pname{flex:1;min-width:0;}
+.strip input.pname-edit{font:inherit;font-size:11px;border-color:var(--accent);outline:none;cursor:text;}   /* renaming a part: a field in the name's place */
 .strip .mute{flex:none;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
 .strip .mute.on{color:var(--hot);border-color:var(--hot);}

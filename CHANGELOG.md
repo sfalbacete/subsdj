@@ -8,6 +8,10 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Parts can be renamed.** Double click on a part's name in the Part Mixer: «1 · Dawn Pad» can be
+  «1 · My Pad». The name is saved with the scene and doesn't touch the preset the part came from —
+  the selector still marks it, Save still writes over it. Loading a preset into the part puts the
+  preset's name back.
 - **Recycler: a new module in the Room.** An accompaniment made of pieces of what you just played: the
   last seconds are kept in memory and grains cut from it — from any point (Memory), at another pitch
   (Pitch: as played, an octave below, octaves above, fifth, high), some backwards (Reverse) — are
