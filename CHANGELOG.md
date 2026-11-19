@@ -8,6 +8,11 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **«About» listens.** With the instrument sounding — a scene, a pattern, a held chord — the little
+  screen of the «About» window moves with it, as the old player visualizers did: the lows drive the
+  interference rings, the mids the plasma's palette, the highs the copper bars of the name, and a hit
+  flashes the background and tears the name into lines that slide back into place. In silence it is the screen it always was.
+
 - **Three views of the spectrum.** A click on the spectrum of the Output screen cycles, as on the
   oscilloscope: «detail» is the curve as it was, every harmonic a spike; «smooth» draws the envelope,
   one rounded line riding the crests — the shape of the timbre without the comb; «polar» wraps the

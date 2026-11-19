@@ -61,7 +61,7 @@ import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION, RELEASE } from './version.js';
-import { splashDate, SplashFx, openSplash, askOnWelcome } from './ui/splash.js';
+import { splashDate, SplashFx, AudioReact, bandLevels, openSplash, askOnWelcome } from './ui/splash.js';
 import { captureSession, soloDirty, sceneCore, sceneDirty, sceneEdited, restoreSession, describe as describeSession } from './ui/session.js';
 import { setDiscardAsk } from './ui/partsControls.js';
 import { setAsLock, asLocked } from './ui/seqControls.js';
@@ -6517,6 +6517,27 @@ export async function runSelfTest() {
     if (!(full > 300 && fx.stats.title === full)) problems.push('the name: ' + fx.stats.title + ' of ' + full + ' pixels');
     const want = new Date(RELEASE + 'T12:00:00').getFullYear() + '';
     if (!splashDate(RELEASE).includes(want)) problems.push('date: «' + splashDate(RELEASE) + '»');
+    // It listens: silence leaves the frame untouched, music changes it; a low tone lands in the
+    // lows and a high one in the highs; a burst of lows after quiet is a hit, a held tone is not
+    {
+      const still = fx.px.slice(), same = () => fx.px.every((v, i) => v === still[i]);
+      const ears = new AudioReact(), SR = 48000, N = 8192;
+      const tone = (hz, amp) => Float32Array.from({ length: N }, (_, i) => amp * Math.sin(2 * Math.PI * hz * i / SR));
+      for (let i = 0; i < 30; i++) fx.react(ears.update(bandLevels(tone(60, 0), SR), 1 / 60), 1 / 60);
+      fx.frame(3.0);
+      if (!same()) problems.push('silence changes the frame');
+      const lo = bandLevels(tone(60, 0.5), SR).slice(), hi = bandLevels(tone(6000, 0.5), SR).slice();
+      if (!(lo[0] > 4 * lo[1] && lo[0] > 4 * lo[2])) problems.push('60 Hz is not in the lows: ' + lo.map(v => v.toFixed(3)));
+      if (!(hi[2] > 4 * hi[1] && hi[2] > 4 * hi[0])) problems.push('6 kHz is not in the highs: ' + hi.map(v => v.toFixed(3)));
+      let hits = 0;
+      for (let i = 0; i < 60; i++) { ears.update(lo, 1 / 60); fx.react(ears, 1 / 60); if (ears.hit) hits++; }
+      if (hits !== 1) problems.push('a held low tone gives ' + hits + ' hits (1: its start)');
+      if (!(ears.bass > 0.9 && ears.high < 0.1)) problems.push('levels: bass ' + ears.bass.toFixed(2) + ' high ' + ears.high.toFixed(2));
+      fx.frame(3.0);
+      if (same()) problems.push('music does not change the frame');
+      fx.quiet(); fx.frame(3.0);
+      if (!same()) problems.push('quiet() does not bring the frame back');
+    }
     // «About»: the header title reopens it (here, with ?selftest, it started closed),
     // with BACK; while it is open, a key does not play; Escape closes it
     const sp = document.getElementById('splash');
@@ -6534,7 +6555,7 @@ export async function runSelfTest() {
       if (during !== before) problems.push('with the window open the keyboard plays');
       if (!sp.hidden) problems.push('Escape does not close the «About»');
     }
-    push({ name: 'welcome window (the frame paints · the whole name · version and date · «About»)', peak: 0, ok: !problems.length, problems });
+    push({ name: 'welcome window (the frame paints · the whole name · version and date · it listens · «About»)', peak: 0, ok: !problems.length, problems });
   }
   {
     // The session (2026-11-07): what is kept on closing the page is decided by COMPARISON with what can be
