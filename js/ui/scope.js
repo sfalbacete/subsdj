@@ -16,7 +16,15 @@
    sweep moves at constant speed) and Y is in dB (a 12 / 24 dB/oct filter is a straight
    slope). Where a pixel column holds several FFT bins the loudest wins; where bins are
    wider than pixels (the lows) the curve is interpolated between them. A second line
-   keeps the peaks and falls slowly: the trail of a sweep. */
+   keeps the peaks and falls slowly: the trail of a sweep.
+   Three modes (a click on it cycles; remembered):
+   · detail: the curve as measured, every harmonic a spike.
+   · smooth: the ENVELOPE — the line that rides the crests. Each column takes the loudest
+     value within ±SMOOTH_OCT (so the valleys between harmonics up to an octave apart are
+     bridged), then two box blurs of half that width round the steps. The blur never spans
+     more than the plateau the max left, so the curve still touches each isolated crest.
+   · polar: the detail curve wrapped around a circle — frequency is the angle (20 Hz at
+     12 o'clock, clockwise, each octave the same arc), level is the radius. */
 import { part } from '../engine/parts.js';
 import { token, tint } from './theme.js';
 import { uiZoom } from './frame.js';
@@ -35,7 +43,10 @@ const DB_TOP = -12, DB_BOT = -96;     // spectrum: level axis (a full-scale sine
 const PEAK_FALL = 9;         // spectrum: fall of the peak line (dB/s)
 const GRID_HZ = [[100, '100'], [1000, '1k'], [10000, '10k']];
 const GRID_DB = 24;          // spectrum: a horizontal line every this many dB
-const LS_KEY = 'subsdj.scope.v1';
+const SPEC_MODES = ['detail', 'smooth', 'polar'];
+const SMOOTH_OCT = 0.5;      // smooth mode: reach of the envelope to each side, in octaves (0.5 bridges harmonics 1 and 2)
+const POLAR_HOLE = 0.3;      // polar mode: radius of the silence circle (DB_BOT), as a fraction of the outer one (DB_TOP)
+const LS_KEY = 'subsdj.scope.v1', LS_SPEC = 'subsdj.spectrum.v1';
 
 const dpr = () => (window.devicePixelRatio || 1) * uiZoom();   // physical px per design px (the instrument is scaled)
 function fit(c) { c.width = Math.round((c.clientWidth || 170) * dpr()); c.height = Math.round((c.clientHeight || 36) * dpr()); }
@@ -98,6 +109,13 @@ export function initScope(scopeCanvas, specCanvas) {
     try { localStorage.setItem(LS_KEY, mode); } catch { /* no persistence */ }
   });
 
+  let specMode = SPEC_MODES[0]; try { const m = localStorage.getItem(LS_SPEC); if (SPEC_MODES.includes(m)) specMode = m; } catch { /* no persistence */ }
+  specCanvas.addEventListener('click', () => {
+    specMode = SPEC_MODES[(SPEC_MODES.indexOf(specMode) + 1) % SPEC_MODES.length];
+    if (peaks) peaks.fill(DB_BOT);                               // the trail belongs to the curve that left it
+    try { localStorage.setItem(LS_SPEC, specMode); } catch { /* no persistence */ }
+  });
+
   let timeData = null, freqData = null, period = 0, tick = 0, pk = 0, lastT = 0;
   let cols = null, peaks = null, colsKey = '';
 
@@ -108,7 +126,7 @@ export function initScope(scopeCanvas, specCanvas) {
   };
   // the line with its halo and, under it, the fill that fades away from it
   function glowLine(ctx, path, grad) {
-    ctx.fillStyle = grad; ctx.fill(path.fill);
+    ctx.fillStyle = grad; ctx.fill(path.fill, path.rule || 'nonzero');
     ctx.lineWidth = 1.4 * dpr(); ctx.lineJoin = 'round'; ctx.strokeStyle = token('--accent');
     ctx.shadowColor = tint('--accent', .7); ctx.shadowBlur = 5 * dpr();
     ctx.stroke(path.line); ctx.shadowBlur = 0;
@@ -149,15 +167,67 @@ export function initScope(scopeCanvas, specCanvas) {
     colsKey = key;
     const step = Math.max(1, Math.round(dpr())), n = Math.ceil(w / step) + 1, binHz = sr / 2 / bins;
     const fTop = Math.min(F_MAX, sr / 2), f = px => F_MIN * Math.pow(fTop / F_MIN, px / w);
-    cols = { n, step, lo: new Float32Array(n), hi: new Float32Array(n), fTop };
+    cols = { n, step, lo: new Float32Array(n), hi: new Float32Array(n), v: new Float32Array(n), tmp: new Float32Array(n), fTop,
+             k: Math.max(1, Math.round(SMOOTH_OCT * w / Math.log2(fTop / F_MIN) / step)) };   // SMOOTH_OCT in columns
     for (let c = 0; c < n; c++) { cols.lo[c] = f(c * step - step / 2) / binHz; cols.hi[c] = f(c * step + step / 2) / binHz; }
     peaks = new Float32Array(n).fill(DB_BOT);
+  }
+
+  // v → its envelope, in place: running max over ±k columns, then two box blurs of ±k/2
+  function envelope(v, t, k) {
+    const n = v.length, kb = k >> 1, cl = i => i < 0 ? 0 : i >= n ? n - 1 : i;
+    for (let i = 0; i < n; i++) { let m = v[i]; for (let j = Math.max(0, i - k), e = Math.min(n - 1, i + k); j <= e; j++) if (v[j] > m) m = v[j]; t[i] = m; }
+    const blur = (a, b) => { for (let i = 0; i < n; i++) { let s = 0; for (let j = i - kb; j <= i + kb; j++) s += a[cl(j)]; b[i] = s / (2 * kb + 1); } };
+    blur(t, v); blur(v, t); v.set(t);
+  }
+
+  function drawPolar(vals, w, h, d) {
+    const cx = w / 2, cy = h / 2, R = h / 2 - 3 * d, r0 = R * POLAR_HOLE, TAU = 2 * Math.PI;
+    const rad = v => r0 + Math.min(1, Math.max(0, (v - DB_BOT) / (DB_TOP - DB_BOT))) * (R - r0);
+    const ang = px => -Math.PI / 2 + px / w * TAU;
+    fctx.lineWidth = d;
+    fctx.strokeStyle = tint('--dim', .10); fctx.beginPath();
+    for (let v = DB_TOP; v >= DB_BOT; v -= GRID_DB) { fctx.moveTo(cx + rad(v), cy); fctx.arc(cx, cy, rad(v), 0, TAU); }
+    fctx.stroke();
+    fctx.strokeStyle = tint('--dim', .20); fctx.beginPath(); fctx.textBaseline = 'middle';
+    for (const [hz, s] of GRID_HZ) {
+      const a = ang(Math.log(hz / F_MIN) / Math.log(cols.fTop / F_MIN) * w), ca = Math.cos(a), sa = Math.sin(a);
+      fctx.moveTo(cx + ca * r0, cy + sa * r0); fctx.lineTo(cx + ca * R, cy + sa * R);
+      label(fctx, s, cx + ca * (R + 5 * d), Math.min(h - 6 * d, Math.max(6 * d, cy + sa * (R + 5 * d))), ca < 0 ? 'right' : 'left');
+    }
+    fctx.stroke(); fctx.textBaseline = 'alphabetic';
+    const line = new Path2D(), fill = new Path2D(), pline = new Path2D();
+    for (let c = 0; c < cols.n; c++) {
+      const a = ang(Math.min(w, c * cols.step)), ca = Math.cos(a), sa = Math.sin(a), r = rad(vals[c]), rp = rad(peaks[c]);
+      c ? line.lineTo(cx + ca * r, cy + sa * r) : line.moveTo(cx + ca * r, cy + sa * r);
+      c ? pline.lineTo(cx + ca * rp, cy + sa * rp) : pline.moveTo(cx + ca * rp, cy + sa * rp);
+    }
+    line.closePath(); pline.closePath();                         // 20 kHz meets 20 Hz at 12 o'clock
+    fill.addPath(line); fill.moveTo(cx + r0, cy); fill.arc(cx, cy, r0, 0, TAU);   // the ring between the hole and the curve
+    fctx.strokeStyle = tint('--accent2', .6); fctx.stroke(pline);
+    const grad = fctx.createRadialGradient(cx, cy, r0, cx, cy, R);
+    grad.addColorStop(0, tint('--accent', .03)); grad.addColorStop(0.45, tint('--accent', .16)); grad.addColorStop(1, tint('--accent', .45));
+    glowLine(fctx, { line, fill, rule: 'evenodd' }, grad);
   }
 
   function drawSpectrum(data, sr, dt) {
     const w = specCanvas.width, h = specCanvas.height, bins = data.length, d = dpr();
     layout(w, sr, bins);
     fctx.clearRect(0, 0, w, h);
+    const g = i => { const v = data[i < 0 ? 0 : i >= bins ? bins - 1 : i]; return v > DB_BOT ? v : DB_BOT; };   // −Infinity in silence
+    const vals = cols.v;
+    for (let c = 0; c < cols.n; c++) {
+      const lo = cols.lo[c], hi = cols.hi[c]; let v;
+      if (hi - lo >= 1) { v = DB_BOT; for (let i = Math.ceil(lo); i <= hi; i++) if (g(i) > v) v = g(i); }   // several bins: the loudest
+      else {                                                     // less than a bin per column: Catmull-Rom between bins
+        const p = (lo + hi) / 2, i = Math.floor(p), t = p - i, a = g(i - 1), b = g(i), cc = g(i + 1), e = g(i + 2);
+        v = b + 0.5 * t * (cc - a + t * (2 * a - 5 * b + 4 * cc - e + t * (3 * (b - cc) + e - a)));
+      }
+      vals[c] = v;
+    }
+    if (specMode === 'smooth') envelope(vals, cols.tmp, cols.k);
+    for (let c = 0; c < cols.n; c++) peaks[c] = Math.max(vals[c], peaks[c] - PEAK_FALL * dt);
+    if (specMode === 'polar') { drawPolar(vals, w, h, d); label(fctx, specMode, 6 * d, 12 * d); return; }
     const Y = v => (DB_TOP - v) / (DB_TOP - DB_BOT) * h;
     const X = hz => Math.log(hz / F_MIN) / Math.log(cols.fTop / F_MIN) * w;
     fctx.lineWidth = d;
@@ -169,17 +239,10 @@ export function initScope(scopeCanvas, specCanvas) {
     fctx.stroke();
     for (const [hz, s] of GRID_HZ) label(fctx, s, X(hz) - 3 * d, 11 * d, 'right');
 
-    const g = i => { const v = data[i < 0 ? 0 : i >= bins ? bins - 1 : i]; return v > DB_BOT ? v : DB_BOT; };   // −Infinity in silence
     const line = new Path2D(), fill = new Path2D(), pline = new Path2D();
     fill.moveTo(0, h);
     for (let c = 0; c < cols.n; c++) {
-      const lo = cols.lo[c], hi = cols.hi[c]; let v;
-      if (hi - lo >= 1) { v = DB_BOT; for (let i = Math.ceil(lo); i <= hi; i++) if (g(i) > v) v = g(i); }   // several bins: the loudest
-      else {                                                     // less than a bin per column: Catmull-Rom between bins
-        const p = (lo + hi) / 2, i = Math.floor(p), t = p - i, a = g(i - 1), b = g(i), cc = g(i + 1), e = g(i + 2);
-        v = b + 0.5 * t * (cc - a + t * (2 * a - 5 * b + 4 * cc - e + t * (3 * (b - cc) + e - a)));
-      }
-      const pkv = peaks[c] = Math.max(v, peaks[c] - PEAK_FALL * dt);
+      const v = vals[c], pkv = peaks[c];
       const px = c * cols.step, py = Math.min(h, Math.max(0, Y(v))), pp = Math.min(h, Math.max(0, Y(pkv)));
       c ? line.lineTo(px, py) : line.moveTo(px, py); fill.lineTo(px, py);
       c ? pline.lineTo(px, pp) : pline.moveTo(px, pp);
@@ -189,6 +252,7 @@ export function initScope(scopeCanvas, specCanvas) {
     const grad = fctx.createLinearGradient(0, 0, 0, h);          // same fall-off as the envelope graph
     grad.addColorStop(0, tint('--accent', .45)); grad.addColorStop(0.55, tint('--accent', .16)); grad.addColorStop(1, tint('--accent', .03));
     glowLine(fctx, { line, fill }, grad);
+    label(fctx, specMode, 6 * d, h - 6 * d);                     // bottom left: the top belongs to the Hz marks
   }
 
   function frame(now) {

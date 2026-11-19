@@ -8,6 +8,11 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Three views of the spectrum.** A click on the spectrum of the Output screen cycles, as on the
+  oscilloscope: «detail» is the curve as it was, every harmonic a spike; «smooth» draws the envelope,
+  one rounded line riding the crests — the shape of the timbre without the comb; «polar» wraps the
+  spectrum around a circle, frequency as the angle and level as the radius. The choice is remembered.
+
 - **A bigger logo, without the version beside it.** The header carries the name alone; the version
   is where it already was, in «About» (click on the name, or File ▾ → About SubSDJ…).
 
