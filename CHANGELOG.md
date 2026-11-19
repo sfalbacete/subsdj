@@ -8,6 +8,9 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **A bigger logo, without the version beside it.** The header carries the name alone; the version
+  is where it already was, in «About» (click on the name, or File ▾ → About SubSDJ…).
+
 - **Harmony: well-known progressions, and a panel in order.** Beside the Progression field, a list of
   progressions worth trying — pop, doo-wop, jazz, the canon, the blues, minor and modal ones —: choosing
   one writes its numbers and sets the scale it is known in; the root and the bars per chord stay

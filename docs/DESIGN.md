@@ -28,7 +28,7 @@ reload with Ctrl+F5 after every change.
 
 ## Versions and publishing
 
-The version lives in `js/version.js` (`VERSION`), it is shown next to the title and the
+The version lives in `js/version.js` (`VERSION`), it is shown in the «About» window (click on the title) and the
 selftest checks that it matches the first entry of the CHANGELOG.
 X.Y.Z numbering: **Z** = fixes; **Y** = new features; **X** = something
 saved stops loading or sounding the same (presets, scenes, exported

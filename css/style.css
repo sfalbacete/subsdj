@@ -160,7 +160,7 @@ body{
    the tokens: the logo changes with the theme. Deliberately WITHOUT
    prefers-reduced-motion: Windows with «Animation effects» turned off
    enables it and the browser would leave the logo still; it is a 10 s sway. */
-h1{font-size:18px;margin:0;letter-spacing:2px;
+h1{font-size:26px;line-height:1;margin:0;letter-spacing:3px;position:relative;top:-2px;   /* optical: all caps, sits low beside the tabs' lowercase */
   background:linear-gradient(100deg,var(--accent),var(--accent2),var(--accent)) 0 0 / 200% 100%;
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent) 40%,transparent));
@@ -1112,7 +1112,7 @@ body.midi-learn [data-cc]::after{content:"CC" attr(data-cc);position:absolute;to
 .cf-text{font-size:12px;line-height:1.5;color:var(--dim);white-space:pre-line;}
 .cf-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
 .cf-btns .btn:focus-visible{outline:none;border-color:var(--accent);color:var(--accent);}
-#aboutBtn,#verBadge{cursor:pointer;}   /* the header title opens «About» */
+#aboutBtn{cursor:pointer;}   /* the header title opens «About» */
 .sp-card{width:336px;overflow:hidden;border:1px solid var(--sp-edge);border-radius:10px;
   background:linear-gradient(180deg,var(--sp-card-top),var(--sp-card-bot));
   box-shadow:inset 0 0 0 1px var(--sp-edge2),0 24px 60px var(--sp-shadow),0 0 48px var(--sp-halo);

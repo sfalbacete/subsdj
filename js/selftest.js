@@ -6501,9 +6501,9 @@ export async function runSelfTest() {
     } catch (e) { problems.push('could not read CHANGELOG.md'); }
     if (!/^\d+\.\d+\.\d+$/.test(VERSION)) problems.push('VERSION is not X.Y.Z: ' + VERSION);
     if (top !== VERSION) problems.push('the CHANGELOG starts with ' + top + ' and VERSION is ' + VERSION);
-    const badge = document.getElementById('verBadge');
-    if (!badge || badge.textContent !== 'v' + VERSION) problems.push('the header does not show v' + VERSION);
-    push({ name: 'version ' + VERSION + ' of ' + RELEASE + ' (= first CHANGELOG entry, visible in the header)', peak: 0, ok: !problems.length, problems });
+    const badge = document.getElementById('spVer');   // the header carries the name alone: the version is in «About»
+    if (!badge || badge.textContent !== 'v' + VERSION) problems.push('«About» does not show v' + VERSION);
+    push({ name: 'version ' + VERSION + ' of ' + RELEASE + ' (= first CHANGELOG entry, visible in «About»)', peak: 0, ok: !problems.length, problems });
   }
   {
     // Welcome window: one frame of the effect paints something (not a flat color),

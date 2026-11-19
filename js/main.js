@@ -41,14 +41,12 @@ import { initTips } from './ui/tips.js';
 import { initEnablers } from './ui/enablers.js';
 import { initSession } from './ui/session.js';
 import { setStatus, isStatus } from './ui/status.js';
-import { VERSION } from './version.js';
 
 // 1) UI first (immediate render; the controls keep state even though the audio doesn't exist yet)
-document.getElementById('verBadge').textContent = 'v' + VERSION;   // next to the title (js/version.js)
-initFrame();          // the instrument: fixed-size object scaled to the window (before any canvas measures)
+initFrame();         // the instrument: fixed-size object scaled to the window (before any canvas measures)
 initTheme();          // skin: ?theme= or the remembered theme, before any canvas reads tokens
 initSplash();         // welcome window (demoscene; already in the HTML, covering the assembly): after initFrame, for its scale; ENTER starts the audio
-for (const id of ['aboutBtn', 'verBadge', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «About»: the same window
+for (const id of ['aboutBtn', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «About»: the same window
 bindMatrixControls(); // generates the matrix rows (creates their .knob: ALWAYS before bindKnobs)
 bindKnobs();          // knobs for almost everything (log/fmt live in the knob)
 initClock();          // the header's clock: BPM and swing (registered like knobs, before the presets load)
