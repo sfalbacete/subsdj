@@ -3637,6 +3637,12 @@ export async function runSelfTest() {
       const full = low(1), half = low(0.5);
       if (full !== 8) problems.push('pulse at 100 % loses hits at low energy: ' + full + '/8');
       if (!(half < 8)) problems.push('pulse at 50 % at low energy: ' + half + '/8 (expected fewer)');
+      // Fixed: a pulse that follows the chords changes note with them (2 bars, 2 chords); fixed, it is one note — the C of its octave
+      const pitches = fixed => { const cd = new Conductor(sc, { seed: 11 }); cd.dry = true; setup(cd); cd.players[0].cfg.fixed = fixed; cd.scheduleAll(secs);
+        return [...new Set(cd.players[0].log.filter(e => e[1] === 'on').map(e => e[2]))]; };
+      const moving = pitches(0), still = pitches(1);
+      if (!(moving.length > 1)) problems.push('pulse following the harmony: one single note over two chords (' + moving.join(',') + ')');
+      if (still.length !== 1 || still[0] % 12 !== 0) problems.push('pulse Fixed: notes ' + still.join(',') + ' (expected one, a C)');
       const cd = sc.conductor; cd.setSeed(11); setup(cd); cd.scheduleAll(secs);
       const buf = await ctx.startRendering();
       const a = analyze(buf);

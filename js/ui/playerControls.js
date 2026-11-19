@@ -10,10 +10,10 @@
    The settings live in the scene's conductor (engine/Conductor.js), not
    in the presets: the preset is the instrument, the player is the musician.
    PATTERN (2026-11-12): the mode whose notes are yours. Instead of knobs it shows
-   the take's buttons (● Rec · + Dub · ↶ ↷ · Clear), the loop's Bars and Quantize, and
+   the take's buttons (Rec loop · + Dub · ↶ ↷ · Clear), the loop's Bars and Quantize, and
    a read-only view of the loop with its playhead; the same controls head the
    «Pattern» screen, where the loop is edited (ui/patternEditor.js) — every control
-   is found by its data-pat, wherever it is. ● Rec only ARMS: the take starts with
+   is found by its data-pat, wherever it is. Rec loop only ARMS: the take starts with
    the first key (no count-in). A take listens to the live keys through
    parts.setNoteTap; the notes sound their usual way. It ends by pressing the button
    again, and by anything that takes the ground from under it: stopping the players,
@@ -41,7 +41,7 @@ const int = v => String(Math.round(v));
 const KNOBS = {
   pulse:   [['k', 'Hits', 1, 16, 1], ['n', 'Steps', 4, 32, 1], ['rot', 'Rot', 0, 31, 1], ['prob', 'Prob', 0, 1],
             ['gate', 'Gate', 0.05, 1], ['accent', 'Accent', 0, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1],
-            ['breathe', 'Breathe', 0, 8, 1], ['breatheCycle', 'Cycle', 2, 16, 1]],   // the breathing pulse (Roadmap 7.0 · 5.4)
+            ['breathe', 'Breathe', 0, 8, 1], ['breatheCycle', 'Cycle', 2, 16, 1]],   // the breathing pulse (Roadmap 7.0 · 5.4); its «Fixed» is the button in the module's header (no room for an 11th knob)
   chord:  [['notes', 'Notes', 3, 4, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
   melody: [['density', 'Density', 0, 1], ['rest', 'Rest', 0, 1], ['gravity', 'Gravity', 0, 1],
             ['range', 'Range', 1, 3, 1], ['legato', 'Legato', 0.1, 1], ['oct', 'Oct', 1, 7, 1], ['vel', 'Vel', 0.1, 1]],
@@ -94,7 +94,7 @@ function tapKey(on, id, freq, vel) {
   const pl = rec.pl, t = pl.c.ctx.currentTime;
   if (on) pl.recOn(id, 69 + 12 * Math.log2(freq / 440), vel, t); else pl.recOff(id, t);
 }
-// ● Rec arms a new take (it starts with the first key); + Dub starts adding to the loop at once
+// Rec loop arms a new take (it starts with the first key); + Dub starts adding to the loop at once
 export function patRecStart(dub = false) {
   const c = conductor(), pl = currentPlayer();
   if (!c || !pl || rec) return false;
@@ -124,8 +124,8 @@ function patInfo(pl) {
     if (tk && tk.dub) return 'Overdub · ' + plural(tk.added, 'note') + ' added · + Dub again to finish';
     if (tk) return 'Recording · bar ' + (Math.max(0, Math.floor((c.beatAt(c.ctx.currentTime) - tk.origin) / BAR)) + 1) + ' · ' + plural(tk.notes.length, 'note') + ' · ● again to close the loop';
   }
-  if (pl.cfg.mode !== 'pattern') return 'This part\'s player is on «' + pl.cfg.mode + '» · ● Rec, or a double click on the grid, puts it on Pattern';
-  if (!pat) return 'Empty · ● Rec and play: the take starts with your first key, and ● again closes the loop';
+  if (pl.cfg.mode !== 'pattern') return 'This part\'s player is on «' + pl.cfg.mode + '» · Rec loop, or a double click on the grid, puts it on Pattern';
+  if (!pat) return 'Empty · Rec loop and play: the take starts with your first key, and Rec loop again closes it';
   const L = pat.bars * BAR, inside = pat.notes.filter(n => n.b < L - 1e-9).length, out = pat.notes.length - inside;
   return plural(pat.bars, 'bar') + ' · ' + plural(inside, 'note') + (out ? ' (+' + out + ' beyond the loop)' : '') + (c.running ? '' : ' · ▶ Play to hear it');
 }
@@ -135,7 +135,7 @@ export function paintPat() {
   box.hidden = !on; $('playerKnobs').hidden = on;
   if (!pl) { pats('info').forEach(e => { e.textContent = 'Turn on «Parts» in the header: a pattern is the loop a part\'s player repeats'; }); return; }
   const pat = pl.cfg.pat, mine = !!rec && rec.pl === pl, dub = mine && !!pl.take && pl.take.dub, neu = mine && !dub;
-  pats('rec').forEach(b => { b.textContent = neu ? '■ Stop' : '● Rec'; b.classList.toggle('rec', neu); b.disabled = !!rec && !neu; });
+  pats('rec').forEach(b => { b.textContent = neu ? '■ Stop' : 'Rec loop'; b.classList.toggle('rec', neu); b.disabled = !!rec && !neu; });
   pats('dub').forEach(b => { b.textContent = dub ? '■ Stop' : '+ Dub'; b.classList.toggle('rec', dub); b.disabled = dub ? false : (!!rec || !(pat && pat.notes.length)); });
   pats('undo').forEach(b => { b.disabled = !!rec || !pl.canUndo(); });
   pats('redo').forEach(b => { b.disabled = !!rec || !pl.canRedo(); });
@@ -147,7 +147,6 @@ export function paintPat() {
   ['rot-', 'rot+'].forEach(k => pats(k).forEach(b => { b.disabled = !!rec || !(pat && pat.notes.length); }));
   document.querySelectorAll('[data-pat="quant"] button').forEach(b => b.classList.toggle('active', +b.dataset.q === pl.cfg.quant));
   document.querySelectorAll('[data-pat="follow"] button').forEach(b => b.classList.toggle('active', b.dataset.f === (pl.cfg.follow || 'off')));
-  pats('play').forEach(b => { b.textContent = pl.c.running ? '■ Stop' : '▶ Play'; b.classList.toggle('on', pl.c.running); });
   pats('who').forEach(e => { const sc = getScene(), p = sc.parts[sc.sel]; e.textContent = 'Part ' + (sc.sel + 1) + ' · ' + partLabel(p); });
   const info = patInfo(pl);
   pats('info').forEach(e => { e.textContent = info; });
@@ -201,6 +200,9 @@ function buildPlayerUI() {
   $('playerWho').textContent = 'Part ' + (sc.sel + 1) + ' · ' + partLabel(p);
   document.querySelectorAll('#playerMode button').forEach(b => b.classList.toggle('active', b.dataset.pm === pl.cfg.mode));
   knobRow($('playerKnobs'), KNOBS[pl.cfg.mode] || [], pl.cfg);
+  const fx = $('playerFixed');   // Pulse only: always the same note (drums), deaf to the harmony
+  if (fx) { fx.hidden = pl.cfg.mode !== 'pulse'; fx.classList.toggle('active', !!pl.cfg.fixed); fx.setAttribute('aria-pressed', String(!!pl.cfg.fixed));
+    fx.onclick = e => { e.stopPropagation(); const p = currentPlayer(); if (!p) return; p.cfg.fixed = p.cfg.fixed ? 0 : 1; fx.classList.toggle('active', !!p.cfg.fixed); fx.setAttribute('aria-pressed', String(!!p.cfg.fixed)); }; }
   paintPat();
   // the part's arrangement (compact row of the Arrangement panel): Enters (threshold) · Drift (parameter) · Amount
   $('arrPartWho').textContent = 'Part ' + (sc.sel + 1);
@@ -279,7 +281,7 @@ function syncHarmonyUI() {
   depsRefresh();
 }
 function setPlayBtn(on) {
-  const b = $('playBtn'); b.textContent = on ? '■ Stop' : '▶ Play'; b.classList.toggle('on', on);
+  const b = $('playBtn'); b.classList.toggle('on', on); b.setAttribute('aria-label', on ? 'Stop' : 'Play');   // the transport, in the header: its icon turns into the stop square (css)
   if (!on) { $('harmInfo').textContent = 'Stopped'; $('arrInfo').textContent = '—'; }
 }
 export function isPlaying() { const c = conductor(); return !!(c && c.running); }
@@ -355,7 +357,6 @@ export function initPlayerControls() {
   click('x2', pl => { if (pl && !rec && pl.doublePat()) edited(); });
   click('rot-', pl => { if (pl && !rec && pl.rotatePat(-1)) edited(); });
   click('rot+', pl => { if (pl && !rec && pl.rotatePat(1)) edited(); });
-  click('play', () => setPlaying(!isPlaying()));
   click('edit', () => showScreen('pattern'));
   document.querySelectorAll('[data-pat="follow"] button').forEach(b => b.addEventListener('click', () => {   // Follow (P4): on playback, from the next note
     const pl = currentPlayer(); if (!pl) return;

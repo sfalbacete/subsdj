@@ -328,7 +328,10 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 #harmFromInfo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .harmlay .vcol{gap:7px;min-width:200px;}
 #harmRoot{width:70px;flex:none;}
-#playBtn.on{color:var(--hot);border-color:var(--hot);}
+#playBtn .i-stop{display:none;}                       /* the transport (header): ▶ stopped, ■ while the players run */
+#playBtn.on .i-play{display:none;}
+#playBtn.on .i-stop{display:block;}
+#playBtn.on{color:var(--accent);border-color:var(--accent);}   /* not red: red is the WAV recorder's */
 /* The part's arrangement (in the Arrangement panel): compact row like the footers of the Matrix and the Delay */
 .arr-part{gap:10px;margin-top:6px;align-items:center;}
 .arr-part .fieldlab{flex:none;color:var(--accent);}   /* whose row it is */

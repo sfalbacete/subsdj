@@ -8,6 +8,15 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **One Play, in the header.** The players' ▶ Play was a button in the Harmony module and another in
+  the Pattern screen — the same transport, twice, and out of sight from Design. Now it is one
+  button beside the tempo, on every screen; without Parts it is dimmed and says why. The loop's
+  record button is called **Rec loop**: the red dot is left to the WAV recorder alone.
+- **Previous and Next preset side by side**, at the left of the preset selector: browsing no longer means
+  crossing the selector with the pointer.
+- **Pulse player: Fixed.** With Fixed at 1 a Pulse player always plays the same note — the C of its
+  octave — instead of the root of each chord: a kick or a snare no longer changes pitch when the
+  harmony moves.
 - **Parts can be renamed.** Double click on a part's name in the Part Mixer: «1 · Dawn Pad» can be
   «1 · My Pad». The name is saved with the scene and doesn't touch the preset the part came from —
   the selector still marks it, Save still writes over it. Loading a preset into the part puts the

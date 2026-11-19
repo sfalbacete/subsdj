@@ -247,6 +247,7 @@ export const RULES = [
     S => (asModeOf(S) !== 'seq' ? ['asMode'] : ['mode'])],
   ['sec:Wave Sequence', S => (has(S, 'wavetable') ? null : 'it only moves the Wavetable Morph: ' + NO('Wavetable')), waveBy],
   ...live(['wsDiv', 'wsMode', 'wsXf', '#wsCanvas', '.ctl:has(#wsLenNum)'], S => S.wsOn === 'on', 'State Off', ['wsOn']),
+  ['#playBtn', () => (sceneOn() ? null : 'Parts off: Play runs the players of a scene, and there is none'), ['#partsBtn']],
   // scene (Parts): conductor state, not preset state
   ['#harmProg', () => (conductor() && conductor().harmony.mode === 'functions' ? 'Functions: the walk doesn\'t use the list' : null), ['#harmMode']],
   ['#arrKnobs [data-key="cycle"]', () => (conductor() && !(conductor().arr.cfg.sway > 0) ? 'Sway at 0: there is no cycle' : null), ['#arrKnobs [data-key="sway"]']],

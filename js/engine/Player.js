@@ -9,7 +9,9 @@
               possible over n steps per bar — the same math that draws
               a line in pixels (Bresenham). E(3,8) is the tresillo, E(5,8)
               the Cuban clave… (Toussaint: almost all the world's rhythms).
-              Plays the chord's root in its octave (kick, hat, perc).
+              Plays the chord's root in its octave (a bass pulse) — or, with
+              FIXED, always the same note, the C of its octave, whatever the
+              harmony does: a kick or a snare must not change pitch with the chords.
               BREATHE (Roadmap 7.0 · 5.4): k rises bar by bar up to k +
               breathe and back, along a cosine of breatheCycle bars (like the
               Arrangement's Sway): the rhythm fills up and empties on its own.
@@ -60,6 +62,7 @@ export const PLAYER_DEF = {
   mode: 'off', oct: 4, vel: 0.9,
   k: 4, n: 16, rot: 0, prob: 1, gate: 0.5, accent: 0.3,     // pulse
   breathe: 0, breatheCycle: 4,                                    // breathing pulse: extra hits at the top of an N-bar cycle
+  fixed: 0,                                                 // pulse: 1 = always the C of its octave, deaf to the harmony (drums)
   notes: 3,                                                 // chord
   density: 0.5, rest: 0.2, gravity: 0.6, range: 1, legato: 0.8,   // melody
   fifth: 0, every: 2,                                       // root
@@ -218,7 +221,7 @@ export class Player {
       const t = this.c.swungTime(b, step), onBeat = Math.abs(b - Math.round(b)) < 1e-6;   // the clock's swing (if the grid is binary)
       const vel = Math.min(1, c.vel * a.velMul * (onBeat ? 1 : 1 - c.accent) * (0.92 + 0.16 * this.rng()));
       const id = this._id();
-      this._on(id, this.base() + this.c.chordAtBeat(b).rootPc, vel, t);
+      this._on(id, this.base() + (c.fixed ? 0 : this.c.chordAtBeat(b).rootPc), vel, t);
       this._off(id, t + this.c.swingLen(b, step) * c.gate * this.c.beatLen());
     }
     this.nextBeat = b + step;
