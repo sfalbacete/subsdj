@@ -36,12 +36,24 @@ steps, effects, parts and generative music.
   sequencer, the looping envelope, Steps, parts and scenes), **Pattern** (the loop
   of your own notes that a part repeats — with Parts on) and **Presets** (the
   library).
-- **Pattern**: with Parts on, **● Rec** in the Player module (or on the Pattern
-  screen) arms a take that starts with your first key; ● again closes the loop.
-  On the Pattern screen, drag the notes to fix them, double-click to add or delete,
-  `Ctrl` + wheel to zoom. **From pattern** in Harmony reads the key from the loop so
-  the other players follow it, and **★ Save** in Arrangement keeps the scene in the
-  Library.
+- **Pattern**: with Parts on, **Rec loop** in the Player module (or on the Pattern
+  screen) arms a take that starts with your first key; pressing it again closes the
+  loop. On the Pattern screen, drag the notes to fix them, double-click to add or
+  delete, `Ctrl` + wheel to zoom; a rubber band selects several notes to move, copy
+  (`Alt` + drag, `Ctrl+D`, `Ctrl+C` / `Ctrl+V` between parts) or transpose with the
+  arrows, and **×2** and **Rotate** work on the whole loop. **Follow** makes a loop
+  recorded over one chord walk the whole progression. **From pattern** in Harmony
+  reads the key from the loop so the other players follow it, and **★ Save** in
+  Arrangement keeps the scene in the Library.
+- **▶ Play**, beside the tempo, starts and stops the players of the parts from any
+  screen.
+- **Recycler** (in the Room, with the delay and the reverb): an accompaniment made
+  of grains cut from the last seconds you played — at another pitch, backwards,
+  scattered in stereo or on the tempo grid. **Hold** keeps them hanging after you
+  let go.
+- A click on the **oscilloscope** switches between the running wave and one single
+  cycle; a click on the **spectrum** cycles its three views (detail, smooth, polar).
+  And the little screen of **About** (click on the name) moves with what is sounding.
 - The **preset picker** in the header searches (ignoring accents and case) and
   filters by category; a click or `↑` `↓` loads to audition, `Enter` picks and
   closes, and **Browse all** opens the Presets screen.
@@ -74,7 +86,7 @@ and the checks are in [docs/BANK.md](docs/BANK.md). The bank up to 1.4.0 lives i
 Eight **scenes** (Presets screen) show the synth accompanying you: Night Ambient,
 Dorian Dawn, Hypnotic Techno, Robot Choir, Berlin School, Dub Session, 909 Kit and
 Deep Space. All but the kit reserve a part for you, with a lead loaded and its player
-off: load the scene, press ▶ Play in Harmony and play along.
+off: load the scene, press ▶ Play in the header and play along.
 
 ## Your presets
 

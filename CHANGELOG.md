@@ -6,7 +6,16 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased
+## [2.1.0] — 2026-11-20
+
+A release of things to **play with and to look at**. The **Recycler**, a new module in the Room, makes an
+accompaniment out of pieces of what you just played. The Pattern screen learns to work on several notes
+at once — select, move, copy, paste between parts, double the loop, rotate it — and a loop can **follow
+the harmony** instead of being recorded again for every chord. Harmony gets well-known progressions and a
+strip that shows where it is; there is one Play, in the header; parts can be renamed. And the pictures
+of the sound are new: an oscilloscope that can show a single cycle, a spectrum drawn as a curve in three
+views, an LED meter, and an «About» screen that moves with the music. Nothing saved stops loading or
+sounding the same.
 
 - **«About» listens.** With the instrument sounding — a scene, a pattern, a held chord — the little
   screen of the «About» window moves with it, as the old player visualizers did: the lows drive the
