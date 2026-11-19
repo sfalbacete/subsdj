@@ -8,6 +8,14 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Harmony: well-known progressions, and a panel in order.** Beside the Progression field, a list of
+  progressions worth trying — pop, doo-wop, jazz, the canon, the blues, minor and modal ones —: choosing
+  one writes its numbers and sets the scale it is known in; the root and the bars per chord stay
+  yours. The module is now one labelled row per idea (Key · Chords · Progression · Now · Read · Seed), with
+  tooltips that say what each thing is without assuming any theory. **Now** is the progression as it
+  goes: a cell per chord with its number and its name on this key (1 Cm · 6 G# …), the one sounding
+  lit and filling as its bars go by; on Functions, the chords of the walk, the ones to come included.
+
 - **One Play, in the header.** The players' ▶ Play was a button in the Harmony module and another in
   the Pattern screen — the same transport, twice, and out of sight from Design. Now it is one
   button beside the tempo, on every screen; without Parts it is dimmed and says why. The loop's

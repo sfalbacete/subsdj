@@ -250,6 +250,7 @@ export const RULES = [
   ['#playBtn', () => (sceneOn() ? null : 'Parts off: Play runs the players of a scene, and there is none'), ['#partsBtn']],
   // scene (Parts): conductor state, not preset state
   ['#harmProg', () => (conductor() && conductor().harmony.mode === 'functions' ? 'Functions: the walk doesn\'t use the list' : null), ['#harmMode']],
+  ['#harmPreset', () => (conductor() && conductor().harmony.mode === 'functions' ? 'Functions: the walk doesn\'t use the list (choosing one goes back to List)' : null), ['#harmMode']],
   ['#arrKnobs [data-key="cycle"]', () => (conductor() && !(conductor().arr.cfg.sway > 0) ? 'Sway at 0: there is no cycle' : null), ['#arrKnobs [data-key="sway"]']],
   ['#playerArr', () => { const c = conductor(); return c && c.players[getScene().sel].cfg.mode === 'off' ? 'the player is Off' : null; }, ['#playerMode']],
   ['#playerKnobs [data-key="breatheCycle"]', () => { const c = conductor(); return c && !(c.players[getScene().sel].cfg.breathe > 0) ? 'Breathe at 0: the pulse doesn\'t change from bar to bar' : null; }, ['#playerKnobs [data-key="breathe"]']],

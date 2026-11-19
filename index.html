@@ -741,36 +741,28 @@
 <div class="band" id="bandScene">
   <div class="panel parts-off" id="harmony">
     <h2>Harmony</h2>
-    <div class="hrow harmlay">
-      <div class="vcol" style="align-items:stretch">
-        <div class="row" style="gap:8px;align-items:center">
-          <span id="harmInfo" class="badge">Stopped</span>
-        </div>
-        <div class="fieldlab">Root · Scale</div>
-        <div class="row" style="gap:6px;flex-wrap:nowrap"><select id="harmRoot" title="Tonic"></select><select id="harmScale" title="Scale"></select></div>
+    <div class="harm">
+      <span class="fieldlab">Key</span>
+      <div><select id="harmRoot" title="Root: the «home» note, where the music comes to rest. Changing it moves everything up or down without changing its character"></select><select id="harmScale" title="Scale: which notes are allowed, counted from the root — the colour (major bright, minor sad, phrygian dark, the pentatonics never clash). The players only play notes of the scale"></select><span id="harmInfo" class="badge" title="Where the players are: the bar, the chord's degree and its root note">Stopped</span></div>
+      <span class="fieldlab">Chords</span>
+      <div><div class="seg tog" id="harmMode">
+          <button data-m="list" title="List: the written progression, looped">List</button>
+          <button data-m="functions" title="Functions: no list — the chords are improvised as a walk rest → mild tension → tension → rest, different every time yet always making sense (the seed fixes it)">Functions</button>
+        </div><span class="harm-bars" title="Bars per chord: how many bars each chord lasts before the next one. 1 = it changes fast · 4 = slow, ambient"><span class="fieldlab">Bars / chord</span><div class="stepper"><button data-hbar="-1">−</button><span class="num" id="harmBars">2</span><button data-hbar="1">+</button></div></span></div>
+      <span class="fieldlab">Progression</span>
+      <div><input id="harmProg" type="text" value="1 6 4 5" title="The chords, as degrees of the scale: each number is the note of the scale a chord is built on (that note, and every other one above it). 1 = home · 4 = leaving · 5 = tension that wants to come back · 6 = the sad cousin of 1. Write your own: 1 6 4 5 (or I vi IV V), up to 16"><select id="harmPreset" title="Well-known progressions: choosing one writes its numbers and sets the scale it is known in (the root and the bars per chord stay yours). Change the scale afterwards to hear the same numbers in another colour"></select></div>
+      <span class="fieldlab">Now</span>
+      <div id="harmStrip" title="Where the progression is: one cell per chord — its number and the chord it is on this root and scale (m = minor, ° = diminished) —, the one sounding lit, with a bar that fills as its bars go by. On Functions: the chords of the walk, the ones to come included"></div>
+      <span class="fieldlab">Read</span>
+      <div class="harm-from">
+        <button class="btn" id="harmFrom" title="Read the harmony from what you played: it guesses the root, the scale, the progression and the bars per chord from the notes of the Pattern loop, and writes them here — so the other players play in its key. It is a guess: press again for the next candidate (the same notes are C major and A minor) and keep the one that sounds right">From pattern</button>
+        <span class="swc" id="harmFromAllC" title="Which loops it reads: Off = the pattern of the part the instrument is editing · On = the patterns of all the parts whose player is on Pattern, together"><span class="seg sw" id="harmFromAll"><button type="button">Off</button><button type="button">On</button></span><span class="lab">All parts</span></span>
+        <span class="badge" id="harmFromInfo"></span>
       </div>
-      <div class="vcol" style="align-items:stretch">
-        <div class="fieldlab">Progression · bars per chord</div>
-        <div class="row" style="gap:6px;align-items:center;flex-wrap:nowrap">
-          <input id="harmProg" type="text" value="1 6 4 5" title="Scale degrees: 1 6 4 5 (or I vi IV V)">
-          <div class="stepper"><button data-hbar="-1">−</button><span class="num" id="harmBars">2</span><button data-hbar="1">+</button></div>
-        </div>
-        <div class="row" style="gap:12px;align-items:center;flex-wrap:nowrap">
-          <div class="seg tog" id="harmMode">
-            <button data-m="list" title="The written progression, looped">List</button>
-            <button data-m="functions" title="A random walk through tonal functions (T → S/D → T)">Functions</button>
-          </div>
-          <span class="badge">Seed</span><input id="harmSeed" type="number" value="1" min="1" max="999999">
-          <button class="btn" id="harmDice" title="New random seed">🎲</button>
-        </div>
-      </div>
+      <span class="fieldlab">Seed</span>
+      <div><input id="harmSeed" type="number" value="1" min="1" max="999999" title="The scene's seed: it fixes ALL the randomness of the scene — what each player decides, the Arrangement's surprises and the Functions walk. Same seed, same session"><button class="btn" id="harmDice" title="New random seed: another take of the same scene">🎲</button><span class="badge">all the randomness of the scene</span></div>
     </div>
-    <div class="row harm-from">
-      <button class="btn" id="harmFrom" title="Read the harmony from what you played: it guesses the root, the scale, the progression and the bars per chord from the notes of the Pattern loop, and writes them here — so the other players play in its key. It is a guess: press again for the next candidate (the same notes are C major and A minor) and keep the one that sounds right">From pattern</button>
-      <span class="swc" id="harmFromAllC" title="Which loops it reads: Off = the pattern of the part the instrument is editing · On = the patterns of all the parts whose player is on Pattern, together"><span class="seg sw" id="harmFromAll"><button type="button">Off</button><button type="button">On</button></span><span class="lab">All parts</span></span>
-      <span class="badge" id="harmFromInfo"></span>
-    </div>
-    <div class="help"><b>Scene harmony.</b> Everything the players play is quantized to the scale and the current chord: that is why randomness sounds musical. Progression = scale degrees («1 6 4 5»), each one lasting N bars; «Functions» = a random walk T→S/D→T with common-practice probabilities. The tempo is the clock in the header (BPM and swing). The seed fixes the randomness: same seed, same session. <b>From pattern</b> reads all of this from a Pattern loop — root and scale from which notes weigh most and where the loop starts, the progression from what sounds in each bar (its lowest note above all) — so the generative players follow what you played. It is a guess with several candidates: press again for the next one. <b>All parts</b>: off, the loop of the part the instrument is editing; on, every Pattern loop together.</div>
+    <div class="help"><b>Scene harmony.</b> Everything the players play is quantized to the scale and the current chord: that is why randomness sounds musical. <b>Key</b>: the root is the «home» note and the scale the notes allowed from it. <b>Progression</b>: each number is a chord, named by the note of the scale it is built on (in C major, 1 = C-E-G, 4 = F-A-C, 5 = G-B-D, 6 = A-C-E): 1 is home, 4 leaves, 5 wants to come back, 6 is the sad cousin of 1. The <b>Now</b> strip shows them as chords, lights the one sounding and fills as its bars go by. The list beside the field holds well-known ones: it writes the numbers and sets their scale, never the root or the bars. Each chord lasts <b>Bars / chord</b>. <b>Functions</b> ignores the list and improvises the chords as a walk rest → mild tension → tension → rest. <b>Seed</b> fixes the randomness of the whole scene (players, arrangement, the Functions walk): same seed, same session. The tempo is the clock in the header. <b>From pattern</b> reads all of this from a Pattern loop — root and scale from which notes weigh most and where the loop starts, the progression from what sounds in each bar (its lowest note above all) — so the generative players follow what you played. It is a guess with several candidates: press again for the next one. <b>All parts</b>: off, the loop of the part the instrument is editing; on, every Pattern loop together.</div>
   </div>
   <div class="panel" id="stepsPanel">
     <h2>Steps</h2>

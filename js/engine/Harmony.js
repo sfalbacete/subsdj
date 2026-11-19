@@ -55,6 +55,41 @@ const NEXT_FN = { T: [['S', 0.45], ['D', 0.35], ['T', 0.20]],
                     D: [['T', 0.80], ['S', 0.05], ['D', 0.15]] };
 const DEGREES_OF = { T: [1, 1, 6, 3], S: [4, 4, 2], D: [5, 5, 7] };   // repeated = more likely
 
+// Well-known progressions (the list beside the Progression field). Each one is its degrees and the SCALE it is known
+// in — the same numbers are other chords on another scale —; `scale` absent = it works on whichever one is set.
+// Never the root (a progression is the same in every key) nor the bars per chord (how fast it moves is a taste),
+// except where the form itself fixes them (the blues is twelve BARS). Only what degrees 1-7 of a scale can
+// write: no borrowed chords.
+export const PROGRESSIONS = [
+  { group: 'Major', name: 'Pop · four chords',  prog: [1, 5, 6, 4], scale: 'major' },
+  { group: 'Major', name: 'Fifties · doo-wop',  prog: [1, 6, 4, 5], scale: 'major' },
+  { group: 'Major', name: 'Emotional pop',      prog: [6, 4, 1, 5], scale: 'major' },
+  { group: 'Major', name: 'Rock',               prog: [1, 4, 5, 4], scale: 'major' },
+  { group: 'Major', name: 'Jazz turnaround',    prog: [1, 6, 2, 5], scale: 'major' },
+  { group: 'Major', name: 'Jazz two-five-one',  prog: [2, 5, 1, 1], scale: 'major' },
+  { group: 'Major', name: 'Royal road',        prog: [4, 5, 3, 6], scale: 'major' },
+  { group: 'Major', name: 'Canon',              prog: [1, 5, 6, 3, 4, 1, 4, 5], scale: 'major' },
+  { group: 'Major', name: 'Twelve-bar blues',   prog: [1, 1, 1, 1, 4, 4, 1, 1, 5, 4, 1, 1], scale: 'major', bars: 1 },
+  { group: 'Minor', name: 'Epic minor',         prog: [1, 6, 3, 7], scale: 'minor' },
+  { group: 'Minor', name: 'Minor rock',         prog: [1, 7, 6, 7], scale: 'minor' },
+  { group: 'Minor', name: 'Andalusian',         prog: [1, 7, 6, 5], scale: 'minor' },
+  { group: 'Minor', name: 'Heroic rise',        prog: [6, 7, 1, 1], scale: 'minor' },
+  { group: 'Minor', name: 'Cinematic · two',    prog: [1, 6],       scale: 'minor' },
+  { group: 'Minor', name: 'Classic minor',      prog: [1, 4, 5, 1], scale: 'minor' },
+  { group: 'Modal', name: 'Dorian groove',      prog: [1, 4],       scale: 'dorian' },
+  { group: 'Modal', name: 'Mixolydian rock',    prog: [1, 7, 4, 1], scale: 'mixolydian' },
+  { group: 'Modal', name: 'Lydian float',       prog: [1, 2],       scale: 'lydian' },
+  { group: 'Modal', name: 'Phrygian dark',      prog: [1, 2],       scale: 'phrygian' },
+  { group: 'Any scale', name: 'Drone · one chord', prog: [1] },
+  { group: 'Any scale', name: 'Sway · two chords', prog: [1, 4] },
+];
+// Which of them the harmony is on: degrees AND scale first, then the ones of any scale by degrees alone; −1 = none (your own)
+export function progressionIndex(prog, scale) {
+  const same = p => p.prog.length === prog.length && p.prog.every((d, i) => d === prog[i]);
+  const i = PROGRESSIONS.findIndex(p => p.scale === scale && same(p));
+  return i >= 0 ? i : PROGRESSIONS.findIndex(p => !p.scale && same(p));
+}
+
 // «1 6 4 5», «I vi IV V»… → [1, 6, 4, 5] (1..7; whatever is not understood is skipped)
 export function parseProg(str) {
   const roman = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7 };

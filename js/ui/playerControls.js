@@ -20,7 +20,7 @@
    choosing another part, loading a scene, switching Parts off.
    ===================================================================== */
 import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene, setNoteTap, partLabel } from '../engine/parts.js';
-import { SCALES, NOTE_NAMES, DEGREES, parseProg } from '../engine/Harmony.js';
+import { SCALES, NOTE_NAMES, DEGREES, parseProg, PROGRESSIONS, progressionIndex } from '../engine/Harmony.js';
 import { PLAYER_MODES, DRIFT_KEYS, PAT_MAX_BARS, PAT_EARLY, patStart } from '../engine/Player.js';
 import { showScreen, currentScreen } from './screens.js';
 import { library, SEC_SCENES, MAX_NAME } from '../engine/library.js';
@@ -268,21 +268,49 @@ export function saveSceneToLibrary(name) {
   document.dispatchEvent(new CustomEvent('scene-saved', { detail: r }));   // the session: from here on, «edited» is counted from this save
   return r;
 }
+// The list of well-known progressions shows the one the harmony is on, or «Your own» when it is none of them
+function syncProgPreset() { const c = conductor(), sel = $('harmPreset'); if (c && sel) sel.value = String(progressionIndex(c.harmony.prog, c.harmony.scale)); }
+// The «Now» strip: the progression as cells — degree + the chord it is on this root and scale —, the one sounding lit
+// and filling with its bars. List: the whole list. Functions: the walk in pages of STRIP_FN chords (the cursor crosses
+// the page, then the page turns): it is deterministic with the seed, so the chords to come are known.
+const STRIP_FN = 8, STRIP_NAMES = 8;   // chords per page of the walk · above this many cells there is room for the number alone
+let stripKey = '';
+function chordLabel(ch) {   // quality from the chord's own third and fifth; a pentatonic's «thirds» are neither: the note alone
+  const iv = j => (ch.tones[j] - ch.tones[0] + 12) % 12, third = iv(1);
+  return NOTE_NAMES[ch.rootPc] + (third === 3 ? (iv(2) === 6 ? '°' : 'm') : '');
+}
+function paintStrip() {
+  const c = conductor(), el = $('harmStrip'); if (!c || !el) return;
+  const h = c.harmony, bars = Math.max(1, h.bars), fn = h.mode === 'functions';
+  const pos = c.running ? Math.max(0, c.beatAt(c.ctx.currentTime) / BAR - (h.offset || 0)) / bars : -1;   // in chords; −1 = stopped
+  const i = Math.floor(pos), n = fn ? STRIP_FN : Math.max(1, h.prog.length), first = fn ? Math.max(0, Math.floor(i / n)) * n : 0;
+  const cells = Array.from({ length: n }, (_, k) => h.chordAt((h.offset || 0) + (first + k) * bars));
+  const key = cells.map(ch => ch.degree + chordLabel(ch)).join(' ');
+  if (key !== stripKey || el.children.length !== n) {
+    stripKey = key;
+    el.replaceChildren(...cells.map(ch => { const d = document.createElement('span'); d.className = 'hc';
+      const b = document.createElement('b'); b.textContent = ch.degree; d.append(b); if (n <= STRIP_NAMES) d.append(chordLabel(ch)); return d; }));
+  }
+  const cur = pos < 0 ? -1 : ((i - first) % n + n) % n;
+  [...el.children].forEach((d, k) => { d.classList.toggle('cur', k === cur); if (k === cur) d.style.setProperty('--p', (pos - i).toFixed(3)); });
+}
 function syncHarmonyUI() {
   const c = conductor(); if (!c) return;
   const h = c.harmony;
   $('sceneName').value = getScene().name || '';
   $('harmRoot').value = h.root; $('harmScale').value = h.scale;
   $('harmProg').value = h.prog.join(' '); $('harmBars').textContent = h.bars;
+  syncProgPreset();
   document.querySelectorAll('#harmMode button').forEach(b => b.classList.toggle('active', b.dataset.m === h.mode));
   $('harmSeed').value = c.seed;
   setPlayBtn(c.running);
+  paintStrip();
   knobRow($('arrKnobs'), ARR_KNOBS, c.arr.cfg);
   depsRefresh();
 }
 function setPlayBtn(on) {
   const b = $('playBtn'); b.classList.toggle('on', on); b.setAttribute('aria-label', on ? 'Stop' : 'Play');   // the transport, in the header: its icon turns into the stop square (css)
-  if (!on) { $('harmInfo').textContent = 'Stopped'; $('arrInfo').textContent = '—'; }
+  if (!on) { $('harmInfo').textContent = 'Stopped'; $('arrInfo').textContent = '—'; paintStrip(); }
 }
 export function isPlaying() { const c = conductor(); return !!(c && c.running); }
 // ▶ Play and the scenes' ▶/⏹ in the Library go through here; announces with play-changed
@@ -298,6 +326,7 @@ function refreshInfo() {
   if (rec && !rec.armed && !rec.pl.take) patRecStop();       // the engine closed the take on its own (the conductor stopped, another mode)
   const pp = currentPlayer();
   if (pp) { const info = patInfo(pp); pats('info').forEach(e => { e.textContent = info; }); }
+  paintStrip();                                              // also stopped: it follows the root, the scale, the list, the seed
   const c = conductor(); if (!c || !c.running) return;
   const bar = c.barNow(), ch = c.harmony.chordAt(bar);
   $('harmInfo').textContent = 'Bar ' + (bar + 1) + ' · ' + (DEGREES[ch.degree - 1] || ch.degree) + ' · ' + NOTE_NAMES[ch.rootPc];
@@ -319,8 +348,23 @@ export function initPlayerControls() {
   NOTE_NAMES.forEach((n, i) => rootSel.add(new Option(n, i)));
   Object.keys(SCALES).forEach(k => scaleSel.add(new Option(k.charAt(0).toUpperCase() + k.slice(1), k)));
   rootSel.addEventListener('change', () => { const c = conductor(); if (c) c.harmony.root = +rootSel.value; });
-  scaleSel.addEventListener('change', () => { const c = conductor(); if (c) c.harmony.scale = scaleSel.value; });
-  $('harmProg').addEventListener('change', () => { const c = conductor(); if (!c) return; c.harmony.prog = parseProg($('harmProg').value); $('harmProg').value = c.harmony.prog.join(' '); });
+  scaleSel.addEventListener('change', () => { const c = conductor(); if (c) { c.harmony.scale = scaleSel.value; syncProgPreset(); } });
+  $('harmProg').addEventListener('change', () => { const c = conductor(); if (!c) return; c.harmony.prog = parseProg($('harmProg').value); $('harmProg').value = c.harmony.prog.join(' '); syncProgPreset(); });
+  // well-known progressions: the degrees and the scale they are known in (bars only where the form fixes them); the root stays
+  const preSel = $('harmPreset');
+  preSel.add(new Option('Your own', '-1'));
+  PROGRESSIONS.forEach((p, i) => {
+    let g = [...preSel.querySelectorAll('optgroup')].find(o => o.label === p.group);
+    if (!g) { g = document.createElement('optgroup'); g.label = p.group; preSel.append(g); }
+    g.append(new Option(p.name + ' · ' + (p.prog.length > 8 ? p.prog.length + ' chords' : p.prog.join(' ')), String(i)));   // the long ones would not fit the closed list
+  });
+  preSel.addEventListener('change', () => {
+    const c = conductor(), p = PROGRESSIONS[+preSel.value]; if (!c || !p) return syncProgPreset();   // «Your own» is not a choice: back to what there is
+    const h = c.harmony;
+    h.prog = p.prog.slice(); if (p.scale) h.scale = p.scale; if (p.bars) h.bars = p.bars;
+    h.mode = 'list';                                                                                  // a written progression is what List plays
+    syncHarmonyUI(); depsRefresh();
+  });
   document.querySelectorAll('[data-hbar]').forEach(b => b.addEventListener('click', () => {
     const c = conductor(); if (!c) return;
     c.harmony.bars = Math.max(1, Math.min(8, c.harmony.bars + (+b.dataset.hbar)));
