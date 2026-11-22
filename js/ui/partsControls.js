@@ -6,15 +6,17 @@
    notes). The Part Mixer shows the 4 parts: Level (= the Master of the part's
    preset), Pan, Delay/Reverb sends (= the preset's delay Amount and reverb
    Mix), M (mute); and the Room column: the scene's
-   master, echo feedback and echo→reverb. Layer: the keys play all parts.
+   master, echo feedback and echo→reverb, and who the KEYS play: the part the
+   rack edits, or each part its key zone (K on a strip = the part has one;
+   the zones are drawn over the keyboard, ui/zones.js).
    The Delay, Reverb and Tape modules carry the «room» tag in a scene:
    except for Amount/Mix (sends), their knobs belong to the shared Room.
    ===================================================================== */
-import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, setLayer, partLabel } from '../engine/parts.js';
+import { part, sceneOn, getScene, enableScene, disableScene, selectPart, setPartMute, setPartPan, keyMode, setKeyMode, setPartZone, partLabel } from '../engine/parts.js';
 import { CONTROLS, syncControls } from './registry.js';
 import { attachKnob } from './knobs.js';
 import { PARAMS } from '../engine/params.js';
-import { panic } from './keyboard.js';
+import { panic, releaseHeldKeys } from './keyboard.js';
 import { MAX_NAME } from '../engine/library.js';
 import { currentPreset, markPreset, markPresetByName, initItem, initData } from './presetBank.js';
 import { sceneEdited, soloPreset } from './session.js';
@@ -41,7 +43,8 @@ function buildStrips() {
     const div = document.createElement('div');
     div.className = 'strip'; div.dataset.i = i;
     div.innerHTML = `<div class="shead"><button class="pname" title="Edit this part in the rack · double click to rename it (the name is saved with the scene; loading a preset into the part puts the preset's name back)"></button>` +
-      `<button class="mute" title="Mute the part">M</button></div>` +   // the M next to the name: one row less (fixed panel)
+      `<button class="mute zkey" title="Keys: this part has a key zone — with «Keys · Zones» in the Room column, the keys inside its zone play it (drag the zone over the keyboard). Off: the keys never reach it, only its player does">K</button>` +
+      `<button class="mute" data-m title="Mute the part">M</button></div>` +   // K and M next to the name: one row less (fixed panel)
       `<div class="row tight">${knobHtml('Level')}${knobHtml('Pan')}${knobHtml('Delay')}${knobHtml('Reverb')}</div>`;
     host.appendChild(div);
     const [kLevel, kPan, kDly, kRev] = div.querySelectorAll('.knob');
@@ -64,8 +67,9 @@ function buildStrips() {
     strips.push(st);
     div.querySelector('button.pname').addEventListener('click', () => choose(i));
     div.querySelector('button.pname').addEventListener('dblclick', () => renamePart(i));
-    div.querySelector('.mute').classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
-    div.querySelector('.mute').addEventListener('click', e => {
+    div.querySelector('.zkey').addEventListener('click', e => { e.currentTarget.blur(); releaseHeldKeys(); setPartZone(i, { on: !p.zone.on }); zonesChanged(); });
+    div.querySelector('[data-m]').classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
+    div.querySelector('[data-m]').addEventListener('click', e => {
       setPartMute(i, !p.mute);
       e.currentTarget.classList.toggle('on', p.mute); div.classList.toggle('muted', p.mute);
     });
@@ -75,15 +79,31 @@ function buildStrips() {
   room.className = 'strip room';
   room.innerHTML = `<div class="pname static">Room</div>` +
     `<div class="row tight">${knobHtml('Master')}${knobHtml('Fdbk')}${knobHtml('Echo→Rev')}</div>` +
-    `<label class="chk"><input type="checkbox" id="layerChk"> Layer: keys play all parts</label>`;
+    `<div class="keysel" title="Who the keys play (QWERTY, the screen, MIDI). Part: the part the rack edits. Zones: every part whose key zone holds the note — a split keyboard, or a layer where two zones overlap. The zones are the bars over the keyboard: drag an end to move it (past the end of the keyboard = open to the last note), the middle to slide the zone; K on a strip gives a part its zone or takes it away. Each part keeps its own Arp / Seq and Latch. Saved with the scene"><span class="lab">Keys</span>` +
+    `<div class="seg" id="keyModeSel"><button type="button" data-km="part">Part</button><button type="button" data-km="zones">Zones</button></div></div>`;
   host.appendChild(room);
   const [kM, kFb, kToRev] = room.querySelectorAll('.knob');
   attachKnob(kM, { ...PARAMS.master, def: sc.roomCfg.master }, v => { sc.roomCfg.master = v; sc.room.setMaster(v); });
   attachKnob(kFb, { min: 0, max: PARAMS.dlyFb.max, def: sc.roomCfg.fb, act: true }, v => { sc.roomCfg.fb = v; sc.room.setFeedback(v); });   // above 1, the echo runs away (Room)
   attachKnob(kToRev, { min: 0, max: 1, def: sc.roomCfg.dlyToRev, act: true }, v => { sc.roomCfg.dlyToRev = v; sc.room.setDlyToRev(v); });
-  $('layerChk').addEventListener('change', e => setLayer(e.target.checked));
+  room.querySelectorAll('#keyModeSel button').forEach(b => b.addEventListener('click', () => {
+    b.blur(); if (keyMode() === b.dataset.km) return;
+    releaseHeldKeys();                                // a held key would be released in the parts it went to anyway (NoteRouter): let go of it cleanly
+    setKeyMode(b.dataset.km); zonesChanged();
+    say(b.dataset.km === 'zones' ? 'Keys · Zones: each part plays the keys inside its zone (the bars over the keyboard)' : 'Keys · Part: the keys play the part the rack edits');
+  }));
   silent = false;
-  refreshNames();
+  refreshNames(); paintZones();
+}
+
+// Key zones: the K of each strip and the Room's selector follow the scene (a scene loaded, a session restored, the
+// zone bars over the keyboard). Whoever changes a zone or the mode announces it with 'zones-changed'.
+const zonesChanged = () => document.dispatchEvent(new CustomEvent('zones-changed'));
+function paintZones() {
+  const sc = getScene(); if (!sc || !strips.length) return;
+  const zones = sc.keyMode === 'zones';
+  sc.parts.forEach((p, i) => { const k = strips[i] && strips[i].div.querySelector('.zkey'); if (k) { k.classList.toggle('on', p.zone.on); k.classList.toggle('idle', !zones); } });
+  document.querySelectorAll('#keyModeSel button').forEach(b => b.classList.toggle('active', b.dataset.km === sc.keyMode));
 }
 
 // Rename a part: double click on its name → a field in its place. Enter or leaving it keeps the name, Escape
@@ -229,6 +249,7 @@ export function initPartsControls() {
   if (pb) pb.addEventListener('click', () => { const sc = getScene(); if (sc) sc.conductor.panic(); panic(); document.dispatchEvent(new CustomEvent('scene-changed', { detail: { on: sceneOn() } })); });
   document.querySelectorAll('#partSel button').forEach(b => b.addEventListener('click', () => { part().resume(); choose(+b.dataset.p); }));
   document.addEventListener('param-change', e => { if (sceneOn() && SEND_KEYS.has(e.detail.target)) refreshCurrent(); });
+  document.addEventListener('zones-changed', paintZones);
   // scene loaded from JSON (playerControls): strips, rack and scene modules brought up to date
   document.addEventListener('scene-loaded', () => { if (!sceneOn()) return; buildStrips(); setUI(true); syncControls(part().S); });
   document.addEventListener('preset-loaded', e => {

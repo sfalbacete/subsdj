@@ -33,6 +33,7 @@ import { spectrumOf, pointsFromSpectrum, saveUserFrames, defaultUserFrames, WT_L
 import { PARAMS, PRESET_BASE, MX_SLOTS, valToPos, posToVal, crushHzOf } from './engine/params.js';
 import { makeDefaultState, applyPreset, toControls, migrateMix, withPresetBase } from './engine/state.js';
 import { createScene, sceneToJSON, applySceneJSON, NoteRouter, part, sceneFromRack, getScene } from './engine/parts.js';
+import { keyTargets, keyMode, setKeyMode, setPartZone, zoneDef, NOTE_MAX } from './engine/parts.js';
 import { Metronome, TapTempo } from './engine/Metronome.js';
 import { metronome } from './ui/tempo.js';
 import { velFromY, getTouch, setTouch } from './ui/keyboard.js';
@@ -3583,6 +3584,71 @@ export async function runSelfTest() {
   }
 
   {
+    // Key zones (2026-11-22): with keyMode 'zones' a key goes to every part whose zone holds it. (1) a scene is born
+    // on «part» and split at middle C — part 1 below, part 2 from it up, 3 and 4 with no keys; (2) on «part» the keys
+    // go to the edited part, whatever the zones; (3) on «zones», to the zone's part — the split point belongs to the
+    // upper one; (4) two zones that overlap are a layer there; (5) a muted part and a part with its zone off get
+    // nothing, and a note no zone holds goes nowhere; (6) a zone is cleaned: whole notes in 0..127, lo ≤ hi; (7) a note
+    // is released where it sounded even if its zone moved meanwhile (NoteRouter); (8) mode and zones travel in the
+    // scene's JSON, and a scene from before the zones comes back on «part» with the split it is born with.
+    const NAME = 'key zones (a scene is born split at C4 · «part»: the edited part · «zones»: the zone\'s part · overlap = layer · muted / no zone / outside: nothing · zones cleaned · the off goes where the on went · saved with the scene)';
+    let r;
+    try {
+      const problems = [];
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const sc = await createScene(ctx, [{}, {}, {}, {}]);
+      const [A, B, C] = sc.parts.map(p => p.engine);
+      const to = m => keyTargets(m, sc), is = (m, list) => { const t = to(m); return t.length === list.length && list.every(e => t.includes(e)); };
+      const z = sc.parts.map(p => p.zone);
+      if (keyMode(sc) !== 'part') problems.push('a scene is born with the keys on «' + keyMode(sc) + '» (expected «part»)');
+      if (!(z[0].on && z[0].lo === 0 && z[0].hi === 59 && z[1].on && z[1].lo === 60 && z[1].hi === NOTE_MAX && !z[2].on && !z[3].on)) problems.push('a scene is not born split at C4 with parts 3 and 4 off: ' + JSON.stringify(z));
+      sc.sel = 2;
+      if (!is(48, [C]) || !is(72, [C])) problems.push('on «part» the keys do not go to the edited part');
+      setKeyMode('zones', sc);
+      if (!is(48, [A]) || !is(59, [A]) || !is(60, [B]) || !is(100, [B])) problems.push('on «zones» the keys do not go to their zone\'s part (the split point belongs to the upper one)');
+      setPartZone(1, { lo: 55 }, sc);
+      if (!is(54, [A]) || !is(55, [A, B]) || !is(59, [A, B]) || !is(60, [B])) problems.push('two zones that overlap do not layer exactly there');
+      sc.parts[0].mute = true;
+      if (!is(57, [B]) || !is(40, [])) problems.push('a muted part still gets its zone\'s keys');
+      sc.parts[0].mute = false;
+      setPartZone(1, { on: false }, sc);
+      if (!is(57, [A]) || !is(72, [])) problems.push('a part with its zone off still gets keys, or a note no zone holds goes somewhere');
+      setPartZone(1, { on: true, lo: 200, hi: -5 }, sc);
+      const zc = sc.parts[1].zone;
+      if (zc.lo !== 0 || zc.hi !== NOTE_MAX) problems.push('a zone out of range is not cleaned: ' + JSON.stringify(zc));
+      setPartZone(1, { lo: 70.4, hi: 62 }, sc);
+      if (sc.parts[1].zone.lo !== 62 || sc.parts[1].zone.hi !== 70) problems.push('a zone with lo > hi is not put in order: ' + JSON.stringify(sc.parts[1].zone));
+      setPartZone(1, { lo: 60, hi: NOTE_MAX }, sc);
+      // the off goes where the on went, even if the zone moved under the held key
+      const router = new NoteRouter();
+      router.on('m48', to(48), NOTE1);
+      setPartZone(0, { lo: 50 }, sc);                 // 48 is in nobody's zone now
+      router.off('m48', to(48));
+      if (!A.voices.size && A.tails.size !== 1) problems.push('the note did not sound in its zone\'s part');
+      if (A.voices.has('m48')) problems.push('a key held while its zone moved stays stuck');
+      if (B.voices.size || B.tails.size || C.voices.size) problems.push('a zone key leaked into another part');
+      router.on('x', to(20), NOTE1);                  // outside every zone: silent
+      if ([A, B, C].some(e => e.voices.has('x'))) problems.push('a note no zone holds sounds');
+      router.off('x', []);
+      setPartZone(0, { lo: 0 }, sc);
+      // saved with the scene
+      setPartZone(2, { on: true, lo: 36, hi: 47 }, sc);
+      const j = JSON.parse(JSON.stringify(sceneToJSON(sc)));
+      const sc2 = await createScene(new OfflineAudioContext(2, SR, SR), [{}, {}, {}, {}]);
+      applySceneJSON(sc2, j);
+      if (keyMode(sc2) !== 'zones' || JSON.stringify(sc2.parts.map(p => p.zone)) !== JSON.stringify(sc.parts.map(p => p.zone))) problems.push('mode and zones do not come back from the scene\'s JSON: ' + keyMode(sc2) + ' ' + JSON.stringify(sc2.parts.map(p => p.zone)));
+      delete j.keyMode; j.parts.forEach(p => { delete p.zone; });
+      applySceneJSON(sc2, j);
+      if (keyMode(sc2) !== 'part' || JSON.stringify(sc2.parts.map(p => p.zone)) !== JSON.stringify(sc2.parts.map((_, i) => zoneDef(i)))) problems.push('a scene from before the zones does not come back on «part», split at C4');
+      for (const e of [A, B, C]) e.allNotesOff();
+      r = { name: NAME, peak: 0, ok: !problems.length, problems };
+    } catch (e2) {
+      r = { name: NAME, peak: 0, ok: false, problems: ['exception: ' + ((e2 && e2.message) || e2)] };
+    }
+    push(r);
+  }
+
+  {
     // Harmony + players (Roadmap 4.0 · C2): (1) harmony — quantization to the
     // scale (ties go down), chords stacked in thirds on the scale, a deterministic
     // walk through functions with the seed (and different with another); (2)
@@ -3879,12 +3945,13 @@ export async function runSelfTest() {
       else {
         const c = sc.conductor, pl = c.players[sc.sel], keep = { ...pl.cfg }, click0 = !!(metronome() && metronome().running);
         $('patRec').click();
-        if (pl.cfg.mode !== 'pattern' || $('playerPat').hidden || !$('playerKnobs').hidden) problems.push('● Rec does not show the Pattern mode');
+        if (pl.cfg.mode !== keep.mode) problems.push('● Rec changes the player\'s mode before any key (' + keep.mode + ' → ' + pl.cfg.mode + '): a part joins the take with its first key');
         if (c.running || pl.take || !patArmed()) problems.push('● Rec does not just arm (players ' + c.running + ' · take ' + !!pl.take + ' · armed ' + patArmed() + ')');
         if (!$('patRec').classList.contains('rec') || !$('patDub').disabled) problems.push('the buttons do not show the armed take');
         if (!/Armed/.test($('patInfo').textContent)) problems.push('armed, the line says «' + $('patInfo').textContent + '»');
         playOn('pt1', 220, 0.8);
         if (!c.running) problems.push('the first key does not start the players');
+        if (pl.cfg.mode !== 'pattern' || $('playerPat').hidden || !$('playerKnobs').hidden) problems.push('the first key does not put the player on Pattern (and show it)');
         if (!pl.take || patArmed()) problems.push('the first key does not start the take');
         else {
           if (pl.take.origin !== 0) problems.push('from a standstill the take starts at beat ' + pl.take.origin + ' (expected 0: the first key)');
@@ -3896,6 +3963,7 @@ export async function runSelfTest() {
           if (pl.take || patRecording()) problems.push('● again does not close the take');
           if (!pat || pat.notes.length !== 1 || pat.notes[0].m !== 57 || Math.abs(pat.notes[0].v - 0.8) > 1e-9) problems.push('the key is not in the loop: ' + JSON.stringify(pat));
           else if (pat.bars !== 1 || pat.notes[0].b > 0.1) problems.push('the loop is ' + pat.bars + ' bars and its key at beat ' + pat.notes[0].b.toFixed(2) + ' (expected 1 and 0)');
+          if (pl.cfg.quant !== 0 || !document.querySelector('#patQuant [data-q="0"]').classList.contains('active')) problems.push('a new loop is not born with Quantize off (' + pl.cfg.quant + '): it would not play back as it was played');
           if (!!(metronome() && metronome().running) !== click0) problems.push('the Click is not given back after the take');
           if ($('patUndo').disabled || $('patClear').disabled || $('patDub').disabled) problems.push('↶, Clear or + Dub off with a loop');
           if (!/1 note/.test($('patInfo').textContent)) problems.push('the line under the loop: «' + $('patInfo').textContent + '»');
@@ -3973,6 +4041,148 @@ export async function runSelfTest() {
       }
     } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
     finally {
+      if (!wasOn && isOn()) $('partsBtn').click();
+      showScreen(before);
+    }
+    push({ name: NAME, peak: 0, ok: !problems.length, problems });
+  }
+
+  {
+    // Key zones from the panel, and the two recorders through them (2026-11-22). The Room column's «Keys» selector puts
+    // the scene on zones and the bars show over the keyboard, aligned with the keys; K on a strip gives a part its zone
+    // or takes it away; dragging a bar's end moves the zone's end. PATTERN: one take, and each key is written down in
+    // the player of the part it goes to — a part joins with its first key (only then does its player go to Pattern),
+    // both loops are closed together with the same bars, born with Quantize off; a part nobody played keeps its
+    // player. SEQ REC: each key writes its step in the phrase of its zone's part; the part the rack shows starts at
+    // once, the other with its first key (Seq + Latch then), and its take is one step on ITS undo stack.
+    const NAME = 'key zones panel and takes (Keys · Zones shows the bars, aligned with the keys · K · dragging an end · one pattern take, each key in its part\'s player, joined on its first key, same bars, Quantize off · Seq Rec: each key a step in its zone\'s phrase, each part its undo)';
+    const wait = ms => new Promise(r => setTimeout(r, ms)), isOn = () => document.body.classList.contains('parts');
+    const $ = id => document.getElementById(id), problems = [], wasOn = isOn(), before = currentScreen(), f = m => 440 * Math.pow(2, (m - 69) / 12);
+    const sw = $('seqRecSw'), recOn = () => !!sw && sw.lastElementChild.classList.contains('active'), recToggle = () => sw.querySelector('button:not(.active)').click();
+    let sc = null, keepZ = null, keepMode = 'part', keepPl = null, keepS = null, sel0 = 0;
+    try {
+      showScreen('sequencing');
+      if (!wasOn) { $('partsBtn').click(); for (let i = 0; i < 50 && !isOn(); i++) await wait(100); }
+      sc = getScene();
+      if (!sc) problems.push('the Parts do not turn on');
+      else {
+        const c = sc.conductor, P = sc.parts, pick = i => document.querySelector('#partSel button[data-p="' + i + '"]').click();
+        keepZ = P.map(p => ({ ...p.zone })); keepMode = keyMode(); sel0 = sc.sel;
+        keepPl = c.players.map(pl => ({ cfg: { ...pl.cfg } }));
+        keepS = P.map(p => ({ seqPat: p.engine.S.seqPat, arpMode: p.engine.S.arpMode, seqOn: p.engine.S.seqOn, seqLatch: p.engine.S.seqLatch }));
+        if (sc.sel !== 0) pick(0);
+        P.forEach((_, i) => setPartZone(i, zoneDef(i)));
+        // --- the panel ---
+        const zones = $('kbZones'), kmBtn = m => document.querySelector('#keyModeSel [data-km="' + m + '"]');
+        if (!zones || !kmBtn('zones')) problems.push('no «Keys» selector or no zone lanes');
+        else {
+          if (keyMode() !== 'part') kmBtn('part').click();
+          if (!zones.hidden) problems.push('on «Part» the zone bars show');
+          kmBtn('zones').click();
+          if (keyMode() !== 'zones' || !kmBtn('zones').classList.contains('active') || zones.hidden) problems.push('«Zones» does not put the scene on zones and show the bars');
+          const lanes = [...zones.querySelectorAll('.zlane')], shown = lanes.filter(l => !l.hidden);
+          if (lanes.length !== P.length || shown.length !== 2) problems.push(shown.length + ' zone bars for the two parts a scene gives keys to');
+          else {
+            // the split is drawn where the keys are: part 1's bar ends, and part 2's starts, at the left edge of middle C
+            const key = document.querySelector('#keyboard [data-midi="60"]');
+            const b0 = lanes[0].querySelector('.zbar').getBoundingClientRect(), b1 = lanes[1].querySelector('.zbar').getBoundingClientRect();
+            if (key) { const x = key.getBoundingClientRect().left;
+              if (Math.abs(b0.right - x) > 3 || Math.abs(b1.left - x) > 3) problems.push('the bars do not meet at middle C (' + b0.right.toFixed(0) + ' · ' + b1.left.toFixed(0) + ' against ' + x.toFixed(0) + ')'); }
+            // dragging part 2's lower end to the left edge of E3 (52) makes that its lowest note
+            const tgt = document.querySelector('#keyboard [data-midi="52"]'), bar = lanes[1].querySelector('.zbar'), h = bar.querySelector('.zh.l');
+            if (tgt) {
+              const hr = h.getBoundingClientRect(), tr = tgt.getBoundingClientRect(), y = hr.top + hr.height / 2;
+              const pe = (type, x, target) => target.dispatchEvent(new PointerEvent(type, { pointerId: 77, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+              pe('pointerdown', hr.left + 2, h); pe('pointermove', tr.left + tr.width / 2, bar); pe('pointerup', tr.left + tr.width / 2, bar);
+              if (P[1].zone.lo !== 52) problems.push('dragging the lower end of part 2\'s bar to E3 leaves its zone from ' + P[1].zone.lo + ' (expected 52)');
+              if (!/E3/.test(bar.textContent)) problems.push('the bar does not say its new range («' + bar.textContent + '»)');
+            }
+            setPartZone(1, zoneDef(1)); document.dispatchEvent(new CustomEvent('zones-changed'));
+          }
+          const k3 = document.querySelectorAll('#mixStrips .strip .zkey')[2];
+          if (!k3) problems.push('no K button on the strips');
+          else {
+            k3.click();
+            if (!P[2].zone.on || !k3.classList.contains('on') || zones.querySelectorAll('.zlane:not([hidden])').length !== 3) problems.push('K does not give part 3 its zone (and its bar)');
+            k3.click();
+            if (P[2].zone.on || k3.classList.contains('on')) problems.push('K again does not take the zone away');
+          }
+        }
+        setKeyMode('zones'); document.dispatchEvent(new CustomEvent('zones-changed'));
+        // --- the keys go to their zone ---
+        playOn('z1', f(48), 0.8); playOn('z2', f(72), 0.8);
+        const [A, B, C3] = P.map(p => p.engine), sounds = (e, id) => e.voices.has(id) || [...(e.seq.held || []), ...(e.arp.held || [])].some(h => h.id === id);
+        if (!sounds(A, 'z1') || sounds(B, 'z1') || !sounds(B, 'z2') || sounds(A, 'z2') || C3.voices.size) problems.push('a key below middle C does not play part 1 only, or one above it part 2 only');
+        playOff('z1'); playOff('z2');
+        // --- one pattern take, two parts ---
+        const pl = c.players, m0 = pl.map(p => p.cfg.mode);
+        pl[0].setMode('pulse'); pl[1].setMode('off'); pl[2].setMode('melody');
+        pl[0].cfg.pat = null; pl[1].cfg.pat = null; pl[0].cfg.quant = 0.25; pl[1].cfg.quant = 0.25;
+        $('patRec').click();
+        if (!patArmed() || pl[0].cfg.mode !== 'pulse' || pl[1].cfg.mode !== 'off') problems.push('arming the take already changes a player\'s mode');
+        playOn('t1', f(45), 0.9);                     // part 1's zone
+        if (!pl[0].take || pl[0].cfg.mode !== 'pattern') problems.push('the first key does not put ITS part\'s player on Pattern and start its take');
+        if (pl[1].take || pl[1].cfg.mode !== 'off') problems.push('a part nobody has played yet has already joined the take');
+        await wait(50); playOff('t1');
+        playOn('t2', f(76), 0.7); await wait(50); playOff('t2');   // part 2's zone
+        if (!pl[1].take || pl[1].cfg.mode !== 'pattern') problems.push('part 2 does not join the take with its first key');
+        else if (pl[0].take && pl[1].take.origin !== pl[0].take.origin) problems.push('the two parts\' takes do not share the bar line');
+        $('patRec').click();
+        const p0 = pl[0].cfg.pat, p1 = pl[1].cfg.pat;
+        if (patRecording() || pl[0].take || pl[1].take) problems.push('● again does not close the take in every part');
+        if (!p0 || p0.notes.length !== 1 || p0.notes[0].m !== 45 || !p1 || p1.notes.length !== 1 || p1.notes[0].m !== 76) problems.push('each key is not in the loop of its own part: ' + JSON.stringify([p0 && p0.notes.map(n => n.m), p1 && p1.notes.map(n => n.m)]));
+        else {
+          if (p0.bars !== p1.bars) problems.push('the two loops are not the same length (' + p0.bars + ' and ' + p1.bars + ' bars)');
+          if (!(p1.notes[0].b > p0.notes[0].b)) problems.push('the second part\'s key is not later in its loop than the first one\'s (' + p0.notes[0].b.toFixed(3) + ' · ' + p1.notes[0].b.toFixed(3) + ')');
+          if (pl[0].cfg.quant !== 0 || pl[1].cfg.quant !== 0) problems.push('the new loops are not born with Quantize off');
+        }
+        if (pl[2].cfg.mode !== 'melody' || pl[2].cfg.pat) problems.push('a part nobody played lost its player (' + pl[2].cfg.mode + ')');
+        if (c.running) $('playBtn').click();
+        pl.forEach((p, i) => { p.setMode(m0[i]); });
+        // --- Seq Rec, a phrase in each part ---
+        if (sw && A.ready) {
+          for (const e of [A, B]) { e.set('arpMode', 'off'); e.set('seqOn', 'off'); e.set('seqLatch', 'off'); e.set('seqNotes', 'semitones'); e.set('seqPat', '0 3 7'); }
+          CONTROLS.seqNotes.set('semitones'); CONTROLS.asMode.set('off'); CONTROLS.seqLatch.set('off'); CONTROLS.seqPat.set('0 3 7');
+          const d0 = historyDepth();
+          recToggle();
+          if (!recOn() || !A.recHook || !B.recHook || C3.recHook) problems.push('«Seq Rec» does not listen to exactly the parts that have a zone');
+          if (A.S.seqPat !== '' || A.S.seqOn !== 'on') problems.push('the part the rack shows does not start its take at once');
+          if (B.S.seqPat !== '0 3 7' || B.S.seqOn !== 'off') problems.push('the other part is touched before any key of its zone');
+          const key = (id, m) => { playOn(id, f(m), 1); playOff(id); };
+          key('s1', 52); await wait(60);              // E3 → part 1: the take's 0 is C3 → 4
+          key('s2', 74); await wait(60);              // D5 → part 2: its 0 is C5 → 2
+          key('s3', 55); await wait(60);              // G3 → part 1 → 7
+          key('s4', 77); await wait(60);              // F5 → part 2 → 5
+          if (A.S.seqPat !== '4 7' || B.S.seqPat !== '2 5') problems.push('the steps are not in the phrase of their zone\'s part: «' + A.S.seqPat + '» · «' + B.S.seqPat + '» (expected «4 7» · «2 5»)');
+          if (B.S.seqOn !== 'on' || B.S.seqLatch !== 'on') problems.push('the other part does not go to Seq + Latch with its first key');
+          if (!A.seq.pinned || !B.seq.pinned) problems.push('each part does not loop its own phrase during the take');
+          recToggle();
+          if (recOn() || A.recHook || B.recHook) problems.push('«Seq Rec» off does not stop every part\'s take');
+          if (A.S.seqPat !== '4 7' || B.S.seqPat !== '2 5') problems.push('the phrases do not stay after the take: «' + A.S.seqPat + '» · «' + B.S.seqPat + '»');
+          if (!A.seq.latched || !B.seq.latched) problems.push('the loops do not go on, latched, after the take');
+          A.seq.stop(); B.seq.stop();
+          undo();
+          if (CONTROLS.seqPat.get() !== '0 3 7' || B.S.seqPat !== '2 5') problems.push('undo on the rack does not bring back ITS phrase only («' + CONTROLS.seqPat.get() + '» · «' + B.S.seqPat + '»)');
+          pick(1); undo();
+          if (CONTROLS.seqPat.get() !== '0 3 7' || B.S.seqOn !== 'off' || B.S.seqLatch !== 'off') problems.push('the other part\'s take is not one step on its own undo stack («' + CONTROLS.seqPat.get() + '» · Seq ' + B.S.seqOn + ' · Latch ' + B.S.seqLatch + ')');
+          pick(0);
+          void d0;
+        }
+      }
+    } catch (e2) { problems.push('exception: ' + ((e2 && e2.message) || e2)); }
+    finally {
+      if (recOn()) recToggle();
+      if (patRecording()) $('patRec').click();
+      if (sc && isOn()) {
+        const c = sc.conductor;
+        if (c.running) $('playBtn').click();
+        sc.parts.forEach((p, i) => { if (p.engine.ready) { p.engine.seq.stop(); for (const k in keepS[i]) p.engine.set(k, keepS[i][k]); } setPartZone(i, keepZ[i]); });
+        c.players.forEach((pl, i) => { pl.setMode(keepPl[i].cfg.mode); Object.assign(pl.cfg, keepPl[i].cfg); pl.clearHist(); });
+        setKeyMode(keepMode);
+        if (sc.sel !== sel0) document.querySelector('#partSel button[data-p="' + sel0 + '"]').click();
+        document.dispatchEvent(new CustomEvent('zones-changed'));
+        document.dispatchEvent(new CustomEvent('part-changed', { detail: { i: sc.sel } }));
+      }
       if (!wasOn && isOn()) $('partsBtn').click();
       showScreen(before);
     }

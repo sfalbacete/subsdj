@@ -8,8 +8,11 @@
    talks to it (registry, keyboard, midi, seq…). With the scene off,
    part() is the usual engine (`engine`) and NOTHING changes.
    Scene = { ctx, room, parts:[{i, engine, name, presetVal, presetName,
-   pan, mute}], S (Room state), sel, conductor }. Layer: the keyboard
-   plays all of them. The conductor (engine/Conductor.js) handles harmony and players.
+   pan, mute, zone}], S (Room state), sel, keyMode, conductor }.
+   KEY ZONES: with keyMode 'zones' a key goes to every part whose zone
+   (a range of MIDI notes) holds it — a split, or a layer where two zones
+   overlap; with 'part', to the part the rack edits. The conductor
+   (engine/Conductor.js) handles harmony and players.
    No persistence yet (Roadmap 4.0 · C3 «scenes»).
    ===================================================================== */
 import { AudioEngine, engine as single, loadWorklets } from './AudioEngine.js';
@@ -23,22 +26,48 @@ import { SCENE_FORMAT, migrateScene, unreadableReason } from './legacy.js';
 export { SCENE_FORMAT };   // 'subsdj-scene-v2' (the v1 ones, in Spanish, are translated by legacy.migrateScene)
 
 export const N_PARTS = 4;
-let scene = null, current = single, layer = false;
+let scene = null, current = single;
 
 export const part = () => current;                 // the engine the rack edits / the keyboard plays
 export const sceneOn = () => scene !== null;
 export const getScene = () => scene;
-export const isLayer = () => layer;
-export function setLayer(on) { layer = !!on; }
+
+// ---------- key zones ----------
+// Who the keyboard plays. 'part': the part the rack edits (the usual). 'zones': every part whose ZONE holds
+// the note — each part has a range of MIDI notes (lo..hi, both included) or none (zone.on false: only its
+// player plays it). Two zones side by side are a split, two that overlap a layer; a note no zone holds is
+// silent. Each part still has its own Arp / Seq / Latch on the common clock, so a hand on each zone can hold
+// a latched arpeggio and play over it. The mode and the zones belong to the scene and are saved with it.
+export const KEY_MODES = ['part', 'zones'];
+export const NOTE_MAX = 127;
+// A scene is born split at middle C: part 1 below it, part 2 from it up (on the computer keyboard, the bottom
+// row and the top row); parts 3 and 4 with no keys — the room left for the players.
+export const SPLIT_DEF = 60;
+export const zoneDef = i => (i === 0 ? { on: true, lo: 0, hi: SPLIT_DEF - 1 } : i === 1 ? { on: true, lo: SPLIT_DEF, hi: NOTE_MAX } : { on: false, lo: 0, hi: NOTE_MAX });
+const noteClamp = (v, d) => (Number.isFinite(+v) ? Math.max(0, Math.min(NOTE_MAX, Math.round(+v))) : d);
+// A zone from anything (a scene file, the UI): whole notes inside 0..127, lo ≤ hi
+export function cleanZone(z, def) {
+  z = z || {};
+  let lo = noteClamp(z.lo, def.lo), hi = noteClamp(z.hi, def.hi);
+  if (lo > hi) [lo, hi] = [hi, lo];
+  return { on: z.on === undefined ? def.on : !!z.on, lo, hi };
+}
+export const zoneHolds = (p, midi) => p.zone.on && midi >= p.zone.lo && midi <= p.zone.hi;
+export const keyMode = (sc = scene) => (sc ? sc.keyMode : 'part');
+export function setKeyMode(m, sc = scene) { if (sc) sc.keyMode = m === 'zones' ? 'zones' : 'part'; }
+export function setPartZone(i, z, sc = scene) { const p = sc && sc.parts[i]; if (!p) return null; p.zone = cleanZone({ ...p.zone, ...z }, p.zone); return p.zone; }
+// The parts (of the live scene) a key may reach right now, whatever the note: the ones a take has to listen to
+export const keyParts = () => (scene && scene.keyMode === 'zones' ? scene.parts.filter(p => p.zone.on) : scene ? [scene.parts[scene.sel]] : []);
+export const partOfEngine = e => (scene ? scene.parts.find(p => p.engine === e) || null : null);
 
 // Global gestures (bend, panic): to all parts in a scene, otherwise to the single engine.
 export const eachPart = fn => { if (scene) scene.parts.forEach(p => fn(p.engine)); else fn(single); };
 export const setPerf = (id, v) => eachPart(e => e.setPerf(id, v));   // wheel / aftertouch / expression (0..1): to all parts, like the bend
 
-// Keyboard / MIDI notes: the current part, or all of them in Layer mode (except the
-// muted ones). The note-off goes to the SAME engines that received the
+// Keyboard / MIDI notes: the current part, or — with key zones — the parts whose zone holds the note
+// (except the muted ones). The note-off goes to the SAME engines that received the
 // note-on (NoteRouter): if in between the part the rack edits changes, or
-// the Layer does, the note is released where it is sounding. It used to go to the current part and the
+// a zone does, the note is released where it is sounding. It used to go to the current part and the
 // note got stuck in the other one: a voice taken forever (with several,
 // voice stealing ate the player's notes) and, in mono, the player's following
 // notes slid in legato over it instead of retriggering.
@@ -57,12 +86,14 @@ export class NoteRouter {
   clear() { this.sounding.clear(); }
 }
 const router = new NoteRouter();
-const keyTargets = () => scene && layer ? scene.parts.filter(p => !p.mute).map(p => p.engine) : [current];
-// The tap: whoever records what is PLAYED (the player's pattern take, ui/playerControls.js) hears every live
-// key here — (true, id, freq, vel) / (false, id) — before it sounds. It only listens: the note goes its usual way.
+const midiOf = freq => Math.round(69 + 12 * Math.log2(freq / 440));
+export const keyTargets = (midi, sc = scene) => sc && sc.keyMode === 'zones' ? sc.parts.filter(p => !p.mute && zoneHolds(p, midi)).map(p => p.engine) : [sc ? sc.parts[sc.sel].engine : current];
+// The tap: whoever records what is PLAYED (the players' pattern take, ui/playerControls.js) hears every live
+// key here — (true, id, freq, vel, engines) / (false, id) — before it sounds; `engines` are the parts the key
+// goes to (its zone's), so a take can write it down for each of them. It only listens: the note goes its usual way.
 let noteTap = null;
 export function setNoteTap(fn) { noteTap = fn; }
-export function playOn(id, freq, vel = 1) { if (noteTap) noteTap(true, id, freq, vel); router.on(id, keyTargets(), freq, vel); }
+export function playOn(id, freq, vel = 1) { const to = keyTargets(midiOf(freq)); if (noteTap) noteTap(true, id, freq, vel, to); router.on(id, to, freq, vel); }
 export function playOff(id) { if (noteTap) noteTap(false, id); router.off(id, [current]); }
 export function forgetSounding() { router.clear(); }   // after a general allNotesOff (panic): nothing is sounding any more
 
@@ -81,9 +112,9 @@ export async function createScene(ctx, states = [], { roomS = null, fb = 0.45, d
     e.S = applyPreset(makeDefaultState(), states[i] || {});
     for (const k of ROOM_KEYS) e.S[k] = S[k];
     await e.init(ctx, { room });
-    parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', label: '', pan: 0, mute: false });
+    parts.push({ i, engine: e, name: 'Part ' + (i + 1), presetVal: '', presetName: '', label: '', pan: 0, mute: false, zone: zoneDef(i) });
   }
-  const scene = { ctx, room, parts, S, sel: 0, roomCfg: { fb, dlyToRev, master } };
+  const scene = { ctx, room, parts, S, sel: 0, keyMode: 'part', roomCfg: { fb, dlyToRev, master } };
   scene.conductor = new Conductor(scene, { seed: 1 });   // harmony + players + arrangement (C2/C3)
   for (const p of parts) p.engine.harmony = () => scene.conductor.harmony;   // the Seq by «harmony» degrees (5.2)
   return scene;
@@ -114,8 +145,9 @@ export function sceneToJSON(sc) {
     format: SCENE_FORMAT, name: sc.name || undefined, date: new Date().toISOString(),   // the name travels with the scene (an exported one used to come back as «Imported scene»)
     room: { ...room, ...sc.roomCfg },
     conductor: sc.conductor.toJSON(),
-    parts: sc.parts.map(p => ({ name: p.presetName, label: p.label || undefined, presetVal: p.presetVal, pan: p.pan, mute: p.mute, state: toControls(p.engine.S) })),
+    parts: sc.parts.map(p => ({ name: p.presetName, label: p.label || undefined, presetVal: p.presetVal, pan: p.pan, mute: p.mute, zone: { ...p.zone }, state: toControls(p.engine.S) })),
     keys: sc.sel + 1,   // the part the keyboard plays (1-4): a scene can reserve one for the player
+    keyMode: sc.keyMode,   // 'part' (that one) | 'zones' (each part's `zone`: { on, lo, hi } in MIDI notes)
   };
 }
 // A part may come with a full `state` (exported scene) or with a
@@ -139,7 +171,10 @@ export function applySceneJSON(sc, j) {
     p.presetVal = pj.presetVal || (pj.preset ? 'f:' + pj.preset : p.presetVal);
     if (typeof pj.pan === 'number') { p.pan = pj.pan; p.engine.setPan(pj.pan); }
     p.mute = !!pj.mute; p.engine.setMute(p.mute);
+    p.zone = cleanZone(pj.zone, zoneDef(i));   // scenes from before the zones: the split a scene is born with
   });
+  sc.parts.forEach((p, i) => { if (!(j.parts || [])[i]) p.zone = zoneDef(i); });
+  sc.keyMode = j.keyMode === 'zones' ? 'zones' : 'part';
   if (j.conductor) sc.conductor.fromJSON(j.conductor);
   // «keys»: the part reserved for the player (its player is usually off); the rack edits it and the keyboard plays it
   if (j.keys >= 1 && sc.parts[j.keys - 1]) { sc.sel = j.keys - 1; if (sc === scene) current = sc.parts[sc.sel].engine; }
@@ -170,7 +205,7 @@ export function disableScene() {
   scene.conductor.stop();
   for (const p of scene.parts) p.engine.dispose();
   scene.room.dispose();
-  scene = null; layer = false; current = single; router.clear();
+  scene = null; current = single; router.clear();
   single.room.setMaster(single.S.master);
 }
 export function selectPart(i) { if (!scene || !scene.parts[i]) return; scene.sel = i; current = scene.parts[i].engine; }

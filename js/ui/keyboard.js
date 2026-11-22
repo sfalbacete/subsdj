@@ -90,9 +90,12 @@ function fitView() {
   viewOctave = Math.max(0, Math.min(9 - numOctaves, v));
 }
 
+// The notes on screen, first and last (both C): what the zone bars over the keys are drawn against (ui/zones.js)
+export const viewRange = () => ({ lo: (viewOctave + 1) * 12, hi: (viewOctave + 1 + numOctaves) * 12 });
 function buildKeyboard() {
-  kb.innerHTML = '<div id="kbKeys"></div>';
-  const row = kb.firstElementChild;
+  // #kbZones (the key zones' bars, ui/zones.js) sits over the keys and outlives every rebuild of them
+  let row = kb.querySelector('#kbKeys');
+  if (row) row.innerHTML = ''; else { kb.innerHTML = '<div id="kbZones" hidden></div><div id="kbKeys"></div>'; row = kb.querySelector('#kbKeys'); }
   const startMidi = (viewOctave + 1) * 12;
   const semis = [0, 2, 4, 5, 7, 9, 11];
   const blackAfter = { 0: 1, 2: 3, 5: 6, 7: 8, 9: 10 };
@@ -137,6 +140,7 @@ function buildKeyboard() {
     if (d) d.classList.add('on');
     active.set(midi, d);
   });
+  document.dispatchEvent(new CustomEvent('kb-built'));   // other keys on screen: the zone bars follow
 }
 
 function press(midi, vel = 1) {
@@ -216,7 +220,7 @@ export function panic() {
 // loses focus the keyups are lost. It used to call panic(), which
 // cut ALL voices of all parts — with the scene playing, the players' pads
 // and drones vanished until the next chord.
-function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); holders.clear(); pointers.clear(); }
+export function releaseHeldKeys() { for (const midi of [...active.keys()]) release(midi); held.clear(); holders.clear(); pointers.clear(); }
 // QWERTY octave up/down (PgUp/PgDn and the − / + buttons under the keyboard):
 // releases what this keyboard holds (its notes would change key), drags the
 // view along if needed and rebuilds.

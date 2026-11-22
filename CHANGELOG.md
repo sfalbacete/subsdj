@@ -6,6 +6,30 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
+## Unreleased
+
+- **Key zones: two instruments on one keyboard.** With Parts on, the Room column of the Part Mixer has a
+  **Keys** selector: «Part» plays the part the rack edits, as before; «Zones» sends each key to the part
+  whose zone holds it. The zones are bars over the keyboard, one per part: drag an end to move it (past
+  the end of the keyboard on screen = open to the last note), the middle to slide the whole zone. Side by
+  side they are a split; where two overlap, both parts sound. A scene is born split at middle C — part 1
+  below, part 2 from it up, which on the computer keyboard is the bottom row and the top row — and **K**
+  on a mixer strip gives a part its zone or takes it away. Each part keeps its own Arp / Seq and Latch,
+  so one hand can hold a latched arpeggio while the other plays over it. Mode and zones are saved with
+  the scene. It replaces the «Layer» box: a layer is now two zones that overlap (a session saved with
+  Layer on comes back with every zone open).
+- **A pattern take records every part you play.** One **Rec loop**, and each key is written down in the
+  player of the part it goes to, with the timing you played: a bass with the left hand and a lead with
+  the right become two loops of the same length, in phase. A part joins the take with its first key —
+  only then does its player go to Pattern, so a part you do not play keeps its player and its loop.
+- **A new loop plays back as you played it.** A take that records a new loop leaves its Quantize on Off;
+  the grid is still one click away, and it never changes what was recorded. (+ Dub keeps the loop's.)
+- **Seq Rec follows the zones.** With «Keys · Zones», each key adds its step to the phrase of its zone's
+  part, so two phrases grow side by side, each looping on its own. The part the rack shows starts at
+  once, as always; the others start with their first key. Each part's take is one step on its own undo.
+- **Rec loop no longer changes the player's mode by itself.** It used to switch the player to Pattern on
+  arming; now the first key does.
+
 ## [2.1.0] — 2026-11-20
 
 A release of things to **play with and to look at**. The **Recycler**, a new module in the Room, makes an

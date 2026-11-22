@@ -36,6 +36,11 @@ steps, effects, parts and generative music.
   sequencer, the looping envelope, Steps, parts and scenes), **Pattern** (the loop
   of your own notes that a part repeats — with Parts on) and **Presets** (the
   library).
+- **Key zones**: with Parts on, **Keys · Zones** in the Part Mixer's Room column
+  splits the keyboard between the parts — each plays the keys inside its zone, a
+  bar over the keyboard you drag by its ends (two zones that overlap are a layer).
+  **K** on a strip gives a part its zone. Rec loop and Seq Rec then record each
+  key into the part it plays.
 - **Pattern**: with Parts on, **Rec loop** in the Player module (or on the Pattern
   screen) arms a take that starts with your first key; pressing it again closes the
   loop. On the Pattern screen, drag the notes to fix them, double-click to add or

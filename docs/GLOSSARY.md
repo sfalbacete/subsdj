@@ -70,7 +70,8 @@ are decisions that had an alternative; the rest is the usual synth convention.
 | Escena | Scene | |
 | Sala (what the parts share: delay, reverb, tape) | Room | ⚑ «room» label on its modules |
 | reverb type: Sala · Placa | Hall · Plate | ⚑ «Hall» so as not to repeat «Room» |
-| Capa: el teclado toca todas | Layer: keys play all parts | |
+| Capa: el teclado toca todas | Layer: keys play all parts | until 2.1.0; replaced by the key zones |
+| Zona de teclado | Key zone | the range of keys a part plays («Keys · Zones») |
 | Deriva (LFO, source, arrangement) | Drift | |
 | fábrica · ⟲ Traer de fábrica | factory · ⟲ Restore factory | |
 | Demos A/B | A/B Demos | ⚑ out of the main bank, loadable via JSON |

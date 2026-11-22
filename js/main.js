@@ -11,6 +11,7 @@ import { bindSeqControls } from './ui/seqControls.js';
 import { bindWsControls } from './ui/wsControls.js';
 import { bindStepsControls } from './ui/stepsControls.js';
 import { initKeyboard } from './ui/keyboard.js';
+import { initZones } from './ui/zones.js';
 import { initMIDI } from './ui/midi.js';
 import { initMidiMap } from './ui/midimap.js';
 import { startWithInit, initPresetBank } from './ui/presetBank.js';
@@ -58,6 +59,7 @@ bindStepsControls(); // Steps: four lanes for the matrix (Roadmap 7.0 · 2.3)
 initRotaries();      // rotary selectors: the .seg.rot already have their active position
 initFm4Panel();      // FM4 panel: algorithm stepper + picker, the graph (selects an operator), the envelopes, the detail
 initKeyboard();
+initZones();         // key zones: each part's range of keys, drawn over the keyboard (after initKeyboard: it builds their lane)
 initTempo();         // the keyboard bar's Click (a metronome on the common clock) and Tap (the tempo from your taps; after initClock: it writes CONTROLS.bpm)
 initMidiMap();       // CC→control mapping with MIDI learn (needs CONTROLS already populated)
 initMIDI();          // MIDI keyboard: velocity, pitch bend, sustain + CCs via midimap

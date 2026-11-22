@@ -18,6 +18,12 @@
    parts.setNoteTap; the notes sound their usual way. It ends by pressing the button
    again, and by anything that takes the ground from under it: stopping the players,
    choosing another part, loading a scene, switching Parts off.
+   ONE TAKE, SEVERAL PARTS (2026-11-22, key zones): the tap says which parts each key
+   goes to, and the take writes it down in the player of each of them. A part JOINS the
+   take with its first key — only then does its player go to Pattern, so a part you do
+   not play keeps its player and its loop. All of them share the take's bar line and
+   are closed together: loops of the same length, in phase. A new loop is born with
+   Quantize off — it plays back exactly as it was played (the grid is one knob away).
    ===================================================================== */
 import { part, getScene, sceneOn, sceneToJSON, applySceneJSON, enableScene, setNoteTap, partLabel } from '../engine/parts.js';
 import { SCALES, NOTE_NAMES, DEGREES, parseProg, PROGRESSIONS, progressionIndex } from '../engine/Harmony.js';
@@ -69,7 +75,10 @@ function knobRow(host, specs, cfg, onSet) {
 function currentPlayer() { const sc = getScene(); return sc ? sc.conductor.players[sc.sel] : null; }
 
 // ---------- pattern: takes ----------
-let rec = null;      // the take from this UI: { pl, click, armed } (armed: waiting for the first key; click: the Click was switched on for it)
+// the take from this UI: { pls, dub, origin, click, armed } — pls: player → { mode, pat0, dub } for each part that has joined
+// (its player's mode and loop before the take); origin: the take's bar line, in the conductor's beats; armed: waiting
+// for the first key; click: the Click was switched on for it
+let rec = null;
 let patRaf = 0;
 export const patRecording = () => !!rec;
 export const patArmed = () => !!rec && rec.armed;
@@ -79,39 +88,57 @@ const pats = name => document.querySelectorAll('[data-pat="' + name + '"]');   /
 // running, its nearest beat: you were playing to it). Playing: the take is the bar the key falls in — or the next
 // one, if it comes up to PAT_EARLY beats before its line.
 function beginTake() {
-  const pl = rec.pl, c = pl.c, now = c.ctx.currentTime;
+  const c = conductor(), now = c.ctx.currentTime;
   rec.armed = false;
   let origin = 0;
   if (!c.running) setPlaying(true, clickOn() ? c.clock.timeAt(Math.round(c.clock.beatAt(now))) : now);
   else { const b = c.beatAt(now), bar = Math.floor(b / BAR) * BAR; origin = b - bar > BAR - PAT_EARLY ? bar + BAR : bar; }
-  pl.startTake(origin, false);
+  rec.origin = origin;
   if (!clickOn()) { setClick(true); rec.click = clickOn(); }   // a new loop has nothing to play against: the click, for the take only
-  paintPat();
 }
-function tapKey(on, id, freq, vel) {
-  if (!rec) return;
-  if (rec.armed) { if (!on) return; beginTake(); }
-  const pl = rec.pl, t = pl.c.ctx.currentTime;
-  if (on) pl.recOn(id, 69 + 12 * Math.log2(freq / 440), vel, t); else pl.recOff(id, t);
+// A part joins the take: its player goes to Pattern (if it was not) and starts writing from the take's bar line
+function join(pl) {
+  const j = { mode: pl.cfg.mode, pat0: pl.cfg.pat };
+  if (pl.cfg.mode !== 'pattern') pl.setMode('pattern');
+  j.dub = pl.startTake(rec.origin, rec.dub).dub;   // overdubbing a part with no loop yet: a new take, from the bar the overdub started in
+  rec.pls.set(pl, j);
+  if (pl === currentPlayer()) buildPlayerUI();
+}
+// engines: the parts the key goes to (its key zone's, or the part the rack edits)
+function tapKey(on, id, freq, vel, engines) {
+  const sc = getScene(); if (!rec || !sc) return;
+  const t = sc.conductor.ctx.currentTime;
+  if (!on) { for (const pl of rec.pls.keys()) pl.recOff(id, t); return; }
+  const pls = (engines || []).map(e => sc.conductor.players[sc.parts.findIndex(p => p.engine === e)]).filter(Boolean);
+  if (!pls.length) return;                       // a key no zone holds: it does not sound, so it does not start the take either
+  const first = rec.armed;
+  if (first) beginTake();
+  for (const pl of pls) { if (!rec.pls.has(pl)) join(pl); pl.recOn(id, 69 + 12 * Math.log2(freq / 440), vel, t); }
+  if (first) paintPat();
 }
 // Rec loop arms a new take (it starts with the first key); + Dub starts adding to the loop at once
 export function patRecStart(dub = false) {
   const c = conductor(), pl = currentPlayer();
   if (!c || !pl || rec) return false;
   part().resume();
-  if (pl.cfg.mode !== 'pattern') pl.setMode('pattern');
   dub = dub && !!(pl.cfg.pat && pl.cfg.pat.notes.length);
-  if (dub) { if (!c.running && !setPlaying(true)) return false; pl.startTake(0, true); }
-  rec = { pl, click: false, armed: !dub };
+  if (dub && !c.running && !setPlaying(true)) return false;
+  rec = { pls: new Map(), dub, origin: 0, click: false, armed: !dub };
+  if (dub) { rec.origin = Math.floor(c.beatAt(c.ctx.currentTime) / BAR) * BAR; join(pl); }   // the loop you add to is this part's: it joins at once
   setNoteTap(tapKey);
   buildPlayerUI();
   return true;
 }
 export function patRecStop() {
   if (!rec) return;
-  const { pl, click } = rec;
+  const { pls, click } = rec;
   rec = null; setNoteTap(null);
-  if (pl.take) pl.endTake(pl.c.ctx.currentTime);
+  for (const [pl, j] of pls) {
+    if (pl.take) pl.endTake(pl.c.ctx.currentTime);            // (stopping the players already closed them: Player.stop)
+    if (j.dub) continue;
+    if (pl.cfg.pat !== j.pat0) pl.cfg.quant = 0;           // a new loop: as it was played
+    else if (j.mode !== 'pattern' && pl.cfg.mode === 'pattern') pl.setMode(j.mode);   // it joined and nothing got written: its player as it was
+  }
   if (click) setClick(false);
   if (getScene()) buildPlayerUI();
   document.dispatchEvent(new CustomEvent('pattern-changed'));
@@ -119,10 +146,11 @@ export function patRecStop() {
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 function patInfo(pl) {
   const pat = pl.cfg.pat, tk = pl.take, c = pl.c;
-  if (rec && rec.pl === pl) {
+  if (rec) {
     if (rec.armed) return 'Armed · play: your first key starts the take' + (c.running ? ', on its bar' : ' and the players') + ' · ● again to cancel';
     if (tk && tk.dub) return 'Overdub · ' + plural(tk.added, 'note') + ' added · + Dub again to finish';
-    if (tk) return 'Recording · bar ' + (Math.max(0, Math.floor((c.beatAt(c.ctx.currentTime) - tk.origin) / BAR)) + 1) + ' · ' + plural(tk.notes.length, 'note') + ' · ● again to close the loop';
+    if (tk) return 'Recording · bar ' + (Math.max(0, Math.floor((c.beatAt(c.ctx.currentTime) - tk.origin) / BAR)) + 1) + ' · ' + plural(tk.notes.length, 'note') + (rec.pls.size > 1 ? ' · ' + rec.pls.size + ' parts' : '') + ' · ● again to close the loop';
+    return 'Recording in ' + plural(rec.pls.size, 'part') + ' · this one joins with its first key · ● again to close the loop';
   }
   if (pl.cfg.mode !== 'pattern') return 'This part\'s player is on «' + pl.cfg.mode + '» · Rec loop, or a double click on the grid, puts it on Pattern';
   if (!pat) return 'Empty · Rec loop and play: the take starts with your first key, and Rec loop again closes it';
@@ -134,7 +162,7 @@ export function paintPat() {
   const on = !!pl && pl.cfg.mode === 'pattern';
   box.hidden = !on; $('playerKnobs').hidden = on;
   if (!pl) { pats('info').forEach(e => { e.textContent = 'Turn on «Parts» in the header: a pattern is the loop a part\'s player repeats'; }); return; }
-  const pat = pl.cfg.pat, mine = !!rec && rec.pl === pl, dub = mine && !!pl.take && pl.take.dub, neu = mine && !dub;
+  const pat = pl.cfg.pat, mine = !!rec, dub = mine && rec.dub, neu = mine && !dub;
   pats('rec').forEach(b => { b.textContent = neu ? '■ Stop' : 'Rec loop'; b.classList.toggle('rec', neu); b.disabled = !!rec && !neu; });
   pats('dub').forEach(b => { b.textContent = dub ? '■ Stop' : '+ Dub'; b.classList.toggle('rec', dub); b.disabled = dub ? false : (!!rec || !(pat && pat.notes.length)); });
   pats('undo').forEach(b => { b.disabled = !!rec || !pl.canUndo(); });
@@ -323,7 +351,7 @@ export function setPlaying(on, at) {   // at: the audio time of beat 0 (a patter
   return c.running;
 }
 function refreshInfo() {
-  if (rec && !rec.armed && !rec.pl.take) patRecStop();       // the engine closed the take on its own (the conductor stopped, another mode)
+  if (rec && !rec.armed && (!(conductor() || {}).running || [...rec.pls.keys()].some(pl => !pl.take))) patRecStop();   // the engine closed the take on its own (the conductor stopped, another mode)
   const pp = currentPlayer();
   if (pp) { const info = patInfo(pp); pats('info').forEach(e => { e.textContent = info; }); }
   paintStrip();                                              // also stopped: it follows the root, the scale, the list, the seed
@@ -385,7 +413,7 @@ export function initPlayerControls() {
   for (const ev of ['part-changed', 'scene-loaded']) document.addEventListener(ev, () => { fromState = null; if ($('harmFromInfo')) $('harmFromInfo').textContent = ''; });
   document.querySelectorAll('#playerMode button').forEach(b => b.addEventListener('click', () => {
     const pl = currentPlayer(); if (!pl || !PLAYER_MODES.includes(b.dataset.pm)) return;
-    if (rec && rec.pl === pl && b.dataset.pm !== 'pattern') patRecStop();   // leaving the mode ends the take (kept)
+    if (rec && rec.pls.has(pl) && b.dataset.pm !== 'pattern') patRecStop();   // leaving the mode ends the take (kept)
     pl.setMode(b.dataset.pm); buildPlayerUI();
   }));
   // pattern: takes, length and grid (the same controls in the Player module and on the Pattern screen)

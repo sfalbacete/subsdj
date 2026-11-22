@@ -12,7 +12,7 @@
    target for deps) with learn: false. arpMode carries the arp's direction only while
    the arp is on (off|up|down|updown|random): while it is off, the Direction knob keeps
    the last one (lastDir) — touching it prepares the arp without switching it on. */
-import { part } from '../engine/parts.js';
+import { part, sceneOn, keyParts, partOfEngine } from '../engine/parts.js';
 import { PARAMS } from '../engine/params.js';
 import { CONTROLS, applyTarget, bindSelect, HELD } from './registry.js';
 import { userPhrases, savePhrase, deletePhrase, restorePhrase } from './phraseBank.js';
@@ -21,7 +21,7 @@ import { SCALES } from '../engine/Harmony.js';
 import { bindSeg } from './oscControls.js';
 import { attachKnob } from './knobs.js';
 import { SEQ_MAX_STEPS, SEQ_OFF_MIN, SEQ_OFF_MAX, parsePattern, stepFreq, stepToken, convertPattern, scaleOfNotes, toDegrees } from '../engine/Seq.js';
-import { record, end as endGesture } from './history.js';
+import { record, pushFor, end as endGesture } from './history.js';
 
 const say = t => { const m = document.getElementById('presetMsg'); if (m) m.textContent = t; };
 // Seq Rec on the Output display: a take is recorded with the eyes on the keys, so each step written, blanked or
@@ -30,11 +30,15 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const noteName = midi => NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
 const showRec = (who, val, det = '') => document.dispatchEvent(new CustomEvent('display-show', { detail: { who: 'Seq Rec' + (who ? ' · ' + who : ''), val, det } }));
 const lenText = n => n + (n === 1 ? ' step' : ' steps');   // the header's floating notice
-let rec = null;   // the step recording in progress (initRec), or null: the editor draws its cursor
+// The step recording in progress (initRec), or null — { takes: engine → take, hooked: the engines listening, last: the
+// take the last key went to }. A take is one part's: { part, rack, cur, n, ref, vel, … }; the editor draws the cursor of
+// the take of the part the rack shows.
+let rec = null;
+const takeOf = e => (rec ? rec.takes.get(e) || null : null);
 import { token, tint } from './theme.js';
 import { fitCanvas, uiZoom } from './frame.js';
 
-const tokensOf = () => part().S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
+const tokensOf = (e = part()) => e.S.seqPat.trim().split(/\s+/).filter(Boolean).slice(0, SEQ_MAX_STEPS);
 
 // Bank of ready-made phrases (offsets over the root; div = recommended division).
 // The selector is UI sugar: it only rewrites seqPat/seqDiv via CONTROLS.
@@ -322,61 +326,91 @@ function initLock() {
 // is the take's buffer, so Steps and the phrase list still work in the middle of it.
 const CHORD_MS = 35;   // keys closer than this are one chord: the step keeps the lowest
 // Columns the editor draws: during a take that is still growing, one more — the empty slot the next key fills
-const colsOf = n => n + (rec && rec.cur >= n && n < SEQ_MAX_STEPS ? 1 : 0);
+const colsOf = n => { const t = takeOf(part()); return n + (t && t.cur >= n && n < SEQ_MAX_STEPS ? 1 : 0); };
 function initRec() {
   const sw = document.getElementById('seqRecSw');
   if (!sw) return;
   const [offBtn, onBtn] = sw.querySelectorAll('button');
   const paint = on => { offBtn.classList.toggle('active', !on); onBtn.classList.toggle('active', on); };
-  const tokenOf = off => { const I = scaleOfNotes(CONTROLS.seqNotes.get()); return String(I ? toDegrees(off, I).deg : off); };
+  // SEVERAL PARTS AT ONCE (2026-11-22, key zones). With «Keys · Zones» every part that has a zone listens, and a key
+  // writes its step in the phrase of the part(s) it goes to: each one has its own take — its own phrase, cursor, C and
+  // loop — so a hand on each zone builds two loops side by side. The part the rack shows starts its take at once, as
+  // always (its phrase empties and waits); the others start theirs with their first key, and only then go to Seq +
+  // Latch, so a part you do not play keeps its phrase and whatever it was doing. The rack's take writes through the
+  // controls (they repaint, and its undo is the rack's); the others write straight to their engine, and their take
+  // is one step on THEIR undo stack (history.pushFor), there when the rack shows that part. Space and Backspace go to
+  // the take the last key went to.
+  const setPat = (t, str) => { if (t.rack) CONTROLS.seqPat.set(str); else t.part.set('seqPat', str); };
+  const tokenOf = (t, off) => { const I = scaleOfNotes(t.part.S.seqNotes); return String(I ? toDegrees(off, I).deg : off); };
+  const tag = t => { const p = !t.rack || rec.takes.size > 1 ? partOfEngine(t.part) : null; return p ? 'P' + (p.i + 1) + ' · ' : ''; };   // which part, once there is more than one
   // writes a step: at the end while the phrase can grow (the loop gets one step longer); full, over the
   // step under the cursor, which goes back to the first after the last
-  const write = (tok, what) => {   // what: how the display names it (the note, «rest»); the token itself if not given
-    const tk = tokensOf();
+  const write = (t, tok, what) => {   // what: how the display names it (the note, «rest»); the token itself if not given
+    const tk = tokensOf(t.part);
     let i;
-    if (rec.cur >= tk.length && tk.length < SEQ_MAX_STEPS) { tk.push(tok); i = tk.length - 1; rec.cur = tk.length; }
-    else { i = rec.cur % tk.length; tk[i] = tok; rec.cur = i + 1; }
-    rec.lastIdx = i; rec.n++;
-    CONTROLS.seqPat.set(tk.join(' '));
-    showRec('step ' + (i + 1), what || tok, lenText(tk.length));
+    if (t.cur >= tk.length && tk.length < SEQ_MAX_STEPS) { tk.push(tok); i = tk.length - 1; t.cur = tk.length; }
+    else { i = t.cur % tk.length; tk[i] = tok; t.cur = i + 1; }
+    t.lastIdx = i; t.n++;
+    setPat(t, tk.join(' '));
+    showRec(tag(t) + 'step ' + (i + 1), what || tok, lenText(tk.length));
     return i;
   };
   // the loop, from the first key on (Mode = Seq only); true = it started on step i, so it plays the key
   // itself. In Mono the loop's notes and the key would fight over the one voice: the loop alone is heard
-  const loop = i => {
-    const e = rec.part;
+  const loop = (t, i) => {
+    const e = t.part;
     if (!e.ready || e.S.seqOn !== 'on') return false;
-    return e.seq.pin(440 * Math.pow(2, (rec.ref - 69) / 12), rec.vel, i) || e.S.mode === 'mono';
+    return e.seq.pin(440 * Math.pow(2, (t.ref - 69) / 12), t.vel, i) || e.S.mode === 'mono';
   };
-  const onKey = (freq, vel) => {
+  // A part's take begins: Seq + Latch (recording means the Seq, and a loop that goes on when the take ends means
+  // Latch), whatever it was playing stops, and its phrase is emptied — it grows with every key
+  const begin = e => {
+    const S = e.S, rack = e === part(), needMode = asModeOf(S) !== 'seq', needLatch = S.seqLatch !== 'on';
+    const was = { arpMode: S.arpMode, seqOn: S.seqOn, seqLatch: S.seqLatch };
+    if (rack) {                                      // both in ONE undo step
+      if (needMode || needLatch) record([needMode && 'Mode · Seq', needLatch && 'Latch'].filter(Boolean).join(' + ') + ' (Seq Rec)',
+        () => { if (needMode) CONTROLS.asMode.set('seq'); if (needLatch) CONTROLS.seqLatch.set('on'); });
+    } else { if (needMode) { e.set('arpMode', 'off'); e.set('seqOn', 'on'); } if (needLatch) e.set('seqLatch', 'on'); }
+    const before = rack ? CONTROLS.seqPat.get() : S.seqPat;
+    if (e.seq && e.seq.timer) e.seq.stop();         // the phrase playing goes: the loop comes back from the first key, over the take's C
+    const t = { part: e, rack, cur: 0, n: 0, ref: null, vel: 1, lastT: 0, lastOff: null, lastIdx: 0, before, was };
+    rec.takes.set(e, t);
+    setPat(t, '');
+    return t;
+  };
+  const onKey = (e, freq, vel) => {
     if (!rec) return false;
-    const midi = Math.round(69 + 12 * Math.log2(freq / 440)), t = performance.now();
-    if (rec.ref === null) { rec.ref = Math.floor(midi / 12) * 12; rec.vel = vel; }   // 0 = the C of the octave you start in; the loop plays at the first key's velocity
-    let off = midi - rec.ref;
+    const t = rec.takes.get(e) || begin(e);
+    rec.last = t;
+    const midi = Math.round(69 + 12 * Math.log2(freq / 440)), now = performance.now();
+    if (t.ref === null) { t.ref = Math.floor(midi / 12) * 12; t.vel = vel; }   // 0 = the C of the octave you start in; the loop plays at the first key's velocity
+    let off = midi - t.ref;
     while (off > SEQ_OFF_MAX) off -= 12;                            // out of the editor's range: folded by octaves
     while (off < SEQ_OFF_MIN) off += 12;
-    let i = rec.lastIdx;
-    if (rec.lastOff !== null && t - rec.lastT < CHORD_MS) {         // a chord struck at once: one step, its lowest note
-      if (off < rec.lastOff) { const tk = tokensOf(); if (i < tk.length) { tk[i] = tokenOf(off); CONTROLS.seqPat.set(tk.join(' ')); showRec('step ' + (i + 1), noteName(rec.ref + off), 'chord: its lowest note'); } rec.lastOff = off; }
-    } else { i = write(tokenOf(off), noteName(rec.ref + off)); rec.lastOff = off; }
-    rec.lastT = t;
-    return loop(i);
+    let i = t.lastIdx;
+    if (t.lastOff !== null && now - t.lastT < CHORD_MS) {           // a chord struck at once: one step, its lowest note
+      if (off < t.lastOff) { const tk = tokensOf(e); if (i < tk.length) { tk[i] = tokenOf(t, off); setPat(t, tk.join(' ')); showRec(tag(t) + 'step ' + (i + 1), noteName(t.ref + off), 'chord: its lowest note'); } t.lastOff = off; }
+    } else { i = write(t, tokenOf(t, off), noteName(t.ref + off)); t.lastOff = off; }
+    t.lastT = now;
+    return loop(t, i);
+  };
+  // Who listens: every part a key may reach (its zone's, or the part the rack edits). Called again when the zones change
+  const hook = () => {
+    const list = sceneOn() ? keyParts().map(p => p.engine) : [part()];
+    for (const e of rec.hooked) if (!list.includes(e)) e.recHook = null;
+    for (const e of list) e.recHook = (f, v) => onKey(e, f, v);
+    rec.hooked = list;
+    return list;
   };
   const start = () => {
     endGesture();                                    // the click that arms it is not a gesture: the take is one step, recorded at the end
-    const e = part();
-    // recording means the Seq, and a loop that goes on when the take ends means Latch: both in ONE undo step
-    const needMode = asModeOf(e.S) !== 'seq', needLatch = e.S.seqLatch !== 'on';
-    if (needMode || needLatch) record([needMode && 'Mode · Seq', needLatch && 'Latch'].filter(Boolean).join(' + ') + ' (Seq Rec)',
-      () => { if (needMode) CONTROLS.asMode.set('seq'); if (needLatch) CONTROLS.seqLatch.set('on'); });
-    const before = CONTROLS.seqPat.get();
-    if (e.seq && e.seq.timer) e.seq.stop();         // the phrase playing goes: the loop comes back from the first key, over the take's C
-    rec = { cur: 0, n: 0, ref: null, vel: 1, lastT: 0, lastOff: null, lastIdx: 0, before, part: e };
-    e.recHook = onKey;
-    CONTROLS.seqPat.set('');                         // an empty phrase: it grows with every key
+    rec = { takes: new Map(), hooked: [], last: null };
+    const list = hook();
+    if (!list.length) { rec = null; paint(false); say('Seq Rec: no part has a key zone — give one a zone (K on its mixer strip) or set «Keys» to Part.'); return; }
+    if (list.includes(part())) rec.last = begin(part());
     paint(true);
     showRec('', 'armed', 'play: every key is a step');
-    say('Seq Rec: every key adds a step and the phrase loops from the first one · Space = rest · Backspace = back · Enter, Esc or the switch = done');
+    say('Seq Rec: every key adds a step and the phrase loops from the first one' + (list.length > 1 ? ' — in the part whose zone the key is in' : '') + ' · Space = rest · Backspace = back · Enter, Esc or the switch = done');
   };
   // abort: something else took the module (a preset, a scene): the take is dropped; they brought their own
   // phrase, which is not touched. (restore: a part change by a path other than the rack's selector — the
@@ -384,24 +418,37 @@ function initRec() {
   const stop = (abort = false, restore = false) => {
     if (!rec) return;
     endGesture();                                    // the click that stops it is not a gesture either (it would store the half take)
-    const r = rec, e = r.part, fin = CONTROLS.seqPat.get();
+    const r = rec, told = [];
     rec = null;
-    e.recHook = null;
-    const goesOn = !abort && e.S.seqLatch === 'on' && !!e.seq.pinned;
-    e.seq.unpin(goesOn);                             // with Latch the loop goes on, as if latched on its C; else it stops
+    for (const e of r.hooked) e.recHook = null;
+    let anyOn = false;
+    for (const t of r.takes.values()) {
+      const e = t.part, rack = t.rack && e === part(), fin = rack ? CONTROLS.seqPat.get() : e.S.seqPat;
+      const goesOn = !abort && e.S.seqLatch === 'on' && !!(e.seq && e.seq.pinned);
+      if (e.seq) e.seq.unpin(goesOn);               // with Latch the loop goes on, as if latched on its C; else it stops
+      if (abort) { if (restore && e.ready) e.set('seqPat', t.before); continue; }
+      const got = t.n > 0 && !!fin.trim(), len = got ? fin.trim().split(/\s+/).length : 0, p = partOfEngine(e);
+      if (rack) {
+        CONTROLS.seqPat.set(t.before);               // back where it was, so the whole take is ONE undo step
+        if (got) record('Recorded phrase', () => CONTROLS.seqPat.set(fin));
+      } else if (got) {                              // …and one step on its own part's stack: the phrase, and the Seq + Latch the take put on
+        if (p) pushFor(p.i, { b: { seqPat: t.before, ...t.was }, a: { seqPat: fin, arpMode: e.S.arpMode, seqOn: e.S.seqOn, seqLatch: e.S.seqLatch }, label: 'Recorded phrase (Seq Rec)' });
+      } else { e.set('seqPat', t.before); for (const k in t.was) e.set(k, t.was[k]); }   // nothing written: the part as it was
+      if (got) { told.push({ who: p ? 'part ' + (p.i + 1) : '', len }); anyOn = anyOn || goesOn; }
+    }
     paint(false);
     if (abort) {
-      if (restore) e.set('seqPat', r.before);
       say('Recording stopped: the take was dropped.'); showRec('', 'dropped');
       document.dispatchEvent(new CustomEvent('param-change', { detail: { target: 'seqPat' } }));
       return;
     }
-    CONTROLS.seqPat.set(r.before);                   // back where it was, so the whole take is ONE undo step
-    if (r.n && fin.trim()) {
-      record('Recorded phrase', () => CONTROLS.seqPat.set(fin));
-      const len = fin.trim().split(/\s+/).length;
-      say('Phrase recorded: ' + len + (len > 1 ? ' steps' : ' step') + (goesOn ? ' · it keeps playing (Latch)' : '') + '.');
-      showRec('', lenText(len) + ' recorded', goesOn ? 'it keeps playing (Latch)' : '');
+    if (told.length === 1) {
+      const len = told[0].len;
+      say('Phrase recorded' + (r.takes.size > 1 || r.hooked.length > 1 ? ' in ' + told[0].who : '') + ': ' + len + (len > 1 ? ' steps' : ' step') + (anyOn ? ' · it keeps playing (Latch)' : '') + '.');
+      showRec('', lenText(len) + ' recorded', anyOn ? 'it keeps playing (Latch)' : '');
+    } else if (told.length) {
+      say('Phrases recorded: ' + told.map(x => x.who + ' (' + lenText(x.len) + ')').join(', ') + (anyOn ? ' · they keep playing (Latch)' : '') + '.');
+      showRec('', told.length + ' phrases recorded', anyOn ? 'they keep playing (Latch)' : '');
     } else { say('Nothing recorded: the phrase is as it was.'); showRec('', 'nothing recorded'); }
   };
   // the inactive button lies on top (the .seg.sw switch), so any click toggles; blurred: Space must not «click» it again
@@ -411,18 +458,19 @@ function initRec() {
     if (!rec) return;
     const t = e.target, txt = t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text') || t.isContentEditable);
     if (txt || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'Space') { e.preventDefault(); write('.', 'rest'); rec.lastOff = null; }
+    const tk0 = rec.last;                            // the take the last key went to (none yet: nothing to write a rest in)
+    if (e.code === 'Space') { e.preventDefault(); if (tk0) { write(tk0, '.', 'rest'); tk0.lastOff = null; } }
     else if (e.key === 'Backspace') {
       e.preventDefault();
-      if (!rec.n) return;                            // nothing written yet: nothing to take back
-      const tk = tokensOf();
+      if (!tk0 || !tk0.n) return;                    // nothing written yet: nothing to take back
+      const tk = tokensOf(tk0.part);
       if (!tk.length) return;
       let told;
-      if (rec.cur >= tk.length) { tk.pop(); rec.cur = tk.length; told = ['step ' + (tk.length + 1), 'removed']; }                    // growing: the last step goes (the loop shrinks)
-      else { rec.cur = (rec.cur - 1 + tk.length) % tk.length; tk[rec.cur] = '.'; told = ['step ' + (rec.cur + 1), 'blanked']; }   // writing over a full phrase: back one, blanked
-      rec.n--; rec.lastOff = null;
-      CONTROLS.seqPat.set(tk.join(' '));
-      showRec(told[0], told[1], lenText(tk.length));
+      if (tk0.cur >= tk.length) { tk.pop(); tk0.cur = tk.length; told = ['step ' + (tk.length + 1), 'removed']; }                    // growing: the last step goes (the loop shrinks)
+      else { tk0.cur = (tk0.cur - 1 + tk.length) % tk.length; tk[tk0.cur] = '.'; told = ['step ' + (tk0.cur + 1), 'blanked']; }   // writing over a full phrase: back one, blanked
+      tk0.n--; tk0.lastOff = null;
+      setPat(tk0, tk.join(' '));
+      showRec(tag(tk0) + told[0], told[1], lenText(tk.length));
     }
     else if (e.key === 'Enter') { e.preventDefault(); stop(); }
   }, true);
@@ -433,6 +481,7 @@ function initRec() {
   // on there (Latch) while you record the next part. It used to be dropped, and its loop stopped.
   document.addEventListener('part-changing', () => { if (rec) stop(); });
   document.addEventListener('part-changed', () => { if (rec) stop(true, true); });   // any other path: dropped, the phrase back
+  document.addEventListener('zones-changed', () => { if (rec) hook(); });            // a zone given or taken, or the Keys mode, mid-take: whoever can be played listens
 }
 
 // Step editor: columns = pattern tokens; vertical drag = pitch
@@ -491,8 +540,9 @@ function initSeqEditor(canvas) {
         g.fillRect(xa, h - PAD - 3, xb - xa, 2);                                  // rest: mark at the base
       }
     });
-    if (rec) {                                         // recording: the column the next key writes, in the alarm color
-      const i = rec.cur < steps.length ? rec.cur : cols > steps.length ? steps.length : 0, x0 = PAD + i * cw;
+    const tkn = takeOf(part());
+    if (tkn) {                                         // recording: the column the next key writes, in the alarm color
+      const i = tkn.cur < steps.length ? tkn.cur : cols > steps.length ? steps.length : 0, x0 = PAD + i * cw;
       g.strokeStyle = token('--hot'); g.lineWidth = 1.5; g.strokeRect(x0 + 1.5, PAD + 1.5, cw - 3, h - 2 * PAD - 3); g.lineWidth = 1;
     }
   }

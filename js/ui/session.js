@@ -7,7 +7,7 @@
        Steps, the matrix, the clock — with its preset and the REFERENCE of its ●
        (the preset as loaded or saved), plus the Arp / Seq lock;
      · in Parts, the whole scene (parts, mix, Room, harmony, players,
-       arrangement), each part's ● reference, Layer and the single engine's
+       arrangement, key zones), each part's ● reference and the single engine's
        sound underneath (the one Parts off brings back).
    The drawn wave, your phrases, the library, the theme, the screen and the MIDI
    map are stored on their own already.
@@ -31,7 +31,7 @@
    written during that visit. Off with ?selftest and ?nosplash (tests and tools).
    ===================================================================== */
 import { engine as single } from '../engine/AudioEngine.js';
-import { sceneOn, getScene, sceneToJSON, isLayer, setLayer } from '../engine/parts.js';
+import { sceneOn, getScene, sceneToJSON, setKeyMode, setPartZone, NOTE_MAX } from '../engine/parts.js';
 import { ROOM_KEYS } from '../engine/Room.js';
 import { toControls } from '../engine/state.js';
 import { PARAMS } from '../engine/params.js';
@@ -114,7 +114,7 @@ export function captureSession() {
   if (sceneOn()) {
     const sc = getScene();
     s.solo = { state: rackOf(single.S), ref: solo.ref, preset: presetExists(solo.preset) ? solo.preset : null, name: solo.name };
-    s.scene = { json: sceneToJSON(sc), refs: sc.parts.map((_, i) => savedRef(i)), layer: isLayer(), ref: sceneRef };
+    s.scene = { json: sceneToJSON(sc), refs: sc.parts.map((_, i) => savedRef(i)), ref: sceneRef };
   } else {
     const cur = currentPreset(); if (cur) lastName = cur.name;
     s.solo = { state: snapshot(), ref: savedRef('solo'), preset: currentPresetId(), name: lastName };
@@ -139,8 +139,8 @@ export async function restoreSession(s, audioReady = Promise.resolve()) {
       await loadScene(s.scene.json);                      // Parts on + the scene; its scene-loaded clears the ● references…
       setSavedRef('solo', s.solo.ref);                    // …so they go back after it
       (s.scene.refs || []).forEach((r, i) => setSavedRef(i, r));
-      setLayer(!!s.scene.layer);
-      const chk = document.getElementById('layerChk'); if (chk) chk.checked = !!s.scene.layer;
+      // a session from before the key zones with «Layer» on (the keys played all the parts): every zone open, all of them on
+      if (s.scene.layer && !s.scene.json.keyMode) { getScene().parts.forEach((_, i) => setPartZone(i, { on: true, lo: 0, hi: NOTE_MAX })); setKeyMode('zones'); document.dispatchEvent(new CustomEvent('zones-changed')); }
       sceneRef = s.scene.ref || null;
       const sc = getScene(), p = sc.parts[sc.sel];
       if (!(p.presetVal && markPreset(p.presetVal)) && p.presetName) markPresetByName(p.presetName);

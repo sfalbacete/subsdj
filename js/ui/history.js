@@ -88,6 +88,17 @@ function push(step) {
   refresh();
 }
 
+// A step for ANOTHER part's stack (key: its index in the scene): something changed that part while the rack was showing
+// a different one — a Seq Rec take recorded through its key zone (ui/seqControls.js). It is there, the last step,
+// when the rack shows that part. step = { b, a, label }: the values before and after, by control key.
+export function pushFor(key, step) {
+  if (!stacks.has(key)) stacks.set(key, { undo: [], redo: [] });
+  const s = stacks.get(key);
+  s.undo.push({ screen: currentScreen(), ...step }); s.redo.length = 0;
+  if (s.undo.length > DEPTH) s.undo.shift();
+  refresh();
+}
+
 // An ACTION (loading a preset, Reset) as one step: whatever changes inside fn.
 // saved: the resulting state becomes the «saved» one (● off).
 export function record(label, fn, { saved: markIt = false } = {}) {

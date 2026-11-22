@@ -3781,3 +3781,49 @@ up (the welcome window's trick). In the selftest the question is off unless a ch
 
 Found on the way: Parts off left the preset picker on the last part's preset while the rack showed
 the single engine's sound. It marks the single engine's preset again (`soloPreset`).
+
+## Key zones: the keyboard split between the parts (2026-11-22)
+
+Asked for as «assign presets (parts?) to keyboard ranges, with a bar you drag, overlap allowed». The
+parts already made it nearly free: each one is a whole engine with its own Arp / Seq / Latch on the
+common clock, and «Layer» already sent a key to all of them through the `NoteRouter`. A zone is that
+with a filter per part.
+
+- **Model** (engine/parts.js). The scene has `keyMode` — 'part' (the part the rack edits) or 'zones' —
+  and each part a `zone: { on, lo, hi }` in MIDI notes, both ends included. `keyTargets(midi)` is the
+  only place that decides who a key goes to; muted parts are left out, as Layer did. `on` is kept apart
+  from the range so a part can lose its keys (a part only its player plays) and get the same zone back.
+  A scene is born split at middle C, parts 3 and 4 off: on the QWERTY that is the bottom row and the
+  top row, two instruments without touching anything. Mode and zones are in the scene's JSON (additive:
+  a scene from before comes back on «part» with that split). They are NOT in `sceneCore`: like the
+  part the rack edits, they are how you play the scene, not work to ask about before discarding it.
+- **Layer is gone.** It was the particular case «every zone open». Keeping it would have meant three
+  modes that differ in nothing a zone cannot say. A stored session with Layer on is restored as zones
+  with all four parts open.
+- **The bars** (ui/zones.js) sit inside the keyboard's well, over the keys, and take their height from
+  them: the module does not grow (fixed panel). They are aligned by reading the keys' own boxes — each
+  note starts where its key does, a black key taking its width out of its neighbors — so they stay
+  right at any width, octave count and zoom. The keyboard on screen is a window on 128 notes: a zone
+  that goes on beyond it has a dashed end, and dragging an end past the edge of the keys opens it to
+  note 0 or 127; that is the gesture for «everything from here down», which no key on screen could say.
+  Lanes are built once per scene and only placed afterwards, so a bar keeps the pointer while dragged.
+- **Arp / Seq, wheel, bend**: nothing to do. Each part's sequencer only ever sees the keys of its zone,
+  and the performance gestures already went to every part (each preset decides in its matrix).
+
+**The takes follow the keys.** Both recorders were written for one part; with zones a key may belong
+to another.
+
+- **Pattern** (ui/playerControls.js). The note tap now carries the engines the key goes to, and the
+  take writes the key in the player of each. A part JOINS with its first key — only then does its
+  player go to Pattern. Arming used to switch the edited part's player at once; with several parts that
+  would throw away the generative player of every part that has a zone, played or not. All the parts
+  share the take's bar line and are closed together, so the loops have the same bars and are in phase.
+  The undo stays where it was: each player's own history, one step per part.
+- **Quantize off on a new loop.** The player stores what was played and quantizes on playback; the
+  default grid (1/16) made «it sounds exactly as I played it» false without anything being lost. A take
+  that makes a NEW loop leaves the grid off; an overdub keeps the loop's.
+- **Seq Rec** (ui/seqControls.js) stays what it is — a phrase entered step by step that loops while it
+  grows, never on the clock. It became a set of takes, one per engine: the part the rack shows starts at
+  once (its phrase empties, as always), the others with their first key. The rack's take writes through
+  the controls; the others straight to their engine, and their take is pushed as one step on their own
+  undo stack (`history.pushFor`), which is where you look for it when the rack shows that part.

@@ -315,6 +315,16 @@ select:hover{border-color:var(--accent);color:var(--accent);}
 .strip .mute{flex:none;padding:2px 9px;font-size:10px;font-weight:700;background:var(--well);
   border:1px solid var(--edge);color:var(--dim);border-radius:5px;cursor:pointer;}
 .strip .mute.on{color:var(--hot);border-color:var(--hot);}
+/* K: the part has a key zone (ui/zones.js). Lit in the accent, not the alarm color: it is not a warning. Dimmer while
+   the keys play the edited part only («Keys · Part»): the zone is set, just not in use */
+.strip .mute.zkey{padding:2px 7px;}
+.strip .mute.zkey.on{color:var(--accent);border-color:var(--accent);}
+.strip .mute.zkey.idle{opacity:.5;}
+/* Room column: who the keys play — a small selector at the bottom, where the «Layer» box was */
+.keysel{display:flex;align-items:center;gap:6px;margin-top:auto;}
+.keysel .lab{font-size:10px;color:var(--dim);text-transform:var(--lab-case);letter-spacing:var(--lab-space);}
+.keysel .seg{flex:1;}
+.keysel .seg button{font-size:10px;padding:1px 4px;}
 .chk{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:auto;cursor:pointer;}
 .panel h2.room-shared{color:var(--accent2);}   /* Parts: a module of the Room, shared by all parts — its title in the second accent (no tag: no extra width) */
 /* Harmony / Player */
@@ -847,7 +857,28 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:1px solid colo
 #kbWrap{flex:1;min-height:0;}
 #keyboard{flex:1;min-width:0;min-height:0;margin:8px 8px 8px 0;background:linear-gradient(180deg,var(--line),var(--screen));border:1px solid var(--edge);
   border-radius:var(--r-panel);padding:8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.05);border-color:color-mix(in srgb,black 35%,var(--edge));}
-#kbKeys{position:relative;height:100%;display:flex;touch-action:none;}   /* a finger on the keys plays, it doesn't scroll or zoom */
+#keyboard{display:flex;flex-direction:column;}
+#kbKeys{position:relative;flex:1;min-height:0;display:flex;touch-action:none;}   /* a finger on the keys plays, it doesn't scroll or zoom */
+/* Key zones (ui/zones.js): over the keys, one lane per part that has a zone — a bar from its lowest key to its
+   highest, aligned with them. The lanes take their height from the keys: the module does not grow (fixed panel).
+   Odd parts in the accent, even ones in the second accent; the part the rack edits, filled stronger. An end that
+   goes on beyond the keys on screen is dashed; a zone wholly outside them is a stub at that edge */
+#kbZones{flex:none;display:flex;flex-direction:column;gap:2px;margin-bottom:5px;touch-action:none;user-select:none;}
+#kbZones[hidden],.zlane[hidden]{display:none;}
+.zlane{position:relative;height:13px;border-radius:3px;background:color-mix(in srgb,var(--ink) 6%,transparent);--zc:var(--accent);}
+.zlane.alt{--zc:var(--accent2);}
+.zbar{position:absolute;top:0;bottom:0;box-sizing:border-box;display:flex;align-items:stretch;min-width:18px;border:1px solid var(--zc);border-radius:3px;
+  background:color-mix(in srgb,var(--zc) 22%,transparent);color:var(--ink);font-size:9px;line-height:11px;cursor:grab;transition:background .15s;}
+.zlane.cur .zbar{background:color-mix(in srgb,var(--zc) 45%,transparent);}
+.zlane.drag .zbar{cursor:grabbing;background:color-mix(in srgb,var(--zc) 60%,transparent);}
+.zbar .zt{flex:1;min-width:0;padding:0 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;pointer-events:none;}
+.zbar .zh{flex:none;width:7px;background:var(--zc);opacity:.8;cursor:ew-resize;}
+.zbar .zh:hover{opacity:1;}
+.zbar.more-l{border-left-style:dashed;border-top-left-radius:0;border-bottom-left-radius:0;}
+.zbar.more-r{border-right-style:dashed;border-top-right-radius:0;border-bottom-right-radius:0;}
+.zbar.more-l .zh.l,.zbar.more-r .zh.r{opacity:.35;}
+.zbar.out{width:30px;border-style:dashed;cursor:default;color:var(--dim);}
+.zbar.out .zh{display:none;}
 #kbKeys::before{ /* red felt behind the keys */
   content:'';position:absolute;left:0;right:0;top:0;height:4px;z-index:4;pointer-events:none;
   background:linear-gradient(180deg,var(--felt),color-mix(in srgb,var(--felt) 60%,black));}
