@@ -20,7 +20,13 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The SubSDJ panel: oscillators, filter, envelopes, LFOs, modulation matrix and effects above a keyboard">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
+<!-- Icon and install: the tab draws icons/icon.svg; manifest.webmanifest makes the page installable as an
+     app (Chrome/Edge: «Install SubSDJ» in the address bar → its own window, no tabs or bookmarks bar) and
+     lists the PNGs tools/icons.mjs renders from that SVG. No service worker: it would only add offline use,
+     and a second cache between an edit and what you hear. All paths relative: Pages serves under /subsdj/. -->
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -34,6 +40,7 @@
       <div class="sp-session" id="spSession" hidden><b>Unsaved work</b><span id="spSessWhat"></span><span class="sp-when" id="spSessWhen"></span></div>
       <div class="sp-btn"><button id="spEnter" type="button"><span>ENTER</span></button></div>
       <button class="sp-fresh" id="spFresh" type="button" hidden title="Leave the unsaved work behind and start on Init, the blank page">start from Init</button>
+      <button class="sp-fresh" id="spInstall" data-install type="button" hidden title="Install SubSDJ as an app: a window of its own, without tabs or bookmarks bar, and a shortcut to open it. It stays the same page, always the latest version">install as an app</button>
     </div>
     <div class="sp-foot"><span><b>SubSDJ</b> <span id="spVer"></span> · <span id="spDate"></span></span><span class="sp-links"><a href="https://github.com/sfalbacete/subsdj" target="_blank" rel="noopener"><svg class="sp-gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>code</a><span>·</span><span>AGPL-3.0</span></span></div>
   </div>
@@ -48,7 +55,8 @@
 </div>
 <!-- THE INSTRUMENT (ui/frame.js): a 1920 × 1000 px object that is scaled
      as a whole to fit the window; nothing reflows, every module ALWAYS has
-     the same place. Header + body (one screen per tab, each with
+     the same place (a window of another shape stretches the keyboard in height
+     or the .grow sections in width, up to 2100 × 1100). Header + body (one screen per tab, each with
      its fixed panel) + keyboard.
      PANELS: bands (.band) of sections (.panel) separated by a screen-printed
      line; the bands follow the signal from left to right and from top
@@ -114,6 +122,7 @@
         <button class="btn" id="unrDelBtn" hidden title="Forget the library that was kept aside">Discard unreadable copy</button>
         <input type="file" id="impFile" accept="application/json,.json" style="display:none">
         <button class="btn" id="sfzBtn" title="Freeze the current preset as a multisample instrument: a zip with WAV samples + .sfz (Sforzando, Renoise…)">Export SFZ</button>
+        <button class="btn" id="installItem" data-install hidden title="Install SubSDJ as an app: a window of its own, without tabs or bookmarks bar, and a shortcut to open it. It stays the same page, always the latest version">Install as an app…</button>
         <button class="btn" id="aboutItem" title="The welcome window: version, date, code and license">About SubSDJ…</button>
       </div>
     </span>

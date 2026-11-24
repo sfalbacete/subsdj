@@ -59,6 +59,8 @@ import { handleMidi } from './ui/midi.js';
 import { resRatios, resQ, resGains } from './engine/reson.js';
 import { library, Library, SEC_MINE, SEC_SCENES, SEC_IMPORT, REPO_SCENES, canon, fnv, MAX_NAME } from './engine/library.js';
 import { SCREENS, showScreen, currentScreen } from './ui/screens.js';
+import { frameSize, forceFrame, FRAME_W, FRAME_H, MAX_W, MAX_H, MIN_ZOOM } from './ui/frame.js';
+import { canInstall, install } from './ui/install.js';
 import { RULES, depTargets, refreshDeps } from './ui/deps.js';
 import { listThemes, setTheme, currentTheme, token } from './ui/theme.js';
 import { VERSION, RELEASE } from './version.js';
@@ -752,6 +754,46 @@ export async function runSelfTest() {
     }
     showScreen(before);
     push({ name: 'screens (fixed panel · slots · memory · nothing clipped · preset list)', peak: 0, ok: !problems.length, problems });
+  }
+  {
+    // Elastic frame (ui/frame.js): a window of another shape than the base grows the side with room to
+    // spare instead of leaving bars. (1) The rule: 16:9 full screen fills in height, a wide tab in
+    // width, never both, never past the caps, never a px over the window, and a small window is the base
+    // at MIN_ZOOM. (2) The layout at the three extremes — widest, tallest and both: on every screen nothing
+    // overflows or clips, the bands keep their height (only the keyboard takes the height) and fill the width.
+    const problems = [], inst = document.getElementById('inst'), kb = document.getElementById('kbWrap');
+    const sz = (iw, ih) => { const f = frameSize(iw, ih); return f.w + '×' + f.h + '@' + f.zoom.toFixed(3); };
+    const want = [[1920, 1000, '1920×1000@1.000'], [1920, 1080, '1920×1080@1.000'], [2560, 1440, '1920×1080@1.333'], [2560, 1300, '1969×1000@1.300'],
+                  [2050, 1000, '2050×1000@1.000'], [3440, 1440, MAX_W + '×1000@1.440'], [1600, 1200, '1920×' + MAX_H + '@0.833'], [800, 600, '1920×1000@0.600']];
+    for (const [iw, ih, w] of want) if (sz(iw, ih) !== w) problems.push(iw + '×' + ih + ' → ' + sz(iw, ih) + ' (expected ' + w + ')');
+    for (let iw = 700; iw <= 4000; iw += 137) for (let ih = 500; ih <= 2200; ih += 91) {
+      const f = frameSize(iw, ih);
+      if (f.zoom > MIN_ZOOM && (f.w * f.zoom > iw + 0.01 || f.h * f.zoom > ih + 0.01)) problems.push(iw + '×' + ih + ': the object is larger than the window');
+      if (f.w > FRAME_W && f.h > FRAME_H) problems.push(iw + '×' + ih + ': grows on both sides');
+    }
+    const over = (e, tol = 1) => e.scrollWidth > e.clientWidth + tol || e.scrollHeight > e.clientHeight + tol;
+    const before = currentScreen();
+    const bandH = () => [...document.querySelectorAll('.screen:not([hidden]) .band:not(.band-full)')].map(b => b.id + ' ' + b.offsetHeight).join();
+    try {
+      for (const s of SCREENS) {
+        forceFrame(FRAME_W, FRAME_H); showScreen(s);
+        const h0 = bandH(), kb0 = kb.offsetHeight;
+        for (const [w, h] of [[MAX_W, FRAME_H], [FRAME_W, MAX_H], [MAX_W, MAX_H]]) {
+          forceFrame(w, h); showScreen(s);   // both fire resize: canvases and keys refit
+          const at = s + ' at ' + w + '×' + h + ': ';
+          if (over(inst)) problems.push(at + 'the instrument overflows (' + inst.scrollWidth + '×' + inst.scrollHeight + ')');
+          if (bandH() !== h0) problems.push(at + 'the bands changed height (' + bandH() + ' ≠ ' + h0 + ')');
+          if (kb.offsetHeight !== kb0 + h - FRAME_H) problems.push(at + 'the keyboard is ' + kb.offsetHeight + ' px tall (expected ' + (kb0 + h - FRAME_H) + ')');
+          for (const b of document.querySelectorAll('.screen:not([hidden]) .band')) {
+            if (over(b)) problems.push(at + 'band ' + (b.id || '?') + ' clips');
+            if (Math.abs(b.offsetWidth - (w - 20)) > 1) problems.push(at + 'band ' + (b.id || '?') + ' is ' + b.offsetWidth + ' px wide (expected ' + (w - 20) + ')');
+          }
+          for (const p of document.querySelectorAll('.screen:not([hidden]) .panel'))
+            if (p.offsetParent && !/auto|scroll/.test(getComputedStyle(p).overflow) && over(p)) problems.push(at + 'a module spills out (' + (p.querySelector('h2')?.textContent.trim() || p.id) + ')');
+        }
+      }
+    } finally { forceFrame(); showScreen(before); }
+    push({ name: 'elastic frame (the side with room to spare grows, up to its cap · bands keep their height, the keyboard takes it · nothing clips)', peak: 0, ok: !problems.length, problems });
   }
   {
     // Header (2026-11-01): the buttons are ICONS with a fast tooltip of their own (ui/tips.js) and a
@@ -6955,6 +6997,61 @@ export async function runSelfTest() {
     if (w && !(w === +og('image:width') && h === +og('image:height')))
       problems.push('the image measures ' + w + '×' + h + ' and og:image:width/height say ' + og('image:width') + '×' + og('image:height'));
     push({ name: 'social card (Open Graph, image ' + (w ? w + '×' + h : '—') + ')', peak: 0, ok: !problems.length, problems });
+  }
+
+  // Icon and install: the tab's icon is a file that loads; the manifest is linked, parses and carries what
+  // Chrome asks of an installable app (name, start_url, a display of its own, a 192 and a 512 px PNG) plus a
+  // maskable icon; every icon exists and measures what «sizes» says (tools/icons.mjs renders them from
+  // icons/icon.svg); and every path is RELATIVE — Pages serves under /subsdj/, an absolute one would miss
+  {
+    const problems = [], load = async src => { const im = new Image(); im.src = src; await im.decode(); return im; };
+    const rel = u => !!u && !/^([a-z]+:|\/)/i.test(u);
+    const ico = document.querySelector('link[rel="icon"]')?.getAttribute('href'), man = document.querySelector('link[rel="manifest"]')?.getAttribute('href');
+    if (!rel(ico)) problems.push('the tab icon is not a relative file (' + ico + ')');
+    else try { await load(ico); } catch (e) { problems.push('not found: ' + ico); }
+    let n = 0;
+    if (!rel(man)) problems.push('no relative <link rel="manifest"> (' + man + ')');
+    else try {
+      const m = await (await fetch(man + '?t=' + Date.now())).json(), base = man.replace(/[^/]*$/, '');
+      if (!m.name || !m.short_name) problems.push('manifest without name / short_name');
+      if (!rel(m.start_url) || !rel(m.scope)) problems.push('start_url / scope are not relative (' + m.start_url + ', ' + m.scope + ')');
+      if (!['standalone', 'fullscreen', 'minimal-ui'].includes(m.display)) problems.push('display «' + m.display + '» does not open a window of its own');
+      const icons = m.icons || [], has = (px, purpose) => icons.some(i => i.sizes === px + 'x' + px && i.type === 'image/png' && (i.purpose || 'any') === purpose);
+      if (!has(192, 'any') || !has(512, 'any')) problems.push('missing the 192 or the 512 px PNG (purpose any)');
+      if (!icons.some(i => i.purpose === 'maskable')) problems.push('no maskable icon');
+      for (const i of icons) {
+        if (!rel(i.src)) { problems.push('icon path not relative: ' + i.src); continue; }
+        try { const im = await load(base + i.src); n++;
+          if (im.naturalWidth + 'x' + im.naturalHeight !== i.sizes) problems.push(i.src + ' measures ' + im.naturalWidth + '×' + im.naturalHeight + ' and the manifest says ' + i.sizes);
+        } catch (e) { problems.push('not found: ' + i.src); }
+      }
+    } catch (e) { problems.push('manifest: ' + e.message); }
+    // The button of our own (ui/install.js), with the browser's event played by hand: hidden until the browser
+    // offers the install; then both show (welcome window, File menu); a click opens the browser's dialog ONCE
+    // and spends the offer (hidden again, a second click asks nothing); «appinstalled» hides them too
+    {
+      const btns = [...document.querySelectorAll('[data-install]')], shown = () => btns.filter(b => !b.hidden).length;
+      const offer = () => { const e = new Event('beforeinstallprompt', { cancelable: true }); e.asked = 0;
+        e.prompt = () => { e.asked++; }; e.userChoice = Promise.resolve({ outcome: 'dismissed' }); dispatchEvent(e); return e; };
+      if (btns.length !== 2) problems.push(btns.length + ' install buttons (expected 2: welcome window and File menu)');
+      // the browser may have offered for real already (headless Chrome does, on 127.0.0.1: the manifest passes ITS test);
+      // then the buttons must be showing — and the check starts from «nothing offered» either way
+      const real = canInstall();
+      console.log('install: the browser ' + (real ? 'offered the install by itself' : 'has not offered the install'));
+      if (real && shown() !== btns.length) problems.push('the browser offered the install and ' + shown() + ' of ' + btns.length + ' buttons show');
+      dispatchEvent(new Event('appinstalled'));
+      if (shown() || canInstall()) problems.push('the install buttons show with nothing offered');
+      const e1 = offer();
+      if (!e1.defaultPrevented) problems.push('the browser\'s own banner is not held back');
+      if (shown() !== btns.length || !canInstall()) problems.push('offered, ' + shown() + ' of ' + btns.length + ' buttons show');
+      btns[0]?.click(); await new Promise(r => setTimeout(r, 0)); btns[0]?.click();
+      if (e1.asked !== 1) problems.push('a click asked the browser ' + e1.asked + ' times (expected 1)');
+      if (shown() || canInstall()) problems.push('the offer is not spent after asking');
+      offer(); dispatchEvent(new Event('appinstalled'));
+      if (shown() || canInstall()) problems.push('installed, the buttons still show');
+      if (await install() !== null) problems.push('install() with nothing offered does not answer null');
+    }
+    push({ name: 'icon and install (tab icon · manifest: name, window of its own, ' + n + ' icons at their size, one maskable · relative paths · the Install buttons show only while the browser offers it and ask once)', peak: 0, ok: !problems.length, problems });
   }
 
   }   // ---------- end of the «checks» batch ----------

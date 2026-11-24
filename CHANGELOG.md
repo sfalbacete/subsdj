@@ -8,6 +8,17 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Install it as an app, with an icon of its own.** In Chrome or Edge, «install as an app» in the welcome window
+  (and in the File menu) opens the browser's install dialog — the same one its address bar offers; the button is
+  only there while the browser can install. The synth then opens in a window of its own — no tabs, no bookmarks bar, more room for the panel — with a shortcut
+  in the Start menu or the app launcher. It is still the page (nothing is downloaded, it is always the latest
+  version). The icon is the synth's knob, in place of the emoji the tab had (`icons/icon.svg`; `node
+  tools/icons.mjs` renders the PNGs of `manifest.webmanifest` from it).
+- **The panel fills the window.** The instrument was a rigid 1920 × 1000, so a window of another shape left bars:
+  above and below in full screen (F11), at the sides in a wide tab. Now the side with room to spare grows — in
+  height the keyboard gets longer keys, in width the open sections (Wave Editor, Output, Matrix, Part Mixer) and
+  the keys get wider — while every control keeps its size and its place. Up to 2100 × 1100; beyond that
+  (ultra-wide, 4:3) the bars remain.
 - **Key zones: two instruments on one keyboard.** With Parts on, the Room column of the Part Mixer has a
   **Keys** selector: «Part» plays the part the rack edits, as before; «Zones» sends each key to the part
   whose zone holds it. The zones are bars over the keyboard, one per part: drag an end to move it (past

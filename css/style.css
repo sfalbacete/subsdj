@@ -134,7 +134,8 @@ select option:checked{background:color-mix(in srgb,var(--accent) 14%,transparent
 select optgroup{padding:2px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;}
 select optgroup option{color:var(--ink);font-size:12px;text-transform:none;letter-spacing:0;}
 *{box-sizing:border-box;}
-/* THE INSTRUMENT (ui/frame.js): #inst ALWAYS measures 1920 × 1000 and is scaled
+/* THE INSTRUMENT (ui/frame.js): #inst measures 1920 × 1000 (the base; frame.js grows
+   one side inline, up to 2100 × 1100, when the window has another shape) and is scaled
    as a whole with zoom to fit the window; nothing reflows. html.frame-scroll =
    the window is so small that the zoom hit the floor (MIN_ZOOM): then there is
    scrolling. margin:auto (not justify-content) centers without clipping on overflow. */

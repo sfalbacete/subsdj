@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- SubSDJ · the icon: the Cinescapes knob (disc, arc and dot) on a charcoal plate.
+       THE source: the tab uses this file as it is, and tools/icons.mjs renders from it the PNGs the
+       manifest lists (icon-192, icon-512 and the maskable one, for which it extends #bg to the whole
+       square and shrinks the rest into the inner 80 %). Colors = the Cinescapes tokens, written out:
+       an icon lives outside the page and cannot read them.
+       TWO DRAWINGS: at 16 px (a tab) the disc and the track turn to mush, so under 24 px a media
+       query (it sees the size the image is drawn at) swaps in a bolder one: the arc and the dot. -->
+  <style>
+    .small { display: none; }
+    @media (max-width: 24px) { .full { display: none; } .small { display: inline; } }
+  </style>
+  <defs>
+    <linearGradient id="g" x1="8" y1="56" x2="56" y2="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3fc6f2"/><stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect id="bg" x="1" y="1" width="62" height="62" rx="14" fill="#22252d" stroke="#2f333c" stroke-width="1"/>
+  <g class="full" fill="none" stroke-linecap="round">
+    <path d="M17.15 48.85 A21 21 0 1 1 46.85 48.85" stroke="#3a3f4a" stroke-width="5.5"/>
+    <path d="M17.15 48.85 A21 21 0 1 1 48.99 21.66" stroke="url(#g)" stroke-width="5.5"/>
+    <circle cx="32" cy="34" r="12.5" fill="#2e323c" stroke="#121418" stroke-width="1.5"/>
+    <circle cx="38.5" cy="29.3" r="2.8" fill="#3fc6f2" stroke="none"/>
+  </g>
+  <g class="small" fill="none" stroke-linecap="round">
+    <path d="M17.86 48.14 A20 20 0 1 1 46.14 48.14" stroke="url(#g)" stroke-width="9"/>
+    <circle cx="32" cy="34" r="6.5" fill="#3fc6f2" stroke="none"/>
+  </g>
+</svg>

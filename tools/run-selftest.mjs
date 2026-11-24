@@ -22,7 +22,7 @@ const BATCH_MAX_MS = +process.env.BATCH_MAX_MS || 300000;   // how long a batch 
 const EV_MAX_MS = 15000;       // how long the page may take to answer a question
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
-               '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+               '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 let pings = [];
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');

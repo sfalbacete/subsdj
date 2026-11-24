@@ -13,7 +13,7 @@ const [target, out, widthArg, pre] = process.argv.slice(2); const W = +widthArg 
 const THEME = process.env.THEME || '', H = +process.env.H || 1000;
 if (!target || !out) { console.error('usage: node tools/shot.mjs "<h2 | screen:NAME>" out.png [width] ["<pre JS>"]'); process.exit(2); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p === '/') p = '/index.html';
   fs.readFile(path.join(ROOT, p), (err, data) => { if (err) { res.writeHead(404); return res.end(); }

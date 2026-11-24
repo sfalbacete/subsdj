@@ -30,6 +30,7 @@ import { initScreens } from './ui/screens.js';
 import { initTheme } from './ui/theme.js';
 import { initFrame } from './ui/frame.js';
 import { initSplash, openSplash } from './ui/splash.js';
+import { initInstall } from './ui/install.js';
 import { initRotaries } from './ui/rotary.js';
 import { initFm4Panel } from './ui/fm4Panel.js';
 import { initDisplay } from './ui/display.js';
@@ -47,6 +48,7 @@ import { setStatus, isStatus } from './ui/status.js';
 initFrame();         // the instrument: fixed-size object scaled to the window (before any canvas measures)
 initTheme();          // skin: ?theme= or the remembered theme, before any canvas reads tokens
 initSplash();         // welcome window (demoscene; already in the HTML, covering the assembly): after initFrame, for its scale; ENTER starts the audio
+initInstall();        // «Install as an app» in the welcome window and the File menu: only while the browser offers it
 for (const id of ['aboutBtn', 'aboutItem']) document.getElementById(id)?.addEventListener('click', () => openSplash(true));   // «About»: the same window
 bindMatrixControls(); // generates the matrix rows (creates their .knob: ALWAYS before bindKnobs)
 bindKnobs();          // knobs for almost everything (log/fmt live in the knob)

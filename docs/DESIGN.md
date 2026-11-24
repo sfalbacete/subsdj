@@ -170,7 +170,21 @@ The synth is a **fixed-size instrument**, like a physical one: an object of
 module is always in the same place, the resolution only changes the size
 (on a 4K screen at 150 % it comes out at 130 %; on a 1366 × 650 laptop, at
 65 %). Below 60 % it doesn't shrink any further (the knobs could no longer be
-played) and the scroll appears. CSS `zoom` is used (standardized in Chrome
+played) and the scroll appears.
+
+**Elastic frame.** 1920 × 1000 (1.92:1) is the BASE. No single shape fits every
+window: on a 16:9 monitor, full screen is 1.78:1 and a maximized tab with the
+bookmarks bar about 2:1, so a rigid object leaves bars in one or the other.
+Instead the side with room to spare grows — `frameSize()` gives `#inst` the
+window's size in design px, clamped to 1920…2100 × 1000…1100. The zoom is still
+that of the base, so no control changes size or place; the leftover goes to what
+has no fixed size: in height the keyboard (the bands keep theirs: 16:9 full screen
+is 1920 × 1080, keys 80 px longer), in width the `.grow` sections (Wave Editor,
+Output, Matrix, Part Mixer…) and the keys. Past the caps (ultra-wide, 4:3) the
+bars come back: a Matrix stretched to 2400 is mostly empty panel. The selftest
+(«elastic frame») lays every screen out at the three extremes.
+
+CSS `zoom` is used (standardized in Chrome
 128), which does the layout at real size: sharp text and borders.
 `getBoundingClientRect` gives the on-screen size and `clientWidth` the design
 size, so the canvases draw in design px with a backing store of

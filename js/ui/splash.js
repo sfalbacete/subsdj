@@ -267,7 +267,10 @@ export function initSplash() {
   // keyboard (which also listens in capture on window): first registered, first to hear.
   const keys = e => {
     if (!shown) return;
-    if (answer && e.key === 'Tab') (document.activeElement === fresh ? btn : fresh).focus({ preventScroll: true });   // two buttons: Tab goes between them
+    const inst = el.querySelector('#spInstall'), at = document.activeElement;
+    const stops = [btn, ...(answer ? [fresh] : []), ...(inst && !inst.hidden ? [inst] : [])];   // the buttons on show: Tab goes round them
+    if (e.key === 'Tab') { if (stops.length > 1) stops[(stops.indexOf(at) + 1) % stops.length].focus({ preventScroll: true }); }
+    else if ((e.key === 'Enter' || e.key === ' ') && at === inst && stops.includes(inst)) inst.click();   // «install» is not an answer: the window stays
     else if (e.key === 'Enter' || e.key === ' ') close(answer && document.activeElement === fresh ? 'fresh' : 'continue');
     else if ((about || answer) && e.key === 'Escape') close('continue');   // with a question, Escape keeps the work: discarding it takes a deliberate choice
     e.stopImmediatePropagation(); e.preventDefault();          // also against other window listeners (the keyboard listens there)
