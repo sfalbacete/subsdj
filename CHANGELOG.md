@@ -8,6 +8,18 @@ scenes, libraries, MIDI maps). The why behind each module is in
 
 ## Unreleased
 
+- **Thirteen new presets and three remade, by ear.** Rendered as candidates and chosen by Sergio. The **Accordion** is remade as two reeds —
+  narrow pulses, the second one 14 cents sharp, so they beat like a musette; no tremolo — and a **Bandoneon** joins it
+  (two reeds an octave apart, darker and dry). Keys also gets a **Wurlitzer** (the reed piano: it barks when played
+  hard, with its tremolo). Leads: **Ocarina** (a sine that scoops into each note, a puff of air at the tonguing),
+  **Clay Flute** (the blown pipe behind a low filter), **Shakuhachi** (the pipe with nearly all the air it can take)
+  and **Duduk** (a dark double reed). Brass & Strings: **Muted Trumpet** (the Harmon mute; Macro 1 is the hand over the
+  stem) and **Tape Strings** (three violins through the Tape). Plucks & Bells: **Sitar** (the buzzing bridge),
+  **Kalimba** and **Handpan**. The **Cello** loses the noise it carried under every note (the bow's hair grain, now
+  at 0): a clean tone. The **Nylon Guitar** is fuller (each string doubled, the thump of the body) and gets a drier,
+  more real sister, the **Spanish Guitar** (the nail, near the bridge); the Steel Drum gets one too, the **Steelpan**
+  (tuned partials, the octave blooming after the strike). A library that still has the old Accordion, Cello or Nylon
+  Guitar untouched gets the new ones.
 - **Install it as an app, with an icon of its own.** In Chrome or Edge, «install as an app» in the welcome window
   (and in the File menu) opens the browser's install dialog — the same one its address bar offers; the button is
   only there while the browser can install. The synth then opens in a window of its own — no tabs, no bookmarks bar, more room for the panel — with a shortcut

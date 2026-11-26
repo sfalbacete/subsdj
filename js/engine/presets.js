@@ -35,8 +35,11 @@ import { PARAMS, PRESET_BASE, posToVal } from './params.js';
 // Dist · Flanger rebuilt (its Dist without the comb) and three presets that show it (Crushed Arp, Comb Arp, Jet Pad); 14: the Dist, the Filter's Drive and the
 // Tape without their comb — fuller and louder: nine Masters brought back to the bank's level; 15: the FM4 of 1.8.0 reaches the bank
 // (DX E-Piano, FM Brass: key scaling, detune, operator attack and release; Rhodes kept as it was by ear) and six presets
-// (Fuzz Bass, Fuzz Lead, Chip Lead, Lo-Fi Keys, Steel Drum, Chord Sequence).
-export const BANK_REV = 15;
+// (Fuzz Bass, Fuzz Lead, Chip Lead, Lo-Fi Keys, Steel Drum, Chord Sequence); 16: the free reeds and the clay (Accordion
+// remade as two reeds, Bandoneon, Ocarina, Clay Flute), by ear; 17: eight more by ear (Wurlitzer, Muted Trumpet, Tape Strings,
+// Sitar, Kalimba, Handpan, Shakuhachi, Duduk), the Clay Flute darker, the Cello without the hair grain,
+// the Nylon Guitar fuller (doubled string, body thump) and its real sisters Spanish Guitar and Steelpan.
+export const BANK_REV = 17;
 
 // Tag vocabulary. Search matches them; the selftest rejects any other.
 export const TAGS = [
@@ -190,6 +193,43 @@ export const BANK = [
       data: { waveA: 'string', levelA: 0.8, levelB: 0, octA: 1, excMode: 'breath', excPress: 0.55, excSpeed: 0.25, excNoise: 0.7,
         strBright: 0.45, strDecay: 0.15, cutoff: 8000, reso: 0.7, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.5,
         a: 0.03, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, reverbMix: 0.3, reverbSize: 2, width: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.6), master: 0.3 } },
+    /* a vessel flute is a Helmholtz resonator: almost a SINE. The rest is the player — each note scoops
+       up from 30 ct below, a puff of noise at the tonguing (Mod env → noise level) that settles into
+       a breath, and a vibrato that arrives 350 ms late */
+    { name: 'Ocarina', tags: ['soft', 'airy', 'mono', 'world', 'expressive'], use: 'note', root: 72,
+      play: 'C5–C7, mono: legato notes slide. Wheel: more vibrato · M1: more breath.',
+      data: { mode: 'mono', monoTrig: 'legato', glide: 0.02, waveA: 'sine', detuneA: 0, levelA: 0.8, levelB: 0,
+        cutoff: 8000, reso: -3, noise: 0.025, noiseColor: 0.5,
+        envmMode: 'normal', envmA: 0.002, envmD: 0.07, envmS: 0.25, envmR: 0.1, mx1src: 'envm', mx1dst: 'lvlNoise', mx1amt: 0.12,
+        pitchEnvAmt: -30, pitchEnvDec: 0.05, freqLfoLvl: 7, freqLfoSpd: 5, lfoFade: 0.35,
+        mx2src: 'lfoFreq', mx2dst: 'pitch', mx2amt: 0, mx6src: 'wheel', mx6dst: 'amt2', mx6amt: 0.03,
+        a: 0.035, d: 0.1, s: 1, r: 0.09, envCurve: 0.3, width: 0.15, reverbMix: 0.22, reverbSize: 1.8, ...MAC1('lvlNoise', 0.15), master: 1.1 } },
+    /* the blown pipe (Breath Flute's) made of clay: a 24 dB filter sits three harmonics above the note and follows it
+       1:1, so only the bottom of the pipe's spectrum is left — rounder than the flute, with more grain and
+       air than the Ocarina's sine */
+    { name: 'Clay Flute', tags: ['soft', 'airy', 'mono', 'world', 'string'], use: 'note', root: 72,
+      play: 'C5–C7, mono: legato notes slide. Aftertouch: more breath · wheel: opens the filter · M1: the jet on the edge.',
+      data: { mode: 'mono', monoTrig: 'legato', glide: 0.02, waveA: 'string', detuneA: 0, levelA: 0.8, levelB: 0,
+        excMode: 'breath', excPress: 0.45, excSpeed: 0.5, excNoise: 0.25, strBright: 0.5, strDecay: 0.2,
+        cutoff: 750, reso: 0, keytrack: 1, filterSlope: '24', freqLfoLvl: 6, freqLfoSpd: 5, lfoFade: 0.35, mx1src: 'at', mx1dst: 'excPress', mx1amt: 0.3,
+        a: 0.04, d: 0.1, s: 1, r: 0.12, envCurve: 0.3, width: 0.15, reverbMix: 0.22, reverbSize: 1.8, ...WHEEL(0.3), ...MAC1('excSpeed', 0.3), master: 0.4 } },
+    /* the blown pipe pushed hard with a short jet (hollow) and nearly all the air it can take, a burst of noise at every
+       tonguing (Mod env → noise level), each note bending up from 70 ct below, a slow wide vibrato that arrives late, drift */
+    { name: 'Shakuhachi', tags: ['airy', 'mono', 'expressive', 'world', 'string'], use: 'note', root: 62,
+      play: 'C4–C6, mono, slow lines. Aftertouch: more breath · wheel: opens the filter · M1: the jet on the edge.',
+      data: { mode: 'mono', monoTrig: 'legato', levelB: 0, detuneA: 0, glide: 0.04, waveA: 'string', levelA: 0.8, excMode: 'breath', excPress: 0.6,
+        excSpeed: 0.3, excNoise: 0.85, strBright: 0.5, strDecay: 0.25, cutoff: 7000, reso: 0, noise: 0, noiseColor: 0.4, envmMode: 'normal',
+        envmA: 0.002, envmD: 0.12, envmS: 0.1, envmR: 0.1, mx1src: 'envm', mx1dst: 'lvlNoise', mx1amt: 0.4, pitchEnvAmt: -70, pitchEnvDec: 0.1,
+        freqLfoLvl: 12, freqLfoSpd: 4.5, lfoFade: 0.6, drift: 4, a: 0.02, d: 0.1, s: 1, r: 0.25, envCurve: 0.3, width: 0.15, reverbMix: 0.3,
+        reverbSize: 3, mx2src: 'at', mx2dst: 'excPress', mx2amt: 0.3, ...WHEEL(0.3), ...MAC1('excSpeed', 0.3), master: 0.27 } },
+    /* a big double reed on a cylindrical bore: a (nearly) square wave — odd harmonics — closed down to 850 Hz at 24 dB with a small
+       resonant bump (the nasal body), a breath of dark noise, a slow attack, a 60 ms glide and a slow vibrato that arrives late */
+    { name: 'Duduk', tags: ['soft', 'dark', 'mono', 'expressive', 'world'], use: 'note', root: 62,
+      play: 'A3–A4, mono, slow legato lines: notes slide. Wheel: opens the filter · M1: more breath.',
+      data: { mode: 'mono', monoTrig: 'legato', levelB: 0, detuneA: 0, glide: 0.06, waveA: 'square', pulseWidth: 0.46, levelA: 0.8, cutoff: 850,
+        reso: 3, keytrack: 0.6, filterSlope: '24', filterDrive: 0.1, noise: 0.03, noiseColor: 0.2, pitchEnvAmt: -40, pitchEnvDec: 0.08, freqLfoLvl: 9,
+        freqLfoSpd: 4.8, lfoFade: 0.5, a: 0.09, d: 0.1, s: 1, r: 0.15, envCurve: 0.3, width: 0.15, reverbMix: 0.3, reverbSize: 3, ...WHEEL(0.3),
+        ...MAC1('lvlNoise', 0.15), master: 0.8 } },
     /* glottal source through the formant bank: the wheel sweeps the vowel, Macro 1 the vocal effort */
     { name: 'Vox Lead', tags: ['vocal', 'wavetable', 'expressive', 'mono'], use: 'note',
       play: 'C3–C5, mono. Wheel: the vowel (u→i) and the vibrato · M1: effort (brighter glottis).',
@@ -252,6 +292,14 @@ export const BANK = [
       data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -9, detuneB: 11, octB: -1, levelA: 0.5, levelB: 0.5, uniVoices: '2', uniDetune: 10,
         cutoff: 800, reso: 3, filterEnvAmt: 3500, fenvMode: 'own', fa: 0.001, fd: 0.22, fs: 0.1, fr: 0.2, a: 0.002, d: 0.35, s: 0.3, r: 0.25, dist: 0.1,
         width: 0.6, reverbMix: 0.2, reverbSize: 1.2, ...WHEEL(0.4), ...MAC1('reso', 0.4), master: 1.41 } },
+    /* the Harmon mute: what is left of the trumpet is a narrow band around 1.8 kHz — a saw through the BAND-PASS with 8 dB of
+       resonance, barely following the keyboard (the mute does not change size), a little drive, a late vibrato */
+    { name: 'Muted Trumpet', tags: ['analog', 'bright', 'mono', 'expressive', 'classic'], use: 'note', root: 65,
+      play: 'C4–C6, mono: legato notes slide. Wheel: more vibrato · M1: moves the mute (the wah of the hand over the stem).',
+      data: { mode: 'mono', monoTrig: 'legato', levelB: 0, detuneA: 0, glide: 0.03, waveA: 'sawtooth', levelA: 0.8, filterType: 'bp', cutoff: 1800,
+        reso: 8, keytrack: 0.3, filterDrive: 0.15, pitchEnvAmt: -20, pitchEnvDec: 0.04, freqLfoLvl: 8, freqLfoSpd: 5.5, lfoFade: 0.4, a: 0.03, d: 0.1,
+        s: 1, r: 0.1, envCurve: 0.3, width: 0.15, reverbMix: 0.2, mx2src: 'lfoFreq', mx2dst: 'pitch', mx2amt: 0, mx6src: 'wheel', mx6dst: 'amt2',
+        mx6amt: 0.03, ...MAC1('cutoff', 0.3), master: 1.76 } },
     /* the 90s «orchestra hit»: saw + square in ×3 unison with a pinch of noise, its own filter
        envelope closing in 250 ms, distortion, a short pitch drop and a small room */
     { name: 'Orchestra Hit', tags: ['hard', 'short', 'chords', 'orchestral', 'classic'], use: 'chord',
@@ -264,6 +312,13 @@ export const BANK = [
       data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -4, detuneB: 5, octavesB: 2, levelA: 0.65, levelB: 0.35,
         cutoff: 3600, reso: 0.7, morph: 0.12, chMode: 'ensemble', chAmt: 0.85, chSpd: 0.65, drift: 4,
         freqLfoLvl: 7, freqLfoSpd: 5.2, lfoFade: 0.7, a: 0.22, d: 0.3, s: 0.9, r: 0.9, width: 0.35, reverbMix: 0.22, reverbSize: 2.2, ...WHEEL(0.3), master: 0.94 } },
+    /* the tape keyboard's strings: two saws ×3 in unison that drift, a fast attack (the tape just starts), a little of the
+       lows taken away, narrow, and the whole thing through the Tape — wow and saturation are the instrument */
+    { name: 'Tape Strings', tags: ['analog', 'warm', 'dirty', 'chords', 'classic'], use: 'chord',
+      play: 'C3–C5 chords and lines: three violins on a strip of tape. Wheel: opens the filter.',
+      data: { waveA: 'sawtooth', waveB: 'sawtooth', detuneA: -5, detuneB: 6, levelA: 0.5, levelB: 0.5, uniVoices: '3', uniDetune: 9, drift: 5,
+        cutoff: 2800, reso: 0, morph: 0.15, freqLfoLvl: 6, freqLfoSpd: 5.5, lfoFade: 0.3, a: 0.06, d: 0.2, s: 1, r: 0.25, tapeWow: 0.35, tapeSat: 0.35,
+        width: 0.1, reverbMix: 0.15, ...WHEEL(0.3), master: 0.6 } },
     { name: 'PWM Ensemble', tags: ['analog', 'warm', 'wide', 'chords', 'classic'], use: 'chord',
       play: 'C2–C5 chords; the Juno strings. Wheel: opens the filter · M1: narrows the pulse.',
       data: { waveA: 'square', waveB: 'square', pulseWidth: 0.45, pwmLfoLvl: 0.28, pwmLfoSpd: 0.7, lfoFade: 0.9, detuneB: 6, levelA: 0.5, levelB: 0.5,
@@ -277,10 +332,11 @@ export const BANK = [
         chMode: 'ensemble', chAmt: 0.5, chSpd: 0.5, width: 0.4, reverbMix: 0.3, reverbSize: 2, ...WHEEL(0.3), master: 1.15 } },
     /* the BOWED string (the String's exciter, 2026-11-01): the loop bowed at 10 % with a mid pressure, a body
        of string modes from the resonator, the vibrato dialled in by the wheel (LFO → Pitch, its amount fed by
-       the wheel) and the bow pressure under the aftertouch. One voice: legato notes glide like a finger. */
+       the wheel) and the bow pressure under the aftertouch. One voice: legato notes glide like a finger.
+       No hair grain (Noise 0, it was 0.15): the slow noise on the bow speed dirtied the whole note — Sergio's ear, 2026-11-26. */
     { name: 'Cello', tags: ['string', 'warm', 'mono', 'expressive', 'orchestral'], use: 'note',
       play: 'C2–C5, mono: overlapping notes glide. Velocity = bow speed · aftertouch digs the bow in · wheel: vibrato · M1: a faster bow.',
-      data: { mode: 'mono', monoTrig: 'legato', glide: 0.06, waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'bow', excPress: 0.5, excSpeed: 0.55, excNoise: 0.15,
+      data: { mode: 'mono', monoTrig: 'legato', glide: 0.06, waveA: 'string', levelA: 0.8, levelB: 0, excMode: 'bow', excPress: 0.5, excSpeed: 0.55, excNoise: 0,
         strBright: 0.45, strDecay: 4, strPos: 0.1, strStiff: 0.05, resAmt: 0.3, resMat: 0, resDecay: 0.35, resBright: 0.5,
         cutoff: 5000, reso: 1, keytrack: 0.3, freqLfoSpd: 5.2,
         mx1src: 'lfoFreq', mx1dst: 'pitch', mx1amt: 0.004, mx2src: 'wheel', mx2dst: 'amt1', mx2amt: 0.025, mx3src: 'at', mx3dst: 'excPress', mx3amt: 0.4,
@@ -307,6 +363,15 @@ export const BANK = [
         fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.35, fm4D2: 1.0, fm4R3: 1, fm4L3: 0.4, fm4D3: 4, fm4R4: 7, fm4L4: 0.1, fm4D4: 0.1,
         fm4V2: 0.7, fm4V4: 0.8, cutoff: 3500, keytrack: 0.5, envCurve: 0.6, a: 0.002, d: 2.5, s: 0.15, r: 0.5, panLfoLvl: 0.45, panLfoSpd: 4.5,
         width: 0.3, reverbMix: 0.18, ...WHEEL(0.3), master: 0.96 } },
+    /* the reed piano: one FM pair at ratio 1 (a sine bent towards a saw — the reed's hollow buzz) whose index falls in half a
+       second to a quarter and rises with velocity, a 3× «tock» of 80 ms, an asymmetric drive in front of the filter (the
+       little amp) and the amplitude tremolo at 5.8 Hz. Shorter and barkier than the Rhodes (ear session 2026-11-26) */
+    { name: 'Wurlitzer', tags: ['fm', 'warm', 'dirty', 'chords', 'classic'], use: 'chord',
+      play: 'C2–C6 chords; play hard and the reed barks; the tremolo is built in. Wheel: opens the filter · M1: more bite (drive).',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '1', fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.55, fm4D2: 0.5, fm4S2: 0.25, fm4R3: 1,
+        fm4L3: 0.3, fm4D3: 4, fm4R4: 3, fm4L4: 0.2, fm4D4: 0.08, fm4V2: 0.8, fm4V4: 0.8, cutoff: 3000, reso: 0, keytrack: 0.5, filterDrive: 0.25,
+        driveAsym: 0.4, ampLfoLvl: 0.2, ampLfoSpd: 5.8, envCurve: 0.6, a: 0.002, d: 1.6, s: 0.1, r: 0.25, width: 0.2, reverbMix: 0.12, ...WHEEL(0.3),
+        ...MAC1('drive', 0.5), master: 0.8 } },
     /* two FM pairs: 2→1 is the body (modulator 14 = the «tine», the DX7's ratio; it was 12 while the range
        stopped there, and Sergio chose 14 by ear on 2026-11-07), 4→3 the hit; both modulators
        follow velocity: soft is round, hard brings the tine and the growl. FM4 1.8 (2026-11-07): the second pair +5 ct
@@ -362,15 +427,24 @@ export const BANK = [
       play: 'C4–C7, single notes and little chords. Wheel: opens the filter · M1: more ring (metal).',
       data: { waveA: 'sine', waveB: 'sine', ring: 0.5, detuneB: 24, octavesB: 2, levelA: 0.25, levelB: 0.25, cutoff: 7100,
         a: 0.002, d: 0.8, s: 0.0, r: 0.6, dlyAmt: 0.3, dlyTime: 0.35, width: 0.4, reverbMix: 0.35, ...WHEEL(0.3), ...MAC1('lvlRing', 0.4), master: 1.68 } },
-    /* the musette: THREE reeds per note (unison ×3 at ±10 ct, beating at 2-4 Hz), a saw and a narrow
-       pulse (the reed), a breath of air, the filter following the keyboard, and a soft bellows tremolo
-       at 5.5 Hz — no chorus and no vibrato: accordions beat, they do not wobble (ear session
-       2026-10-31; the old «two saws + chorus + vibrato» was a saw with chorus) */
+    /* the musette: TWO free reeds per note, the second one 14 ct sharp (they beat at ~3.5 Hz at A4,
+       twice as fast an octave up, like the real tuning). A reed chops the air: a NARROW PULSE, not a
+       saw. Each note speaks 8 ct flat, a breath of air, the filter follows the keyboard; no tremolo, no
+       chorus, no vibrato (ear session 2026-11-26: chosen over three reeds, the full register and the
+       single reed; the 2026-10-31 one was saw + pulse ×3 with a 5.5 Hz bellows tremolo) */
     { name: 'Accordion', tags: ['analog', 'warm', 'chords', 'world'], use: 'chord',
-      play: 'C2–C5 chords and melodies; the three reeds beat, the bellows tremble. Wheel: opens the filter.',
-      data: { waveA: 'sawtooth', waveB: 'square', pulseWidth: 0.3, uniVoices: '3', uniDetune: 10, levelA: 0.55, levelB: 0.45,
-        noise: 0.04, noiseColor: 0.6, cutoff: 3500, reso: 0.7, keytrack: 0.4, ampLfoLvl: 0.12, ampLfoSpd: 5.5,
-        a: 0.04, d: 0.1, s: 1, r: 0.12, width: 0.3, reverbMix: 0.12, ...WHEEL(0.3), master: 0.56 } },
+      play: 'C2–C6 chords and melodies; the two reeds beat. Wheel: opens the filter · M1: a wider reed.',
+      data: { waveA: 'square', waveB: 'square', pulseWidth: 0.2, detuneA: 0, detuneB: 14, levelA: 0.5, levelB: 0.5,
+        noise: 0.015, noiseColor: 0.5, cutoff: 4200, reso: 1, keytrack: 0.4, pitchEnvAmt: -8, pitchEnvDec: 0.05,
+        a: 0.045, d: 0.1, s: 1, r: 0.09, envCurve: 0.3, width: 0.25, reverbMix: 0.1, ...WHEEL(0.3), ...MAC1('pw', 0.3), master: 0.6 } },
+    /* the bandoneon's octave register: two reeds an OCTAVE apart (16' + 8'), almost in tune (3 ct: no
+       musette beating), a narrower pulse, a darker filter with a little drive in front of it and a
+       faster attack — dry and serious where the Accordion is sweet */
+    { name: 'Bandoneon', tags: ['analog', 'dark', 'deep', 'chords', 'world'], use: 'chord',
+      play: 'C3–C6 melodies and short chords: tango. Wheel: opens the filter · M1: pushes the reeds (drive).',
+      data: { waveA: 'square', waveB: 'square', pulseWidth: 0.16, octA: -1, detuneA: 0, detuneB: 3, levelA: 0.55, levelB: 0.45,
+        noise: 0.015, noiseColor: 0.5, cutoff: 3000, reso: 2, keytrack: 0.4, filterDrive: 0.15, pitchEnvAmt: -8, pitchEnvDec: 0.05,
+        a: 0.035, d: 0.1, s: 1, r: 0.08, envCurve: 0.3, width: 0.2, reverbMix: 0.15, ...WHEEL(0.3), ...MAC1('drive', 0.5), master: 0.6 } },
     /* a 1-shot wave sequence: starts on the bright frame and settles on the soft one —
        «attack sample + synth body», the D-50 trick */
     { name: 'Digital Keys', tags: ['wavetable', 'digital', 'bright', 'chords', 'classic'], use: 'chord',
@@ -400,10 +474,20 @@ export const BANK = [
         mx1src: 'rnd', mx1dst: 'cutoff', mx1amt: 0.3, mx2src: 'rnd', mx2dst: 'pan', mx2amt: 0.7, mx3src: 'envm', mx3dst: 'cutoff', mx3amt: 0.45, mx4src: 'st4n', mx4dst: 'pw', mx4amt: 0.3,
         a: 0.002, d: 0.2, s: 0, r: 0.15, dlyAmt: 0.3, dlySync: '1/8.', width: 0.3, reverbMix: 0.2, ...WHEEL(0.4), ...MAC1('reso', 0.4), master: 1.15 } },
     /* String wave (Karplus-Strong): the envelope is a gate, the string dies on its own; the release is the hand muting it */
+    /* plucked over the soundhole (25 %), each string doubled 2 ct apart (the two polarisations beating) and the BODY's thump: oscillator B
+       as two FIXED sines (FM4 additive, 105 Hz the air and 200 Hz the top plate) that die in 150 ms on every pluck (2026-11-26; it was the bare string) */
     { name: 'Nylon Guitar', tags: ['string', 'warm', 'soft', 'chords', 'classic'], use: 'chord',
-      play: 'C2–C5, arpeggios; velocity is the pluck; releasing mutes the string.',
-      data: { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.3, strDecay: 2.5, strPos: 0.18,
-        cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.35, reverbMix: 0.2, width: 0.3, master: 1.53 } },
+      play: 'C2–C5, arpeggios and chords; velocity is the pluck; releasing mutes the string. Plucked over the soundhole: round and full.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0.18, strBright: 0.36, strDecay: 3.5, strPos: 0.25, cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1,
+        r: 0.5, reverbMix: 0.25, width: 0.3, uniVoices: '2', uniDetune: 2, reverbSize: 2.2, waveB: 'fm4', detuneB: 0, fm4Alg: '7', fm4R1: 1, fm4L1: 1,
+        fm4D1: 0.15, fm4Fix1: 'on', fm4Hz1: 105, fm4R2: 1, fm4L2: 0.6, fm4D2: 0.1, fm4Fix2: 'on', fm4Hz2: 200, fm4L3: 0, fm4L4: 0, fm4V1: 0.5,
+        fm4V2: 0.5, master: 1.22 } },
+    /* the same string played with the NAIL, closer to the bridge (13 %), brighter, a hair of stiffness and a longer ring: drier and more
+       real than the Nylon Guitar, which is the full, round one (ear session 2026-11-26: Sergio kept both) */
+    { name: 'Spanish Guitar', tags: ['string', 'bright', 'chords', 'world', 'classic'], use: 'chord',
+      play: 'C2–C5, melodies over arpeggios, rasgueos; velocity is the nail; releasing mutes the string. Wheel: opens the filter.',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.45, strDecay: 3, strPos: 0.13, cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1,
+        r: 0.35, reverbMix: 0.2, width: 0.3, strStiff: 0.02, ...WHEEL(0.3), master: 1.53 } },
     { name: 'Twelve-String', tags: ['string', 'bright', 'wide', 'chords', 'classic'], use: 'chord',
       play: 'C2–C5, strummed chords: every string doubled an octave up.',
       data: { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.7, strDecay: 4, strPos: 0.1, uniVoices: '2', uniDetune: 6, octavesA: 2,
@@ -416,6 +500,20 @@ export const BANK = [
       play: 'C3–C6, single notes plucked near the bridge, with a short echo.',
       data: { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.6, strDecay: 2, strPos: 0.06,
         cutoff: 12000, reso: 0.7, a: 0, d: 0.05, s: 1, r: 0.6, dlyAmt: 0.2, dlyTime: 0.3, reverbMix: 0.2, width: 0.3, master: 2.54 } },
+    /* the jawari: a string plucked right at the bridge, bright and long, through an ASYMMETRIC drive — the buzz is loud while the
+       string swings wide and clears as it dies, like the flat bridge — and the string resonator for the sympathetic strings */
+    { name: 'Sitar', tags: ['string', 'bright', 'metallic', 'dirty', 'world', 'resonator'], use: 'note', root: 62,
+      play: 'C3–C5, single notes and slow lines over a drone. Wheel: opens the filter · M1: more buzz (drive).',
+      data: { waveA: 'string', levelA: 0.8, levelB: 0, strBright: 0.85, strDecay: 4, strPos: 0.04, strStiff: 0.05, filterDrive: 0.5, driveAsym: 0.5,
+        driveChar: 'soft', cutoff: 7000, reso: 0, resAmt: 0.25, resMat: 0, resDecay: 0.8, resBright: 0.7, pitchEnvAmt: 20, pitchEnvDec: 0.1, a: 0,
+        d: 0.05, s: 1, r: 1.5, width: 0.3, reverbMix: 0.2, ...WHEEL(0.3), ...MAC1('drive', 0.4), master: 2.26 } },
+    /* a clamped tine, additive: the fundamental (1.3 s), an inharmonic overtone at 5.9× that dies in 70 ms (the «tink»), a
+       touch of the octave and a 20 ms click at 11.5×; velocity on the overtone and the click, a 40 ct thump */
+    { name: 'Kalimba', tags: ['fm', 'soft', 'short', 'world'], use: 'note', root: 62,
+      play: 'C4–C6, single notes and thirds: the thumb piano. Velocity is the thumb. Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fm4R1: 1, fm4L1: 1, fm4D1: 1.3, fm4R2: 5.9, fm4L2: 0.3, fm4D2: 0.07, fm4R3: 2,
+        fm4L3: 0.08, fm4D3: 0.4, fm4R4: 11.5, fm4L4: 0.1, fm4D4: 0.02, fm4V2: 0.6, fm4V4: 0.8, pitchEnvAmt: 40, pitchEnvDec: 0.01, cutoff: 7000,
+        reso: 0, envCurve: 1, a: 0, d: 1.5, s: 0, r: 0.5, width: 0.3, reverbMix: 0.2, ...WHEEL(0.3), master: 3.28 } },
     /* a steel bar, additive like the marimba: partials 1 · 2.76 · 5.40 · 8.93 (the free bar's modes)
        with decays from 2.5 s down to 0.3, velocity on the upper two, and the bar resonator for the
        shimmer of the tail. The old 2-op FM with ratio 7 could not place those partials (ear session 2026-10-31) */
@@ -464,6 +562,25 @@ export const BANK = [
         fm4R1: 1, fm4L1: 1, fm4D1: 4, fm4R2: 1, fm4L2: 0.5, fm4D2: 0.22, fm4R3: 2, fm4L3: 0.5, fm4D3: 1.5, fm4R4: 1, fm4L4: 0.3, fm4D4: 0.06,
         fm4Fix4: 'on', fm4Hz4: 1870, fm4V2: 0.6, fm4V4: 0.8, fm4Kt: 0.3, pitchEnvAmt: -40, pitchEnvDec: 0.03,
         cutoff: 9000, envCurve: 0.9, a: 0, d: 1.8, s: 0, r: 0.6, width: 0.35, reverbType: 'plate', reverbMix: 0.3, reverbSize: 2, ...WHEEL(0.3), master: 1.53 } },
+    /* a hammered note, additive: partials 1 · 2 · 3 · 4 in tune, and the octave BLOOMS — it arrives 30 ms after the strike, the twelfth 20 ms
+       (the shell hands the energy up) — decays 0.9 → 0.3 s, velocity on the upper three. Thinner and more real than the Steel Drum, which is
+       the fat FM one (ear session 2026-11-26: Sergio kept both) */
+    { name: 'Steelpan', tags: ['fm', 'metallic', 'short', 'world'], use: 'note', root: 60,
+      play: 'C4–C6, melodies, thirds and rolls. Velocity is the stick. Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0, fm4Alg: '7', fm4R1: 1, fm4L1: 1, fm4D1: 0.9, fm4R2: 2, fm4L2: 0.7, fm4A2: 0.03, fm4D2: 0.7, fm4R3: 3,
+        fm4L3: 0.25, fm4A3: 0.02, fm4D3: 0.4, fm4R4: 4.02, fm4L4: 0.2, fm4D4: 0.3, fm4V2: 0.5, fm4V3: 0.7, fm4V4: 0.8, fm4Kt: 0.3, pitchEnvAmt: -15,
+        pitchEnvDec: 0.04, cutoff: 9000, reso: 0, envCurve: 1, a: 0, d: 1.6, s: 0, r: 0.6, width: 0.35, reverbType: 'plate', reverbMix: 0.3,
+        reverbSize: 2, ...WHEEL(0.3), master: 2.86 } },
+    /* a tuned note field: partials 1 · 2 · 3 (the octave and the twelfth, hammered in tune), the upper two 4 and 5 ct off so that
+       they beat, decays 2.5 → 1.2 s, a soft hand (3 ms attack, a 120 ms strike partial), a sine an octave below for the
+       vessel's air and the resonator for the shell. The Steel Drum is the bright FM one; this one is round */
+    { name: 'Handpan', tags: ['fm', 'metallic', 'soft', 'long', 'world', 'resonator'], use: 'note', root: 62,
+      play: 'C3–C5, slow patterns with both hands; let the notes ring into each other. Wheel: opens the filter.',
+      data: { waveA: 'fm4', levelA: 1, levelB: 0.12, fm4Alg: '7', fm4R1: 1, fm4L1: 1, fm4D1: 2.5, fm4R2: 2, fm4L2: 0.6, fm4D2: 1.8, fm4R3: 3,
+        fm4L3: 0.35, fm4D3: 1.2, fm4R4: 5.1, fm4L4: 0.1, fm4D4: 0.12, fm4V2: 0.4, fm4V3: 0.6, fm4V4: 0.9, pitchEnvAmt: 25, pitchEnvDec: 0.015,
+        cutoff: 5000, reso: 0, keytrack: 0.3, envCurve: 1, a: 0.003, d: 3, s: 0, r: 1.2, width: 0.4, reverbType: 'plate', reverbMix: 0.3,
+        reverbSize: 2.5, fm4Det2: 4, fm4Det3: -5, waveB: 'sine', octB: -1, detuneB: 0, resAmt: 0.2, resMat: 0.2, resDecay: 0.7, ...WHEEL(0.3),
+        master: 2.51 } },
   ] },
 
   /* ---------- Pads: slow, for chords ---------- */
