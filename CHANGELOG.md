@@ -6,7 +6,14 @@ features, **X** = something saved stops loading or sounding the same (presets,
 scenes, libraries, MIDI maps). The why behind each module is in
 [docs/DESIGN.md](docs/DESIGN.md), the development notebook.
 
-## Unreleased
+## [2.2.0] — 2026-11-26
+
+A release of **new sounds and more room**. The factory bank grows to 131 presets: thirteen new ones chosen by ear
+— reeds, clay flutes, a sitar, a kalimba, a handpan, a Wurlitzer, a Spanish guitar, a steelpan — and three remade.
+The keyboard can be **split between the parts** (key zones), the synth can be **installed as an app**, and the panel
+now **fills the window** instead of leaving bars. Nothing saved stops loading. The factory **Accordion**, **Cello**
+and **Nylon Guitar** sound different: a library that still has them untouched gets the new ones, and anything you
+renamed, edited or starred stays as it is.
 
 - **Thirteen new presets and three remade, by ear.** Rendered as candidates and chosen by Sergio. The **Accordion** is remade as two reeds —
   narrow pulses, the second one 14 cents sharp, so they beat like a musette; no tremolo — and a **Bandoneon** joins it

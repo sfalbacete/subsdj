@@ -32,6 +32,8 @@ steps, effects, parts and generative music.
 - The audio starts with the first click or the first key: browsers don't let a
   page make sound before that.
 - `Escape` or **Panic** cut every note.
+- **Install as an app** (Chrome or Edge; in the welcome window and the File menu): the synth opens in a window of its
+  own, with its icon. It is still the page — nothing is downloaded. The panel grows with the window, up to 2100 × 1100.
 - Four screens: **Design** (the sound), **Sequencing** (arpeggiator,
   sequencer, the looping envelope, Steps, parts and scenes), **Pattern** (the loop
   of your own notes that a part repeats — with Parts on) and **Presets** (the
@@ -77,7 +79,7 @@ steps, effects, parts and generative music.
 
 ## The factory bank
 
-118 presets in 12 categories by use — Bass, Leads, Brass & Strings, Keys, Plucks &
+131 presets in 12 categories by use — Bass, Leads, Brass & Strings, Keys, Plucks &
 Bells, Pads, Cinescape, Motion, Percussion, Voice, FX & Textures — chosen so that
 every one has a job and none sounds like another: the classics every synth bank has
 and the sounds only this one does. Hover a preset in the picker or on the Presets
